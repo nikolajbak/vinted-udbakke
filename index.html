@@ -292,6 +292,35 @@
     gap: 6px;
   }
 
+  .photo-strip{
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .photo-strip img{
+    width: 62px;
+    height: 78px;
+    flex: none;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .btn-save{
+    width: 100%;
+    background: none;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-save:active{ opacity: 0.8; }
+
   /* Primærhandlingen får sin egen fulde linje, de sekundære deler den næste.
      Ellers brød de tre knapper over tre linjer på en telefon. */
   .actions{
@@ -650,6 +679,17 @@
     return parts.join('\n\n');
   }
 
+  // Billederne fra kameraet lander aldrig i telefonens kamerarulle - iOS giver
+  // dem direkte til siden. De skal derfor hentes herfra, foer Vinteds
+  // billedvaelger kan se dem.
+  function photoStrip(d){
+    var photos = d.photos || [];
+    if(!photos.length) return '';
+    return '<div class="photo-strip">' + photos.map(function(p){
+      return '<img src="' + escapeHtml(p.url) + '" alt="' + escapeHtml(p.kind || '') + '" loading="lazy">';
+    }).join('') + '</div>';
+  }
+
   function cardTemplate(d){
     if(d.status === 'kladde'){
       var count = (d.photos || []).length;
@@ -722,8 +762,10 @@
             (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
             '<div class="desc">' + escapeHtml(d.description || '') + '</div>' +
             '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
+            photoStrip(d) +
             '<div class="actions">' +
               '<button type="button" class="btn-primary fill-btn">Udfyld i Vinted</button>' +
+              '<button type="button" class="btn-save save-photos-btn">⬇ Gem billeder i Fotos</button>' +
               '<div class="actions-secondary">' +
                 '<button type="button" class="link-btn copy-btn">Kopiér tekst</button>' +
                 '<button type="button" class="link-btn posted-btn">Markér postet</button>' +
@@ -757,6 +799,36 @@
             if(res && res.error) throw res.error;
           })
           .catch(function(){ retryBtn.textContent = 'Prøv igen'; });
+      });
+    }
+
+    var saveBtn = el.querySelector('.save-photos-btn');
+    if(saveBtn){
+      saveBtn.addEventListener('click', function(){
+        var photos = d.photos || [];
+        if(!photos.length) return;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Henter billeder …';
+
+        Promise.all(photos.map(function(p, i){
+          return fetch(p.url)
+            .then(function(r){ return r.blob(); })
+            .then(function(b){
+              return new File([b], (i + 1) + '-' + (p.kind || 'billede') + '.jpg', { type: 'image/jpeg' });
+            });
+        })).then(function(files){
+          // Delingsarket har "Gem billeder", som lægger dem alle i Fotos på én gang.
+          if(navigator.canShare && navigator.canShare({ files: files })){
+            return navigator.share({ files: files, title: d.title || 'Vinted-billeder' })
+              .then(function(){ saveBtn.textContent = '⬇ Gem billeder i Fotos'; });
+          }
+          saveBtn.textContent = 'Hold fingeren på et billede → "Føj til Fotos"';
+        }).catch(function(){
+          // Afbrudt deling er ikke en fejl værd at råbe op om.
+          saveBtn.textContent = '⬇ Gem billeder i Fotos';
+        }).then(function(){
+          saveBtn.disabled = false;
+        });
       });
     }
 
