@@ -1,3 +1,12 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#E8EAE0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#19170F" media="(prefers-color-scheme: dark)">
 <title>Udbakke</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -57,7 +66,7 @@
   .wrap{
     max-width: 560px;
     margin: 0 auto;
-    padding: 28px 18px 80px;
+    padding: 28px 18px calc(80px + env(safe-area-inset-bottom));
   }
   .mono{
     font-family: "Space Mono", ui-monospace, monospace;
@@ -243,7 +252,8 @@
     background: none;
     border: none;
     color: var(--ink-soft);
-    padding: 4px 0;
+    padding: 10px 2px;
+    margin: -10px 0;
     text-decoration: underline;
     text-underline-offset: 3px;
   }
@@ -354,6 +364,8 @@
     margin-top: 32px;
   }
 </style>
+</head>
+<body>
 
 <div class="login-wrap" id="login-wrap">
   <div class="eyebrow">Vinted &middot; annonceudkast</div>
@@ -777,3 +789,5 @@
   });
 })();
 </script>
+</body>
+</html>
