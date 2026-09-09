@@ -35,6 +35,13 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function cleanText(value: unknown): string {
+  let t = String(value ?? "");
+  const cut = t.search(/<\/?\s*(description|parameter|title|price|invoke|function|antml)\b/i);
+  if (cut > -1) t = t.slice(0, cut);
+  return t.replace(/<[^>]*>/g, "").trim();
+}
+
 function plainPrice(price: string): string {
   return (price || "").replace(/[^\d.,]/g, "").replace(",", ".");
 }
@@ -117,8 +124,8 @@ Deno.serve(async (req: Request) => {
 
     return json({
       id: data.id,
-      title: data.title || "",
-      description: data.description || "",
+      title: cleanText(data.title),
+      description: cleanText(data.description),
       price: plainPrice(data.price || ""),
       searchQuery: data.search_query || data.title || "",
       needsPricing: !data.price_grounded,
@@ -153,8 +160,8 @@ Deno.serve(async (req: Request) => {
       await supabase
         .from("drafts")
         .update({
-          price: result.price,
-          price_note: result.priceNote,
+          price: cleanText(result.price),
+          price_note: cleanText(result.priceNote),
           price_grounded: true,
         })
         .eq("id", body.id);

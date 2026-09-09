@@ -23,6 +23,16 @@ const SELLER_PERSONA =
   "tillidsvækkende og præcise beskrivelser, ærlig angivelse af slid/mangler (det booster tillid og reducerer retursager), " +
   "og titler der rammer det, folk rent faktisk søger efter (mærke + type + evt. størrelse/farve foran, ikke reklamesprog).";
 
+// Modellens egen værktøjssyntaks er observeret lække ind i felterne
+// ("… Sender hurtigt!</description><parameter name=\"category\">Børnetøj").
+// Det må aldrig nå en annonce, så alt fra første tag-agtige tegn skæres væk.
+function cleanText(value: unknown): string {
+  let t = String(value ?? "");
+  const cut = t.search(/<\/?\s*(description|parameter|title|price|invoke|function|antml)\b/i);
+  if (cut > -1) t = t.slice(0, cut);
+  return t.replace(/<[^>]*>/g, "").replace(/\s+$/, "").trim();
+}
+
 // Spreading a whole image's bytes into String.fromCharCode blows the call
 // stack once photos get past a few hundred KB, so encode in chunks.
 function toBase64(buf: ArrayBuffer): string {
@@ -282,12 +292,12 @@ Deno.serve(async (req: Request) => {
       .from("drafts")
       .update({
         status: "ny",
-        title: draft.title,
-        description: draft.description,
-        category: draft.category,
-        condition: draft.condition,
-        price: draft.price,
-        price_note: draft.priceNote,
+        title: cleanText(draft.title),
+        description: cleanText(draft.description),
+        category: cleanText(draft.category),
+        condition: cleanText(draft.condition),
+        price: cleanText(draft.price),
+        price_note: cleanText(draft.priceNote),
         search_query: searchQuery,
         price_grounded: grounded,
       })

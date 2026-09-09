@@ -4,3 +4,4 @@ supabase/update_webhook.applied.sql
 supabase/.temp/
 shortcut/
 supabase/add_multi_photos.applied.sql
+bookmarklet/
