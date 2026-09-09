@@ -1,11 +1,13 @@
-// Called from an iOS Shortcut ("Get contents of URL"). Returns a small
-// JavaScript snippet (as plain text) that the Shortcut then runs against
-// the Vinted "Sælg en artikel" page via "Run JavaScript on Web Page" —
-// it fills title/description/price, and deliberately does NOT touch the
-// photo picker, the category picker, or the final Upload/publish button.
-// Those three stay manual: photo attachment can't be scripted by any web
-// page for security reasons, category is a picker (too fragile to script
-// reliably), and publishing is a decision the seller always makes themself.
+// Serves the newest ready draft as JSON to the iOS Shortcut's fill script,
+// which runs on Vinted's "Sælg en artikel" page and fills title/description/
+// price. Deliberately does NOT touch the photo picker, the category picker,
+// or the Upload/publish button: photo attachment can't be scripted by any web
+// page for security reasons, the category picker is too fragile to script
+// reliably, and publishing is always the seller's own decision.
+//
+// CORS is open because the fetch runs from vinted.dk's origin inside the
+// Shortcut's injected script. The endpoint is read-only and gated by
+// SHORTCUT_KEY.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -15,60 +17,45 @@ const SHORTCUT_KEY = Deno.env.get("SHORTCUT_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-function buildScript(title: string, description: string, price: string): string {
-  // JSON.stringify doubles as a safe JS-string-literal encoder here.
-  const t = JSON.stringify(title);
-  const d = JSON.stringify(description);
-  // Vinted's price field wants a plain number; strip everything but digits/comma/dot.
-  const priceNumber = price.replace(/[^\d.,]/g, "").replace(",", ".");
-  const p = JSON.stringify(priceNumber);
+const CORS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, OPTIONS",
+  "access-control-allow-headers": "content-type",
+};
 
-  return `(function(){
-  function setNativeValue(el, value){
-    if(!el) return false;
-    var proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-    var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-    setter.call(el, value);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }
-  var okTitle = setNativeValue(document.querySelector('#title'), ${t});
-  var okDesc = setNativeValue(document.querySelector('#description'), ${d});
-  var okPrice = setNativeValue(document.querySelector('#price'), ${p});
-  if(okTitle && okDesc && okPrice){
-    completion('Udfyldt — vælg kategori, tilføj billede og tjek før du uploader.');
-  } else {
-    completion('Kunne ikke finde alle felter — er du på "Sælg en artikel"-siden?');
-  }
-})();`;
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "content-type": "application/json" },
+  });
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS });
+  }
+
   const url = new URL(req.url);
   if (url.searchParams.get("key") !== SHORTCUT_KEY) {
-    return new Response("unauthorized", { status: 401 });
+    return json({ error: "unauthorized" }, 401);
   }
 
   const { data, error } = await supabase
     .from("drafts")
-    .select("title, description, price")
+    .select("id, title, description, price")
     .eq("status", "ny")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (error) {
-    return new Response(`db_error: ${error.message}`, { status: 500 });
-  }
-  if (!data) {
-    return new Response("completion('Ingen klar udkast lige nu.');", {
-      headers: { "content-type": "application/javascript" },
-    });
-  }
+  if (error) return json({ error: error.message }, 500);
+  if (!data) return json({ empty: true });
 
-  const script = buildScript(data.title || "", data.description || "", data.price || "");
-  return new Response(script, {
-    headers: { "content-type": "application/javascript" },
+  return json({
+    id: data.id,
+    title: data.title || "",
+    description: data.description || "",
+    // Vinted's price field wants a plain number.
+    price: (data.price || "").replace(/[^\d.,]/g, "").replace(",", "."),
   });
 });

@@ -2,3 +2,4 @@
 node_modules/
 supabase/update_webhook.applied.sql
 supabase/.temp/
+shortcut/
