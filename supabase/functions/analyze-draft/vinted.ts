@@ -142,18 +142,25 @@ export async function searchWithFallback(
   fallbackCountry: string,
   perPage = 8,
 ): Promise<{ items: VintedItem[]; country: string; blocked: boolean }> {
-  for (const country of [primaryCountry, fallbackCountry]) {
+  // Vinted blocks datacenter IPs intermittently, so each market gets a second
+  // attempt with a fresh session before we fall back or give up.
+  const attempts: Array<{ country: string; delayMs: number }> = [
+    { country: primaryCountry, delayMs: 0 },
+    { country: primaryCountry, delayMs: 1200 },
+    { country: fallbackCountry, delayMs: 0 },
+    { country: fallbackCountry, delayMs: 1200 },
+  ];
+
+  let lastBlocked = false;
+  for (const attempt of attempts) {
+    if (attempt.delayMs) await new Promise((r) => setTimeout(r, attempt.delayMs));
     try {
-      const session = await createSession(country);
+      const session = await createSession(attempt.country);
       const items = await searchItems(session, query, perPage);
-      return { items, country, blocked: false };
+      if (items.length) return { items, country: attempt.country, blocked: false };
     } catch (err) {
-      const blocked = err instanceof Error && err.message.includes("blocked");
-      if (country === fallbackCountry) {
-        return { items: [], country, blocked };
-      }
-      // else try the fallback country next
+      lastBlocked = err instanceof Error && err.message.includes("blocked");
     }
   }
-  return { items: [], country: fallbackCountry, blocked: false };
+  return { items: [], country: fallbackCountry, blocked: lastBlocked };
 }
