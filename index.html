@@ -121,6 +121,70 @@
     clip: rect(0,0,0,0);
   }
   .capture-row{ margin-bottom: 22px; }
+
+  .session{
+    border: 1px solid var(--line);
+    border-top: 2px dashed var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 18px;
+    margin-bottom: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .session-head h2{
+    margin: 4px 0 0;
+    font-size: 20px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  .session-head p{
+    margin: 6px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .shot-strip{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .shot-strip:empty{ display: none; }
+  .shot-thumb{
+    width: 54px;
+    text-align: center;
+  }
+  .shot-thumb img{
+    width: 54px;
+    height: 68px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    display: block;
+    background: var(--paper);
+  }
+  .shot-thumb span{
+    display: block;
+    margin-top: 3px;
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 9px;
+    color: var(--ink-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .session-actions{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    row-gap: 10px;
+  }
+  .session-actions #finish-btn{
+    color: var(--moss);
+    font-weight: 700;
+  }
   .btn-capture{
     width: 100%;
     background: var(--accent);
@@ -423,19 +487,34 @@
   </header>
 
   <div class="capture-row">
-    <button type="button" class="btn-capture" id="capture-btn">📷 Tag billede</button>
+    <button type="button" class="btn-capture" id="capture-btn">📷 Nyt produkt</button>
     <input type="file" id="camera-input" accept="image/*" capture="environment">
     <div class="capture-status" id="capture-status" hidden></div>
   </div>
+
+  <section class="session" id="capture-session" hidden>
+    <div class="session-head">
+      <div class="eyebrow" id="step-counter"></div>
+      <h2 id="step-title"></h2>
+      <p id="step-hint"></p>
+    </div>
+    <div class="shot-strip" id="shot-strip"></div>
+    <button type="button" class="btn-capture" id="shoot-btn">📷 Tag billede</button>
+    <div class="session-actions">
+      <button type="button" class="link-btn" id="skip-btn">Spring over</button>
+      <button type="button" class="link-btn" id="finish-btn">Færdig — lav udkast</button>
+      <button type="button" class="link-btn" id="cancel-btn">Annullér</button>
+    </div>
+  </section>
 
   <div id="state" class="state-msg">Henter kø …</div>
   <div id="list" hidden></div>
   <div id="empty" class="empty" hidden>
     <p class="lead">Ingen udkast lige nu.</p>
     <ol>
-      <li>Tryk <b>"Tag billede"</b> ovenfor</li>
-      <li>Claude skriver et udkast ud fra billedet (typisk under et minut)</li>
-      <li>Gennemse, kopiér teksten og opret annoncen i Vinted</li>
+      <li>Tryk <b>"Nyt produkt"</b> og følg billedserien — forfra, bagfra, mærket og så videre</li>
+      <li>Tryk <b>"Færdig"</b>, så skriver Claude udkastet ud fra alle billederne</li>
+      <li>Tryk <b>"Udfyld i Vinted"</b>, tilføj billederne og opret annoncen</li>
     </ol>
   </div>
 
@@ -486,6 +565,16 @@
   var captureBtn = document.getElementById('capture-btn');
   var cameraInput = document.getElementById('camera-input');
   var captureStatusEl = document.getElementById('capture-status');
+  var captureRowEl = document.querySelector('.capture-row');
+  var sessionEl = document.getElementById('capture-session');
+  var stepCounterEl = document.getElementById('step-counter');
+  var stepTitleEl = document.getElementById('step-title');
+  var stepHintEl = document.getElementById('step-hint');
+  var shotStripEl = document.getElementById('shot-strip');
+  var shootBtn = document.getElementById('shoot-btn');
+  var skipBtn = document.getElementById('skip-btn');
+  var finishBtn = document.getElementById('finish-btn');
+  var cancelBtn = document.getElementById('cancel-btn');
 
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var liveRows = {}; // id -> row, merged from the realtime channel
@@ -520,6 +609,29 @@
   }
 
   function cardTemplate(d){
+    if(d.status === 'kladde'){
+      var count = (d.photos || []).length;
+      return (
+        '<article class="card is-pending" data-id="' + escapeHtml(d.id) + '">' +
+          (d.image_url ? '<img src="' + escapeHtml(d.image_url) + '" alt="Foto af varen">'
+                       : '<div style="width:84px;height:84px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>') +
+          '<div class="card-body">' +
+            '<div class="row-top">' +
+              '<div class="title is-muted">Ufærdig billedserie</div>' +
+              '<span class="chip afventer">Kladde</span>' +
+            '</div>' +
+            '<div class="meta">' + count + ' billede' + (count === 1 ? '' : 'r') + ' &middot; ' + escapeHtml(relTime(d.created_at)) + '</div>' +
+            '<div class="full-width">' +
+              '<div class="actions">' +
+                '<button type="button" class="btn-primary resume-btn">Fortsæt</button>' +
+                '<button type="button" class="link-btn discard-btn">Kasser</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</article>'
+      );
+    }
+
     var isPending = d.status === 'afventer';
     var img = d.image_url
       ? '<img src="' + escapeHtml(d.image_url) + '" alt="Foto af varen">'
@@ -573,6 +685,11 @@
   }
 
   function wireCard(el, d){
+    var resumeBtn = el.querySelector('.resume-btn');
+    if(resumeBtn){
+      resumeBtn.addEventListener('click', function(){ resumeSession(d); });
+    }
+
     var fillBtn = el.querySelector('.fill-btn');
     var copyBtn = el.querySelector('.copy-btn');
     var postedBtn = el.querySelector('.posted-btn');
@@ -632,7 +749,7 @@
   function renderMerged(){
     var docs = Object.keys(liveRows)
       .map(function(id){ return liveRows[id]; })
-      .filter(function(d){ return d.status === 'ny' || d.status === 'afventer'; });
+      .filter(function(d){ return d.status === 'ny' || d.status === 'afventer' || d.status === 'kladde'; });
 
     docs.sort(function(a, b){
       return (a.created_at < b.created_at) ? 1 : (a.created_at > b.created_at) ? -1 : 0;
@@ -649,11 +766,11 @@
     listEl.hidden = false;
 
     var readyCount = 0, pendingCount = 0;
-    docs.forEach(function(d){ if(d.status === 'afventer') pendingCount++; else readyCount++; });
+    docs.forEach(function(d){ if(d.status === 'ny') readyCount++; else pendingCount++; });
     countEl.textContent = String(readyCount);
     if(pendingCount > 0){
       pendingNoteEl.hidden = false;
-      pendingNoteEl.textContent = '+' + pendingCount + ' analyseres';
+      pendingNoteEl.textContent = '+' + pendingCount + ' i gang';
     } else {
       pendingNoteEl.hidden = true;
     }
@@ -731,34 +848,154 @@
     });
   }
 
-  function handleCapturedFile(file){
-    captureStatusEl.hidden = false;
-    captureStatusEl.textContent = 'Uploader billede …';
-    resizeToBlob(file, 1080, 0.82).then(function(blob){
+  // ---- Guidet billedserie -------------------------------------------------
+  // Rækkefølgen er ikke tilfældig: coverbilledet afgør klik i søgeresultater,
+  // mærkatbillederne er dét, der gør mærke/størrelse rigtige i annoncen frem
+  // for gættede, og slid-billedet skærer i tvister.
+
+  var SHOT_STEPS = [
+    { kind: 'forfra', title: 'Forfra',
+      hint: 'Hele varen lige forfra, gerne på en rolig baggrund. Det bliver coverbilledet, folk ser i søgeresultater.' },
+    { kind: 'bagfra', title: 'Bagfra',
+      hint: 'Hele varen set bagfra.' },
+    { kind: 'maerke', title: 'Mærket',
+      hint: 'Nærbillede af brandmærket. Købere spørger altid efter det — og det er dét, der gør mærket i annoncen rigtigt.' },
+    { kind: 'stoerrelsesmaerke', title: 'Størrelses- og vaskemærke',
+      hint: 'Nærbillede af mærkatet med størrelse og materiale. Købere filtrerer på størrelse.' },
+    { kind: 'detalje', title: 'Detalje',
+      hint: 'Stof, tryk, lynlås eller knapper tæt på. Viser kvaliteten.' },
+    { kind: 'slid', title: 'Slid eller fejl',
+      hint: 'Kun hvis der er noget. Ærlighed her giver færre tvister og tryggere købere — spring over hvis varen er fejlfri.' }
+  ];
+
+  var session = null; // { draftId, stepIndex, photos: [{path,url,kind}] }
+
+  function renderSession(){
+    if(!session){
+      sessionEl.hidden = true;
+      captureRowEl.hidden = false;
+      return;
+    }
+    captureRowEl.hidden = true;
+    sessionEl.hidden = false;
+
+    var step = SHOT_STEPS[session.stepIndex];
+    if(step){
+      stepCounterEl.textContent = 'Billede ' + (session.stepIndex + 1) + ' af ' + SHOT_STEPS.length;
+      stepTitleEl.textContent = step.title;
+      stepHintEl.textContent = step.hint;
+      shootBtn.hidden = false;
+      skipBtn.hidden = false;
+    } else {
+      stepCounterEl.textContent = 'Alle trin taget';
+      stepTitleEl.textContent = 'Klar til udkast';
+      stepHintEl.textContent = 'Du kan tilføje flere billeder, eller lave udkastet nu.';
+      shootBtn.hidden = false;
+      skipBtn.hidden = true;
+    }
+
+    shotStripEl.innerHTML = session.photos.map(function(p){
+      return '<div class="shot-thumb"><img src="' + escapeHtml(p.url) + '" alt="">' +
+             '<span>' + escapeHtml(p.kind) + '</span></div>';
+    }).join('');
+
+    finishBtn.hidden = session.photos.length === 0;
+  }
+
+  function startSession(){
+    session = { draftId: null, stepIndex: 0, photos: [] };
+    renderSession();
+  }
+
+  function resumeSession(row){
+    session = {
+      draftId: row.id,
+      stepIndex: Math.min((row.photos || []).length, SHOT_STEPS.length),
+      photos: row.photos || []
+    };
+    renderSession();
+  }
+
+  function uploadShot(file, kind){
+    return resizeToBlob(file, 1080, 0.82).then(function(blob){
       var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
       return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' }).then(function(res){
         if(res.error) throw res.error;
-        var pub = sb.storage.from('photos').getPublicUrl(path);
-        var url = pub.data.publicUrl;
-        return sb.from('drafts').insert({
-          status: 'afventer',
-          image_path: path,
-          image_url: url,
-          created_at: new Date().toISOString()
-        });
+        return { path: path, url: sb.storage.from('photos').getPublicUrl(path).data.publicUrl, kind: kind };
       });
-    }).then(function(res){
-      if(res && res.error) throw res.error;
-      captureStatusEl.textContent = 'Billede gemt — udkast er på vej.';
-      setTimeout(function(){ captureStatusEl.hidden = true; }, 3000);
+    });
+  }
+
+  function handleCapturedFile(file){
+    if(!session) return;
+    var step = SHOT_STEPS[session.stepIndex];
+    var kind = step ? step.kind : 'ekstra';
+
+    captureStatusEl.hidden = false;
+    captureStatusEl.textContent = 'Uploader billede …';
+    shootBtn.disabled = true;
+
+    uploadShot(file, kind).then(function(photo){
+      session.photos.push(photo);
+      var isFirst = session.photos.length === 1;
+
+      if(!session.draftId){
+        // Kladden oprettes først nu, så et afbrudt forsøg ikke efterlader
+        // en tom række.
+        return sb.from('drafts').insert({
+          status: 'kladde',
+          photos: session.photos,
+          image_path: photo.path,
+          image_url: photo.url,
+          created_at: new Date().toISOString()
+        }).select('id').single().then(function(res){
+          if(res.error) throw res.error;
+          session.draftId = res.data.id;
+        });
+      }
+      var patch = { photos: session.photos };
+      if(isFirst){ patch.image_path = photo.path; patch.image_url = photo.url; }
+      return sb.from('drafts').update(patch).eq('id', session.draftId).then(function(res){
+        if(res.error) throw res.error;
+      });
+    }).then(function(){
+      if(session.stepIndex < SHOT_STEPS.length) session.stepIndex++;
+      captureStatusEl.hidden = true;
+      shootBtn.disabled = false;
+      renderSession();
     }).catch(function(err){
       captureStatusEl.textContent = 'Kunne ikke gemme billedet. Prøv igen.';
+      shootBtn.disabled = false;
       console.error(err);
     });
   }
 
-  captureBtn.addEventListener('click', function(){
-    cameraInput.click();
+  captureBtn.addEventListener('click', startSession);
+  shootBtn.addEventListener('click', function(){ cameraInput.click(); });
+
+  skipBtn.addEventListener('click', function(){
+    if(!session) return;
+    if(session.stepIndex < SHOT_STEPS.length) session.stepIndex++;
+    renderSession();
+  });
+
+  finishBtn.addEventListener('click', function(){
+    if(!session || !session.draftId) return;
+    finishBtn.textContent = 'Sender …';
+    sb.from('drafts').update({ status: 'afventer' }).eq('id', session.draftId)
+      .then(function(res){
+        finishBtn.textContent = 'Færdig — lav udkast';
+        if(res.error){ finishBtn.textContent = 'Prøv igen'; return; }
+        session = null;
+        renderSession();
+      });
+  });
+
+  cancelBtn.addEventListener('click', function(){
+    if(!session){ return; }
+    if(!session.draftId){ session = null; renderSession(); return; }
+    sb.from('drafts').update({ status: 'kasseret' }).eq('id', session.draftId)
+      .then(function(){ session = null; renderSession(); });
   });
 
   cameraInput.addEventListener('change', function(){
@@ -783,7 +1020,7 @@
   });
 
   function main(){
-    sb.from('drafts').select('*').in('status', ['ny', 'afventer']).order('created_at', { ascending: false })
+    sb.from('drafts').select('*').in('status', ['ny', 'afventer', 'kladde']).order('created_at', { ascending: false })
       .then(function(res){
         stateEl.hidden = true;
         if(res.error){

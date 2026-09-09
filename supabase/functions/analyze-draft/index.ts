@@ -56,34 +56,63 @@ Deno.serve(async (req: Request) => {
     return new Response("unauthorized", { status: 401 });
   }
 
-  let id: string, imageUrl: string;
+  let id: string;
   try {
     const body = await req.json();
     id = body.id;
-    imageUrl = body.image_url;
-    if (!id || !imageUrl) throw new Error("missing id or image_url");
+    if (!id) throw new Error("missing id");
   } catch (e) {
     return new Response(`bad_request: ${e}`, { status: 400 });
   }
 
   try {
-    const imgRes = await fetch(imageUrl);
-    if (!imgRes.ok) throw new Error(`image_fetch_${imgRes.status}`);
-    const imgBuf = await imgRes.arrayBuffer();
-    const imgB64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
-    const mediaType = imgRes.headers.get("content-type") || "image/jpeg";
+    const { data: row, error: rowErr } = await supabase
+      .from("drafts")
+      .select("photos, image_url")
+      .eq("id", id)
+      .single();
+    if (rowErr) throw new Error(`row_fetch_failed: ${rowErr.message}`);
+
+    type Photo = { url: string; kind?: string };
+    const photos: Photo[] = Array.isArray(row?.photos) && row.photos.length
+      ? row.photos as Photo[]
+      : row?.image_url
+      ? [{ url: row.image_url as string, kind: "forfra" }]
+      : [];
+    if (!photos.length) throw new Error("no_photos");
+
+    // Cap what we send: the first few carry almost all the signal, and each
+    // image costs tokens and latency.
+    const imageBlocks: unknown[] = [];
+    for (const photo of photos.slice(0, 5)) {
+      const imgRes = await fetch(photo.url);
+      if (!imgRes.ok) continue;
+      const imgBuf = await imgRes.arrayBuffer();
+      const imgB64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
+      const mediaType = imgRes.headers.get("content-type") || "image/jpeg";
+      // Naming the shot lets the model read a blurry label photo for what it
+      // is instead of guessing at a mystery close-up.
+      imageBlocks.push({ type: "text", text: `Billede (${photo.kind || "ukendt vinkel"}):` });
+      imageBlocks.push({
+        type: "image",
+        source: { type: "base64", media_type: mediaType, data: imgB64 },
+      });
+    }
+    if (!imageBlocks.length) throw new Error("image_fetch_failed");
 
     // 1. Vision: identify the product from the photo, as an expert seller would size it up.
     const visionText = await callClaude(
-      SELLER_PERSONA + " Du kigger på et foto af en vare, kunden vil sælge, og vurderer den, som du ville gøre " +
-        "før du selv lagde den til salg. Svar KUN med et JSON-objekt, ingen forklaring udenom: " +
+      SELLER_PERSONA + " Du kigger på ALLE fotos af den samme vare, kunden vil sælge, og vurderer den, som du ville gøre " +
+        "før du selv lagde den til salg. Mærke- og størrelsesmærkat-billederne er dine primære kilder til mærke, " +
+        "størrelse og materiale — læs dem, i stedet for at gætte ud fra formen. Er noget ikke læsbart, så skriv null " +
+        "frem for at finde på det. Svar KUN med et JSON-objekt, ingen forklaring udenom: " +
         '{"productType": "...", "brand": "... eller null", "color": "...", "material": "... eller null", ' +
         '"size": "... eller null", "condition": "ny med maerke/ny uden maerke/god/brugt/slidt", ' +
         '"visibleFlaws": "kort, eller \\"ingen synlige\\"", "category": "...", ' +
         '"searchQuery": "korte soegeord (paa dansk) til at finde lignende varer på Vinted"}',
       [
-        { type: "image", source: { type: "base64", media_type: mediaType, data: imgB64 } },
-        { type: "text", text: "Analysér billedet og svar med JSON som beskrevet." },
+        ...imageBlocks,
+        { type: "text", text: "Analysér alle billederne af varen og svar med JSON som beskrevet." },
       ],
       VISION_MODEL,
     );
