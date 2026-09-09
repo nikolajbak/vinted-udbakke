@@ -13,9 +13,16 @@ const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-const MODEL = "claude-haiku-4-5-20251001";
+const VISION_MODEL = "claude-haiku-4-5-20251001";
+const STRATEGY_MODEL = "claude-sonnet-5";
 
-async function callClaude(system: string, userContent: unknown[]): Promise<string> {
+const SELLER_PERSONA =
+  "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
+  "Du kender de normer, der faktisk sælger på Vinted.dk: konkurrencedygtige (ikke ambitiøse) priser, " +
+  "tillidsvækkende og præcise beskrivelser, ærlig angivelse af slid/mangler (det booster tillid og reducerer retursager), " +
+  "og titler der rammer det, folk rent faktisk søger efter (mærke + type + evt. størrelse/farve foran, ikke reklamesprog).";
+
+async function callClaude(system: string, userContent: unknown[], model: string, maxTokens = 900): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -24,8 +31,8 @@ async function callClaude(system: string, userContent: unknown[]): Promise<strin
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 700,
+      model,
+      max_tokens: maxTokens,
       system,
       messages: [{ role: "user", content: userContent }],
     }),
@@ -66,41 +73,53 @@ Deno.serve(async (req: Request) => {
     const imgB64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
     const mediaType = imgRes.headers.get("content-type") || "image/jpeg";
 
-    // 1. Vision: identify the product from the photo.
+    // 1. Vision: identify the product from the photo, as an expert seller would size it up.
     const visionText = await callClaude(
-      "Du analyserer et foto af en genbrugsting, der skal saelges paa Vinted. " +
-        "Svar KUN med et JSON-objekt, ingen forklaring udenom: " +
-        '{"productType": "...", "brand": "... eller null", "color": "...", ' +
-        '"condition": "ny/brugt/slidt", "category": "...", "searchQuery": "korte soegeord til at finde lignende varer"}',
+      SELLER_PERSONA + " Du kigger på et foto af en vare, kunden vil sælge, og vurderer den, som du ville gøre " +
+        "før du selv lagde den til salg. Svar KUN med et JSON-objekt, ingen forklaring udenom: " +
+        '{"productType": "...", "brand": "... eller null", "color": "...", "material": "... eller null", ' +
+        '"size": "... eller null", "condition": "ny med maerke/ny uden maerke/god/brugt/slidt", ' +
+        '"visibleFlaws": "kort, eller \\"ingen synlige\\"", "category": "...", ' +
+        '"searchQuery": "korte soegeord (paa dansk) til at finde lignende varer på Vinted"}',
       [
         { type: "image", source: { type: "base64", media_type: mediaType, data: imgB64 } },
         { type: "text", text: "Analysér billedet og svar med JSON som beskrevet." },
       ],
+      VISION_MODEL,
     );
     const vision = extractJson(visionText);
     const searchQuery = String(vision.searchQuery || vision.productType || "genbrug");
 
-    // 2. Ground pricing in real Vinted listings (dk first, fr as fallback).
-    const { items, country, blocked } = await searchWithFallback(searchQuery, "dk", "fr");
-    const comparables = items.slice(0, 6).map((it) => `${it.title} — ${it.price} ${it.currency}`).join("\n");
+    // 2. Ground pricing in real, currently active Vinted listings (dk first, fr as fallback).
+    const { items, country, blocked } = await searchWithFallback(searchQuery, "dk", "fr", 12);
+    const comparables = items.slice(0, 10).map((it) => `${it.title} — ${it.price} ${it.currency}`).join("\n");
 
-    // 3. Write the final Danish ad draft, grounded in whatever comparables we found.
-    const draftPrompt = blocked || items.length === 0
-      ? `Vinted-opslag kunne ikke hentes (${blocked ? "sandsynligvis blokeret" : "ingen resultater"}) for "${searchQuery}" i ${country}. ` +
-        "Skriv prisen som dit eget bedste skoen og sig det tydeligt i price_note."
-      : `Her er ${items.length} lignende annoncer fundet paa Vinted (${country}):\n${comparables}\n` +
-        "Basér prisforslaget paa disse.";
+    // 3. Write the final ad: title, description, price AND a short sell-through strategy,
+    // grounded in whatever comparables we found. Same expert-seller persona, bigger model —
+    // this step is the one the seller actually has to trust.
+    const marketContext = blocked || items.length === 0
+      ? `Vinted-søgningen for "${searchQuery}" i ${country} gav intet brugbart resultat (${blocked ? "sandsynligvis blokeret" : "ingen fund"}). ` +
+        "Sæt prisen efter dit eget erfarne skøn for denne varetype i Danmark, og sig det tydeligt og ærligt i priceNote — påstå ikke at den er markedstjekket."
+      : `${items.length} sammenlignelige, AKTIVE annoncer fundet på Vinted (${country}):\n${comparables}\n\n` +
+        "Brug disse til at lægge en reel salgsstrategi: hvor ligger prisen i forhold til feltet, og hvorfor (fx lidt under median for hurtigt salg, " +
+        "eller i toppen hvis stand/mærke berettiger det)? Nævn det kort i priceNote.";
 
     const draftText = await callClaude(
-      "Du skriver et annonce-udkast paa DANSK til Vinted, ud fra en produktanalyse og evt. sammenlignelige priser. " +
-        "Svar KUN med et JSON-objekt: " +
-        '{"title": "...", "description": "...", "category": "...", "condition": "...", "price": "fx 89 kr", "priceNote": "kort begrundelse"}',
+      SELLER_PERSONA + " Skriv et komplet annonce-udkast PÅ DANSK til Vinted for varen, ud fra produktanalysen og markedsdata nedenfor. " +
+        "Titel: mærke/type/størrelse først, det er det folk søger på — ikke sælger-sprog. " +
+        "Beskrivelse: ærlig og konkret (mærke, størrelse, materiale, stand, evt. mangler fra visibleFlaws), gerne 3-6 linjer, " +
+        "og slut med noget der reelt fremmer salget på det danske marked (fx hurtig afsendelse, bytter ved køb af flere, kan sende måltagning ved forespørgsel — " +
+        "vælg kun det der er relevant, opfind ikke konkrete tal du ikke har). " +
+        "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
+        "Svar KUN med et JSON-objekt, ingen forklaring udenom: " +
+        '{"title": "...", "description": "...", "category": "...", "condition": "...", "price": "fx 89 kr", "priceNote": "kort strategi-begrundelse, 1-2 saetninger"}',
       [
         {
           type: "text",
-          text: `Produktanalyse: ${JSON.stringify(vision)}\n\n${draftPrompt}`,
+          text: `Produktanalyse fra billedet: ${JSON.stringify(vision)}\n\n${marketContext}`,
         },
       ],
+      STRATEGY_MODEL,
     );
     const draft = extractJson(draftText);
 

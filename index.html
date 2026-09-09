@@ -608,7 +608,13 @@
     histList.hidden = false;
   }
 
-  function resizeToBlob(file, maxW, quality){
+  // Crops toward Vinted's standard 4:5 listing-photo ratio (skips the crop
+  // if the source is already close to it) and caps the long edge at maxDim,
+  // so every upload is a well-framed, reasonably sized ad photo.
+  function resizeToBlob(file, maxDim, quality){
+    var TARGET_RATIO = 4 / 5;
+    var TOLERANCE = 0.15;
+
     return new Promise(function(resolve, reject){
       var reader = new FileReader();
       reader.onerror = function(){ reject(new Error('read_failed')); };
@@ -616,14 +622,28 @@
         var img = new Image();
         img.onerror = function(){ reject(new Error('decode_failed')); };
         img.onload = function(){
-          var scale = Math.min(1, maxW / img.width);
-          var w = Math.max(1, Math.round(img.width * scale));
-          var h = Math.max(1, Math.round(img.height * scale));
+          var sourceRatio = img.width / img.height;
+          var sx = 0, sy = 0, sw = img.width, sh = img.height;
+
+          if (Math.abs(sourceRatio - TARGET_RATIO) / TARGET_RATIO > TOLERANCE) {
+            if (sourceRatio > TARGET_RATIO) {
+              sw = Math.round(img.height * TARGET_RATIO);
+              sx = Math.round((img.width - sw) / 2);
+            } else {
+              sh = Math.round(img.width / TARGET_RATIO);
+              sy = Math.round((img.height - sh) / 2);
+            }
+          }
+
+          var scale = Math.min(1, maxDim / Math.max(sw, sh));
+          var w = Math.max(1, Math.round(sw * scale));
+          var h = Math.max(1, Math.round(sh * scale));
+
           var canvas = document.createElement('canvas');
           canvas.width = w;
           canvas.height = h;
           var ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
           canvas.toBlob(function(blob){
             if(blob) resolve(blob); else reject(new Error('blob_failed'));
           }, 'image/jpeg', quality);
@@ -637,7 +657,7 @@
   function handleCapturedFile(file){
     captureStatusEl.hidden = false;
     captureStatusEl.textContent = 'Uploader billede …';
-    resizeToBlob(file, 800, 0.7).then(function(blob){
+    resizeToBlob(file, 1080, 0.82).then(function(blob){
       var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
       return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' }).then(function(res){
         if(res.error) throw res.error;
