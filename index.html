@@ -1,0 +1,660 @@
+<title>Udbakke</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --paper: #E8EAE0;
+    --surface: #F5F3EA;
+    --ink: #211F1B;
+    --ink-soft: #5B584E;
+    --accent: #5B3A52;
+    --accent-soft: #EFE3EC;
+    --moss: #3F5C4C;
+    --moss-soft: #E1EAE2;
+    --amber: #8C5F1F;
+    --amber-soft: #F3E6CE;
+    --line: #C9C2B0;
+    --focus: #2E63B8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper: #19170F;
+      --surface: #221F16;
+      --ink: #ECE7DB;
+      --ink-soft: #B7B0A0;
+      --accent: #D3A6C4;
+      --accent-soft: #3A2C36;
+      --moss: #9BC0A9;
+      --moss-soft: #24352B;
+      --amber: #E3B569;
+      --amber-soft: #3A2E17;
+      --line: #4A4433;
+      --focus: #7FB0FF;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper: #19170F;
+    --surface: #221F16;
+    --ink: #ECE7DB;
+    --ink-soft: #B7B0A0;
+    --accent: #D3A6C4;
+    --accent-soft: #3A2C36;
+    --moss: #9BC0A9;
+    --moss-soft: #24352B;
+    --amber: #E3B569;
+    --amber-soft: #3A2E17;
+    --line: #4A4433;
+    --focus: #7FB0FF;
+  }
+
+  *{ box-sizing: border-box; }
+  body{
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Libre Franklin", system-ui, sans-serif;
+    margin: 0;
+  }
+  .wrap{
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 28px 18px 80px;
+  }
+  .mono{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .eyebrow{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  header{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 18px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  h1{
+    font-size: 28px;
+    font-weight: 700;
+    margin: 4px 0 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .count{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    text-align: right;
+  }
+  .count strong{
+    color: var(--ink);
+    font-size: 15px;
+  }
+  .count .pending-note{
+    display: block;
+    margin-top: 2px;
+  }
+
+  input[type="file"]{
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+  }
+  .capture-row{ margin-bottom: 22px; }
+  .btn-capture{
+    width: 100%;
+    background: var(--accent);
+    color: var(--surface);
+    border: 1px solid var(--accent);
+    padding: 15px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    font-family: "Libre Franklin", system-ui, sans-serif;
+    cursor: pointer;
+  }
+  .btn-capture:active{ opacity: 0.85; }
+  .capture-status{
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  #list{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 2px dashed var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 14px;
+  }
+  .card.is-pending{ opacity: 0.72; }
+  .card img{
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    display: block;
+  }
+  .card-body{
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .row-top{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .title{
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+  .title.is-muted{ color: var(--ink-soft); font-weight: 500; }
+  .chip{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+    flex: none;
+  }
+  .chip.ny{ background: var(--amber-soft); color: var(--amber); }
+  .chip.afsendt{ background: var(--moss-soft); color: var(--moss); }
+  .chip.afventer{ background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); }
+
+  .price{
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .price-note{
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .meta{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .desc{
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+    white-space: pre-wrap;
+  }
+
+  .full-width{
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .actions{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 4px;
+  }
+  button{
+    font-family: "Libre Franklin", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .btn-primary{
+    background: var(--accent);
+    color: var(--surface);
+    border: 1px solid var(--accent);
+    padding: 9px 14px;
+  }
+  .btn-primary:active{ opacity: 0.85; }
+  .btn-primary.done{
+    background: var(--moss);
+    border-color: var(--moss);
+  }
+  .link-btn{
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    padding: 4px 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .link-btn:hover{ color: var(--ink); }
+  button:focus-visible, .link-btn:focus-visible, a:focus-visible{
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .empty{
+    border: 1px solid var(--line);
+    border-top: 2px dashed var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 26px 20px;
+  }
+  .empty p.lead{
+    font-size: 15px;
+    margin: 0 0 16px;
+    color: var(--ink);
+  }
+  .empty ol{
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .empty li::marker{
+    font-family: "Space Mono", ui-monospace, monospace;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .empty li b{ color: var(--ink); font-weight: 600; }
+
+  .state-msg{
+    font-size: 13px;
+    color: var(--ink-soft);
+    padding: 20px 2px;
+  }
+
+  .hist-toggle{
+    margin-top: 26px;
+    text-align: center;
+  }
+  #hist-list{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .hist-row{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .hist-row img{
+    width: 34px; height: 34px; object-fit: cover; border-radius: 4px;
+    border: 1px solid var(--line);
+  }
+  .hist-row .t{ flex: 1; min-width: 0; }
+  .hist-row .t .n{ font-weight: 600; }
+  .hist-row .t .p{ color: var(--ink-soft); font-size: 12px; }
+
+  [hidden]{ display: none !important; }
+
+  @media (prefers-reduced-motion: no-preference){
+    .card{ animation: rise 260ms ease-out; }
+    @keyframes rise{
+      from{ opacity: 0; transform: translateY(6px); }
+      to{ opacity: 1; transform: translateY(0); }
+    }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Vinted &middot; annonceudkast</div>
+      <h1>Udbakke</h1>
+    </div>
+    <div class="count">
+      <strong id="count-num">–</strong><br>klar
+      <span class="pending-note mono" id="pending-note" hidden></span>
+    </div>
+  </header>
+
+  <div class="capture-row">
+    <button type="button" class="btn-capture" id="capture-btn">📷 Tag billede</button>
+    <input type="file" id="camera-input" accept="image/*" capture="environment">
+    <div class="capture-status" id="capture-status" hidden></div>
+  </div>
+
+  <div id="state" class="state-msg">Henter kø …</div>
+  <div id="list" hidden></div>
+  <div id="empty" class="empty" hidden>
+    <p class="lead">Ingen udkast lige nu.</p>
+    <ol>
+      <li>Tryk <b>"Tag billede"</b> ovenfor</li>
+      <li>Claude skriver et udkast ud fra billedet (typisk under et minut)</li>
+      <li>Gennemse, kopiér teksten og opret annoncen i Vinted</li>
+    </ol>
+  </div>
+
+  <div class="hist-toggle">
+    <button type="button" class="link-btn" id="hist-btn">Vis afsendte annoncer</button>
+  </div>
+  <div id="hist-list" hidden></div>
+</div>
+
+<script>
+(function(){
+  var SUPABASE_URL = 'https://gjycsqshkvkcupdnvgvf.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
+
+  var listEl = document.getElementById('list');
+  var emptyEl = document.getElementById('empty');
+  var stateEl = document.getElementById('state');
+  var countEl = document.getElementById('count-num');
+  var pendingNoteEl = document.getElementById('pending-note');
+  var histBtn = document.getElementById('hist-btn');
+  var histList = document.getElementById('hist-list');
+  var captureBtn = document.getElementById('capture-btn');
+  var cameraInput = document.getElementById('camera-input');
+  var captureStatusEl = document.getElementById('capture-status');
+
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var liveRows = {}; // id -> row, merged from the realtime channel
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  function relTime(iso){
+    if(!iso) return '';
+    var d = new Date(iso);
+    if(isNaN(d)) return '';
+    var diffMs = Date.now() - d.getTime();
+    var min = Math.round(diffMs / 60000);
+    if(min < 1) return 'lige nu';
+    if(min < 60) return 'for ' + min + ' min. siden';
+    var hr = Math.round(min / 60);
+    if(hr < 24) return 'for ' + hr + ' t. siden';
+    var days = Math.round(hr / 24);
+    return 'for ' + days + ' dage siden';
+  }
+
+  function buildCopyText(d){
+    var parts = [];
+    if(d.title) parts.push(d.title);
+    if(d.description) parts.push(d.description);
+    if(d.price) parts.push('Pris: ' + d.price);
+    return parts.join('\n\n');
+  }
+
+  function cardTemplate(d){
+    var isPending = d.status === 'afventer';
+    var img = d.image_url
+      ? '<img src="' + escapeHtml(d.image_url) + '" alt="Foto af varen">'
+      : '<div style="width:84px;height:84px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>';
+
+    if(isPending){
+      return (
+        '<article class="card is-pending" data-id="' + escapeHtml(d.id) + '">' +
+          img +
+          '<div class="card-body">' +
+            '<div class="row-top">' +
+              '<div class="title is-muted">Analyserer billede …</div>' +
+              '<span class="chip afventer">Afventer</span>' +
+            '</div>' +
+            '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
+            (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
+            '<div class="full-width">' +
+              '<div class="actions">' +
+                '<button type="button" class="link-btn discard-btn">Kasser</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</article>'
+      );
+    }
+
+    return (
+      '<article class="card" data-id="' + escapeHtml(d.id) + '">' +
+        img +
+        '<div class="card-body">' +
+          '<div class="row-top">' +
+            '<div class="title">' + escapeHtml(d.title || 'Uden titel') + '</div>' +
+            '<span class="chip ny">Ny</span>' +
+          '</div>' +
+          '<div class="meta">' + escapeHtml(d.category || '') + (d.condition ? ' &middot; ' + escapeHtml(d.condition) : '') + '</div>' +
+          '<div class="full-width">' +
+            '<div><span class="price mono">' + escapeHtml(d.price || '?') + '</span></div>' +
+            (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
+            '<div class="desc">' + escapeHtml(d.description || '') + '</div>' +
+            '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
+            '<div class="actions">' +
+              '<button type="button" class="btn-primary copy-btn">Kopiér tekst</button>' +
+              '<button type="button" class="link-btn posted-btn">Marker som postet</button>' +
+              '<button type="button" class="link-btn discard-btn">Kasser</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</article>'
+    );
+  }
+
+  function wireCard(el, d){
+    var copyBtn = el.querySelector('.copy-btn');
+    var postedBtn = el.querySelector('.posted-btn');
+    var discardBtn = el.querySelector('.discard-btn');
+
+    if(copyBtn){
+      copyBtn.addEventListener('click', function(){
+        var text = buildCopyText(d);
+        var done = function(){
+          copyBtn.textContent = 'Kopieret ✓';
+          setTimeout(function(){ copyBtn.textContent = 'Kopiér tekst'; }, 1800);
+        };
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(done).catch(function(){
+            copyBtn.textContent = 'Kunne ikke kopiere';
+          });
+        } else {
+          copyBtn.textContent = 'Kunne ikke kopiere';
+        }
+      });
+    }
+
+    if(postedBtn){
+      postedBtn.addEventListener('click', function(){
+        postedBtn.textContent = 'Markerer …';
+        sb.from('drafts').update({ status: 'afsendt', posted_at: new Date().toISOString() }).eq('id', d.id)
+          .then(function(res){ if(res.error) postedBtn.textContent = 'Prøv igen'; });
+      });
+    }
+
+    if(discardBtn){
+      discardBtn.addEventListener('click', function(){
+        discardBtn.textContent = 'Kasserer …';
+        sb.from('drafts').update({ status: 'kasseret' }).eq('id', d.id)
+          .then(function(res){ if(res.error) discardBtn.textContent = 'Prøv igen'; });
+      });
+    }
+  }
+
+  function renderMerged(){
+    var docs = Object.keys(liveRows)
+      .map(function(id){ return liveRows[id]; })
+      .filter(function(d){ return d.status === 'ny' || d.status === 'afventer'; });
+
+    docs.sort(function(a, b){
+      return (a.created_at < b.created_at) ? 1 : (a.created_at > b.created_at) ? -1 : 0;
+    });
+
+    if(docs.length === 0){
+      listEl.hidden = true;
+      emptyEl.hidden = false;
+      countEl.textContent = '0';
+      pendingNoteEl.hidden = true;
+      return;
+    }
+    emptyEl.hidden = true;
+    listEl.hidden = false;
+
+    var readyCount = 0, pendingCount = 0;
+    docs.forEach(function(d){ if(d.status === 'afventer') pendingCount++; else readyCount++; });
+    countEl.textContent = String(readyCount);
+    if(pendingCount > 0){
+      pendingNoteEl.hidden = false;
+      pendingNoteEl.textContent = '+' + pendingCount + ' analyseres';
+    } else {
+      pendingNoteEl.hidden = true;
+    }
+
+    listEl.innerHTML = '';
+    docs.forEach(function(d){
+      var wrapper = document.createElement('div');
+      wrapper.innerHTML = cardTemplate(d);
+      var cardEl = wrapper.firstElementChild;
+      listEl.appendChild(cardEl);
+      wireCard(cardEl, d);
+    });
+  }
+
+  function renderHistory(rows){
+    if(rows.length === 0){
+      histList.innerHTML = '<div class="state-msg">Ingen postede annoncer endnu.</div>';
+      histList.hidden = false;
+      return;
+    }
+    histList.innerHTML = rows.map(function(d){
+      var img = d.image_url ? '<img src="' + escapeHtml(d.image_url) + '" alt="">' : '';
+      return (
+        '<div class="hist-row">' + img +
+        '<div class="t"><div class="n">' + escapeHtml(d.title || '') + '</div>' +
+        '<div class="p">' + escapeHtml(d.price || '') + ' &middot; ' + escapeHtml(relTime(d.posted_at)) + '</div></div></div>'
+      );
+    }).join('');
+    histList.hidden = false;
+  }
+
+  function resizeToBlob(file, maxW, quality){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(new Error('read_failed')); };
+      reader.onload = function(e){
+        var img = new Image();
+        img.onerror = function(){ reject(new Error('decode_failed')); };
+        img.onload = function(){
+          var scale = Math.min(1, maxW / img.width);
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(function(blob){
+            if(blob) resolve(blob); else reject(new Error('blob_failed'));
+          }, 'image/jpeg', quality);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleCapturedFile(file){
+    captureStatusEl.hidden = false;
+    captureStatusEl.textContent = 'Uploader billede …';
+    resizeToBlob(file, 800, 0.7).then(function(blob){
+      var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
+      return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' }).then(function(res){
+        if(res.error) throw res.error;
+        var pub = sb.storage.from('photos').getPublicUrl(path);
+        var url = pub.data.publicUrl;
+        return sb.from('drafts').insert({
+          status: 'afventer',
+          image_path: path,
+          image_url: url,
+          created_at: new Date().toISOString()
+        });
+      });
+    }).then(function(res){
+      if(res && res.error) throw res.error;
+      captureStatusEl.textContent = 'Billede gemt — udkast er på vej.';
+      setTimeout(function(){ captureStatusEl.hidden = true; }, 3000);
+    }).catch(function(err){
+      captureStatusEl.textContent = 'Kunne ikke gemme billedet. Prøv igen.';
+      console.error(err);
+    });
+  }
+
+  captureBtn.addEventListener('click', function(){
+    cameraInput.click();
+  });
+
+  cameraInput.addEventListener('change', function(){
+    var file = cameraInput.files && cameraInput.files[0];
+    cameraInput.value = '';
+    if(file) handleCapturedFile(file);
+  });
+
+  histBtn.addEventListener('click', function(){
+    histBtn.disabled = true;
+    histBtn.textContent = 'Henter …';
+    sb.from('drafts').select('*').eq('status', 'afsendt').order('posted_at', { ascending: false }).limit(20)
+      .then(function(res){
+        if(res.error){
+          histBtn.disabled = false;
+          histBtn.textContent = 'Vis afsendte annoncer';
+          return;
+        }
+        renderHistory(res.data);
+        histBtn.hidden = true;
+      });
+  });
+
+  function main(){
+    sb.from('drafts').select('*').in('status', ['ny', 'afventer']).order('created_at', { ascending: false })
+      .then(function(res){
+        stateEl.hidden = true;
+        if(res.error){
+          stateEl.hidden = false;
+          stateEl.textContent = 'Der opstod et problem. Prøv at genindlæse siden.';
+          return;
+        }
+        res.data.forEach(function(d){ liveRows[d.id] = d; });
+        renderMerged();
+      });
+
+    sb.channel('drafts-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'drafts' }, function(payload){
+        if(payload.eventType === 'DELETE'){
+          delete liveRows[payload.old.id];
+        } else {
+          liveRows[payload.new.id] = payload.new;
+        }
+        renderMerged();
+      })
+      .subscribe();
+  }
+
+  main();
+})();
+</script>
