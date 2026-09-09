@@ -556,7 +556,7 @@
   </div>
 
   <div class="install-box" id="install-box" hidden>
-    <p><b>Installér genvejen "Udfyld Vinted"</b> for at få titel, beskrivelse og pris udfyldt automatisk i Vinted. Du skal kun gøre det én gang pr. telefon.</p>
+    <p><b>Installér genvejen "Udfyld Vinted"</b> — kun én gang pr. telefon. Når du derefter trykker "Udfyld i Vinted" på et udkast, åbner Vinteds opret-side i Safari. Tryk på <b>Del-knappen</b> dér og vælg <b>Udfyld Vinted</b>, så udfyldes titel, beskrivelse og pris.</p>
     <a class="btn-install" id="install-link" href="#">Installér genvej</a>
     <button type="button" class="link-btn" id="install-done">Jeg har allerede installeret den</button>
   </div>
@@ -771,7 +771,9 @@
               fillBtn.textContent = 'Prøv igen';
               return;
             }
-            window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent(SHORTCUT_NAME);
+            // x-safari- tvinger Safari; uden det kaprer Vinteds Universal Links
+            // adressen og aabner appen, hvor genvejen ikke kan koere.
+            window.location.href = 'x-safari-https://www.vinted.dk/items/new';
             setTimeout(function(){ fillBtn.textContent = 'Udfyld i Vinted'; }, 2500);
           });
       });
