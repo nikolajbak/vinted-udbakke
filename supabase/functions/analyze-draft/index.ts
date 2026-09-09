@@ -194,6 +194,9 @@ Deno.serve(async (req: Request) => {
       for (const g of perPhoto) {
         const l = loaded[g.index];
         if (!l || !l.photo.path) continue;
+        // Analysen kan koeres igen ("Proev igen"), og et allerede beskaaret
+        // billede maa ikke beskaeres oveni sig selv.
+        if (l.photo.optimized || /-opt\.jpg$/i.test(l.photo.path)) continue;
         try {
           const jpeg = await optimizePhoto(l.buf, {
             rotationDegrees: g.rotationDegrees || 0,
