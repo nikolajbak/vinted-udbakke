@@ -651,18 +651,18 @@
       return (
         '<article class="card is-pending" data-id="' + escapeHtml(d.id) + '">' +
           (d.image_url ? '<img src="' + escapeHtml(d.image_url) + '" alt="Foto af varen">'
-                       : '<div style="width:84px;height:84px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>') +
+                       : '<div style="width:96px;height:120px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>') +
           '<div class="card-body">' +
             '<div class="row-top">' +
               '<div class="title is-muted">Ufærdig billedserie</div>' +
               '<span class="chip afventer">Kladde</span>' +
             '</div>' +
             '<div class="meta">' + count + ' billede' + (count === 1 ? '' : 'r') + ' &middot; ' + escapeHtml(relTime(d.created_at)) + '</div>' +
-            '<div class="full-width">' +
-              '<div class="actions">' +
-                '<button type="button" class="btn-primary resume-btn">Fortsæt</button>' +
-                '<button type="button" class="link-btn discard-btn">Kasser</button>' +
-              '</div>' +
+          '</div>' +
+          '<div class="full-width">' +
+            '<div class="actions">' +
+              '<button type="button" class="btn-primary resume-btn">Fortsæt</button>' +
+              '<div class="actions-secondary"><button type="button" class="link-btn discard-btn">Kasser</button></div>' +
             '</div>' +
           '</div>' +
         '</article>'
@@ -672,7 +672,7 @@
     var isPending = d.status === 'afventer';
     var img = d.image_url
       ? '<img src="' + escapeHtml(d.image_url) + '" alt="Foto af varen">'
-      : '<div style="width:84px;height:84px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>';
+      : '<div style="width:96px;height:120px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>';
 
     if(isPending){
       var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
@@ -685,12 +685,12 @@
               '<span class="chip afventer">' + (failed ? 'Fejl' : 'Afventer') + '</span>' +
             '</div>' +
             '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
+          '</div>' +
+          '<div class="full-width">' +
             (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
-            '<div class="full-width">' +
-              '<div class="actions">' +
-                (failed ? '<button type="button" class="btn-primary retry-btn">Prøv igen</button>' : '') +
-                '<button type="button" class="link-btn discard-btn">Kasser</button>' +
-              '</div>' +
+            '<div class="actions">' +
+              (failed ? '<button type="button" class="btn-primary retry-btn">Prøv igen</button>' : '') +
+              '<div class="actions-secondary"><button type="button" class="link-btn discard-btn">Kasser</button></div>' +
             '</div>' +
           '</div>' +
         '</article>'
@@ -706,7 +706,8 @@
             '<span class="chip ny">Ny</span>' +
           '</div>' +
           '<div class="meta">' + escapeHtml(d.category || '') + (d.condition ? ' &middot; ' + escapeHtml(d.condition) : '') + '</div>' +
-          '<div class="full-width">' +
+        '</div>' +
+        '<div class="full-width">' +
             '<div><span class="price mono">' + escapeHtml(d.price || '?') + '</span>' +
               (d.price_grounded === false ? '<span class="chip afventer" style="margin-left:8px">Foreløbig</span>' : '') +
             '</div>' +
@@ -720,7 +721,7 @@
               '<button type="button" class="btn-primary fill-btn">Udfyld i Vinted</button>' +
               '<div class="actions-secondary">' +
                 '<button type="button" class="link-btn copy-btn">Kopiér tekst</button>' +
-                '<button type="button" class="link-btn posted-btn">Markér som postet</button>' +
+                '<button type="button" class="link-btn posted-btn">Markér postet</button>' +
                 '<button type="button" class="link-btn discard-btn">Kasser</button>' +
               '</div>' +
             '</div>' +
