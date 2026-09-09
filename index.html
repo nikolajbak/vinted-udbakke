@@ -670,7 +670,12 @@
           '</div>' +
           '<div class="meta">' + escapeHtml(d.category || '') + (d.condition ? ' &middot; ' + escapeHtml(d.condition) : '') + '</div>' +
           '<div class="full-width">' +
-            '<div><span class="price mono">' + escapeHtml(d.price || '?') + '</span></div>' +
+            '<div><span class="price mono">' + escapeHtml(d.price || '?') + '</span>' +
+              (d.price_grounded === false ? '<span class="chip afventer" style="margin-left:8px">Foreløbig</span>' : '') +
+            '</div>' +
+            (d.price_grounded === false
+              ? '<div class="price-note">Prisen markedstjekkes mod rigtige Vinted-annoncer, når du trykker "Udfyld i Vinted".</div>'
+              : '') +
             (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
             '<div class="desc">' + escapeHtml(d.description || '') + '</div>' +
             '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +

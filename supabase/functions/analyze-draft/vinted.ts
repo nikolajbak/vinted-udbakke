@@ -141,15 +141,14 @@ export async function searchWithFallback(
   primaryCountry: string,
   fallbackCountry: string,
   perPage = 8,
+  triesPerCountry = 2,
 ): Promise<{ items: VintedItem[]; country: string; blocked: boolean }> {
-  // Vinted blocks datacenter IPs intermittently, so each market gets a second
-  // attempt with a fresh session before we fall back or give up.
-  const attempts: Array<{ country: string; delayMs: number }> = [
-    { country: primaryCountry, delayMs: 0 },
-    { country: primaryCountry, delayMs: 1200 },
-    { country: fallbackCountry, delayMs: 0 },
-    { country: fallbackCountry, delayMs: 1200 },
-  ];
+  const attempts: Array<{ country: string; delayMs: number }> = [];
+  for (const country of [primaryCountry, fallbackCountry]) {
+    for (let i = 0; i < triesPerCountry; i++) {
+      attempts.push({ country, delayMs: i === 0 ? 0 : 1200 });
+    }
+  }
 
   let lastBlocked = false;
   for (const attempt of attempts) {

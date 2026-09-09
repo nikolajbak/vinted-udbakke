@@ -157,16 +157,22 @@ Deno.serve(async (req: Request) => {
     );
     const searchQuery = String(vision.searchQuery || vision.productType || "genbrug");
 
-    // 2. Ground pricing in real, currently active Vinted listings (dk first, fr as fallback).
-    const { items, country, blocked } = await searchWithFallback(searchQuery, "dk", "fr", 12);
+    // 2. Try to ground pricing here, but don't lean on it: Vinted blocks
+    // datacenter IPs intermittently. When this fails the phone does the
+    // lookup instead (same-origin from vinted.dk, never blocked) — see
+    // vinted-fill-script. One quick attempt only, so a blocked call doesn't
+    // hold the draft up.
+    const { items, country, blocked } = await searchWithFallback(searchQuery, "dk", "fr", 12, 1);
     const comparables = items.slice(0, 10).map((it) => `${it.title} — ${it.price} ${it.currency}`).join("\n");
 
     // 3. Write the final ad: title, description, price AND a short sell-through strategy,
     // grounded in whatever comparables we found. Same expert-seller persona, bigger model —
     // this step is the one the seller actually has to trust.
-    const marketContext = blocked || items.length === 0
+    const grounded = !blocked && items.length > 0;
+    const marketContext = !grounded
       ? `Vinted-søgningen for "${searchQuery}" i ${country} gav intet brugbart resultat (${blocked ? "sandsynligvis blokeret" : "ingen fund"}). ` +
-        "Sæt prisen efter dit eget erfarne skøn for denne varetype i Danmark, og sig det tydeligt og ærligt i priceNote — påstå ikke at den er markedstjekket."
+        "Sæt en foreløbig pris efter dit eget erfarne skøn for denne varetype i Danmark. Skriv i priceNote at det er et foreløbigt skøn, " +
+        "der bliver markedstjekket når annoncen udfyldes — påstå ikke at den allerede er tjekket."
       : `${items.length} sammenlignelige, AKTIVE annoncer fundet på Vinted (${country}):\n${comparables}\n\n` +
         "Brug disse til at lægge en reel salgsstrategi: hvor ligger prisen i forhold til feltet, og hvorfor (fx lidt under median for hurtigt salg, " +
         "eller i toppen hvis stand/mærke berettiger det)? Nævn det kort i priceNote.";
@@ -198,6 +204,8 @@ Deno.serve(async (req: Request) => {
         condition: draft.condition,
         price: draft.price,
         price_note: draft.priceNote,
+        search_query: searchQuery,
+        price_grounded: grounded,
       })
       .eq("id", id);
 
