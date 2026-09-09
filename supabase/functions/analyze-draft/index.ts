@@ -22,6 +22,18 @@ const SELLER_PERSONA =
   "tillidsvækkende og præcise beskrivelser, ærlig angivelse af slid/mangler (det booster tillid og reducerer retursager), " +
   "og titler der rammer det, folk rent faktisk søger efter (mærke + type + evt. størrelse/farve foran, ikke reklamesprog).";
 
+// Spreading a whole image's bytes into String.fromCharCode blows the call
+// stack once photos get past a few hundred KB, so encode in chunks.
+function toBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  const CHUNK = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
 // Forced tool use instead of "please answer in JSON": the model returns a
 // structured object, so a chatty preamble can't break parsing.
 async function callClaudeJson(
@@ -130,7 +142,7 @@ Deno.serve(async (req: Request) => {
       const imgRes = await fetch(photo.url);
       if (!imgRes.ok) continue;
       const imgBuf = await imgRes.arrayBuffer();
-      const imgB64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
+      const imgB64 = toBase64(imgBuf);
       const mediaType = imgRes.headers.get("content-type") || "image/jpeg";
       // Naming the shot lets the model read a blurry label photo for what it
       // is instead of guessing at a mystery close-up.
