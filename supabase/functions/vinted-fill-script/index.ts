@@ -40,10 +40,14 @@ Deno.serve(async (req: Request) => {
     return json({ error: "unauthorized" }, 401);
   }
 
+  // The app stamps selected_at when you tap "Udfyld i Vinted" on a specific
+  // card, so two people sharing the queue never pull each other's draft.
+  // Falls back to the newest draft when nothing has been selected yet.
   const { data, error } = await supabase
     .from("drafts")
     .select("id, title, description, price")
     .eq("status", "ny")
+    .order("selected_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

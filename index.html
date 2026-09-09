@@ -227,8 +227,38 @@
   .actions{
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 14px;
+    row-gap: 10px;
     margin-top: 4px;
+  }
+
+  .install-box{
+    margin-top: 30px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .install-box p{
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .install-box a.btn-install{
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    background: var(--accent);
+    color: var(--surface);
+    border-radius: 6px;
+    padding: 11px 14px;
+    font-size: 14px;
+    font-weight: 600;
   }
   button{
     font-family: "Libre Franklin", system-ui, sans-serif;
@@ -406,6 +436,12 @@
     </ol>
   </div>
 
+  <div class="install-box" id="install-box" hidden>
+    <p><b>Installér genvejen "Udfyld Vinted"</b> for at få titel, beskrivelse og pris udfyldt automatisk i Vinted. Du skal kun gøre det én gang pr. telefon.</p>
+    <a class="btn-install" id="install-link" href="#">Installér genvej</a>
+    <button type="button" class="link-btn" id="install-done">Jeg har allerede installeret den</button>
+  </div>
+
   <div class="hist-toggle">
     <button type="button" class="link-btn" id="hist-btn">Vis afsendte annoncer</button>
   </div>
@@ -422,6 +458,9 @@
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
 
   var LOGIN_EMAIL = 'adgang@udbakke.local';
+  var SHORTCUT_NAME = 'Udfyld Vinted';
+  var SHORTCUT_URL = 'https://gjycsqshkvkcupdnvgvf.supabase.co/storage/v1/object/public/app-files/sde55408ffa46/Udfyld%20Vinted.shortcut';
+  var INSTALLED_FLAG = 'udbakke_shortcut_installed';
 
   var loginWrapEl = document.getElementById('login-wrap');
   var appWrapEl = document.getElementById('app-wrap');
@@ -429,6 +468,10 @@
   var loginPasswordEl = document.getElementById('login-password');
   var loginErrorEl = document.getElementById('login-error');
   var logoutBtn = document.getElementById('logout-btn');
+
+  var installBoxEl = document.getElementById('install-box');
+  var installLinkEl = document.getElementById('install-link');
+  var installDoneEl = document.getElementById('install-done');
 
   var listEl = document.getElementById('list');
   var emptyEl = document.getElementById('empty');
@@ -515,7 +558,8 @@
             '<div class="desc">' + escapeHtml(d.description || '') + '</div>' +
             '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
             '<div class="actions">' +
-              '<button type="button" class="btn-primary copy-btn">Kopiér tekst</button>' +
+              '<button type="button" class="btn-primary fill-btn">Udfyld i Vinted</button>' +
+              '<button type="button" class="link-btn copy-btn">Kopiér tekst</button>' +
               '<button type="button" class="link-btn posted-btn">Marker som postet</button>' +
               '<button type="button" class="link-btn discard-btn">Kasser</button>' +
             '</div>' +
@@ -526,9 +570,27 @@
   }
 
   function wireCard(el, d){
+    var fillBtn = el.querySelector('.fill-btn');
     var copyBtn = el.querySelector('.copy-btn');
     var postedBtn = el.querySelector('.posted-btn');
     var discardBtn = el.querySelector('.discard-btn');
+
+    if(fillBtn){
+      // Marks THIS draft as the one the shortcut should pull, so two people
+      // sharing the queue never fill each other's item into their own Vinted.
+      fillBtn.addEventListener('click', function(){
+        fillBtn.textContent = 'Åbner …';
+        sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id)
+          .then(function(res){
+            if(res.error){
+              fillBtn.textContent = 'Prøv igen';
+              return;
+            }
+            window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent(SHORTCUT_NAME);
+            setTimeout(function(){ fillBtn.textContent = 'Udfyld i Vinted'; }, 2500);
+          });
+      });
+    }
 
     if(copyBtn){
       copyBtn.addEventListener('click', function(){
@@ -742,11 +804,30 @@
       .subscribe();
   }
 
+  // iOS gives web pages no way to see whether a shortcut is installed, so the
+  // box is shown until this device says otherwise — a per-device memory, not
+  // a real check.
+  function setupInstallBox(){
+    var installed = false;
+    try { installed = localStorage.getItem(INSTALLED_FLAG) === '1'; } catch (e) {}
+    installBoxEl.hidden = installed;
+    installLinkEl.href = SHORTCUT_URL;
+    installLinkEl.addEventListener('click', function(){
+      try { localStorage.setItem(INSTALLED_FLAG, '1'); } catch (e) {}
+      setTimeout(function(){ installBoxEl.hidden = true; }, 1500);
+    });
+    installDoneEl.addEventListener('click', function(){
+      try { localStorage.setItem(INSTALLED_FLAG, '1'); } catch (e) {}
+      installBoxEl.hidden = true;
+    });
+  }
+
   function showApp(){
     loginWrapEl.hidden = true;
     appWrapEl.hidden = false;
     if(!appStarted){
       appStarted = true;
+      setupInstallBox();
       main();
     }
   }
