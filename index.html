@@ -218,13 +218,14 @@
     border-radius: 8px;
     padding: 16px;
     display: grid;
-    grid-template-columns: 84px 1fr;
+    grid-template-columns: 96px 1fr;
     gap: 14px;
   }
   .card.is-pending{ opacity: 0.72; }
+  /* Billedet ER varen — det fortjener plads, og 4:5 matcher beskæringen. */
   .card img{
-    width: 84px;
-    height: 84px;
+    width: 96px;
+    height: 120px;
     object-fit: cover;
     border-radius: 6px;
     border: 1px solid var(--line);
@@ -291,14 +292,23 @@
     gap: 6px;
   }
 
+  /* Primærhandlingen får sin egen fulde linje, de sekundære deler den næste.
+     Ellers brød de tre knapper over tre linjer på en telefon. */
   .actions{
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 14px;
-    row-gap: 10px;
-    margin-top: 4px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 8px;
   }
+  .actions .btn-primary{ width: 100%; }
+  .actions-secondary{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .actions-secondary .link-btn{ font-size: 12.5px; }
 
   .install-box{
     margin-top: 30px;
@@ -423,11 +433,38 @@
   [hidden]{ display: none !important; }
 
   @media (prefers-reduced-motion: no-preference){
-    .card{ animation: rise 260ms ease-out; }
+    .card, .session, .empty, .install-box{
+      animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    }
     @keyframes rise{
-      from{ opacity: 0; transform: translateY(6px); }
+      from{ opacity: 0; transform: translateY(8px); }
       to{ opacity: 1; transform: translateY(0); }
     }
+
+    /* Kort forsvinder ikke bare når du markerer dem — de trækker sig ud,
+       så det er tydeligt hvad der skete. */
+    .card.is-leaving{
+      animation: leave 220ms ease-in both;
+      pointer-events: none;
+    }
+    @keyframes leave{
+      to{ opacity: 0; transform: translateX(14px) scale(0.98); }
+    }
+
+    .btn-capture, .btn-primary, .btn-install{
+      transition: transform 90ms ease, opacity 120ms ease, background-color 120ms ease;
+    }
+    .btn-capture:active, .btn-primary:active, .btn-install:active{
+      transform: scale(0.975);
+    }
+    .link-btn{ transition: color 120ms ease; }
+    .shot-thumb{ animation: pop 220ms cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+    @keyframes pop{
+      from{ opacity: 0; transform: scale(0.86); }
+      to{ opacity: 1; transform: scale(1); }
+    }
+    .chip{ transition: background-color 160ms ease, color 160ms ease; }
+    #capture-status{ animation: rise 200ms ease-out both; }
   }
   .login-wrap{
     max-width: 340px;
@@ -487,7 +524,7 @@
   </header>
 
   <div class="capture-row">
-    <button type="button" class="btn-capture" id="capture-btn">📷 Nyt produkt</button>
+    <button type="button" class="btn-capture" id="capture-btn"><span aria-hidden="true">📷</span>&nbsp; Nyt produkt</button>
     <input type="file" id="camera-input" accept="image/*" capture="environment">
     <div class="capture-status" id="capture-status" hidden></div>
   </div>
@@ -499,7 +536,7 @@
       <p id="step-hint"></p>
     </div>
     <div class="shot-strip" id="shot-strip"></div>
-    <button type="button" class="btn-capture" id="shoot-btn">📷 Tag billede</button>
+    <button type="button" class="btn-capture" id="shoot-btn"><span aria-hidden="true">📷</span>&nbsp; Tag billede</button>
     <div class="session-actions">
       <button type="button" class="link-btn" id="skip-btn">Spring over</button>
       <button type="button" class="link-btn" id="finish-btn">Færdig — lav udkast</button>
@@ -681,9 +718,11 @@
             '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
             '<div class="actions">' +
               '<button type="button" class="btn-primary fill-btn">Udfyld i Vinted</button>' +
-              '<button type="button" class="link-btn copy-btn">Kopiér tekst</button>' +
-              '<button type="button" class="link-btn posted-btn">Marker som postet</button>' +
-              '<button type="button" class="link-btn discard-btn">Kasser</button>' +
+              '<div class="actions-secondary">' +
+                '<button type="button" class="link-btn copy-btn">Kopiér tekst</button>' +
+                '<button type="button" class="link-btn posted-btn">Markér som postet</button>' +
+                '<button type="button" class="link-btn discard-btn">Kasser</button>' +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -754,19 +793,28 @@
       });
     }
 
+    // Kortet trækker sig ud med det samme, så handlingen føles øjeblikkelig,
+    // selvom serveren og realtime-opdateringen først følger efter.
+    function leaveThen(btn, patch, busyText){
+      btn.textContent = busyText;
+      el.classList.add('is-leaving');
+      sb.from('drafts').update(patch).eq('id', d.id).then(function(res){
+        if(res.error){
+          el.classList.remove('is-leaving');
+          btn.textContent = 'Prøv igen';
+        }
+      });
+    }
+
     if(postedBtn){
       postedBtn.addEventListener('click', function(){
-        postedBtn.textContent = 'Markerer …';
-        sb.from('drafts').update({ status: 'afsendt', posted_at: new Date().toISOString() }).eq('id', d.id)
-          .then(function(res){ if(res.error) postedBtn.textContent = 'Prøv igen'; });
+        leaveThen(postedBtn, { status: 'afsendt', posted_at: new Date().toISOString() }, 'Markerer …');
       });
     }
 
     if(discardBtn){
       discardBtn.addEventListener('click', function(){
-        discardBtn.textContent = 'Kasserer …';
-        sb.from('drafts').update({ status: 'kasseret' }).eq('id', d.id)
-          .then(function(res){ if(res.error) discardBtn.textContent = 'Prøv igen'; });
+        leaveThen(discardBtn, { status: 'kasseret' }, 'Kasserer …');
       });
     }
   }
@@ -827,13 +875,10 @@
     histList.hidden = false;
   }
 
-  // Crops toward Vinted's standard 4:5 listing-photo ratio (skips the crop
-  // if the source is already close to it) and caps the long edge at maxDim,
-  // so every upload is a well-framed, reasonably sized ad photo.
+  // Uploads the full frame, only size-capped. Cropping happens server-side,
+  // where a vision model can see where the item actually is — a blind
+  // centre-crop here would throw away the pixels it needs.
   function resizeToBlob(file, maxDim, quality){
-    var TARGET_RATIO = 4 / 5;
-    var TOLERANCE = 0.15;
-
     return new Promise(function(resolve, reject){
       var reader = new FileReader();
       reader.onerror = function(){ reject(new Error('read_failed')); };
@@ -841,19 +886,7 @@
         var img = new Image();
         img.onerror = function(){ reject(new Error('decode_failed')); };
         img.onload = function(){
-          var sourceRatio = img.width / img.height;
           var sx = 0, sy = 0, sw = img.width, sh = img.height;
-
-          if (Math.abs(sourceRatio - TARGET_RATIO) / TARGET_RATIO > TOLERANCE) {
-            if (sourceRatio > TARGET_RATIO) {
-              sw = Math.round(img.height * TARGET_RATIO);
-              sx = Math.round((img.width - sw) / 2);
-            } else {
-              sh = Math.round(img.width / TARGET_RATIO);
-              sy = Math.round((img.height - sh) / 2);
-            }
-          }
-
           var scale = Math.min(1, maxDim / Math.max(sw, sh));
           var w = Math.max(1, Math.round(sw * scale));
           var h = Math.max(1, Math.round(sh * scale));

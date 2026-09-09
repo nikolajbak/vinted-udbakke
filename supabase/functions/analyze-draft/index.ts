@@ -5,6 +5,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { searchWithFallback } from "./vinted.ts";
+import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -127,7 +128,7 @@ Deno.serve(async (req: Request) => {
       .single();
     if (rowErr) throw new Error(`row_fetch_failed: ${rowErr.message}`);
 
-    type Photo = { url: string; kind?: string };
+    type Photo = { url: string; path?: string; kind?: string; optimized?: boolean };
     const photos: Photo[] = Array.isArray(row?.photos) && row.photos.length
       ? row.photos as Photo[]
       : row?.image_url
@@ -135,24 +136,95 @@ Deno.serve(async (req: Request) => {
       : [];
     if (!photos.length) throw new Error("no_photos");
 
-    // Cap what we send: the first few carry almost all the signal, and each
-    // image costs tokens and latency.
-    const imageBlocks: unknown[] = [];
-    for (const photo of photos.slice(0, 5)) {
+    // Fetch every photo once; the bytes get reused for optimisation and for
+    // the model calls.
+    const loaded: Array<{ photo: Photo; buf: ArrayBuffer; mediaType: string }> = [];
+    for (const photo of photos) {
       const imgRes = await fetch(photo.url);
       if (!imgRes.ok) continue;
-      const imgBuf = await imgRes.arrayBuffer();
-      const imgB64 = toBase64(imgBuf);
-      const mediaType = imgRes.headers.get("content-type") || "image/jpeg";
-      // Naming the shot lets the model read a blurry label photo for what it
-      // is instead of guessing at a mystery close-up.
-      imageBlocks.push({ type: "text", text: `Billede (${photo.kind || "ukendt vinkel"}):` });
-      imageBlocks.push({
-        type: "image",
-        source: { type: "base64", media_type: mediaType, data: imgB64 },
+      loaded.push({
+        photo,
+        buf: await imgRes.arrayBuffer(),
+        mediaType: imgRes.headers.get("content-type") || "image/jpeg",
       });
     }
-    if (!imageBlocks.length) throw new Error("image_fetch_failed");
+    if (!loaded.length) throw new Error("image_fetch_failed");
+
+    // 0. Let the model say how each photo should be rotated and where the item
+    // actually sits, then cut to Vinted's 4:5 around the item instead of the
+    // frame's centre. Best-effort: originals stand if any of it fails.
+    try {
+      const guidanceInput: unknown[] = [];
+      loaded.forEach((l, i) => {
+        guidanceInput.push({ type: "text", text: `Billede ${i} (${l.photo.kind || "ukendt vinkel"}):` });
+        guidanceInput.push({
+          type: "image",
+          source: { type: "base64", media_type: l.mediaType, data: toBase64(l.buf) },
+        });
+      });
+      guidanceInput.push({
+        type: "text",
+        text: "Angiv for hvert billede rotationen og en kasse omkring selve varen.",
+      });
+
+      const guidance = await callClaudeJson(
+        "Du forbereder fotos til en Vinted-annonce. For hvert billede: angiv hvor meget det skal roteres med uret " +
+          "for at vende rigtigt (0/90/180/270), og en TÆTSLUTTENDE kasse om SELVE VAREN i normaliserede " +
+          "koordinater 0-1.\n\n" +
+          "Kassen skal følge varens yderste kanter — ikke mere. Hold ALT andet udenfor: gulv, bord, vægge, " +
+          "fødder, ben, hænder, møbler, bøjler og andre genstande. Er der store tomme flader over eller under " +
+          "varen, skal de IKKE med. Et menneske på billedet er aldrig en del af varen.\n" +
+          "Ved nærbilleder af mærkater skal kassen omslutte hele mærkatet, så teksten forbliver læsbar.",
+        guidanceInput,
+        STRATEGY_MODEL,
+        GUIDANCE_TOOL,
+      );
+
+      const perPhoto = (guidance.photos || []) as Array<Record<string, number>>;
+      for (const g of perPhoto) {
+        const l = loaded[g.index];
+        if (!l || !l.photo.path) continue;
+        try {
+          const jpeg = await optimizePhoto(l.buf, {
+            rotationDegrees: g.rotationDegrees || 0,
+            crop: { x0: g.x0, y0: g.y0, x1: g.x1, y1: g.y1 },
+          });
+          const optPath = l.photo.path.replace(/\.jpg$/i, "") + "-opt.jpg";
+          const up = await supabase.storage.from("photos").upload(optPath, jpeg, {
+            contentType: "image/jpeg",
+            upsert: true,
+          });
+          if (up.error) continue;
+          l.photo.path = optPath;
+          l.photo.url = supabase.storage.from("photos").getPublicUrl(optPath).data.publicUrl;
+          l.photo.optimized = true;
+          l.buf = jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength) as ArrayBuffer;
+          l.mediaType = "image/jpeg";
+        } catch (_e) { /* behold originalen for dette billede */ }
+      }
+
+      if (loaded.some((l) => l.photo.optimized)) {
+        await supabase.from("drafts").update({
+          photos: loaded.map((l) => l.photo),
+          image_path: loaded[0].photo.path,
+          image_url: loaded[0].photo.url,
+        }).eq("id", id);
+      }
+    } catch (err) {
+      console.error("billedoptimering sprunget over", err);
+    }
+
+    // Cap what we send onward: the first few carry almost all the signal.
+    const imageBlocks: unknown[] = [];
+    for (const l of loaded.slice(0, 5)) {
+      // Naming the shot lets the model read a blurry label photo for what it
+      // is instead of guessing at a mystery close-up.
+      imageBlocks.push({ type: "text", text: `Billede (${l.photo.kind || "ukendt vinkel"}):` });
+      imageBlocks.push({
+        type: "image",
+        source: { type: "base64", media_type: l.mediaType, data: toBase64(l.buf) },
+      });
+    }
 
     // 1. Vision: identify the product from the photo, as an expert seller would size it up.
     const vision = await callClaudeJson(
