@@ -322,9 +322,50 @@
       to{ opacity: 1; transform: translateY(0); }
     }
   }
+  .login-wrap{
+    max-width: 340px;
+    margin: 18vh auto 0;
+    padding: 0 18px;
+    text-align: center;
+  }
+  .login-wrap h1{ margin-bottom: 22px; }
+  #login-form{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #login-password{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  #login-password:focus-visible{ outline: 2px solid var(--focus); outline-offset: 1px; }
+  #login-error{
+    font-size: 13px;
+    color: var(--amber);
+    min-height: 18px;
+  }
+  .logout-row{
+    text-align: center;
+    margin-top: 32px;
+  }
 </style>
 
-<div class="wrap">
+<div class="login-wrap" id="login-wrap">
+  <div class="eyebrow">Vinted &middot; annonceudkast</div>
+  <h1>Udbakke</h1>
+  <form id="login-form">
+    <input type="password" id="login-password" placeholder="Adgangskode" autocomplete="current-password" required>
+    <button type="submit" class="btn-capture">Log ind</button>
+    <div id="login-error"></div>
+  </form>
+</div>
+
+<div class="wrap" id="app-wrap" hidden>
   <header>
     <div>
       <div class="eyebrow">Vinted &middot; annonceudkast</div>
@@ -357,12 +398,25 @@
     <button type="button" class="link-btn" id="hist-btn">Vis afsendte annoncer</button>
   </div>
   <div id="hist-list" hidden></div>
+
+  <div class="logout-row">
+    <button type="button" class="link-btn" id="logout-btn">Log ud</button>
+  </div>
 </div>
 
 <script>
 (function(){
   var SUPABASE_URL = 'https://gjycsqshkvkcupdnvgvf.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
+
+  var LOGIN_EMAIL = 'adgang@udbakke.local';
+
+  var loginWrapEl = document.getElementById('login-wrap');
+  var appWrapEl = document.getElementById('app-wrap');
+  var loginFormEl = document.getElementById('login-form');
+  var loginPasswordEl = document.getElementById('login-password');
+  var loginErrorEl = document.getElementById('login-error');
+  var logoutBtn = document.getElementById('logout-btn');
 
   var listEl = document.getElementById('list');
   var emptyEl = document.getElementById('empty');
@@ -377,6 +431,7 @@
 
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var liveRows = {}; // id -> row, merged from the realtime channel
+  var appStarted = false;
 
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -655,6 +710,50 @@
       .subscribe();
   }
 
-  main();
+  function showApp(){
+    loginWrapEl.hidden = true;
+    appWrapEl.hidden = false;
+    if(!appStarted){
+      appStarted = true;
+      main();
+    }
+  }
+
+  function showLogin(){
+    appWrapEl.hidden = true;
+    loginWrapEl.hidden = false;
+    loginPasswordEl.value = '';
+    loginPasswordEl.focus();
+  }
+
+  loginFormEl.addEventListener('submit', function(e){
+    e.preventDefault();
+    loginErrorEl.textContent = '';
+    var submitBtn = loginFormEl.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Logger ind …';
+    sb.auth.signInWithPassword({ email: LOGIN_EMAIL, password: loginPasswordEl.value })
+      .then(function(res){
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Log ind';
+        if(res.error){
+          loginErrorEl.textContent = 'Forkert adgangskode.';
+          return;
+        }
+        showApp();
+      });
+  });
+
+  logoutBtn.addEventListener('click', function(){
+    sb.auth.signOut().then(function(){ showLogin(); });
+  });
+
+  sb.auth.getSession().then(function(res){
+    if(res.data.session){
+      showApp();
+    } else {
+      showLogin();
+    }
+  });
 })();
 </script>
