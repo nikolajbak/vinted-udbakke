@@ -638,18 +638,20 @@
       : '<div style="width:84px;height:84px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>';
 
     if(isPending){
+      var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
       return (
         '<article class="card is-pending" data-id="' + escapeHtml(d.id) + '">' +
           img +
           '<div class="card-body">' +
             '<div class="row-top">' +
-              '<div class="title is-muted">Analyserer billede …</div>' +
-              '<span class="chip afventer">Afventer</span>' +
+              '<div class="title is-muted">' + (failed ? 'Analysen fejlede' : 'Analyserer billeder …') + '</div>' +
+              '<span class="chip afventer">' + (failed ? 'Fejl' : 'Afventer') + '</span>' +
             '</div>' +
             '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
             (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
             '<div class="full-width">' +
               '<div class="actions">' +
+                (failed ? '<button type="button" class="btn-primary retry-btn">Prøv igen</button>' : '') +
                 '<button type="button" class="link-btn discard-btn">Kasser</button>' +
               '</div>' +
             '</div>' +
@@ -688,6 +690,24 @@
     var resumeBtn = el.querySelector('.resume-btn');
     if(resumeBtn){
       resumeBtn.addEventListener('click', function(){ resumeSession(d); });
+    }
+
+    var retryBtn = el.querySelector('.retry-btn');
+    if(retryBtn){
+      // Triggeren fyrer kun ved overgangen TIL 'afventer', så vi går via
+      // 'kladde' for at starte analysen forfra.
+      retryBtn.addEventListener('click', function(){
+        retryBtn.textContent = 'Starter …';
+        sb.from('drafts').update({ status: 'kladde', price_note: null }).eq('id', d.id)
+          .then(function(res){
+            if(res.error) throw res.error;
+            return sb.from('drafts').update({ status: 'afventer' }).eq('id', d.id);
+          })
+          .then(function(res){
+            if(res && res.error) throw res.error;
+          })
+          .catch(function(){ retryBtn.textContent = 'Prøv igen'; });
+      });
     }
 
     var fillBtn = el.querySelector('.fill-btn');

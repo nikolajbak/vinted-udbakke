@@ -22,7 +22,15 @@ const SELLER_PERSONA =
   "tillidsvækkende og præcise beskrivelser, ærlig angivelse af slid/mangler (det booster tillid og reducerer retursager), " +
   "og titler der rammer det, folk rent faktisk søger efter (mærke + type + evt. størrelse/farve foran, ikke reklamesprog).";
 
-async function callClaude(system: string, userContent: unknown[], model: string, maxTokens = 900): Promise<string> {
+// Forced tool use instead of "please answer in JSON": the model returns a
+// structured object, so a chatty preamble can't break parsing.
+async function callClaudeJson(
+  system: string,
+  userContent: unknown[],
+  model: string,
+  tool: { name: string; description: string; input_schema: Record<string, unknown> },
+  maxTokens = 1200,
+): Promise<Record<string, unknown>> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -34,6 +42,8 @@ async function callClaude(system: string, userContent: unknown[], model: string,
       model,
       max_tokens: maxTokens,
       system,
+      tools: [tool],
+      tool_choice: { type: "tool", name: tool.name },
       messages: [{ role: "user", content: userContent }],
     }),
   });
@@ -41,15 +51,47 @@ async function callClaude(system: string, userContent: unknown[], model: string,
     throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   }
   const data = await res.json();
-  const text = data?.content?.[0]?.text ?? "";
-  return text;
+  const block = (data?.content || []).find((b: { type?: string }) => b?.type === "tool_use");
+  if (!block?.input) throw new Error("no_tool_use_in_response");
+  return block.input as Record<string, unknown>;
 }
 
-function extractJson(text: string): Record<string, unknown> {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("no_json_in_response");
-  return JSON.parse(match[0]);
-}
+const VISION_TOOL = {
+  name: "registrer_vare",
+  description: "Registrér hvad varen på billederne er, til brug i en Vinted-annonce.",
+  input_schema: {
+    type: "object",
+    properties: {
+      productType: { type: "string" },
+      brand: { type: ["string", "null"] },
+      color: { type: "string" },
+      material: { type: ["string", "null"] },
+      size: { type: ["string", "null"] },
+      condition: { type: "string" },
+      visibleFlaws: { type: "string" },
+      category: { type: "string" },
+      searchQuery: { type: "string", description: "Korte danske søgeord til at finde lignende varer på Vinted" },
+    },
+    required: ["productType", "color", "condition", "visibleFlaws", "category", "searchQuery"],
+  },
+};
+
+const DRAFT_TOOL = {
+  name: "skriv_annonce",
+  description: "Skriv det færdige annonce-udkast på dansk.",
+  input_schema: {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      description: { type: "string" },
+      category: { type: "string" },
+      condition: { type: "string" },
+      price: { type: "string", description: 'Konkret beløb, fx "89 kr"' },
+      priceNote: { type: "string", description: "Kort strategi-begrundelse, 1-2 sætninger" },
+    },
+    required: ["title", "description", "category", "condition", "price", "priceNote"],
+  },
+};
 
 Deno.serve(async (req: Request) => {
   if (req.headers.get("x-webhook-secret") !== WEBHOOK_SECRET) {
@@ -101,22 +143,18 @@ Deno.serve(async (req: Request) => {
     if (!imageBlocks.length) throw new Error("image_fetch_failed");
 
     // 1. Vision: identify the product from the photo, as an expert seller would size it up.
-    const visionText = await callClaude(
+    const vision = await callClaudeJson(
       SELLER_PERSONA + " Du kigger på ALLE fotos af den samme vare, kunden vil sælge, og vurderer den, som du ville gøre " +
         "før du selv lagde den til salg. Mærke- og størrelsesmærkat-billederne er dine primære kilder til mærke, " +
-        "størrelse og materiale — læs dem, i stedet for at gætte ud fra formen. Er noget ikke læsbart, så skriv null " +
-        "frem for at finde på det. Svar KUN med et JSON-objekt, ingen forklaring udenom: " +
-        '{"productType": "...", "brand": "... eller null", "color": "...", "material": "... eller null", ' +
-        '"size": "... eller null", "condition": "ny med maerke/ny uden maerke/god/brugt/slidt", ' +
-        '"visibleFlaws": "kort, eller \\"ingen synlige\\"", "category": "...", ' +
-        '"searchQuery": "korte soegeord (paa dansk) til at finde lignende varer på Vinted"}',
+        "størrelse og materiale — læs dem, i stedet for at gætte ud fra formen. Er noget ikke læsbart, så lad feltet " +
+        "være tomt frem for at finde på det. condition skal være en af: ny med mærke, ny uden mærke, god, brugt, slidt.",
       [
         ...imageBlocks,
-        { type: "text", text: "Analysér alle billederne af varen og svar med JSON som beskrevet." },
+        { type: "text", text: "Analysér alle billederne af varen." },
       ],
       VISION_MODEL,
+      VISION_TOOL,
     );
-    const vision = extractJson(visionText);
     const searchQuery = String(vision.searchQuery || vision.productType || "genbrug");
 
     // 2. Ground pricing in real, currently active Vinted listings (dk first, fr as fallback).
@@ -133,24 +171,22 @@ Deno.serve(async (req: Request) => {
         "Brug disse til at lægge en reel salgsstrategi: hvor ligger prisen i forhold til feltet, og hvorfor (fx lidt under median for hurtigt salg, " +
         "eller i toppen hvis stand/mærke berettiger det)? Nævn det kort i priceNote.";
 
-    const draftText = await callClaude(
+    const draft = await callClaudeJson(
       SELLER_PERSONA + " Skriv et komplet annonce-udkast PÅ DANSK til Vinted for varen, ud fra produktanalysen og markedsdata nedenfor. " +
         "Titel: mærke/type/størrelse først, det er det folk søger på — ikke sælger-sprog. " +
         "Beskrivelse: ærlig og konkret (mærke, størrelse, materiale, stand, evt. mangler fra visibleFlaws), gerne 3-6 linjer, " +
         "og slut med noget der reelt fremmer salget på det danske marked (fx hurtig afsendelse, bytter ved køb af flere, kan sende måltagning ved forespørgsel — " +
         "vælg kun det der er relevant, opfind ikke konkrete tal du ikke har). " +
-        "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
-        "Svar KUN med et JSON-objekt, ingen forklaring udenom: " +
-        '{"title": "...", "description": "...", "category": "...", "condition": "...", "price": "fx 89 kr", "priceNote": "kort strategi-begrundelse, 1-2 saetninger"}',
+        "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit.",
       [
         {
           type: "text",
-          text: `Produktanalyse fra billedet: ${JSON.stringify(vision)}\n\n${marketContext}`,
+          text: `Produktanalyse fra billederne: ${JSON.stringify(vision)}\n\n${marketContext}`,
         },
       ],
       STRATEGY_MODEL,
+      DRAFT_TOOL,
     );
-    const draft = extractJson(draftText);
 
     const { error } = await supabase
       .from("drafts")
