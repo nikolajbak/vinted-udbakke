@@ -9,11 +9,13 @@
 // never blocks a same-origin request from a real logged-in session. That
 // makes pricing reliable in a way no server-side scrape was.
 //
-// Never touches the photo picker, the category picker, or the Upload button:
-// photo attachment can't be scripted by any web page, the category picker is
-// too fragile to script, and publishing stays the seller's own decision.
+// Never touches the photo picker or the Upload button: photo attachment can't
+// be scripted by any web page, and publishing stays the seller's own decision.
+// Everything else — category, brand, size, condition, colour — the bookmarklet
+// clicks through, so this endpoint hands it Vinted's own wording.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { RUNNER } from "./runner.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -107,12 +109,23 @@ Deno.serve(async (req: Request) => {
     return json({ error: "unauthorized" }, 401);
   }
 
+  // Bogmaerket er kun en indlaeser. Selve automatikken hentes her, saa den kan
+  // rettes uden at bogmaerket skal installeres forfra paa telefonen.
+  if (req.method === "GET" && url.searchParams.get("script") === "1") {
+    return new Response(RUNNER, {
+      headers: { ...CORS, "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
+
   if (req.method === "GET") {
     // The app stamps selected_at when you tap "Udfyld i Vinted" on a specific
     // card, so two people sharing the queue never pull each other's draft.
     const { data, error } = await supabase
       .from("drafts")
-      .select("id, title, description, price, search_query, price_grounded, condition")
+      .select(
+        "id, title, description, price, search_query, price_grounded, " +
+          "condition, brand, size, size_scale, color, category_path",
+      )
       .eq("status", "ny")
       .order("selected_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
@@ -129,6 +142,13 @@ Deno.serve(async (req: Request) => {
       price: plainPrice(data.price || ""),
       searchQuery: data.search_query || data.title || "",
       needsPricing: !data.price_grounded,
+      // Vinteds egne felter, i Vinteds egen ordlyd.
+      categoryPath: Array.isArray(data.category_path) ? data.category_path : [],
+      brand: cleanText(data.brand || ""),
+      size: cleanText(data.size || ""),
+      sizeScale: cleanText(data.size_scale || ""),
+      color: cleanText(data.color || ""),
+      condition: cleanText(data.condition || ""),
     });
   }
 

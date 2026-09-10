@@ -114,6 +114,22 @@ const VERIFY_MASK_TOOL = {
   },
 };
 
+// Vinteds egne felter. Bogmærket klikker dem igennem, så værdierne skal
+// være Vinteds ordlyd — ikke en fri oversættelse.
+const VINTED_TOP = [
+  "Kvinder", "Mænd", "Børn", "Bolig", "Elektronik",
+  "Bøger og medier", "Hobby og samlerobjekter", "Sport",
+];
+const VINTED_CONDITIONS = [
+  "Ny med prismærker", "Ny uden prismærker", "Meget god", "God", "Tilfredsstillende",
+];
+const VINTED_COLORS = [
+  "Sort", "Grå", "Hvid", "Flødefarvet", "Beige", "Abrikos", "Orange", "Koral", "Rød",
+  "Bourgogne", "Lyserød", "Rosa", "Lilla", "Lyslilla", "Lyseblå", "Blå", "Marineblå",
+  "Turkis", "Mintgrøn", "Grøn", "Mørkegrøn", "Khaki", "Brun", "Sennepsgul", "Gul",
+  "Sølv", "Guld", "Flerfarvet", "Klar",
+];
+
 const DRAFT_TOOL = {
   name: "skriv_annonce",
   description: "Skriv det færdige annonce-udkast på dansk.",
@@ -123,11 +139,42 @@ const DRAFT_TOOL = {
       title: { type: "string" },
       description: { type: "string" },
       category: { type: "string" },
-      condition: { type: "string" },
+      categoryPath: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Vejen ned gennem Vinteds danske kategoritræ, fra øverste niveau til det mest præcise underpunkt, " +
+          `fx ["Kvinder","Tøj","Kjoler","Midikjoler"] eller ["Mænd","Tøj","Trøjer og sweatshirts","Hættetrøjer"]. ` +
+          `Øverste niveau SKAL være ét af: ${VINTED_TOP.join(", ")}. ` +
+          "Brug Vinteds egen danske ordlyd, og gå kun så dybt du er sikker på.",
+      },
+      brand: {
+        type: ["string", "null"],
+        description: "Mærkets navn præcis som det staves på Vinted, fx \"Ganni\". null hvis intet mærke kan læses.",
+      },
+      size: {
+        type: ["string", "null"],
+        description: 'Størrelsen som den står på etiketten, fx "M", "38", "42" eller "Én størrelse". null hvis ukendt.',
+      },
+      sizeScale: {
+        type: ["string", "null"],
+        enum: ["S/M/L", "EU", "UK", "FR", "IT", "US", null],
+        description: "Hvilken målestok størrelsen er angivet i. Bogstavstørrelser er S/M/L, danske taltørrelser er EU.",
+      },
+      color: {
+        type: ["string", "null"],
+        enum: [...VINTED_COLORS, null],
+        description: "Varens hovedfarve, valgt fra Vinteds egen farveliste.",
+      },
+      condition: {
+        type: "string",
+        enum: VINTED_CONDITIONS,
+        description: "Standen, valgt fra Vinteds fem faste muligheder.",
+      },
       price: { type: "string", description: 'Konkret beløb, fx "89 kr"' },
       priceNote: { type: "string", description: "Kort strategi-begrundelse, 1-2 sætninger" },
     },
-    required: ["title", "description", "category", "condition", "price", "priceNote"],
+    required: ["title", "description", "category", "categoryPath", "condition", "price", "priceNote"],
   },
 };
 
@@ -353,7 +400,10 @@ Deno.serve(async (req: Request) => {
         "Beskrivelse: ærlig og konkret (mærke, størrelse, materiale, stand, evt. mangler fra visibleFlaws), gerne 3-6 linjer, " +
         "og slut med noget der reelt fremmer salget på det danske marked (fx hurtig afsendelse, bytter ved køb af flere, kan sende måltagning ved forespørgsel — " +
         "vælg kun det der er relevant, opfind ikke konkrete tal du ikke har). " +
-        "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit.",
+        "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
+        "Udfyld desuden Vinteds egne felter — categoryPath, brand, size, sizeScale, color, condition — med Vinteds " +
+        "egen danske ordlyd, for de bliver klikket direkte ind i formularen. Er du i tvivl om mærke eller størrelse, " +
+        "så skriv null i stedet for at gætte; et forkert mærke er værre end et tomt felt.",
       [
         {
           type: "text",
@@ -376,10 +426,16 @@ Deno.serve(async (req: Request) => {
         price_note: cleanText(draft.priceNote),
         search_query: searchQuery,
         price_grounded: grounded,
-        // Maerke og stoerrelse blev laest af maerkatbillederne, men blev ikke gemt.
-        // Vinted har egne felter til dem, saa de skal vaere tilgaengelige.
-        brand: cleanText(vision.brand),
-        size: cleanText(vision.size),
+        // Vinteds egne felter. Bogmaerket klikker dem igennem, saa de gemmes
+        // her praecis som modellen formulerede dem. draft vinder over vision:
+        // draft-kaldet kender Vinteds ordlyd, vision-kaldet laeser bare etiketten.
+        brand: cleanText(draft.brand || vision.brand) || null,
+        size: cleanText(draft.size || vision.size) || null,
+        size_scale: cleanText(draft.sizeScale) || null,
+        color: cleanText(draft.color || vision.color) || null,
+        category_path: Array.isArray(draft.categoryPath) && draft.categoryPath.length
+          ? draft.categoryPath.map((c: unknown) => cleanText(c)).filter(Boolean)
+          : null,
       })
       .eq("id", id);
 
