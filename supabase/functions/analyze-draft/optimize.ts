@@ -16,36 +16,30 @@ export interface PhotoGuidance {
 // egen facon.
 const RATIO_MAX = 1;       // kvadratisk
 const RATIO_MIN = 4 / 5;   // Vinteds portrætformat
-const MAX_EDGE = 1400;
+const MAX_EDGE = 1600;
 const PADDING = 0.06; // luft omkring varen, så den ikke klistrer til kanten
 
 export const GUIDANCE_TOOL = {
-  name: "vurder_billeder",
+  name: "vurder_billede",
   description:
-    "Angiv for hvert billede hvordan det skal roteres og beskæres, så varen står bedst i en Vinted-annonce.",
+    "Angiv hvordan dette ene billede skal roteres og beskæres, så varen står bedst i en Vinted-annonce.",
   input_schema: {
     type: "object",
     properties: {
-      photos: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            index: { type: "integer", description: "Billedets nummer, 0-baseret, i samme rækkefølge som vist" },
-            rotationDegrees: {
-              type: "integer",
-              description: "0, 90, 180 eller 270 — hvor meget billedet skal roteres med uret for at vende rigtigt",
-            },
-            x0: { type: "number", description: "Venstre kant af varen, 0-1 af billedets bredde" },
-            y0: { type: "number", description: "Øverste kant af varen, 0-1 af billedets højde" },
-            x1: { type: "number", description: "Højre kant af varen, 0-1" },
-            y1: { type: "number", description: "Nederste kant af varen, 0-1" },
-          },
-          required: ["index", "rotationDegrees", "x0", "y0", "x1", "y1"],
-        },
+      rotationDegrees: {
+        type: "integer",
+        description: "0, 90, 180 eller 270 — hvor meget billedet skal roteres med uret for at vende rigtigt",
+      },
+      x0: { type: "number", description: "Venstre kant af motivet, 0-1 af bredden" },
+      y0: { type: "number", description: "Øverste kant af motivet, 0-1 af højden" },
+      x1: { type: "number", description: "Højre kant af motivet, 0-1" },
+      y1: { type: "number", description: "Nederste kant af motivet, 0-1" },
+      personalInfo: {
+        type: "boolean",
+        description: "true hvis billedet viser navn, adresse eller andet personligt, fx et navnemærke i tøjet",
       },
     },
-    required: ["photos"],
+    required: ["rotationDegrees", "x0", "y0", "x1", "y1", "personalInfo"],
   },
 };
 
@@ -111,5 +105,5 @@ export async function optimizePhoto(
     image = image.resize(Math.round(image.width * scale), Math.round(image.height * scale));
   }
 
-  return await image.encodeJPEG(86);
+  return await image.encodeJPEG(90);
 }

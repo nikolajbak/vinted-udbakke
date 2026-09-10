@@ -292,6 +292,15 @@
     gap: 6px;
   }
 
+  .warn-note{
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--amber);
+    background: var(--amber-soft);
+    border-radius: 6px;
+    padding: 9px 11px;
+  }
+
   .photo-strip{
     display: flex;
     gap: 6px;
@@ -762,6 +771,7 @@
             (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
             '<div class="desc">' + escapeHtml(d.description || '') + '</div>' +
             '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
+            (d.personal_info ? '<div class="warn-note">Der ses navn eller andre personlige oplysninger på et af billederne — fx et påsyet navnemærke. Tjek dem, før du uploader.</div>' : '') +
             photoStrip(d) +
             '<div class="actions">' +
               '<button type="button" class="btn-primary fill-btn">Udfyld i Vinted</button>' +
@@ -1055,7 +1065,7 @@
   }
 
   function uploadShot(file, kind){
-    return resizeToBlob(file, 1080, 0.82).then(function(blob){
+    return resizeToBlob(file, 1800, 0.9).then(function(blob){
       var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
       return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' }).then(function(res){
         if(res.error) throw res.error;

@@ -160,71 +160,63 @@ Deno.serve(async (req: Request) => {
     }
     if (!loaded.length) throw new Error("image_fetch_failed");
 
-    // 0. Let the model say how each photo should be rotated and where the item
-    // actually sits, then cut to Vinted's 4:5 around the item instead of the
-    // frame's centre. Best-effort: originals stand if any of it fails.
-    try {
-      const guidanceInput: unknown[] = [];
-      loaded.forEach((l, i) => {
-        guidanceInput.push({ type: "text", text: `Billede ${i} (${l.photo.kind || "ukendt vinkel"}):` });
-        guidanceInput.push({
-          type: "image",
-          source: { type: "base64", media_type: l.mediaType, data: toBase64(l.buf) },
+    // 0. Vurdér HVERT billede for sig. Da alle seks blev vurderet i ét kald,
+    // returnerede modellen upræcise kasser, og naerbilleder blev stort set
+    // ikke beskaaret. Ét billede ad gangen er markant mere praecist.
+    // Best-effort: originalen staar, hvis noget fejler.
+    let personalInfoSeen = false;
+    for (const l of loaded) {
+      if (!l.photo.path) continue;
+      if (l.photo.optimized || /-opt\.jpg$/i.test(l.photo.path)) continue;
+      try {
+        const g = await callClaudeJson(
+          "Du forbereder ét foto til en Vinted-annonce.\n\n" +
+            "1) Rotation: hvor mange grader med uret skal billedet drejes for at vende rigtigt (0/90/180/270)?\n" +
+            "2) Kassen: angiv motivets yderste kanter i normaliserede koordinater 0-1. " +
+            "Er billedet et NAERBILLEDE af et maerkat, en etiket, et tryk eller en detalje, skal kassen " +
+            "slutte taet om selve maerkatet/detaljen — ikke om hele toejstykket omkring det. " +
+            "Er billedet en HEL vare, skal kassen foelge varens kanter og holde gulv, borde, " +
+            "foedder, ben, haender og moebler udenfor.\n" +
+            "3) personalInfo: true hvis der er navn, adresse eller andet personligt at se " +
+            "(fx et paasyet navnemaerke).",
+          [
+            { type: "image", source: { type: "base64", media_type: l.mediaType, data: toBase64(l.buf) } },
+            { type: "text", text: `Billedtype: ${l.photo.kind || "ukendt"}. Vurdér dette ene billede.` },
+          ],
+          STRATEGY_MODEL,
+          GUIDANCE_TOOL,
+          400,
+        );
+
+        if (g.personalInfo === true) personalInfoSeen = true;
+
+        const jpeg = await optimizePhoto(l.buf, {
+          rotationDegrees: Number(g.rotationDegrees) || 0,
+          crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
         });
-      });
-      guidanceInput.push({
-        type: "text",
-        text: "Angiv for hvert billede rotationen og en kasse omkring selve varen.",
-      });
-
-      const guidance = await callClaudeJson(
-        "Du forbereder fotos til en Vinted-annonce. For hvert billede: angiv hvor meget det skal roteres med uret " +
-          "for at vende rigtigt (0/90/180/270), og en TÆTSLUTTENDE kasse om SELVE VAREN i normaliserede " +
-          "koordinater 0-1.\n\n" +
-          "Kassen skal følge varens yderste kanter — ikke mere. Hold ALT andet udenfor: gulv, bord, vægge, " +
-          "fødder, ben, hænder, møbler, bøjler og andre genstande. Er der store tomme flader over eller under " +
-          "varen, skal de IKKE med. Et menneske på billedet er aldrig en del af varen.\n" +
-          "Ved nærbilleder af mærkater skal kassen omslutte hele mærkatet, så teksten forbliver læsbar.",
-        guidanceInput,
-        STRATEGY_MODEL,
-        GUIDANCE_TOOL,
-      );
-
-      const perPhoto = (guidance.photos || []) as Array<Record<string, number>>;
-      for (const g of perPhoto) {
-        const l = loaded[g.index];
-        if (!l || !l.photo.path) continue;
-        // Analysen kan koeres igen ("Proev igen"), og et allerede beskaaret
-        // billede maa ikke beskaeres oveni sig selv.
-        if (l.photo.optimized || /-opt\.jpg$/i.test(l.photo.path)) continue;
-        try {
-          const jpeg = await optimizePhoto(l.buf, {
-            rotationDegrees: g.rotationDegrees || 0,
-            crop: { x0: g.x0, y0: g.y0, x1: g.x1, y1: g.y1 },
-          });
-          const optPath = l.photo.path.replace(/\.jpg$/i, "") + "-opt.jpg";
-          const up = await supabase.storage.from("photos").upload(optPath, jpeg, {
-            contentType: "image/jpeg",
-            upsert: true,
-          });
-          if (up.error) continue;
-          l.photo.path = optPath;
-          l.photo.url = supabase.storage.from("photos").getPublicUrl(optPath).data.publicUrl;
-          l.photo.optimized = true;
-          l.buf = jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength) as ArrayBuffer;
-          l.mediaType = "image/jpeg";
-        } catch (_e) { /* behold originalen for dette billede */ }
+        const optPath = l.photo.path.replace(/\.jpg$/i, "") + "-opt.jpg";
+        const up = await supabase.storage.from("photos").upload(optPath, jpeg, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+        if (up.error) continue;
+        l.photo.path = optPath;
+        l.photo.url = supabase.storage.from("photos").getPublicUrl(optPath).data.publicUrl;
+        l.photo.optimized = true;
+        l.buf = jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength) as ArrayBuffer;
+        l.mediaType = "image/jpeg";
+      } catch (err) {
+        console.error("optimering sprunget over for", l.photo.kind, err);
       }
+    }
 
-      if (loaded.some((l) => l.photo.optimized)) {
-        await supabase.from("drafts").update({
-          photos: loaded.map((l) => l.photo),
-          image_path: loaded[0].photo.path,
-          image_url: loaded[0].photo.url,
-        }).eq("id", id);
-      }
-    } catch (err) {
-      console.error("billedoptimering sprunget over", err);
+    if (loaded.some((l) => l.photo.optimized)) {
+      await supabase.from("drafts").update({
+        photos: loaded.map((l) => l.photo),
+        image_path: loaded[0].photo.path,
+        image_url: loaded[0].photo.url,
+        personal_info: personalInfoSeen,
+      }).eq("id", id);
     }
 
     // Cap what we send onward: the first few carry almost all the signal.
