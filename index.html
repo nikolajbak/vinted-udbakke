@@ -17,906 +17,608 @@
   :root{
     --paper: #E8EAE0;
     --surface: #F5F3EA;
+    --raised: #FBFAF4;
     --ink: #211F1B;
     --ink-soft: #5B584E;
     --accent: #5B3A52;
-    --accent-soft: #EFE3EC;
+    --accent-ink: #FBFAF4;
     --moss: #3F5C4C;
     --moss-soft: #E1EAE2;
     --amber: #8C5F1F;
     --amber-soft: #F3E6CE;
     --line: #C9C2B0;
     --focus: #2E63B8;
+
+    /* Én skala. Før var der syv skriftstørrelser og fire afstande i flæng. */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --t-label: 11px; --t-small: 13px; --t-body: 15px; --t-title: 19px; --t-display: 27px;
+    --tap: 48px;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --paper: #19170F;
-      --surface: #221F16;
-      --ink: #ECE7DB;
-      --ink-soft: #B7B0A0;
-      --accent: #D3A6C4;
-      --accent-soft: #3A2C36;
-      --moss: #9BC0A9;
-      --moss-soft: #24352B;
-      --amber: #E3B569;
-      --amber-soft: #3A2E17;
-      --line: #4A4433;
-      --focus: #7FB0FF;
+      --paper: #19170F; --surface: #221F16; --raised: #2A2620;
+      --ink: #ECE7DB; --ink-soft: #B7B0A0;
+      --accent: #D3A6C4; --accent-ink: #1B1712;
+      --moss: #9BC0A9; --moss-soft: #24352B;
+      --amber: #E3B569; --amber-soft: #3A2E17;
+      --line: #4A4433; --focus: #7FB0FF;
     }
   }
   :root[data-theme="dark"]{
-    --paper: #19170F;
-    --surface: #221F16;
-    --ink: #ECE7DB;
-    --ink-soft: #B7B0A0;
-    --accent: #D3A6C4;
-    --accent-soft: #3A2C36;
-    --moss: #9BC0A9;
-    --moss-soft: #24352B;
-    --amber: #E3B569;
-    --amber-soft: #3A2E17;
-    --line: #4A4433;
-    --focus: #7FB0FF;
+    --paper: #19170F; --surface: #221F16; --raised: #2A2620;
+    --ink: #ECE7DB; --ink-soft: #B7B0A0;
+    --accent: #D3A6C4; --accent-ink: #1B1712;
+    --moss: #9BC0A9; --moss-soft: #24352B;
+    --amber: #E3B569; --amber-soft: #3A2E17;
+    --line: #4A4433; --focus: #7FB0FF;
   }
 
   *{ box-sizing: border-box; }
+  html, body{ height: 100%; }
   body{
+    margin: 0;
     background: var(--paper);
     color: var(--ink);
     font-family: "Libre Franklin", system-ui, sans-serif;
-    margin: 0;
+    font-size: var(--t-body);
+    line-height: 1.5;
+    overflow: hidden;
   }
-  .wrap{
-    max-width: 560px;
-    margin: 0 auto;
-    padding: 28px 18px calc(80px + env(safe-area-inset-bottom));
-  }
-  .mono{
+  button, input{ font-family: inherit; }
+  [hidden]{ display: none !important; }
+  :focus-visible{ outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .mono{ font-family: "Space Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .label{
     font-family: "Space Mono", ui-monospace, monospace;
-    font-variant-numeric: tabular-nums;
-  }
-  .eyebrow{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 11px;
-    letter-spacing: 0.14em;
+    font-size: var(--t-label);
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink-soft);
   }
-  header{
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    padding-bottom: 18px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--line);
-  }
-  h1{
-    font-size: 28px;
-    font-weight: 700;
-    margin: 4px 0 0;
-    text-wrap: balance;
-    letter-spacing: -0.01em;
-  }
-  .count{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 13px;
-    color: var(--ink-soft);
-    white-space: nowrap;
-    text-align: right;
-  }
-  .count strong{
-    color: var(--ink);
-    font-size: 15px;
-  }
-  .count .pending-note{
-    display: block;
-    margin-top: 2px;
-  }
 
-  input[type="file"]{
+  /* ---- Skærme og overgange ------------------------------------------------
+     Før skiftede appen mellem tilstande med rå hidden-toggles. Nu er hver
+     skærm et lag, der glider ind fra højre og ud igen, så man kan se hvor
+     man bevæger sig hen. */
+  #app{ position: relative; height: 100%; overflow: hidden; }
+  .screen{
     position: absolute;
-    width: 1px; height: 1px;
-    overflow: hidden;
-    clip: rect(0,0,0,0);
-  }
-  .capture-row{ margin-bottom: 22px; }
-
-  .session{
-    border: 1px solid var(--line);
-    border-top: 2px dashed var(--line);
-    border-radius: 8px;
-    background: var(--surface);
-    padding: 18px;
-    margin-bottom: 22px;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-  }
-  .session-head h2{
-    margin: 4px 0 0;
-    font-size: 20px;
-    font-weight: 700;
-    text-wrap: balance;
-  }
-  .session-head p{
-    margin: 6px 0 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--ink-soft);
-  }
-  .shot-strip{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .shot-strip:empty{ display: none; }
-  .shot-thumb{
-    width: 54px;
-    text-align: center;
-  }
-  .shot-thumb img{
-    width: 54px;
-    height: 68px;
-    object-fit: cover;
-    border-radius: 5px;
-    border: 1px solid var(--line);
-    display: block;
     background: var(--paper);
-  }
-  .shot-thumb span{
-    display: block;
-    margin-top: 3px;
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 9px;
-    color: var(--ink-soft);
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
-  .session-actions{
+  .screen[hidden]{ display: none !important; }
+  @media (prefers-reduced-motion: no-preference){
+    .screen{ transition: transform 280ms cubic-bezier(0.32,0.72,0,1), opacity 200ms ease; }
+    .screen.enter-right{ transform: translateX(100%); }
+    .screen.exit-left{ transform: translateX(-22%); opacity: 0.6; }
+    .screen.enter-fade{ opacity: 0; }
+  }
+
+  .bar{
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 14px;
-    row-gap: 10px;
+    gap: var(--s3);
+    padding: var(--s4) var(--s4) var(--s3);
+    padding-top: calc(var(--s4) + env(safe-area-inset-top));
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    flex: none;
   }
-  .session-actions #finish-btn{
-    color: var(--moss);
-    font-weight: 700;
-  }
-  .btn-capture{
-    width: 100%;
-    background: var(--accent);
-    color: var(--surface);
-    border: 1px solid var(--accent);
-    padding: 15px;
-    font-size: 15px;
-    font-weight: 600;
-    border-radius: 8px;
-    font-family: "Libre Franklin", system-ui, sans-serif;
-    cursor: pointer;
-  }
-  .btn-capture:active{ opacity: 0.85; }
-  .capture-status{
-    font-size: 13px;
-    color: var(--ink-soft);
-    margin-top: 10px;
-    text-align: center;
-  }
+  .bar h1{ font-size: var(--t-display); font-weight: 700; margin: 0; letter-spacing: -0.015em; }
+  .bar h2{ font-size: var(--t-title); font-weight: 700; margin: 0; flex: 1; min-width: 0;
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .spacer{ flex: 1; }
 
-  #list{
+  .icon-btn{
+    width: var(--tap); height: var(--tap);
+    flex: none;
+    display: grid; place-items: center;
+    background: none; border: none; cursor: pointer;
+    color: var(--ink); border-radius: 10px;
+  }
+  .icon-btn svg{ width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2;
+                 stroke-linecap: round; stroke-linejoin: round; }
+  .icon-btn:active{ background: var(--surface); }
+
+  .body{
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--s4);
+    padding-bottom: calc(var(--s6) + env(safe-area-inset-bottom));
+  }
+  .footer{
+    flex: none;
+    padding: var(--s3) var(--s4);
+    padding-bottom: calc(var(--s3) + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: var(--paper);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--s2);
   }
 
-  .card{
+  /* ---- Knapper: én primær form, én sekundær, ét tekstlink ---------------- */
+  .btn{
+    min-height: var(--tap);
+    width: 100%;
+    border-radius: 10px;
+    font-size: var(--t-body);
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+    padding: 0 var(--s4);
+    border: 1px solid transparent;
+    transition: transform 90ms ease, background-color 140ms ease, opacity 140ms ease;
+  }
+  .btn:active{ transform: scale(0.98); }
+  .btn-primary{ background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn-secondary{ background: var(--surface); color: var(--ink); border-color: var(--line); }
+  .btn-quiet{ background: none; color: var(--ink-soft); font-weight: 500; }
+  .btn-danger{ background: none; color: var(--amber); font-weight: 500; }
+  .btn[disabled]{ opacity: 0.55; }
+
+  /* ---- Kø: kompakte rækker. Alt detaljestof ligger på detaljeskærmen. ---- */
+  #queue-list{ display: flex; flex-direction: column; gap: var(--s3); }
+  .row{
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3);
     background: var(--surface);
     border: 1px solid var(--line);
-    border-top: 2px dashed var(--line);
-    border-radius: 8px;
-    padding: 16px;
-    display: grid;
-    grid-template-columns: 96px 1fr;
-    gap: 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: transform 90ms ease, background-color 140ms ease;
   }
-  .card.is-pending{ opacity: 0.72; }
-  /* Billedet ER varen — det fortjener plads, og 4:5 matcher beskæringen. */
-  .card img{
-    width: 96px;
-    height: 120px;
-    object-fit: cover;
-    border-radius: 6px;
-    border: 1px solid var(--line);
-    background: var(--paper);
+  .row:active{ transform: scale(0.99); background: var(--raised); }
+  .row.is-muted .row-title{ color: var(--ink-soft); font-weight: 500; }
+  .row img, .row .ph{
+    width: 72px; height: 90px;
+    object-fit: cover; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--paper);
     display: block;
   }
-  .card-body{
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  .row-main{ min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .row-title{
+    font-weight: 600; font-size: var(--t-body); line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .row-top{
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .title{
-    font-weight: 600;
-    font-size: 16px;
-    line-height: 1.3;
-    text-wrap: balance;
-  }
-  .title.is-muted{ color: var(--ink-soft); font-weight: 500; }
+  .row-sub{ font-size: var(--t-small); color: var(--ink-soft); }
+  .row-price{ font-weight: 700; font-size: var(--t-body); color: var(--ink); }
+  .chev{ color: var(--ink-soft); display: grid; place-items: center; }
+  .chev svg{ width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2;
+             stroke-linecap: round; stroke-linejoin: round; }
+
   .chip{
     font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 100px;
-    white-space: nowrap;
-    flex: none;
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+    display: inline-block;
   }
-  .chip.ny{ background: var(--amber-soft); color: var(--amber); }
-  .chip.afsendt{ background: var(--moss-soft); color: var(--moss); }
-  .chip.afventer{ background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); }
+  .chip-ny{ background: var(--amber-soft); color: var(--amber); }
+  .chip-vent{ background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); }
 
-  .price{
-    font-size: 20px;
-    font-weight: 700;
-  }
-  .price-note{
-    font-size: 12px;
-    color: var(--ink-soft);
-  }
-  .meta{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 11px;
-    color: var(--ink-soft);
-  }
-  .desc{
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--ink);
-    white-space: pre-wrap;
-  }
-
-  .full-width{
-    grid-column: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  /* Manuel beskæring — modellen rammer ikke altid rigtigt, og så skal du
-     kunne rette det selv uden at tage billedet om. */
-  .crop-overlay{
-    position: fixed;
-    inset: 0;
-    z-index: 500;
-    background: #14120E;
-    display: flex;
-    flex-direction: column;
-    padding: 14px;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom));
-    gap: 12px;
-  }
-  .crop-overlay p{
-    margin: 0;
-    color: #EDE8DE;
-    font-size: 13px;
-    text-align: center;
-  }
-  .crop-stage{
-    position: relative;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    touch-action: none;
-  }
-  .crop-stage img{
-    max-width: 100%;
-    max-height: 100%;
-    display: block;
-    user-select: none;
-    -webkit-user-drag: none;
-  }
-  .crop-box{
-    position: absolute;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
-    touch-action: none;
-  }
-  .crop-handle{
-    position: absolute;
-    width: 34px;
-    height: 34px;
-    background: rgba(255,255,255,0.001);
-  }
-  .crop-handle::after{
-    content: "";
-    position: absolute;
-    width: 16px; height: 16px;
-    border: 3px solid #fff;
-    border-radius: 2px;
-  }
-  .crop-handle[data-c="nw"]{ left: -17px; top: -17px; }
-  .crop-handle[data-c="nw"]::after{ left: 9px; top: 9px; border-right: 0; border-bottom: 0; }
-  .crop-handle[data-c="ne"]{ right: -17px; top: -17px; }
-  .crop-handle[data-c="ne"]::after{ right: 9px; top: 9px; border-left: 0; border-bottom: 0; }
-  .crop-handle[data-c="sw"]{ left: -17px; bottom: -17px; }
-  .crop-handle[data-c="sw"]::after{ left: 9px; bottom: 9px; border-right: 0; border-top: 0; }
-  .crop-handle[data-c="se"]{ right: -17px; bottom: -17px; }
-  .crop-handle[data-c="se"]::after{ right: 9px; bottom: 9px; border-left: 0; border-top: 0; }
-  .crop-actions{
-    display: flex;
-    gap: 10px;
-  }
-  .crop-actions button{
-    flex: 1;
-    padding: 13px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .crop-actions .save{ background: var(--accent); color: var(--surface); border: 1px solid var(--accent); }
-  .crop-actions .cancel{ background: none; color: #EDE8DE; border: 1px solid rgba(255,255,255,0.35); }
-
-  .photo-strip img{ cursor: pointer; }
-
-  .warn-note{
-    font-size: 12.5px;
-    line-height: 1.5;
-    color: var(--amber);
-    background: var(--amber-soft);
-    border-radius: 6px;
-    padding: 9px 11px;
-  }
-
-  .photo-hint{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: var(--ink-soft);
-  }
-  .photo-strip{
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .photo-strip img{
-    width: 62px;
-    height: 78px;
-    flex: none;
-    object-fit: cover;
-    border-radius: 5px;
-    border: 1px solid var(--line);
-    background: var(--paper);
-  }
-  .btn-save{
+  /* ---- Detaljeskærm ------------------------------------------------------ */
+  .hero{
     width: 100%;
-    background: none;
-    color: var(--ink);
+    max-height: 44vh;
+    object-fit: cover;
+    border-radius: 12px;
     border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 10px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .btn-save:active{ opacity: 0.8; }
-
-  /* Primærhandlingen får sin egen fulde linje, de sekundære deler den næste.
-     Ellers brød de tre knapper over tre linjer på en telefon. */
-  .actions{
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    margin-top: 8px;
-  }
-  .actions .btn-primary{ width: 100%; }
-  .actions-secondary{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .actions-secondary .link-btn{ font-size: 12.5px; }
-
-  .install-box{
-    margin-top: 30px;
-    padding: 16px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
     background: var(--surface);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .install-box p{
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--ink-soft);
-  }
-  .install-box a.btn-install{
     display: block;
-    text-align: center;
-    text-decoration: none;
-    background: var(--accent);
-    color: var(--surface);
-    border-radius: 6px;
-    padding: 11px 14px;
-    font-size: 14px;
-    font-weight: 600;
   }
-  button{
-    font-family: "Libre Franklin", system-ui, sans-serif;
-    font-weight: 600;
-    font-size: 13px;
-    border-radius: 6px;
-    cursor: pointer;
+  .strip{ display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: var(--s1); margin-top: var(--s2); }
+  .strip img{
+    width: 60px; height: 75px; flex: none; object-fit: cover;
+    border-radius: 8px; border: 1px solid var(--line); cursor: pointer; background: var(--surface);
   }
-  .btn-primary{
-    background: var(--accent);
-    color: var(--surface);
-    border: 1px solid var(--accent);
-    padding: 9px 14px;
+  .price-row{ display: flex; align-items: baseline; gap: var(--s2); margin-top: var(--s4); }
+  .price-big{ font-size: var(--t-display); font-weight: 700; }
+  .note{ font-size: var(--t-small); color: var(--ink-soft); margin-top: var(--s1); line-height: 1.55; }
+  .desc{ font-size: var(--t-body); line-height: 1.6; white-space: pre-wrap; margin-top: var(--s4); }
+  .warn{
+    margin-top: var(--s4);
+    font-size: var(--t-small); line-height: 1.5;
+    color: var(--amber); background: var(--amber-soft);
+    border-radius: 10px; padding: var(--s3);
   }
-  .btn-primary:active{ opacity: 0.85; }
-  .btn-primary.done{
-    background: var(--moss);
-    border-color: var(--moss);
-  }
-  .link-btn{
-    background: none;
-    border: none;
-    color: var(--ink-soft);
-    padding: 10px 2px;
-    margin: -10px 0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  .link-btn:hover{ color: var(--ink); }
-  button:focus-visible, .link-btn:focus-visible, a:focus-visible{
-    outline: 2px solid var(--focus);
-    outline-offset: 2px;
-  }
+  .sect{ margin-top: var(--s5); }
+  .sect > .label{ display: block; margin-bottom: var(--s2); }
 
-  .empty{
-    border: 1px solid var(--line);
-    border-top: 2px dashed var(--line);
-    border-radius: 8px;
-    background: var(--surface);
-    padding: 26px 20px;
-  }
-  .empty p.lead{
-    font-size: 15px;
-    margin: 0 0 16px;
-    color: var(--ink);
-  }
-  .empty ol{
-    margin: 0;
-    padding-left: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    font-size: 14px;
-    color: var(--ink-soft);
-  }
-  .empty li::marker{
-    font-family: "Space Mono", ui-monospace, monospace;
-    color: var(--accent);
-    font-weight: 700;
-  }
-  .empty li b{ color: var(--ink); font-weight: 600; }
+  /* ---- Optageskærm ------------------------------------------------------- */
+  .progress{ display: flex; gap: 5px; margin-bottom: var(--s4); }
+  .progress i{ flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+  .progress i.done{ background: var(--moss); }
+  .progress i.now{ background: var(--accent); }
+  .step-title{ font-size: var(--t-title); font-weight: 700; margin: 0; }
+  .step-hint{ font-size: var(--t-small); color: var(--ink-soft); margin: var(--s2) 0 0; line-height: 1.55; }
+  .shots{ display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+  .shot{ width: 60px; }
+  .shot img{ width: 60px; height: 75px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); display: block; }
+  .shot span{ display: block; font-family: "Space Mono", ui-monospace, monospace; font-size: 9px;
+              color: var(--ink-soft); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .state-msg{
-    font-size: 13px;
-    color: var(--ink-soft);
-    padding: 20px 2px;
-  }
+  /* ---- Tom tilstand ------------------------------------------------------ */
+  .empty{ text-align: center; padding: var(--s6) var(--s4); }
+  .empty h3{ font-size: var(--t-title); margin: 0 0 var(--s2); }
+  .empty p{ color: var(--ink-soft); font-size: var(--t-small); margin: 0 auto; max-width: 34ch; line-height: 1.6; }
 
-  .hist-toggle{
-    margin-top: 26px;
-    text-align: center;
+  /* ---- Login ------------------------------------------------------------- */
+  .login-inner{ margin: auto; width: 100%; max-width: 320px; text-align: center; }
+  .login-inner h1{ font-size: var(--t-display); margin: var(--s2) 0 var(--s5); }
+  #pw{
+    width: 100%; min-height: var(--tap);
+    font-family: "Space Mono", ui-monospace, monospace; font-size: 16px;
+    padding: 0 var(--s3); border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    margin-bottom: var(--s2);
   }
-  #hist-list{
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 14px;
-  }
-  .hist-row{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 13px;
-  }
-  .hist-row img{
-    width: 34px; height: 34px; object-fit: cover; border-radius: 4px;
-    border: 1px solid var(--line);
-  }
-  .hist-row .t{ flex: 1; min-width: 0; }
-  .hist-row .t .n{ font-weight: 600; }
-  .hist-row .t .p{ color: var(--ink-soft); font-size: 12px; }
+  #login-err{ font-size: var(--t-small); color: var(--amber); min-height: 20px; margin-top: var(--s2); }
 
-  [hidden]{ display: none !important; }
+  /* ---- Beskæring --------------------------------------------------------- */
+  #crop{
+    position: absolute; inset: 0; z-index: 50;
+    background: #14120E; display: flex; flex-direction: column;
+    padding: var(--s3); padding-bottom: calc(var(--s3) + env(safe-area-inset-bottom)); gap: var(--s3);
+  }
+  #crop p{ margin: 0; color: #EDE8DE; font-size: var(--t-small); text-align: center; }
+  #crop-stage{ position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+               overflow: hidden; touch-action: none; }
+  #crop-img{ max-width: 100%; max-height: 100%; display: block; -webkit-user-drag: none; user-select: none; }
+  #crop-box{ position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); touch-action: none; }
+  .h{ position: absolute; width: 40px; height: 40px; }
+  .h::after{ content:""; position: absolute; width: 16px; height: 16px; border: 3px solid #fff; border-radius: 2px; }
+  .h[data-c="nw"]{ left:-20px; top:-20px; } .h[data-c="nw"]::after{ left:12px; top:12px; border-right:0; border-bottom:0; }
+  .h[data-c="ne"]{ right:-20px; top:-20px; } .h[data-c="ne"]::after{ right:12px; top:12px; border-left:0; border-bottom:0; }
+  .h[data-c="sw"]{ left:-20px; bottom:-20px; } .h[data-c="sw"]::after{ left:12px; bottom:12px; border-right:0; border-top:0; }
+  .h[data-c="se"]{ right:-20px; bottom:-20px; } .h[data-c="se"]::after{ right:12px; bottom:12px; border-left:0; border-top:0; }
+  .crop-btns{ display: flex; gap: var(--s2); }
+  .crop-btns .btn{ flex: 1; }
+  .crop-btns .btn-secondary{ background: none; color: #EDE8DE; border-color: rgba(255,255,255,0.35); }
 
+  /* ---- Menu -------------------------------------------------------------- */
+  .menu-item{
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+    width: 100%; min-height: var(--tap);
+    padding: var(--s3) 0;
+    background: none; border: none; border-bottom: 1px solid var(--line);
+    color: var(--ink); font-size: var(--t-body); font-weight: 600; text-align: left; cursor: pointer;
+  }
+  .menu-item small{ display: block; color: var(--ink-soft); font-size: var(--t-small); font-weight: 400; }
+  .setup ol{ margin: var(--s2) 0 0; padding-left: 20px; color: var(--ink-soft);
+             font-size: var(--t-small); line-height: 1.7; }
+  .setup ol b{ color: var(--ink); }
+
+  .hist-row{ display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0;
+             border-bottom: 1px solid var(--line); }
+  .hist-row img{ width: 40px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+  .hist-row div{ min-width: 0; }
+  .hist-row .t{ font-weight: 600; font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hist-row .s{ font-size: var(--t-small); color: var(--ink-soft); }
+
+  .toast{
+    position: fixed; left: var(--s4); right: var(--s4);
+    bottom: calc(var(--s5) + env(safe-area-inset-bottom));
+    z-index: 80;
+    background: var(--ink); color: var(--paper);
+    padding: var(--s3) var(--s4); border-radius: 10px;
+    font-size: var(--t-small); text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.28);
+  }
   @media (prefers-reduced-motion: no-preference){
-    .card, .session, .empty, .install-box{
-      animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
-    }
-    @keyframes rise{
-      from{ opacity: 0; transform: translateY(8px); }
-      to{ opacity: 1; transform: translateY(0); }
-    }
-
-    /* Kort forsvinder ikke bare når du markerer dem — de trækker sig ud,
-       så det er tydeligt hvad der skete. */
-    .card.is-leaving{
-      animation: leave 220ms ease-in both;
-      pointer-events: none;
-    }
-    @keyframes leave{
-      to{ opacity: 0; transform: translateX(14px) scale(0.98); }
-    }
-
-    .btn-capture, .btn-primary, .btn-install{
-      transition: transform 90ms ease, opacity 120ms ease, background-color 120ms ease;
-    }
-    .btn-capture:active, .btn-primary:active, .btn-install:active{
-      transform: scale(0.975);
-    }
-    .link-btn{ transition: color 120ms ease; }
-    .shot-thumb{ animation: pop 220ms cubic-bezier(0.2, 0.8, 0.3, 1) both; }
-    @keyframes pop{
-      from{ opacity: 0; transform: scale(0.86); }
-      to{ opacity: 1; transform: scale(1); }
-    }
-    .chip{ transition: background-color 160ms ease, color 160ms ease; }
-    #capture-status{ animation: rise 200ms ease-out both; }
-  }
-  .login-wrap{
-    max-width: 340px;
-    margin: 18vh auto 0;
-    padding: 0 18px;
-    text-align: center;
-  }
-  .login-wrap h1{ margin-bottom: 22px; }
-  #login-form{
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  #login-password{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 16px;
-    padding: 12px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink);
-  }
-  #login-password:focus-visible{ outline: 2px solid var(--focus); outline-offset: 1px; }
-  #login-error{
-    font-size: 13px;
-    color: var(--amber);
-    min-height: 18px;
-  }
-  .logout-row{
-    text-align: center;
-    margin-top: 32px;
+    .toast{ animation: toast-in 220ms cubic-bezier(0.2,0.8,0.3,1) both; }
+    @keyframes toast-in{ from{ opacity:0; transform: translateY(10px); } to{ opacity:1; transform:none; } }
+    .row{ animation: row-in 240ms cubic-bezier(0.2,0.7,0.3,1) both; }
+    @keyframes row-in{ from{ opacity:0; transform: translateY(6px); } to{ opacity:1; transform:none; } }
   }
 </style>
 </head>
 <body>
 
-<div class="login-wrap" id="login-wrap">
-  <div class="eyebrow">Vinted &middot; annonceudkast</div>
-  <h1>Udbakke</h1>
-  <form id="login-form">
-    <input type="password" id="login-password" placeholder="Adgangskode" autocomplete="current-password" required>
-    <button type="submit" class="btn-capture">Log ind</button>
-    <div id="login-error"></div>
-  </form>
-</div>
+<div id="app">
 
-<div class="wrap" id="app-wrap" hidden>
-  <header>
-    <div>
-      <div class="eyebrow">Vinted &middot; annonceudkast</div>
-      <h1>Udbakke</h1>
-    </div>
-    <div class="count">
-      <strong id="count-num">–</strong><br>klar
-      <span class="pending-note mono" id="pending-note" hidden></span>
-    </div>
-  </header>
-
-  <div class="capture-row">
-    <button type="button" class="btn-capture" id="capture-btn"><span aria-hidden="true">📷</span>&nbsp; Nyt produkt</button>
-    <input type="file" id="camera-input" accept="image/*" capture="environment">
-    <div class="capture-status" id="capture-status" hidden></div>
-  </div>
-
-  <section class="session" id="capture-session" hidden>
-    <div class="session-head">
-      <div class="eyebrow" id="step-counter"></div>
-      <h2 id="step-title"></h2>
-      <p id="step-hint"></p>
-    </div>
-    <div class="shot-strip" id="shot-strip"></div>
-    <button type="button" class="btn-capture" id="shoot-btn"><span aria-hidden="true">📷</span>&nbsp; Tag billede</button>
-    <div class="session-actions">
-      <button type="button" class="link-btn" id="skip-btn">Spring over</button>
-      <button type="button" class="link-btn" id="finish-btn">Færdig — lav udkast</button>
-      <button type="button" class="link-btn" id="cancel-btn">Annullér</button>
+  <section class="screen" id="s-login" hidden>
+    <div class="body" style="display:flex">
+      <form class="login-inner" id="login-form">
+        <div class="label">Vinted &middot; annonceudkast</div>
+        <h1>Udbakke</h1>
+        <input type="password" id="pw" placeholder="Adgangskode" autocomplete="current-password" required>
+        <button type="submit" class="btn btn-primary" id="login-btn">Log ind</button>
+        <div id="login-err"></div>
+      </form>
     </div>
   </section>
 
-  <div id="state" class="state-msg">Henter kø …</div>
-  <div id="list" hidden></div>
-  <div id="empty" class="empty" hidden>
-    <p class="lead">Ingen udkast lige nu.</p>
-    <ol>
-      <li>Tryk <b>"Nyt produkt"</b> og følg billedserien — forfra, bagfra, mærket og så videre</li>
-      <li>Tryk <b>"Færdig"</b>, så skriver Claude udkastet ud fra alle billederne</li>
-      <li>Tryk <b>"Udfyld i Vinted"</b>, tilføj billederne og opret annoncen</li>
-    </ol>
-  </div>
+  <section class="screen" id="s-queue" hidden>
+    <header class="bar">
+      <div>
+        <div class="label">Vinted &middot; annonceudkast</div>
+        <h1>Udbakke</h1>
+      </div>
+      <div class="spacer"></div>
+      <button type="button" class="icon-btn" id="menu-btn" aria-label="Indstillinger">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </header>
+    <div class="body">
+      <div id="queue-list"></div>
+      <div class="empty" id="queue-empty" hidden>
+        <h3>Ingen udkast endnu</h3>
+        <p>Tryk <b>Nyt produkt</b> og følg billedserien. Claude skriver annoncen ud fra billederne, og du gennemser den bagefter.</p>
+      </div>
+      <div class="empty" id="queue-loading"><p>Henter …</p></div>
+    </div>
+    <div class="footer">
+      <button type="button" class="btn btn-primary" id="new-btn">Nyt produkt</button>
+    </div>
+  </section>
 
-  <div class="install-box" id="install-box" hidden>
-    <p><b>Opsætning — kun én gang pr. telefon.</b> Du laver et bogmærke i Safari, som udfylder Vinted-annoncen for dig.</p>
-    <ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.6;color:var(--ink-soft);display:flex;flex-direction:column;gap:6px">
-      <li>Tryk <b>Kopiér bogmærke-kode</b> herunder</li>
-      <li>Gå til en vilkårlig side i Safari, tryk <b>Del</b> → <b>Tilføj bogmærke</b> → gem det i <b>Favoritter</b> med navnet <b>Udfyld Vinted</b></li>
-      <li>Åbn <b>Bogmærker</b> → <b>Rediger</b> → tryk på det nye bogmærke → slet adressen og <b>indsæt</b> koden i stedet → <b>Færdig</b></li>
-    </ol>
-    <p style="margin-top:4px"><b>Sådan bruger du det:</b> tryk "Udfyld i Vinted" på et udkast → Vinteds opret-side åbner → tryk i adressefeltet, vælg bogmærket <b>Udfyld Vinted</b> → felterne udfyldes.</p>
-    <button type="button" class="btn-install" id="copy-bookmarklet">Kopiér bogmærke-kode</button>
-    <button type="button" class="link-btn" id="install-done">Jeg har allerede sat det op</button>
-  </div>
+  <section class="screen" id="s-detail" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 id="d-title">Udkast</h2>
+    </header>
+    <div class="body" id="d-body"></div>
+    <div class="footer" id="d-footer"></div>
+  </section>
 
-  <div class="hist-toggle">
-    <button type="button" class="link-btn" id="hist-btn">Vis afsendte annoncer</button>
-  </div>
-  <div id="hist-list" hidden></div>
+  <section class="screen" id="s-capture" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" id="cap-close" aria-label="Luk">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <h2 id="cap-count">Nyt produkt</h2>
+    </header>
+    <div class="body">
+      <div class="progress" id="cap-progress"></div>
+      <h3 class="step-title" id="cap-title"></h3>
+      <p class="step-hint" id="cap-hint"></p>
+      <div class="shots" id="cap-shots"></div>
+      <div class="note" id="cap-status" hidden></div>
+    </div>
+    <div class="footer">
+      <button type="button" class="btn btn-primary" id="cap-shoot">Tag billede</button>
+      <button type="button" class="btn btn-secondary" id="cap-finish" hidden>Færdig — lav udkast</button>
+      <button type="button" class="btn btn-quiet" id="cap-skip">Spring dette billede over</button>
+    </div>
+  </section>
 
-  <div class="crop-overlay" id="crop-overlay" hidden>
-    <p id="crop-hint">Træk i hjørnerne for at beskære. Billedet gemmes i den udsnitsstørrelse, du vælger.</p>
-    <div class="crop-stage" id="crop-stage">
-      <img id="crop-img" alt="" crossorigin="anonymous">
-      <div class="crop-box" id="crop-box">
-        <div class="crop-handle" data-c="nw"></div>
-        <div class="crop-handle" data-c="ne"></div>
-        <div class="crop-handle" data-c="sw"></div>
-        <div class="crop-handle" data-c="se"></div>
+  <section class="screen" id="s-menu" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>Indstillinger</h2>
+    </header>
+    <div class="body">
+      <button type="button" class="menu-item" id="m-hist">
+        <span>Afsendte annoncer<small>Det du allerede har lagt op</small></span>
+        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+      </button>
+      <div class="sect setup">
+        <span class="label">Udfyld Vinted automatisk</span>
+        <p class="note">Et bogmærke i Safari udfylder titel, beskrivelse og pris på Vinteds opret-side. Sæt det op én gang pr. telefon.</p>
+        <ol>
+          <li>Tryk <b>Kopiér bogmærke-kode</b></li>
+          <li>I Safari: <b>Del</b> → <b>Tilføj bogmærke</b> → gem i <b>Favoritter</b> som <b>Udfyld Vinted</b></li>
+          <li><b>Bogmærker</b> → <b>Rediger</b> → tryk på det → slet adressen, <b>indsæt</b> koden → <b>Færdig</b></li>
+        </ol>
+        <button type="button" class="btn btn-secondary" id="m-copy" style="margin-top:12px">Kopiér bogmærke-kode</button>
+      </div>
+      <div class="sect">
+        <button type="button" class="btn btn-quiet" id="m-logout">Log ud</button>
       </div>
     </div>
-    <div class="crop-actions">
-      <button type="button" class="cancel" id="crop-cancel">Annullér</button>
-      <button type="button" class="save" id="crop-save">Gem beskæring</button>
+  </section>
+
+  <section class="screen" id="s-hist" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>Afsendte annoncer</h2>
+    </header>
+    <div class="body" id="hist-body"></div>
+  </section>
+
+  <div id="crop" hidden>
+    <p>Træk i hjørnerne. Billedet gemmes i den udsnitsstørrelse, du vælger.</p>
+    <div id="crop-stage">
+      <img id="crop-img" alt="" crossorigin="anonymous">
+      <div id="crop-box">
+        <div class="h" data-c="nw"></div><div class="h" data-c="ne"></div>
+        <div class="h" data-c="sw"></div><div class="h" data-c="se"></div>
+      </div>
+    </div>
+    <div class="crop-btns">
+      <button type="button" class="btn btn-secondary" id="crop-cancel">Annullér</button>
+      <button type="button" class="btn btn-primary" id="crop-save">Gem beskæring</button>
     </div>
   </div>
 
-  <div class="logout-row">
-    <button type="button" class="link-btn" id="logout-btn">Log ud</button>
-  </div>
+  <input type="file" id="cam" accept="image/*" capture="environment"
+         style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
 </div>
 
 <script>
 (function(){
   var SUPABASE_URL = 'https://gjycsqshkvkcupdnvgvf.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
-
   var LOGIN_EMAIL = 'adgang@udbakke.local';
   var BOOKMARKLET = "javascript:%28async%20function%28%29%7Bvar%20API%3D%27https%3A%2F%2Fgjycsqshkvkcupdnvgvf.supabase.co%2Ffunctions%2Fv1%2Fvinted-fill-script%3Fkey%3Da4deb2bc4156ae08d2772aca72de6a70%27%3Bfunction%20setv%28el%2Cv%29%7Bvar%20p%3Del.tagName%3D%3D%3D%27TEXTAREA%27%3Fwindow.HTMLTextAreaElement.prototype%3Awindow.HTMLInputElement.prototype%3BObject.getOwnPropertyDescriptor%28p%2C%27value%27%29.set.call%28el%2Cv%29%3Bel.dispatchEvent%28new%20Event%28%27input%27%2C%7Bbubbles%3Atrue%7D%29%29%3Bel.dispatchEvent%28new%20Event%28%27change%27%2C%7Bbubbles%3Atrue%7D%29%29%3B%7Dvar%20t%3Ddocument.querySelector%28%27%23title%27%29%2Cde%3Ddocument.querySelector%28%27%23description%27%29%2Cpe%3Ddocument.querySelector%28%27%23price%27%29%3Bif%28%21t%7C%7C%21de%7C%7C%21pe%29%7Balert%28%27Udbakke%3A%20du%20er%20ikke%20pa%20opret-siden.%20Ga%20til%20Vinted%20%3E%20Saelg%20nu%2C%20og%20tryk%20pa%20bogmaerket%20der.%27%29%3Breturn%3B%7Dtry%7Bvar%20d%3Dawait%28await%20fetch%28API%29%29.json%28%29%3Bif%28d.empty%29%7Balert%28%27Udbakke%3A%20ingen%20klar%20udkast%20i%20koen.%27%29%3Breturn%3B%7Dvar%20price%3Dd.price%2Cnote%3D%27foreloebig%20pris%27%3Bif%28d.needsPricing%26%26d.searchQuery%29%7Btry%7Bvar%20r%3Dawait%20fetch%28%27%2Fapi%2Fv2%2Fcatalog%2Fitems%3Fsearch_text%3D%27%2BencodeURIComponent%28d.searchQuery%29%2B%27%26order%3Drelevance%26page%3D1%26per_page%3D12%27%2C%7Bheaders%3A%7B%27Accept%27%3A%27application%2Fjson%27%7D%2Ccredentials%3A%27include%27%7D%29%3Bif%28r.ok%29%7Bvar%20comps%3D%28%28await%20r.json%28%29%29.items%7C%7C%5B%5D%29.map%28function%28i%29%7Breturn%7Btitle%3Ai.title%2Cprice%3A%28i.price%26%26i.price.amount%29%7C%7CString%28i.price%7C%7C%27%27%29%2Ccurrency%3A%28i.price%26%26i.price.currency_code%29%7C%7C%27DKK%27%7D%3B%7D%29.filter%28function%28x%29%7Breturn%20x.price%3B%7D%29%3Bif%28comps.length%29%7Bvar%20pj%3Dawait%28await%20fetch%28API%2C%7Bmethod%3A%27POST%27%2Cheaders%3A%7B%27Content-Type%27%3A%27application%2Fjson%27%7D%2Cbody%3AJSON.stringify%28%7Bid%3Ad.id%2Ccomparables%3Acomps%7D%29%7D%29%29.json%28%29%3Bif%28pj.price%29%7Bprice%3Dpj.price%3Bif%28pj.grounded%29note%3D%27pris%20tjekket%20mod%20%27%2Bcomps.length%2B%27%20annoncer%27%3B%7D%7D%7D%7Dcatch%28e%29%7Bnote%3D%27prisopslag%20fejlede%27%3B%7D%7Delse%20if%28%21d.needsPricing%29%7Bnote%3D%27pris%20allerede%20markedstjekket%27%3B%7Dsetv%28t%2Cd.title%29%3Bsetv%28de%2Cd.description%29%3Bsetv%28pe%2Cprice%29%3Balert%28%27Udfyldt%3A%20%27%2Bd.title%2B%27%5Cn%27%2Bnote%2B%27.%5Cn%5CnVaelg%20kategori%2C%20tilfoej%20billeder%2C%20tjek%20og%20upload%20selv.%27%29%3B%7Dcatch%28e%29%7Balert%28%27Udbakke-fejl%3A%20%27%2Be.message%29%3B%7D%7D%29%28%29%3B";
-  var INSTALLED_FLAG = 'udbakke_shortcut_installed';
-
-  var loginWrapEl = document.getElementById('login-wrap');
-  var appWrapEl = document.getElementById('app-wrap');
-  var loginFormEl = document.getElementById('login-form');
-  var loginPasswordEl = document.getElementById('login-password');
-  var loginErrorEl = document.getElementById('login-error');
-  var logoutBtn = document.getElementById('logout-btn');
-
-  var installBoxEl = document.getElementById('install-box');
-  var copyBookmarkletEl = document.getElementById('copy-bookmarklet');
-  var installDoneEl = document.getElementById('install-done');
-
-  var listEl = document.getElementById('list');
-  var emptyEl = document.getElementById('empty');
-  var stateEl = document.getElementById('state');
-  var countEl = document.getElementById('count-num');
-  var pendingNoteEl = document.getElementById('pending-note');
-  var histBtn = document.getElementById('hist-btn');
-  var histList = document.getElementById('hist-list');
-  var captureBtn = document.getElementById('capture-btn');
-  var cameraInput = document.getElementById('camera-input');
-  var captureStatusEl = document.getElementById('capture-status');
-  var captureRowEl = document.querySelector('.capture-row');
-  var sessionEl = document.getElementById('capture-session');
-  var stepCounterEl = document.getElementById('step-counter');
-  var stepTitleEl = document.getElementById('step-title');
-  var stepHintEl = document.getElementById('step-hint');
-  var shotStripEl = document.getElementById('shot-strip');
-  var shootBtn = document.getElementById('shoot-btn');
-  var skipBtn = document.getElementById('skip-btn');
-  var finishBtn = document.getElementById('finish-btn');
-  var cancelBtn = document.getElementById('cancel-btn');
 
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  var liveRows = {}; // id -> row, merged from the realtime channel
-  var appStarted = false;
+  var rows = {};
+  var started = false;
+  var currentId = null;
 
-  function escapeHtml(s){
+  var $ = function(id){ return document.getElementById(id); };
+  function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
-      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
     });
   }
-
   function relTime(iso){
     if(!iso) return '';
-    var d = new Date(iso);
-    if(isNaN(d)) return '';
-    var diffMs = Date.now() - d.getTime();
-    var min = Math.round(diffMs / 60000);
-    if(min < 1) return 'lige nu';
-    if(min < 60) return 'for ' + min + ' min. siden';
-    var hr = Math.round(min / 60);
-    if(hr < 24) return 'for ' + hr + ' t. siden';
-    var days = Math.round(hr / 24);
-    return 'for ' + days + ' dage siden';
+    var d = new Date(iso); if(isNaN(d)) return '';
+    var m = Math.round((Date.now() - d.getTime()) / 60000);
+    if(m < 1) return 'lige nu';
+    if(m < 60) return 'for ' + m + ' min. siden';
+    var h = Math.round(m/60);
+    if(h < 24) return 'for ' + h + ' t. siden';
+    return 'for ' + Math.round(h/24) + ' dage siden';
+  }
+  function toast(msg){
+    var t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 3200);
   }
 
-  function buildCopyText(d){
-    var parts = [];
-    if(d.title) parts.push(d.title);
-    if(d.description) parts.push(d.description);
-    if(d.price) parts.push('Pris: ' + d.price);
-    return parts.join('\n\n');
-  }
+  /* ---- Router ----------------------------------------------------------- */
+  var stack = [];
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function screenEl(name){ return $('s-' + name); }
 
-  // Billederne fra kameraet lander aldrig i telefonens kamerarulle - iOS giver
-  // dem direkte til siden. De skal derfor hentes herfra, foer Vinteds
-  // billedvaelger kan se dem.
-  function photoStrip(d){
-    var photos = d.photos || [];
-    if(!photos.length) return '';
-    return '<div class="photo-hint">Tryk på et billede for at beskære det selv</div>' +
-      '<div class="photo-strip">' + photos.map(function(p, i){
-        return '<img src="' + escapeHtml(p.url) + '" alt="' + escapeHtml(p.kind || '') +
-               '" data-i="' + i + '" loading="lazy">';
-      }).join('') + '</div>';
-  }
+  function show(name, opts){
+    opts = opts || {};
+    var next = screenEl(name);
+    var cur = stack.length ? screenEl(stack[stack.length - 1]) : null;
+    if(cur === next) return;
+    if(opts.replace && stack.length) stack[stack.length-1] = name; else stack.push(name);
 
-  function cardTemplate(d){
-    if(d.status === 'kladde'){
-      var count = (d.photos || []).length;
-      return (
-        '<article class="card is-pending" data-id="' + escapeHtml(d.id) + '">' +
-          (d.image_url ? '<img src="' + escapeHtml(d.image_url) + '" alt="Foto af varen">'
-                       : '<div style="width:96px;height:120px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>') +
-          '<div class="card-body">' +
-            '<div class="row-top">' +
-              '<div class="title is-muted">Ufærdig billedserie</div>' +
-              '<span class="chip afventer">Kladde</span>' +
-            '</div>' +
-            '<div class="meta">' + count + ' billede' + (count === 1 ? '' : 'r') + ' &middot; ' + escapeHtml(relTime(d.created_at)) + '</div>' +
-          '</div>' +
-          '<div class="full-width">' +
-            '<div class="actions">' +
-              '<button type="button" class="btn-primary resume-btn">Fortsæt</button>' +
-              '<div class="actions-secondary"><button type="button" class="link-btn discard-btn">Kasser</button></div>' +
-            '</div>' +
-          '</div>' +
-        '</article>'
-      );
+    next.hidden = false;
+    if(reduce){ if(cur && cur !== next) cur.hidden = true; return; }
+
+    next.classList.add(opts.fade ? 'enter-fade' : 'enter-right');
+    void next.offsetWidth;   // tegn startpositionen, så overgangen ses
+    next.classList.remove('enter-fade', 'enter-right');
+    if(cur && cur !== next){
+      cur.classList.add('exit-left');
+      setTimeout(function(){ cur.hidden = true; cur.classList.remove('exit-left'); }, 280);
     }
+  }
 
-    var isPending = d.status === 'afventer';
-    var img = d.image_url
-      ? '<img src="' + escapeHtml(d.image_url) + '" alt="Foto af varen">'
-      : '<div style="width:96px;height:120px;border-radius:6px;border:1px solid var(--line);background:var(--paper);"></div>';
+  function back(){
+    if(stack.length < 2) return;
+    var cur = screenEl(stack.pop());
+    var prev = screenEl(stack[stack.length - 1]);
+    prev.hidden = false;
+    if(reduce){ cur.hidden = true; return; }
+    prev.classList.add('exit-left');
+    void prev.offsetWidth;
+    prev.classList.remove('exit-left');
+    cur.classList.add('enter-right');
+    setTimeout(function(){ cur.hidden = true; cur.classList.remove('enter-right'); }, 280);
+  }
 
-    if(isPending){
+  Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function(b){
+    b.addEventListener('click', back);
+  });
+
+  /* ---- Kø --------------------------------------------------------------- */
+  function statusChip(d){
+    if(d.status === 'kladde') return '<span class="chip chip-vent">Kladde</span>';
+    if(d.status === 'afventer'){
       var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
-      return (
-        '<article class="card is-pending" data-id="' + escapeHtml(d.id) + '">' +
-          img +
-          '<div class="card-body">' +
-            '<div class="row-top">' +
-              '<div class="title is-muted">' + (failed ? 'Analysen fejlede' : 'Analyserer billeder …') + '</div>' +
-              '<span class="chip afventer">' + (failed ? 'Fejl' : 'Afventer') + '</span>' +
-            '</div>' +
-            '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
-          '</div>' +
-          '<div class="full-width">' +
-            (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
-            '<div class="actions">' +
-              (failed ? '<button type="button" class="btn-primary retry-btn">Prøv igen</button>' : '') +
-              '<div class="actions-secondary"><button type="button" class="link-btn discard-btn">Kasser</button></div>' +
-            '</div>' +
-          '</div>' +
-        '</article>'
-      );
+      return '<span class="chip chip-vent">' + (failed ? 'Fejl' : 'Analyserer') + '</span>';
     }
-
-    return (
-      '<article class="card" data-id="' + escapeHtml(d.id) + '">' +
-        img +
-        '<div class="card-body">' +
-          '<div class="row-top">' +
-            '<div class="title">' + escapeHtml(d.title || 'Uden titel') + '</div>' +
-            '<span class="chip ny">Ny</span>' +
-          '</div>' +
-          '<div class="meta">' + escapeHtml(d.category || '') + (d.condition ? ' &middot; ' + escapeHtml(d.condition) : '') + '</div>' +
-        '</div>' +
-        '<div class="full-width">' +
-            '<div><span class="price mono">' + escapeHtml(d.price || '?') + '</span>' +
-              (d.price_grounded === false ? '<span class="chip afventer" style="margin-left:8px">Foreløbig</span>' : '') +
-            '</div>' +
-            (d.price_grounded === false
-              ? '<div class="price-note">Prisen markedstjekkes mod rigtige Vinted-annoncer, når du trykker "Udfyld i Vinted".</div>'
-              : '') +
-            (d.price_note ? '<div class="price-note">' + escapeHtml(d.price_note) + '</div>' : '') +
-            '<div class="desc">' + escapeHtml(d.description || '') + '</div>' +
-            '<div class="meta">' + escapeHtml(relTime(d.created_at)) + '</div>' +
-            (d.personal_info ? '<div class="warn-note">Der ses navn eller andre personlige oplysninger på et af billederne — fx et påsyet navnemærke. Tjek dem, før du uploader.</div>' : '') +
-            photoStrip(d) +
-            '<div class="actions">' +
-              '<button type="button" class="btn-primary fill-btn">Udfyld i Vinted</button>' +
-              '<button type="button" class="btn-save save-photos-btn">⬇ Gem billeder i Fotos</button>' +
-              '<div class="actions-secondary">' +
-                '<button type="button" class="link-btn copy-btn">Kopiér tekst</button>' +
-                '<button type="button" class="link-btn posted-btn">Markér postet</button>' +
-                '<button type="button" class="link-btn discard-btn">Kasser</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-      '</article>'
-    );
+    return '<span class="chip chip-ny">Ny</span>';
   }
 
-  function wireCard(el, d){
-    var resumeBtn = el.querySelector('.resume-btn');
-    if(resumeBtn){
-      resumeBtn.addEventListener('click', function(){ resumeSession(d); });
-    }
+  function renderQueue(){
+    var list = Object.keys(rows).map(function(k){ return rows[k]; })
+      .filter(function(d){ return ['ny','afventer','kladde'].indexOf(d.status) > -1; })
+      .sort(function(a,b){ return a.created_at < b.created_at ? 1 : -1; });
 
-    var retryBtn = el.querySelector('.retry-btn');
-    if(retryBtn){
-      // Triggeren fyrer kun ved overgangen TIL 'afventer', så vi går via
-      // 'kladde' for at starte analysen forfra.
-      retryBtn.addEventListener('click', function(){
-        retryBtn.textContent = 'Starter …';
-        sb.from('drafts').update({ status: 'kladde', price_note: null }).eq('id', d.id)
-          .then(function(res){
-            if(res.error) throw res.error;
-            return sb.from('drafts').update({ status: 'afventer' }).eq('id', d.id);
-          })
-          .then(function(res){
-            if(res && res.error) throw res.error;
-          })
-          .catch(function(){ retryBtn.textContent = 'Prøv igen'; });
+    $('queue-loading').hidden = true;
+    $('queue-empty').hidden = list.length > 0;
+
+    var el = $('queue-list');
+    el.innerHTML = list.map(function(d){
+      var sub = d.status === 'ny'
+        ? '<span class="row-price">' + esc(d.price || '') + '</span>'
+        : (d.status === 'kladde'
+            ? esc((d.photos || []).length + ' billeder taget')
+            : esc(relTime(d.created_at)));
+      return '<button type="button" class="row' + (d.status !== 'ny' ? ' is-muted' : '') +
+             '" data-id="' + esc(d.id) + '">' +
+        (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
+        '<span class="row-main">' +
+          '<span class="row-title">' + esc(d.title || (d.status === 'kladde' ? 'Ufærdig billedserie' : 'Analyserer billeder …')) + '</span>' +
+          '<span class="row-sub">' + sub + '</span>' +
+          '<span>' + statusChip(d) + '</span>' +
+        '</span>' +
+        '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>' +
+      '</button>';
+    }).join('');
+
+    Array.prototype.forEach.call(el.querySelectorAll('.row'), function(r){
+      r.addEventListener('click', function(){
+        var d = rows[r.getAttribute('data-id')];
+        if(!d) return;
+        if(d.status === 'kladde'){ resumeSession(d); return; }
+        openDetail(d.id);
       });
+    });
+
+    if(currentId && rows[currentId] && !screenEl('detail').hidden) renderDetail();
+  }
+
+  /* ---- Detalje ---------------------------------------------------------- */
+  function openDetail(id){ currentId = id; renderDetail(); show('detail'); }
+
+  function renderDetail(){
+    var d = rows[currentId];
+    if(!d) return;
+    $('d-title').textContent = d.title || 'Udkast';
+    var photos = d.photos || [];
+    var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
+
+    var html = '';
+    if(d.image_url) html += '<img class="hero" src="' + esc(d.image_url) + '" alt="">';
+    if(photos.length){
+      html += '<div class="strip" id="d-strip">' + photos.map(function(p, i){
+        return '<img src="' + esc(p.url) + '" data-i="' + i + '" alt="' + esc(p.kind || '') + '">';
+      }).join('') + '</div>';
+      html += '<div class="note">Tryk på et billede for at beskære det selv.</div>';
     }
 
-    var strip = el.querySelector('.photo-strip');
+    if(d.status === 'ny'){
+      html += '<div class="price-row"><span class="price-big mono">' + esc(d.price || '?') + '</span>' +
+              (d.price_grounded === false ? '<span class="chip chip-vent">Foreløbig</span>' : '') + '</div>';
+      if(d.price_grounded === false){
+        html += '<div class="note">Prisen markedstjekkes mod rigtige annoncer, når du udfylder i Vinted.</div>';
+      }
+      if(d.price_note) html += '<div class="note">' + esc(d.price_note) + '</div>';
+      if(d.category || d.condition){
+        html += '<div class="note">' + esc([d.category, d.condition].filter(Boolean).join(' · ')) + '</div>';
+      }
+      if(d.description) html += '<div class="desc">' + esc(d.description) + '</div>';
+    } else if(failed){
+      html += '<div class="warn">' + esc(d.price_note) + '</div>';
+    } else {
+      html += '<div class="note" style="margin-top:16px">Claude analyserer billederne og skriver udkastet. Det tager typisk under et minut.</div>';
+    }
+
+    if(d.personal_info){
+      html += '<div class="warn">Der ses navn eller andre personlige oplysninger på et af billederne — fx et påsyet navnemærke. Tjek dem, før du uploader.</div>';
+    }
+    html += '<div class="note" style="margin-top:16px">' + esc(relTime(d.created_at)) + '</div>';
+    $('d-body').innerHTML = html;
+
+    var strip = $('d-strip');
     if(strip){
       strip.addEventListener('click', function(e){
         var i = e.target.getAttribute && e.target.getAttribute('data-i');
@@ -924,605 +626,349 @@
       });
     }
 
-    var saveBtn = el.querySelector('.save-photos-btn');
-    if(saveBtn){
-      saveBtn.addEventListener('click', function(){
-        var photos = d.photos || [];
-        if(!photos.length) return;
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Henter billeder …';
+    var f = '';
+    if(d.status === 'ny'){
+      f += '<button type="button" class="btn btn-primary" data-a="fill">Udfyld i Vinted</button>';
+      f += '<button type="button" class="btn btn-secondary" data-a="save">Gem billeder i Fotos</button>';
+      f += '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>';
+      f += '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
+    } else if(failed){
+      f += '<button type="button" class="btn btn-primary" data-a="retry">Prøv analysen igen</button>';
+    }
+    f += '<button type="button" class="btn btn-danger" data-a="discard">Kasser udkast</button>';
+    $('d-footer').innerHTML = f;
 
-        Promise.all(photos.map(function(p, i){
-          return fetch(p.url)
-            .then(function(r){ return r.blob(); })
-            .then(function(b){
-              return new File([b], (i + 1) + '-' + (p.kind || 'billede') + '.jpg', { type: 'image/jpeg' });
-            });
-        })).then(function(files){
-          // Delingsarket har "Gem billeder", som lægger dem alle i Fotos på én gang.
-          if(navigator.canShare && navigator.canShare({ files: files })){
-            return navigator.share({ files: files, title: d.title || 'Vinted-billeder' })
-              .then(function(){ saveBtn.textContent = '⬇ Gem billeder i Fotos'; });
-          }
-          saveBtn.textContent = 'Hold fingeren på et billede → "Føj til Fotos"';
-        }).catch(function(){
-          // Afbrudt deling er ikke en fejl værd at råbe op om.
-          saveBtn.textContent = '⬇ Gem billeder i Fotos';
-        }).then(function(){
-          saveBtn.disabled = false;
-        });
+    Array.prototype.forEach.call($('d-footer').querySelectorAll('[data-a]'), function(b){
+      b.addEventListener('click', function(){ detailAction(b.getAttribute('data-a'), d, b); });
+    });
+  }
+
+  function detailAction(a, d, btn){
+    if(a === 'fill'){
+      btn.disabled = true; btn.textContent = 'Åbner Vinted …';
+      sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id).then(function(){
+        // x-safari- tvinger Safari; ellers kaprer Vinteds Universal Links
+        // adressen og åbner appen, hvor bogmærket ikke findes.
+        window.location.href = 'x-safari-https://www.vinted.dk/items/new';
+        setTimeout(function(){ btn.disabled = false; btn.textContent = 'Udfyld i Vinted'; }, 2500);
       });
     }
-
-    var fillBtn = el.querySelector('.fill-btn');
-    var copyBtn = el.querySelector('.copy-btn');
-    var postedBtn = el.querySelector('.posted-btn');
-    var discardBtn = el.querySelector('.discard-btn');
-
-    if(fillBtn){
-      // Marks THIS draft as the one the shortcut should pull, so two people
-      // sharing the queue never fill each other's item into their own Vinted.
-      fillBtn.addEventListener('click', function(){
-        fillBtn.textContent = 'Åbner …';
-        sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id)
-          .then(function(res){
-            if(res.error){
-              fillBtn.textContent = 'Prøv igen';
-              return;
-            }
-            // x-safari- tvinger Safari; uden det kaprer Vinteds Universal Links
-            // adressen og aabner appen, hvor genvejen ikke kan koere.
-            window.location.href = 'x-safari-https://www.vinted.dk/items/new';
-            setTimeout(function(){ fillBtn.textContent = 'Udfyld i Vinted'; }, 2500);
-          });
-      });
+    else if(a === 'copy'){
+      var text = [d.title, d.description, d.price ? 'Pris: ' + d.price : ''].filter(Boolean).join('\n\n');
+      if(navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ toast('Teksten er kopieret'); });
     }
-
-    if(copyBtn){
-      copyBtn.addEventListener('click', function(){
-        var text = buildCopyText(d);
-        var done = function(){
-          copyBtn.textContent = 'Kopieret ✓';
-          setTimeout(function(){ copyBtn.textContent = 'Kopiér tekst'; }, 1800);
-        };
-        if(navigator.clipboard && navigator.clipboard.writeText){
-          navigator.clipboard.writeText(text).then(done).catch(function(){
-            copyBtn.textContent = 'Kunne ikke kopiere';
-          });
-        } else {
-          copyBtn.textContent = 'Kunne ikke kopiere';
-        }
-      });
+    else if(a === 'save') savePhotos(d, btn);
+    else if(a === 'posted'){
+      sb.from('drafts').update({ status: 'afsendt', posted_at: new Date().toISOString() }).eq('id', d.id);
+      back(); toast('Flyttet til afsendte annoncer');
     }
-
-    // Kortet trækker sig ud med det samme, så handlingen føles øjeblikkelig,
-    // selvom serveren og realtime-opdateringen først følger efter.
-    function leaveThen(btn, patch, busyText){
-      btn.textContent = busyText;
-      el.classList.add('is-leaving');
-      sb.from('drafts').update(patch).eq('id', d.id).then(function(res){
-        if(res.error){
-          el.classList.remove('is-leaving');
-          btn.textContent = 'Prøv igen';
-        }
-      });
+    else if(a === 'discard'){
+      sb.from('drafts').update({ status: 'kasseret' }).eq('id', d.id);
+      back(); toast('Udkastet er kasseret');
     }
-
-    if(postedBtn){
-      postedBtn.addEventListener('click', function(){
-        leaveThen(postedBtn, { status: 'afsendt', posted_at: new Date().toISOString() }, 'Markerer …');
-      });
-    }
-
-    if(discardBtn){
-      discardBtn.addEventListener('click', function(){
-        leaveThen(discardBtn, { status: 'kasseret' }, 'Kasserer …');
+    else if(a === 'retry'){
+      btn.disabled = true; btn.textContent = 'Starter …';
+      sb.from('drafts').update({ status: 'kladde', price_note: null }).eq('id', d.id).then(function(){
+        return sb.from('drafts').update({ status: 'afventer' }).eq('id', d.id);
       });
     }
   }
 
-  function renderMerged(){
-    var docs = Object.keys(liveRows)
-      .map(function(id){ return liveRows[id]; })
-      .filter(function(d){ return d.status === 'ny' || d.status === 'afventer' || d.status === 'kladde'; });
-
-    docs.sort(function(a, b){
-      return (a.created_at < b.created_at) ? 1 : (a.created_at > b.created_at) ? -1 : 0;
-    });
-
-    if(docs.length === 0){
-      listEl.hidden = true;
-      emptyEl.hidden = false;
-      countEl.textContent = '0';
-      pendingNoteEl.hidden = true;
-      return;
-    }
-    emptyEl.hidden = true;
-    listEl.hidden = false;
-
-    var readyCount = 0, pendingCount = 0;
-    docs.forEach(function(d){ if(d.status === 'ny') readyCount++; else pendingCount++; });
-    countEl.textContent = String(readyCount);
-    if(pendingCount > 0){
-      pendingNoteEl.hidden = false;
-      pendingNoteEl.textContent = '+' + pendingCount + ' i gang';
-    } else {
-      pendingNoteEl.hidden = true;
-    }
-
-    listEl.innerHTML = '';
-    docs.forEach(function(d){
-      var wrapper = document.createElement('div');
-      wrapper.innerHTML = cardTemplate(d);
-      var cardEl = wrapper.firstElementChild;
-      listEl.appendChild(cardEl);
-      wireCard(cardEl, d);
+  // Billederne fra kameraet lander aldrig i kamerarullen — iOS giver dem
+  // direkte til siden. Delingsarket har "Gem billeder", som tager alle på én gang.
+  function savePhotos(d, btn){
+    var photos = d.photos || [];
+    if(!photos.length) return;
+    btn.disabled = true; btn.textContent = 'Henter billeder …';
+    Promise.all(photos.map(function(p, i){
+      return fetch(p.url).then(function(r){ return r.blob(); }).then(function(b){
+        return new File([b], (i+1) + '-' + (p.kind || 'billede') + '.jpg', { type: 'image/jpeg' });
+      });
+    })).then(function(files){
+      if(navigator.canShare && navigator.canShare({ files: files })){
+        return navigator.share({ files: files, title: d.title || 'Vinted-billeder' });
+      }
+      toast('Hold fingeren på et billede og vælg "Føj til Fotos"');
+    }).catch(function(){}).then(function(){
+      btn.disabled = false; btn.textContent = 'Gem billeder i Fotos';
     });
   }
 
-  function renderHistory(rows){
-    if(rows.length === 0){
-      histList.innerHTML = '<div class="state-msg">Ingen postede annoncer endnu.</div>';
-      histList.hidden = false;
-      return;
-    }
-    histList.innerHTML = rows.map(function(d){
-      var img = d.image_url ? '<img src="' + escapeHtml(d.image_url) + '" alt="">' : '';
-      return (
-        '<div class="hist-row">' + img +
-        '<div class="t"><div class="n">' + escapeHtml(d.title || '') + '</div>' +
-        '<div class="p">' + escapeHtml(d.price || '') + ' &middot; ' + escapeHtml(relTime(d.posted_at)) + '</div></div></div>'
-      );
+  /* ---- Optagelse -------------------------------------------------------- */
+  var STEPS = [
+    { kind:'forfra', title:'Forfra', hint:'Hele varen lige forfra på en rolig baggrund. Det bliver coverbilledet, folk ser i søgeresultater.' },
+    { kind:'bagfra', title:'Bagfra', hint:'Hele varen set bagfra.' },
+    { kind:'maerke', title:'Mærket', hint:'Nærbillede af brandmærket. Købere spørger altid efter det — og det er dét, der gør mærket i annoncen rigtigt.' },
+    { kind:'stoerrelsesmaerke', title:'Størrelses- og vaskemærke', hint:'Nærbillede af mærkatet med størrelse og materiale. Købere filtrerer på størrelse.' },
+    { kind:'detalje', title:'Detalje', hint:'Stof, tryk, lynlås eller knapper tæt på. Viser kvaliteten.' },
+    { kind:'slid', title:'Slid eller fejl', hint:'Kun hvis der er noget. Ærlighed her giver færre tvister — spring over hvis varen er fejlfri.' }
+  ];
+  var session = null;
+
+  function renderCapture(){
+    if(!session) return;
+    var i = session.step, step = STEPS[i];
+    $('cap-count').textContent = step ? ('Billede ' + (i+1) + ' af ' + STEPS.length) : 'Klar til udkast';
+    $('cap-title').textContent = step ? step.title : 'Alle billeder taget';
+    $('cap-hint').textContent = step ? step.hint : 'Du kan tage flere billeder, eller lave udkastet nu.';
+    $('cap-skip').hidden = !step;
+    $('cap-finish').hidden = session.photos.length === 0;
+    $('cap-progress').innerHTML = STEPS.map(function(_, n){
+      return '<i class="' + (n < i ? 'done' : n === i ? 'now' : '') + '"></i>';
     }).join('');
-    histList.hidden = false;
+    $('cap-shots').innerHTML = session.photos.map(function(p){
+      return '<div class="shot"><img src="' + esc(p.url) + '" alt=""><span>' + esc(p.kind) + '</span></div>';
+    }).join('');
   }
 
-  // Uploads the full frame, only size-capped. Cropping happens server-side,
-  // where a vision model can see where the item actually is — a blind
-  // centre-crop here would throw away the pixels it needs.
-  function resizeToBlob(file, maxDim, quality){
-    return new Promise(function(resolve, reject){
-      var reader = new FileReader();
-      reader.onerror = function(){ reject(new Error('read_failed')); };
-      reader.onload = function(e){
-        var img = new Image();
-        img.onerror = function(){ reject(new Error('decode_failed')); };
-        img.onload = function(){
-          var sx = 0, sy = 0, sw = img.width, sh = img.height;
-          var scale = Math.min(1, maxDim / Math.max(sw, sh));
-          var w = Math.max(1, Math.round(sw * scale));
-          var h = Math.max(1, Math.round(sh * scale));
+  function startSession(){ session = { id:null, step:0, photos:[] }; renderCapture(); show('capture'); }
+  function resumeSession(d){
+    session = { id: d.id, step: Math.min((d.photos||[]).length, STEPS.length), photos: d.photos || [] };
+    renderCapture(); show('capture');
+  }
 
-          var canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          var ctx = canvas.getContext('2d');
-          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
-          canvas.toBlob(function(blob){
-            if(blob) resolve(blob); else reject(new Error('blob_failed'));
-          }, 'image/jpeg', quality);
+  function shrink(file, maxDim, q){
+    return new Promise(function(res, rej){
+      var fr = new FileReader();
+      fr.onerror = function(){ rej(new Error('read')); };
+      fr.onload = function(e){
+        var img = new Image();
+        img.onerror = function(){ rej(new Error('decode')); };
+        img.onload = function(){
+          // Hele billedet uploades; beskæringen sker på serveren, hvor en model
+          // kan se hvor varen er.
+          var sc = Math.min(1, maxDim / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          c.toBlob(function(b){ b ? res(b) : rej(new Error('blob')); }, 'image/jpeg', q);
         };
         img.src = e.target.result;
       };
-      reader.readAsDataURL(file);
+      fr.readAsDataURL(file);
     });
   }
 
-  // ---- Manuel beskæring -----------------------------------------------------
-  // Modellen rammer ikke altid varens kanter. Her kan et enkelt billede rettes
-  // uden at tage det om; resultatet erstatter billedet i udkastet.
+  function handleShot(file){
+    if(!session) return;
+    var step = STEPS[session.step];
+    var kind = step ? step.kind : 'ekstra';
+    var st = $('cap-status');
+    st.hidden = false; st.textContent = 'Uploader …';
+    $('cap-shoot').disabled = true;
 
-  var cropOverlay = document.getElementById('crop-overlay');
-  var cropStage = document.getElementById('crop-stage');
-  var cropImg = document.getElementById('crop-img');
-  var cropBox = document.getElementById('crop-box');
-  var cropSave = document.getElementById('crop-save');
-  var cropCancel = document.getElementById('crop-cancel');
-  var cropCtx = null; // { draft, photoIndex, rect, frame }
-
-  function layoutCropBox(){
-    if(!cropCtx) return;
-    var r = cropCtx.rect;
-    cropBox.style.left = (cropCtx.frame.left + r.x) + 'px';
-    cropBox.style.top = (cropCtx.frame.top + r.y) + 'px';
-    cropBox.style.width = r.w + 'px';
-    cropBox.style.height = r.h + 'px';
+    shrink(file, 1800, 0.9).then(function(blob){
+      var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
+      return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' }).then(function(r){
+        if(r.error) throw r.error;
+        var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+        session.photos.push({ path: path, url: url, kind: kind });
+        if(!session.id){
+          // Kladden oprettes først nu, så et afbrudt forsøg ikke efterlader en tom række.
+          return sb.from('drafts').insert({
+            status: 'kladde', photos: session.photos,
+            image_path: path, image_url: url, created_at: new Date().toISOString()
+          }).select('id').single().then(function(r2){
+            if(r2.error) throw r2.error;
+            session.id = r2.data.id;
+          });
+        }
+        var patch = { photos: session.photos };
+        if(session.photos.length === 1){ patch.image_path = path; patch.image_url = url; }
+        return sb.from('drafts').update(patch).eq('id', session.id).then(function(r3){
+          if(r3.error) throw r3.error;
+        });
+      });
+    }).then(function(){
+      if(session.step < STEPS.length) session.step++;
+      st.hidden = true; $('cap-shoot').disabled = false;
+      renderCapture();
+    }).catch(function(){
+      st.textContent = 'Kunne ikke gemme billedet. Prøv igen.';
+      $('cap-shoot').disabled = false;
+    });
   }
 
-  function openCrop(d, index){
-    var photo = (d.photos || [])[index];
-    if(!photo) return;
-    cropCtx = { draft: d, photoIndex: index, rect: null, frame: null };
-    cropOverlay.hidden = false;
-    cropImg.onload = function(){
-      var stage = cropStage.getBoundingClientRect();
-      var img = cropImg.getBoundingClientRect();
-      cropCtx.frame = { left: img.left - stage.left, top: img.top - stage.top, w: img.width, h: img.height };
-      // start med hele billedet, så du kun skal trække det væk du ikke vil have
-      cropCtx.rect = { x: 0, y: 0, w: img.width, h: img.height };
-      layoutCropBox();
+  $('new-btn').addEventListener('click', startSession);
+  $('cap-shoot').addEventListener('click', function(){ $('cam').click(); });
+  $('cap-skip').addEventListener('click', function(){
+    if(session && session.step < STEPS.length){ session.step++; renderCapture(); }
+  });
+  $('cam').addEventListener('change', function(){
+    var f = $('cam').files && $('cam').files[0];
+    $('cam').value = '';
+    if(f) handleShot(f);
+  });
+  $('cap-finish').addEventListener('click', function(){
+    if(!session || !session.id) return;
+    var b = $('cap-finish');
+    b.disabled = true; b.textContent = 'Sender …';
+    sb.from('drafts').update({ status: 'afventer' }).eq('id', session.id).then(function(){
+      b.disabled = false; b.textContent = 'Færdig — lav udkast';
+      session = null; back(); toast('Udkastet skrives nu');
+    });
+  });
+  $('cap-close').addEventListener('click', function(){
+    if(session && session.id && session.photos.length){
+      back(); toast('Gemt som ufærdig — du kan fortsætte senere');
+    } else if(session && session.id){
+      sb.from('drafts').update({ status: 'kasseret' }).eq('id', session.id); back();
+    } else back();
+    session = null;
+  });
+
+  /* ---- Beskæring -------------------------------------------------------- */
+  var crop = null;
+  function layoutBox(){
+    if(!crop || !crop.rect) return;
+    var r = crop.rect, f = crop.frame, b = $('crop-box');
+    b.style.left = (f.left + r.x) + 'px'; b.style.top = (f.top + r.y) + 'px';
+    b.style.width = r.w + 'px'; b.style.height = r.h + 'px';
+  }
+  function openCrop(d, i){
+    var p = (d.photos || [])[i]; if(!p) return;
+    crop = { draft: d, i: i, rect: null, frame: null };
+    $('crop').hidden = false;
+    $('crop-img').onload = function(){
+      var s = $('crop-stage').getBoundingClientRect(), im = $('crop-img').getBoundingClientRect();
+      crop.frame = { left: im.left - s.left, top: im.top - s.top, w: im.width, h: im.height };
+      crop.rect = { x:0, y:0, w: im.width, h: im.height };
+      layoutBox();
     };
-    cropImg.src = photo.url;
+    $('crop-img').src = p.url;
   }
-
-  function pointerPos(e){
-    var t = e.touches ? e.touches[0] : e;
-    var stage = cropStage.getBoundingClientRect();
-    return { x: t.clientX - stage.left, y: t.clientY - stage.top };
+  function pos(e){
+    var t = e.touches ? e.touches[0] : e, s = $('crop-stage').getBoundingClientRect();
+    return { x: t.clientX - s.left, y: t.clientY - s.top };
   }
-
-  function startDrag(e, corner){
-    if(!cropCtx || !cropCtx.rect) return;
+  function drag(e, corner){
+    if(!crop || !crop.rect) return;
     e.preventDefault();
-    var start = pointerPos(e);
-    var r0 = { x: cropCtx.rect.x, y: cropCtx.rect.y, w: cropCtx.rect.w, h: cropCtx.rect.h };
-    var f = cropCtx.frame;
-
+    var start = pos(e), r0 = { x:crop.rect.x, y:crop.rect.y, w:crop.rect.w, h:crop.rect.h };
+    var f = crop.frame, MIN = 44;
     function move(ev){
-      var p = pointerPos(ev);
-      var dx = p.x - start.x, dy = p.y - start.y;
-      var r = { x: r0.x, y: r0.y, w: r0.w, h: r0.h };
-      var MIN = 40;
-
+      var p = pos(ev), dx = p.x - start.x, dy = p.y - start.y;
+      var r = { x:r0.x, y:r0.y, w:r0.w, h:r0.h };
       if(!corner){
         r.x = Math.max(0, Math.min(f.w - r.w, r0.x + dx));
         r.y = Math.max(0, Math.min(f.h - r.h, r0.y + dy));
       } else {
-        if(corner.indexOf('w') > -1){
-          var nx = Math.max(0, Math.min(r0.x + r0.w - MIN, r0.x + dx));
-          r.w = r0.w + (r0.x - nx); r.x = nx;
-        }
-        if(corner.indexOf('e') > -1){
-          r.w = Math.max(MIN, Math.min(f.w - r0.x, r0.w + dx));
-        }
-        if(corner.indexOf('n') > -1){
-          var ny = Math.max(0, Math.min(r0.y + r0.h - MIN, r0.y + dy));
-          r.h = r0.h + (r0.y - ny); r.y = ny;
-        }
-        if(corner.indexOf('s') > -1){
-          r.h = Math.max(MIN, Math.min(f.h - r0.y, r0.h + dy));
-        }
+        if(corner.indexOf('w') > -1){ var nx = Math.max(0, Math.min(r0.x + r0.w - MIN, r0.x + dx)); r.w = r0.w + (r0.x - nx); r.x = nx; }
+        if(corner.indexOf('e') > -1){ r.w = Math.max(MIN, Math.min(f.w - r0.x, r0.w + dx)); }
+        if(corner.indexOf('n') > -1){ var ny = Math.max(0, Math.min(r0.y + r0.h - MIN, r0.y + dy)); r.h = r0.h + (r0.y - ny); r.y = ny; }
+        if(corner.indexOf('s') > -1){ r.h = Math.max(MIN, Math.min(f.h - r0.y, r0.h + dy)); }
       }
-      cropCtx.rect = r;
-      layoutCropBox();
-      ev.preventDefault();
+      crop.rect = r; layoutBox(); ev.preventDefault();
     }
     function end(){
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('touchmove', move);
-      document.removeEventListener('mouseup', end);
-      document.removeEventListener('touchend', end);
+      document.removeEventListener('mousemove', move); document.removeEventListener('touchmove', move);
+      document.removeEventListener('mouseup', end); document.removeEventListener('touchend', end);
     }
     document.addEventListener('mousemove', move);
-    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('touchmove', move, { passive:false });
     document.addEventListener('mouseup', end);
     document.addEventListener('touchend', end);
   }
-
-  cropBox.addEventListener('mousedown', function(e){
-    if(e.target.classList.contains('crop-handle')) return;
-    startDrag(e, null);
-  });
-  cropBox.addEventListener('touchstart', function(e){
-    if(e.target.classList.contains('crop-handle')) return;
-    startDrag(e, null);
-  }, { passive: false });
-
-  Array.prototype.forEach.call(cropBox.querySelectorAll('.crop-handle'), function(h){
+  $('crop-box').addEventListener('mousedown', function(e){ if(!e.target.classList.contains('h')) drag(e, null); });
+  $('crop-box').addEventListener('touchstart', function(e){ if(!e.target.classList.contains('h')) drag(e, null); }, { passive:false });
+  Array.prototype.forEach.call(document.querySelectorAll('#crop-box .h'), function(h){
     var c = h.getAttribute('data-c');
-    h.addEventListener('mousedown', function(e){ startDrag(e, c); });
-    h.addEventListener('touchstart', function(e){ startDrag(e, c); }, { passive: false });
+    h.addEventListener('mousedown', function(e){ drag(e, c); });
+    h.addEventListener('touchstart', function(e){ drag(e, c); }, { passive:false });
   });
-
-  cropCancel.addEventListener('click', function(){
-    cropOverlay.hidden = true;
-    cropCtx = null;
-  });
-
-  cropSave.addEventListener('click', function(){
-    if(!cropCtx || !cropCtx.rect) return;
-    cropSave.disabled = true;
-    cropSave.textContent = 'Gemmer …';
-
-    var d = cropCtx.draft, idx = cropCtx.photoIndex;
-    var photo = d.photos[idx];
-    // Skalér fra visningsstørrelse op til billedets faktiske opløsning.
-    var scale = cropImg.naturalWidth / cropCtx.frame.w;
-    var r = cropCtx.rect;
-    var sx = Math.round(r.x * scale), sy = Math.round(r.y * scale);
-    var sw = Math.round(r.w * scale), sh = Math.round(r.h * scale);
-
-    var canvas = document.createElement('canvas');
-    canvas.width = sw; canvas.height = sh;
-    canvas.getContext('2d').drawImage(cropImg, sx, sy, sw, sh, 0, 0, sw, sh);
-
-    canvas.toBlob(function(blob){
-      if(!blob){ cropSave.disabled = false; cropSave.textContent = 'Gem beskæring'; return; }
+  $('crop-cancel').addEventListener('click', function(){ $('crop').hidden = true; crop = null; });
+  $('crop-save').addEventListener('click', function(){
+    if(!crop || !crop.rect) return;
+    var btn = $('crop-save');
+    btn.disabled = true; btn.textContent = 'Gemmer …';
+    var d = crop.draft, idx = crop.i, img = $('crop-img');
+    // Skalér op fra visningsstørrelse til billedets faktiske opløsning.
+    var sc = img.naturalWidth / crop.frame.w, r = crop.rect;
+    var c = document.createElement('canvas');
+    c.width = Math.round(r.w * sc); c.height = Math.round(r.h * sc);
+    c.getContext('2d').drawImage(img, Math.round(r.x*sc), Math.round(r.y*sc), c.width, c.height, 0, 0, c.width, c.height);
+    c.toBlob(function(blob){
+      if(!blob){ btn.disabled = false; btn.textContent = 'Gem beskæring'; return; }
       var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '-manuel.jpg';
-      sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' })
-        .then(function(res){
-          if(res.error) throw res.error;
-          var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
-          var photos = d.photos.slice();
-          photos[idx] = { path: path, url: url, kind: photo.kind, optimized: true };
-          var patch = { photos: photos };
-          if(idx === 0){ patch.image_path = path; patch.image_url = url; }
-          return sb.from('drafts').update(patch).eq('id', d.id);
-        })
-        .then(function(res){
-          if(res && res.error) throw res.error;
-          cropOverlay.hidden = true;
-          cropCtx = null;
-        })
-        .catch(function(){ cropSave.textContent = 'Prøv igen'; })
-        .then(function(){
-          cropSave.disabled = false;
-          if(cropSave.textContent === 'Gemmer …') cropSave.textContent = 'Gem beskæring';
-        });
+      sb.storage.from('photos').upload(path, blob, { contentType:'image/jpeg' }).then(function(res){
+        if(res.error) throw res.error;
+        var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+        var photos = d.photos.slice();
+        photos[idx] = { path: path, url: url, kind: photos[idx].kind, optimized: true };
+        var patch = { photos: photos };
+        if(idx === 0){ patch.image_path = path; patch.image_url = url; }
+        return sb.from('drafts').update(patch).eq('id', d.id);
+      }).then(function(res){
+        if(res && res.error) throw res.error;
+        $('crop').hidden = true; crop = null; toast('Beskæringen er gemt');
+      }).catch(function(){ btn.textContent = 'Prøv igen'; })
+        .then(function(){ btn.disabled = false; if(btn.textContent === 'Gemmer …') btn.textContent = 'Gem beskæring'; });
     }, 'image/jpeg', 0.92);
   });
 
-  // ---- Guidet billedserie -------------------------------------------------
-  // Rækkefølgen er ikke tilfældig: coverbilledet afgør klik i søgeresultater,
-  // mærkatbillederne er dét, der gør mærke/størrelse rigtige i annoncen frem
-  // for gættede, og slid-billedet skærer i tvister.
-
-  var SHOT_STEPS = [
-    { kind: 'forfra', title: 'Forfra',
-      hint: 'Hele varen lige forfra, gerne på en rolig baggrund. Det bliver coverbilledet, folk ser i søgeresultater.' },
-    { kind: 'bagfra', title: 'Bagfra',
-      hint: 'Hele varen set bagfra.' },
-    { kind: 'maerke', title: 'Mærket',
-      hint: 'Nærbillede af brandmærket. Købere spørger altid efter det — og det er dét, der gør mærket i annoncen rigtigt.' },
-    { kind: 'stoerrelsesmaerke', title: 'Størrelses- og vaskemærke',
-      hint: 'Nærbillede af mærkatet med størrelse og materiale. Købere filtrerer på størrelse.' },
-    { kind: 'detalje', title: 'Detalje',
-      hint: 'Stof, tryk, lynlås eller knapper tæt på. Viser kvaliteten.' },
-    { kind: 'slid', title: 'Slid eller fejl',
-      hint: 'Kun hvis der er noget. Ærlighed her giver færre tvister og tryggere købere — spring over hvis varen er fejlfri.' }
-  ];
-
-  var session = null; // { draftId, stepIndex, photos: [{path,url,kind}] }
-
-  function renderSession(){
-    if(!session){
-      sessionEl.hidden = true;
-      captureRowEl.hidden = false;
-      return;
-    }
-    captureRowEl.hidden = true;
-    sessionEl.hidden = false;
-
-    var step = SHOT_STEPS[session.stepIndex];
-    if(step){
-      stepCounterEl.textContent = 'Billede ' + (session.stepIndex + 1) + ' af ' + SHOT_STEPS.length;
-      stepTitleEl.textContent = step.title;
-      stepHintEl.textContent = step.hint;
-      shootBtn.hidden = false;
-      skipBtn.hidden = false;
-    } else {
-      stepCounterEl.textContent = 'Alle trin taget';
-      stepTitleEl.textContent = 'Klar til udkast';
-      stepHintEl.textContent = 'Du kan tilføje flere billeder, eller lave udkastet nu.';
-      shootBtn.hidden = false;
-      skipBtn.hidden = true;
-    }
-
-    shotStripEl.innerHTML = session.photos.map(function(p){
-      return '<div class="shot-thumb"><img src="' + escapeHtml(p.url) + '" alt="">' +
-             '<span>' + escapeHtml(p.kind) + '</span></div>';
-    }).join('');
-
-    finishBtn.hidden = session.photos.length === 0;
-  }
-
-  function startSession(){
-    session = { draftId: null, stepIndex: 0, photos: [] };
-    renderSession();
-  }
-
-  function resumeSession(row){
-    session = {
-      draftId: row.id,
-      stepIndex: Math.min((row.photos || []).length, SHOT_STEPS.length),
-      photos: row.photos || []
-    };
-    renderSession();
-  }
-
-  function uploadShot(file, kind){
-    return resizeToBlob(file, 1800, 0.9).then(function(blob){
-      var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
-      return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' }).then(function(res){
-        if(res.error) throw res.error;
-        return { path: path, url: sb.storage.from('photos').getPublicUrl(path).data.publicUrl, kind: kind };
-      });
-    });
-  }
-
-  function handleCapturedFile(file){
-    if(!session) return;
-    var step = SHOT_STEPS[session.stepIndex];
-    var kind = step ? step.kind : 'ekstra';
-
-    captureStatusEl.hidden = false;
-    captureStatusEl.textContent = 'Uploader billede …';
-    shootBtn.disabled = true;
-
-    uploadShot(file, kind).then(function(photo){
-      session.photos.push(photo);
-      var isFirst = session.photos.length === 1;
-
-      if(!session.draftId){
-        // Kladden oprettes først nu, så et afbrudt forsøg ikke efterlader
-        // en tom række.
-        return sb.from('drafts').insert({
-          status: 'kladde',
-          photos: session.photos,
-          image_path: photo.path,
-          image_url: photo.url,
-          created_at: new Date().toISOString()
-        }).select('id').single().then(function(res){
-          if(res.error) throw res.error;
-          session.draftId = res.data.id;
-        });
-      }
-      var patch = { photos: session.photos };
-      if(isFirst){ patch.image_path = photo.path; patch.image_url = photo.url; }
-      return sb.from('drafts').update(patch).eq('id', session.draftId).then(function(res){
-        if(res.error) throw res.error;
-      });
-    }).then(function(){
-      if(session.stepIndex < SHOT_STEPS.length) session.stepIndex++;
-      captureStatusEl.hidden = true;
-      shootBtn.disabled = false;
-      renderSession();
-    }).catch(function(err){
-      captureStatusEl.textContent = 'Kunne ikke gemme billedet. Prøv igen.';
-      shootBtn.disabled = false;
-      console.error(err);
-    });
-  }
-
-  captureBtn.addEventListener('click', startSession);
-  shootBtn.addEventListener('click', function(){ cameraInput.click(); });
-
-  skipBtn.addEventListener('click', function(){
-    if(!session) return;
-    if(session.stepIndex < SHOT_STEPS.length) session.stepIndex++;
-    renderSession();
+  /* ---- Menu og historik ------------------------------------------------- */
+  $('menu-btn').addEventListener('click', function(){ show('menu'); });
+  $('m-logout').addEventListener('click', function(){
+    sb.auth.signOut().then(function(){ stack = []; show('login', { fade:true }); });
   });
-
-  finishBtn.addEventListener('click', function(){
-    if(!session || !session.draftId) return;
-    finishBtn.textContent = 'Sender …';
-    sb.from('drafts').update({ status: 'afventer' }).eq('id', session.draftId)
+  $('m-copy').addEventListener('click', function(){
+    navigator.clipboard.writeText(BOOKMARKLET).then(function(){
+      toast('Koden er kopieret — indsæt den som bogmærkets adresse');
+    }).catch(function(){ toast('Kunne ikke kopiere'); });
+  });
+  $('m-hist').addEventListener('click', function(){
+    $('hist-body').innerHTML = '<p class="note">Henter …</p>';
+    show('hist');
+    sb.from('drafts').select('*').eq('status','afsendt').order('posted_at',{ascending:false}).limit(30)
       .then(function(res){
-        finishBtn.textContent = 'Færdig — lav udkast';
-        if(res.error){ finishBtn.textContent = 'Prøv igen'; return; }
-        session = null;
-        renderSession();
+        var data = res.data || [];
+        $('hist-body').innerHTML = data.length ? data.map(function(d){
+          return '<div class="hist-row">' +
+            (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '') +
+            '<div><div class="t">' + esc(d.title || '') + '</div>' +
+            '<div class="s">' + esc(d.price || '') + ' · ' + esc(relTime(d.posted_at)) + '</div></div></div>';
+        }).join('') : '<div class="empty"><p>Ingen postede annoncer endnu.</p></div>';
       });
   });
 
-  cancelBtn.addEventListener('click', function(){
-    if(!session){ return; }
-    if(!session.draftId){ session = null; renderSession(); return; }
-    sb.from('drafts').update({ status: 'kasseret' }).eq('id', session.draftId)
-      .then(function(){ session = null; renderSession(); });
-  });
-
-  cameraInput.addEventListener('change', function(){
-    var file = cameraInput.files && cameraInput.files[0];
-    cameraInput.value = '';
-    if(file) handleCapturedFile(file);
-  });
-
-  histBtn.addEventListener('click', function(){
-    histBtn.disabled = true;
-    histBtn.textContent = 'Henter …';
-    sb.from('drafts').select('*').eq('status', 'afsendt').order('posted_at', { ascending: false }).limit(20)
-      .then(function(res){
-        if(res.error){
-          histBtn.disabled = false;
-          histBtn.textContent = 'Vis afsendte annoncer';
-          return;
-        }
-        renderHistory(res.data);
-        histBtn.hidden = true;
-      });
-  });
-
-  function main(){
-    sb.from('drafts').select('*').in('status', ['ny', 'afventer', 'kladde']).order('created_at', { ascending: false })
-      .then(function(res){
-        stateEl.hidden = true;
-        if(res.error){
-          stateEl.hidden = false;
-          stateEl.textContent = 'Der opstod et problem. Prøv at genindlæse siden.';
-          return;
-        }
-        res.data.forEach(function(d){ liveRows[d.id] = d; });
-        renderMerged();
-      });
-
-    sb.channel('drafts-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'drafts' }, function(payload){
-        if(payload.eventType === 'DELETE'){
-          delete liveRows[payload.old.id];
-        } else {
-          liveRows[payload.new.id] = payload.new;
-        }
-        renderMerged();
-      })
-      .subscribe();
-  }
-
-  // iOS gives web pages no way to see whether a shortcut is installed, so the
-  // box is shown until this device says otherwise — a per-device memory, not
-  // a real check.
-  function setupInstallBox(){
-    var installed = false;
-    try { installed = localStorage.getItem(INSTALLED_FLAG) === '1'; } catch (e) {}
-    installBoxEl.hidden = installed;
-    copyBookmarkletEl.addEventListener('click', function(){
-      navigator.clipboard.writeText(BOOKMARKLET).then(function(){
-        copyBookmarkletEl.textContent = 'Kopieret ✓ — indsæt den som bogmærkets adresse';
-      }).catch(function(){
-        copyBookmarkletEl.textContent = 'Kunne ikke kopiere';
-      });
-    });
-    installDoneEl.addEventListener('click', function(){
-      try { localStorage.setItem(INSTALLED_FLAG, '1'); } catch (e) {}
-      installBoxEl.hidden = true;
-    });
-  }
-
-  function showApp(){
-    loginWrapEl.hidden = true;
-    appWrapEl.hidden = false;
-    if(!appStarted){
-      appStarted = true;
-      setupInstallBox();
-      main();
-    }
-  }
-
-  function showLogin(){
-    appWrapEl.hidden = true;
-    loginWrapEl.hidden = false;
-    loginPasswordEl.value = '';
-    loginPasswordEl.focus();
-  }
-
-  loginFormEl.addEventListener('submit', function(e){
+  /* ---- Login og opstart -------------------------------------------------- */
+  $('login-form').addEventListener('submit', function(e){
     e.preventDefault();
-    loginErrorEl.textContent = '';
-    var submitBtn = loginFormEl.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Logger ind …';
-    sb.auth.signInWithPassword({ email: LOGIN_EMAIL, password: loginPasswordEl.value })
-      .then(function(res){
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Log ind';
-        if(res.error){
-          loginErrorEl.textContent = 'Forkert adgangskode.';
-          return;
-        }
-        showApp();
-      });
+    var btn = $('login-btn');
+    $('login-err').textContent = '';
+    btn.disabled = true; btn.textContent = 'Logger ind …';
+    sb.auth.signInWithPassword({ email: LOGIN_EMAIL, password: $('pw').value }).then(function(res){
+      btn.disabled = false; btn.textContent = 'Log ind';
+      if(res.error){ $('login-err').textContent = 'Forkert adgangskode.'; return; }
+      enter();
+    });
   });
 
-  logoutBtn.addEventListener('click', function(){
-    sb.auth.signOut().then(function(){ showLogin(); });
-  });
+  function enter(){
+    stack = [];
+    show('queue', { fade: true });
+    if(started) return;
+    started = true;
+
+    sb.from('drafts').select('*').in('status', ['ny','afventer','kladde'])
+      .order('created_at', { ascending:false })
+      .then(function(res){
+        if(res.error){ $('queue-loading').innerHTML = '<p>Kunne ikke hente køen. Prøv at genindlæse.</p>'; return; }
+        (res.data || []).forEach(function(d){ rows[d.id] = d; });
+        renderQueue();
+      });
+
+    sb.channel('drafts-live').on('postgres_changes',
+      { event:'*', schema:'public', table:'drafts' }, function(p){
+        if(p.eventType === 'DELETE') delete rows[p.old.id];
+        else rows[p.new.id] = p.new;
+        renderQueue();
+      }).subscribe();
+  }
 
   sb.auth.getSession().then(function(res){
-    if(res.data.session){
-      showApp();
-    } else {
-      showLogin();
-    }
+    if(res.data.session) enter();
+    else { stack = []; show('login', { fade:true }); }
   });
 })();
 </script>
