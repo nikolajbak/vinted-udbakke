@@ -166,6 +166,12 @@ const DRAFT_TOOL = {
         enum: [...VINTED_COLORS, null],
         description: "Varens hovedfarve, valgt fra Vinteds egen farveliste.",
       },
+      material: {
+        type: ["string", "null"],
+        description:
+          'Hovedmaterialet med Vinteds danske ord, fx "Bomuld", "Polyester", "Uld", "Læder", "Denim". ' +
+          "Står der flere på vaskemærket, vælges det, der fylder mest. null hvis materialet ikke kan læses.",
+      },
       condition: {
         type: "string",
         enum: VINTED_CONDITIONS,
@@ -433,6 +439,7 @@ Deno.serve(async (req: Request) => {
         size: cleanText(draft.size || vision.size) || null,
         size_scale: cleanText(draft.sizeScale) || null,
         color: cleanText(draft.color || vision.color) || null,
+        material: cleanText(draft.material || vision.material) || null,
         category_path: Array.isArray(draft.categoryPath) && draft.categoryPath.length
           ? draft.categoryPath.map((c: unknown) => cleanText(c)).filter(Boolean)
           : null,

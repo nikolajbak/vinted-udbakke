@@ -78,6 +78,10 @@ const FIELDS_TOOL = {
       size: { type: ["string", "null"], description: 'Størrelsen som på etiketten, fx "M", "152", "38". null hvis ukendt.' },
       sizeScale: { type: ["string", "null"], enum: ["S/M/L", "EU", "UK", "FR", "IT", "US", null] },
       color: { type: ["string", "null"], enum: [...VINTED_COLORS, null] },
+      material: {
+        type: ["string", "null"],
+        description: 'Hovedmaterialet med Vinteds danske ord, fx "Bomuld", "Polyester", "Uld", "Læder".',
+      },
       condition: { type: "string", enum: VINTED_CONDITIONS },
     },
     required: ["categoryPath", "condition"],
@@ -120,7 +124,7 @@ async function backfillFields(draft: Record<string, unknown>) {
     FIELDS_TOOL,
   );
 
-  const fields = {
+  const derived: Record<string, unknown> = {
     category_path: Array.isArray(out.categoryPath) && out.categoryPath.length
       ? (out.categoryPath as unknown[]).map((c) => cleanText(c)).filter(Boolean)
       : null,
@@ -128,9 +132,22 @@ async function backfillFields(draft: Record<string, unknown>) {
     size: cleanText(out.size) || null,
     size_scale: cleanText(out.sizeScale) || null,
     color: cleanText(out.color) || null,
+    material: cleanText(out.material) || null,
     condition: cleanText(out.condition) || null,
   };
-  await supabase.from("drafts").update(fields).eq("id", draft.id);
+
+  // Kun de tomme felter fyldes. Det, en tidligere analyse allerede har fastslaaet
+  // ud fra billederne, er bedre end et gaet ud fra titlen alene.
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(derived)) {
+    const existing = draft[key];
+    const empty = existing == null || existing === "" ||
+      (Array.isArray(existing) && !existing.length);
+    if (empty && value != null) fields[key] = value;
+  }
+  if (Object.keys(fields).length) {
+    await supabase.from("drafts").update(fields).eq("id", draft.id);
+  }
   return fields;
 }
 
@@ -164,6 +181,9 @@ const CHOICE_INTRO: Record<string, string> = {
     "Du står i Vinteds størrelsesvælger. Vælg den størrelse, der svarer til varens etiket. " +
     "Svar -1, hvis ingen af dem gør.",
   mærke: "Du står i Vinteds mærkeliste. Vælg præcis det mærke, varen er. Svar -1, hvis mærket ikke er på listen.",
+  materiale:
+    "Du står i Vinteds materialeliste. Vælg det materiale, varen hovedsageligt er lavet af. " +
+    "Svar -1, hvis materialet ikke er oplyst eller ikke står på listen — gæt aldrig.",
 };
 
 async function chooseOption(
@@ -171,15 +191,22 @@ async function chooseOption(
   kind: string,
   chosen: string[],
   options: string[],
+  hint?: string,
 ): Promise<number> {
   const list = options.map((o, i) => `${i}: ${o}`).join("\n");
   const where = chosen.length ? `Valgt indtil nu: ${chosen.join(" > ")}\n` : "";
+  // Billedanalysen har allerede set varen. Dens bud er bedre end en gaetning
+  // ud fra titlen alene - men Vinteds ordlyd vinder over dens formulering.
+  const suggested = hint
+    ? `Billedanalysen foreslog her: "${hint}". Vælg det punkt, der ligger tættest på det, ` +
+      "medmindre det tydeligvis er forkert.\n"
+    : "";
   const out = await callTool(
     "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
       (CHOICE_INTRO[kind] || "Vælg den mulighed, der passer bedst."),
     `Vare: ${draft.title}\nBeskrivelse: ${draft.description}\n` +
       `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}\n\n` +
-      `${where}Muligheder:\n${list}`,
+      `${where}${suggested}Muligheder:\n${list}`,
     CHOICE_TOOL,
   );
   const i = Number(out.index);
@@ -262,7 +289,7 @@ Deno.serve(async (req: Request) => {
       .from("drafts")
       .select(
         "id, title, description, price, search_query, price_grounded, " +
-          "condition, brand, size, size_scale, color, category_path, category, photos",
+          "condition, brand, size, size_scale, color, material, category_path, category, photos",
       )
       .eq("status", "ny")
       .order("selected_at", { ascending: false, nullsFirst: false })
@@ -276,7 +303,9 @@ Deno.serve(async (req: Request) => {
     // Udkast fra foer Vinted-felterne fandtes: udled dem nu, saa ogsaa gamle
     // udkast bliver fyldt helt ud.
     let row = data as Record<string, unknown>;
-    if (!Array.isArray(row.category_path) || !row.category_path.length) {
+    const missing = !Array.isArray(row.category_path) || !row.category_path.length ||
+      !row.material || !row.brand || !row.size || !row.color;
+    if (missing) {
       try {
         row = { ...row, ...await backfillFields(row) };
       } catch (err) {
@@ -302,6 +331,7 @@ Deno.serve(async (req: Request) => {
       size: cleanText(row.size || ""),
       sizeScale: cleanText(row.size_scale || ""),
       color: cleanText(row.color || ""),
+      material: cleanText(row.material || ""),
       condition: cleanText(row.condition || ""),
     });
   }
@@ -313,6 +343,7 @@ Deno.serve(async (req: Request) => {
       mode?: string;
       kind?: string;
       chosen?: unknown[];
+      hint?: unknown;
       options?: unknown[];
     };
     try {
@@ -339,6 +370,7 @@ Deno.serve(async (req: Request) => {
           String(body.kind || "kategori"),
           Array.isArray(body.chosen) ? body.chosen.map(String) : [],
           options,
+          body.hint ? String(body.hint) : undefined,
         );
         return json({ index });
       } catch (err) {
