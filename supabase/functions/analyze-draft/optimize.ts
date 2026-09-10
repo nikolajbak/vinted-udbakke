@@ -10,6 +10,7 @@ export interface PhotoGuidance {
   crop: { x0: number; y0: number; x1: number; y1: number };
   look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
   mask?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
+  protect?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
 }
 
 // Vinted viser annoncebilleder i portræt, men at tvinge 4:5 ned over en bred
@@ -36,6 +37,21 @@ export const GUIDANCE_TOOL = {
       y0: { type: "number", description: "Øverste kant af motivet, 0-1 af højden" },
       x1: { type: "number", description: "Højre kant af motivet, 0-1" },
       y1: { type: "number", description: "Nederste kant af motivet, 0-1" },
+      protectRegions: {
+        type: "array",
+        description:
+          "Områder der ALDRIG må maskeres, fordi de skal forblive læsbare: mærkemærkatet med " +
+          "brandnavnet, og mærkatet med størrelse eller vaskeanvisning. Angiv dem, også når de " +
+          "ligger tæt på eller delvist under et navnemærke. Tom liste hvis der ingen er.",
+        items: {
+          type: "object",
+          properties: {
+            x0: { type: "number" }, y0: { type: "number" },
+            x1: { type: "number" }, y1: { type: "number" },
+          },
+          required: ["x0", "y0", "x1", "y1"],
+        },
+      },
       personalRegions: {
         type: "array",
         description:
@@ -74,7 +90,7 @@ export const GUIDANCE_TOOL = {
       },
     },
     required: [
-      "rotationDegrees", "x0", "y0", "x1", "y1", "personalRegions",
+      "rotationDegrees", "x0", "y0", "x1", "y1", "personalRegions", "protectRegions",
       "exposure", "contrast", "warmth", "saturation",
     ],
   },
@@ -92,6 +108,7 @@ const clamp255 = (n: number) => (n < 0 ? 0 : n > 255 ? 255 : n);
 function maskRegions(
   image: { bitmap: Uint8ClampedArray; width: number; height: number },
   regions: Array<{ x0: number; y0: number; x1: number; y1: number }>,
+  protect: Array<{ x0: number; y0: number; x1: number; y1: number }> = [],
 ): void {
   const { width: W, height: H } = image;
   const px = image.bitmap;
@@ -105,6 +122,20 @@ function maskRegions(
     const x1 = Math.min(W, Math.ceil((Math.max(r.x0, r.x1) + PAD) * W));
     const y1 = Math.min(H, Math.ceil((Math.max(r.y0, r.y1) + PAD) * H));
     if (x1 <= x0 || y1 <= y0) continue;
+
+    // Navnelapper overlapper tit stoerrelsesmaerkatet. Beskyttede felter
+    // springes over pixel for pixel, saa navnet daekkes helt UDEN at "SIZE 120"
+    // ryger med — noget en firkantet maske alene ikke kan.
+    const guards = protect.map(function (g) {
+      return {
+        x0: Math.floor(Math.min(g.x0, g.x1) * W), y0: Math.floor(Math.min(g.y0, g.y1) * H),
+        x1: Math.ceil(Math.max(g.x0, g.x1) * W), y1: Math.ceil(Math.max(g.y0, g.y1) * H),
+      };
+    });
+    const guarded = function (x: number, y: number) {
+      for (const g of guards) if (x >= g.x0 && x < g.x1 && y >= g.y0 && y < g.y1) return true;
+      return false;
+    };
 
     const block = Math.max(8, Math.round(Math.min(x1 - x0, y1 - y0) / 6));
     for (let by = y0; by < y1; by += block) {
@@ -121,6 +152,7 @@ function maskRegions(
         const ar = r0 / n, ag = g0 / n, ab = b0 / n;
         for (let y = by; y < ey; y++) {
           for (let x = bx; x < ex; x++) {
+            if (guarded(x, y)) continue;
             const i = (y * W + x) * 4;
             px[i] = ar; px[i+1] = ag; px[i+2] = ab;
           }
@@ -216,7 +248,11 @@ export async function optimizePhoto(
   // Maskering sker på originalen, før rotation og beskæring, så modellens
   // koordinater passer uden at skulle regnes om.
   if (guidance.mask && guidance.mask.length) {
-    maskRegions(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number }, guidance.mask);
+    maskRegions(
+      image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number },
+      guidance.mask,
+      guidance.protect || [],
+    );
   }
 
   const rot = ((guidance.rotationDegrees % 360) + 360) % 360;

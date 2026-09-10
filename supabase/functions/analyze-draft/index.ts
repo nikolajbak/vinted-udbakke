@@ -200,6 +200,9 @@ Deno.serve(async (req: Request) => {
             "fx \"SIZE 120\" og brandnavnet skal forblive laesbare. Maskér heller aldrig " +
             "vaskemaerker eller producentens egen adresse. Er der intet personligt, " +
             "returnér en tom liste.\n" +
+            "3b) protectRegions: angiv de maerkater der SKAL forblive laesbare — brandmaerkatet og " +
+            "maerkatet med stoerrelse eller vaskeanvisning. Tag dem med ogsaa naar de ligger " +
+            "delvist under et navnemaerke; de bliver friholdt pixel for pixel.\n" +
             "4) Billedbehandling: bedoem billedet som en fotograf og angiv de rettelser, det faktisk " +
             "har brug for. Moerkt toej fotograferet indendoers er typisk undereksponeret og skal loeftes. " +
             "Et traegulv eller gult paerelys giver et varmt farvestik, som skal koeles ned (negativ warmth), " +
@@ -214,14 +217,17 @@ Deno.serve(async (req: Request) => {
         );
 
         const regions = Array.isArray(g.personalRegions) ? g.personalRegions : [];
+        const guards = Array.isArray(g.protectRegions) ? g.protectRegions : [];
         if (regions.length) personalInfoSeen = true;
+        const toBox = function (r: Record<string, number>) {
+          return { x0: Number(r.x0), y0: Number(r.y0), x1: Number(r.x1), y1: Number(r.y1) };
+        };
 
         let jpeg = await optimizePhoto(l.buf, {
           rotationDegrees: Number(g.rotationDegrees) || 0,
           crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
-          mask: regions.map(function (r: Record<string, number>) {
-            return { x0: Number(r.x0), y0: Number(r.y0), x1: Number(r.x1), y1: Number(r.y1) };
-          }),
+          mask: regions.map(toBox),
+          protect: guards.map(toBox),
           look: {
             exposure: Number(g.exposure) || 0,
             contrast: Number(g.contrast) || 0,
@@ -257,6 +263,7 @@ Deno.serve(async (req: Request) => {
                 rotationDegrees: Number(g.rotationDegrees) || 0,
                 crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
                 mask: wider,
+                protect: guards.map(toBox),
                 look: {
                   exposure: Number(g.exposure) || 0,
                   contrast: Number(g.contrast) || 0,
