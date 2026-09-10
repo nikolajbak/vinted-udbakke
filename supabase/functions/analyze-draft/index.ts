@@ -177,8 +177,10 @@ Deno.serve(async (req: Request) => {
             "slutte taet om selve maerkatet/detaljen — ikke om hele toejstykket omkring det. " +
             "Er billedet en HEL vare, skal kassen foelge varens kanter og holde gulv, borde, " +
             "foedder, ben, haender og moebler udenfor.\n" +
-            "3) personalInfo: true hvis der er navn, adresse eller andet personligt at se " +
-            "(fx et paasyet navnemaerke).\n" +
+            "3) personalRegions: udpeg de omraader der viser PERSONLIGE oplysninger og skal " +
+            "maskeres — paasyede navnemaerker, et barns navn, adresse eller telefonnummer. " +
+            "Kassen skal daekke selve teksten. Maskér ALDRIG maerkemaerkater eller stoerrelses- " +
+            "og vaskemaerker; de skal forblive laesbare. Er der intet personligt, returnér en tom liste.\n" +
             "4) Billedbehandling: bedoem billedet som en fotograf og angiv de rettelser, det faktisk " +
             "har brug for. Moerkt toej fotograferet indendoers er typisk undereksponeret og skal loeftes. " +
             "Et traegulv eller gult paerelys giver et varmt farvestik, som skal koeles ned (negativ warmth), " +
@@ -192,11 +194,15 @@ Deno.serve(async (req: Request) => {
           400,
         );
 
-        if (g.personalInfo === true) personalInfoSeen = true;
+        const regions = Array.isArray(g.personalRegions) ? g.personalRegions : [];
+        if (regions.length) personalInfoSeen = true;
 
         const jpeg = await optimizePhoto(l.buf, {
           rotationDegrees: Number(g.rotationDegrees) || 0,
           crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
+          mask: regions.map(function (r: Record<string, number>) {
+            return { x0: Number(r.x0), y0: Number(r.y0), x1: Number(r.x1), y1: Number(r.y1) };
+          }),
           look: {
             exposure: Number(g.exposure) || 0,
             contrast: Number(g.contrast) || 0,

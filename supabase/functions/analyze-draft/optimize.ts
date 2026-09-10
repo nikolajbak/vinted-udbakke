@@ -9,6 +9,7 @@ export interface PhotoGuidance {
   rotationDegrees: number;
   crop: { x0: number; y0: number; x1: number; y1: number };
   look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
+  mask?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
 }
 
 // Vinted viser annoncebilleder i portræt, men at tvinge 4:5 ned over en bred
@@ -35,9 +36,23 @@ export const GUIDANCE_TOOL = {
       y0: { type: "number", description: "Øverste kant af motivet, 0-1 af højden" },
       x1: { type: "number", description: "Højre kant af motivet, 0-1" },
       y1: { type: "number", description: "Nederste kant af motivet, 0-1" },
-      personalInfo: {
-        type: "boolean",
-        description: "true hvis billedet viser navn, adresse eller andet personligt, fx et navnemærke i tøjet",
+      personalRegions: {
+        type: "array",
+        description:
+          "Områder der skal maskeres, fordi de viser PERSONLIGE oplysninger: påsyede navnemærker, " +
+          "et barns navn, adresse, telefonnummer eller lignende. Tom liste hvis der ikke er noget. " +
+          "Maskér ALDRIG mærkemærkater, størrelses- eller vaskemærker — de skal forblive læsbare, " +
+          "da de er hele grunden til billedet.",
+        items: {
+          type: "object",
+          properties: {
+            x0: { type: "number", description: "Venstre kant, 0-1 af bredden" },
+            y0: { type: "number", description: "Øverste kant, 0-1 af højden" },
+            x1: { type: "number", description: "Højre kant, 0-1" },
+            y1: { type: "number", description: "Nederste kant, 0-1" },
+          },
+          required: ["x0", "y0", "x1", "y1"],
+        },
       },
       exposure: {
         type: "number",
@@ -59,7 +74,7 @@ export const GUIDANCE_TOOL = {
       },
     },
     required: [
-      "rotationDegrees", "x0", "y0", "x1", "y1", "personalInfo",
+      "rotationDegrees", "x0", "y0", "x1", "y1", "personalRegions",
       "exposure", "contrast", "warmth", "saturation",
     ],
   },
@@ -67,6 +82,51 @@ export const GUIDANCE_TOOL = {
 
 
 const clamp255 = (n: number) => (n < 0 ? 0 : n > 255 ? 255 : n);
+
+/**
+ * Pixelerer de områder, modellen har udpeget som personlige (typisk et påsyet
+ * navnemærke). Blokkene er store nok til at teksten ikke kan rekonstrueres,
+ * men det ser stadig ud som et foto frem for en sort bjælke.
+ * Køres på originalen FØR rotation og beskæring, så koordinaterne passer.
+ */
+function maskRegions(
+  image: { bitmap: Uint8ClampedArray; width: number; height: number },
+  regions: Array<{ x0: number; y0: number; x1: number; y1: number }>,
+): void {
+  const { width: W, height: H } = image;
+  const px = image.bitmap;
+  const PAD = 0.012; // lidt luft, så kanten af teksten ikke bliver stående
+
+  for (const r of regions) {
+    const x0 = Math.max(0, Math.floor((Math.min(r.x0, r.x1) - PAD) * W));
+    const y0 = Math.max(0, Math.floor((Math.min(r.y0, r.y1) - PAD) * H));
+    const x1 = Math.min(W, Math.ceil((Math.max(r.x0, r.x1) + PAD) * W));
+    const y1 = Math.min(H, Math.ceil((Math.max(r.y0, r.y1) + PAD) * H));
+    if (x1 <= x0 || y1 <= y0) continue;
+
+    const block = Math.max(8, Math.round(Math.min(x1 - x0, y1 - y0) / 6));
+    for (let by = y0; by < y1; by += block) {
+      for (let bx = x0; bx < x1; bx += block) {
+        const ex = Math.min(bx + block, x1), ey = Math.min(by + block, y1);
+        let r0 = 0, g0 = 0, b0 = 0, n = 0;
+        for (let y = by; y < ey; y++) {
+          for (let x = bx; x < ex; x++) {
+            const i = (y * W + x) * 4;
+            r0 += px[i]; g0 += px[i+1]; b0 += px[i+2]; n++;
+          }
+        }
+        if (!n) continue;
+        const ar = r0 / n, ag = g0 / n, ab = b0 / n;
+        for (let y = by; y < ey; y++) {
+          for (let x = bx; x < ex; x++) {
+            const i = (y * W + x) * 4;
+            px[i] = ar; px[i+1] = ag; px[i+2] = ab;
+          }
+        }
+      }
+    }
+  }
+}
 
 /**
  * Eksponering, hvidbalance, kontrast og mætning i én gennemgang af billedet.
@@ -150,6 +210,12 @@ export async function optimizePhoto(
   guidance: PhotoGuidance,
 ): Promise<Uint8Array> {
   let image = await Image.decode(new Uint8Array(buf));
+
+  // Maskering sker på originalen, før rotation og beskæring, så modellens
+  // koordinater passer uden at skulle regnes om.
+  if (guidance.mask && guidance.mask.length) {
+    maskRegions(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number }, guidance.mask);
+  }
 
   const rot = ((guidance.rotationDegrees % 360) + 360) % 360;
   if (rot === 90 || rot === 180 || rot === 270) {

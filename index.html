@@ -619,7 +619,7 @@
     }
 
     if(d.personal_info){
-      html += '<div class="warn">Der ses navn eller andre personlige oplysninger på et af billederne — fx et påsyet navnemærke. Tjek dem, før du uploader.</div>';
+      html += '<div class="warn">Der blev fundet personlige oplysninger på et af billederne — fx et påsyet navnemærke — og de er automatisk maskeret. Tjek billederne, før du uploader.</div>';
     }
     html += '<div class="note" style="margin-top:16px">' + esc(relTime(d.created_at)) + '</div>';
     $('d-body').innerHTML = html;
