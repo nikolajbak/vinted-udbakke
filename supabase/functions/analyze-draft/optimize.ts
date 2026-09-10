@@ -95,7 +95,9 @@ function maskRegions(
 ): void {
   const { width: W, height: H } = image;
   const px = image.bitmap;
-  const PAD = 0.012; // lidt luft, så kanten af teksten ikke bliver stående
+  // Kun ganske lidt luft: navnemærker sidder ofte klods op ad størrelses-
+  // mærkatet, og for meget margin sluger "SIZE 120" med.
+  const PAD = 0.004;
 
   for (const r of regions) {
     const x0 = Math.max(0, Math.floor((Math.min(r.x0, r.x1) - PAD) * W));

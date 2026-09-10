@@ -179,8 +179,11 @@ Deno.serve(async (req: Request) => {
             "foedder, ben, haender og moebler udenfor.\n" +
             "3) personalRegions: udpeg de omraader der viser PERSONLIGE oplysninger og skal " +
             "maskeres — paasyede navnemaerker, et barns navn, adresse eller telefonnummer. " +
-            "Kassen skal daekke selve teksten. Maskér ALDRIG maerkemaerkater eller stoerrelses- " +
-            "og vaskemaerker; de skal forblive laesbare. Er der intet personligt, returnér en tom liste.\n" +
+            "Kassen skal daekke SELVE NAVNET og intet mere. Navnemaerker sidder ofte klods op ad " +
+            "stoerrelses- eller maerkemaerkatet — hold derfor kassen stram, saa fx \"SIZE 120\" eller " +
+            "brandnavnet IKKE bliver daekket. Maskér ALDRIG maerkemaerkater, stoerrelses- eller " +
+            "vaskemaerker, og heller ikke producentens egen adresse. Er der intet personligt, " +
+            "returnér en tom liste.\n" +
             "4) Billedbehandling: bedoem billedet som en fotograf og angiv de rettelser, det faktisk " +
             "har brug for. Moerkt toej fotograferet indendoers er typisk undereksponeret og skal loeftes. " +
             "Et traegulv eller gult paerelys giver et varmt farvestik, som skal koeles ned (negativ warmth), " +
