@@ -16,6 +16,16 @@
 export const RUNNER = String.raw`
 (async function(){
 var API=window.__UDBAKKE_API__;
+var DRAFT_ID=null;
+// Spor hvert trin. Naar noget gaar galt paa telefonen, staar det i
+// window.__UDBAKKE_LOG__ i stedet for at vaere usynligt.
+var LOG=window.__UDBAKKE_LOG__=[];
+function log(s){LOG.push(Math.round(performance.now()/100)/10+'s '+s)}
+
+// Ingen enkelt vaelger maa kunne saette hele udfyldningen i staa.
+function withTimeout(p,ms,fallback){
+ return Promise.race([p,new Promise(function(r){setTimeout(function(){r(fallback)},ms)})]);
+}
 function q(s){return document.querySelector(s)}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function norm(s){return (s||'').replace(/\s+/g,' ').trim().toLowerCase()}
@@ -81,29 +91,93 @@ async function closeStray(){
  }
 }
 
+// React tegner formularen om, mens billederne uploades og kategorien vaelges.
+// Et klik paa en knude, der lige er blevet skiftet ud, sker i det tomme rum -
+// derfor slaas feltet op paa ny for hvert forsoeg.
 async function open(id){
  await closeStray();
- var el=q('#'+id);if(!el)return null;
- el.click();
- for(var i=0;i<25;i++){var m=modal();if(m)return m;await sleep(120)}
+ for(var forsoeg=0;forsoeg<3;forsoeg++){
+  var el=q('#'+id);
+  if(!el)return null;
+  el.click();
+  for(var i=0;i<20;i++){var m=modal();if(m)return m;await sleep(150)}
+  log(id+': dialogen åbnede ikke, prøver igen');
+ }
  return null;
 }
 
 function filled(id){var e=q('#'+id);return !!(e&&norm(e.value))}
 
-async function fillCategory(path){
- if(!path||!path.length)return 'kategori';
- var m=await open('category');if(!m)return 'kategori';
- for(var i=0;i<path.length;i++){
-  var cur=modal();if(!cur)break;
-  var before=norm(cur.textContent);
-  var t=pick(cur,path[i]);
-  if(!t)break; // AI'en gik dybere end Vinteds træ — behold det, vi nåede
-  t.click();
-  await waitChange(before,2500);
+// Raekkerne i en vaelger, som de faktisk staar paa skaermen. "Gem" og tomme
+// raekker er ikke valgmuligheder.
+// Vaelgeren gentager det allerede valgte som overskrift oeverst. Den raekke er
+// ikke et valg - klikker man den, ryger man ud af traeet igen.
+function options(root,skip){
+ var seen={},dead={};
+ (skip||[]).forEach(function(v){dead[norm(v)]=1});
+ return clickables(root).map(function(e){return{e:e,t:(e.textContent||'').replace(/\s+/g,' ').trim()}})
+  .filter(function(x){
+   if(!x.t||x.t.length>90)return false;
+   if(norm(x.t)==='gem'||norm(x.t)==='størrelsesvejledning'||norm(x.t)==='se mere')return false;
+   if(dead[norm(x.t)])return false;
+   if(seen[x.t])return false;
+   seen[x.t]=1;return true;
+  });
+}
+
+// Vinteds ordlyd kan ingen gætte - "Tøj til drenge", ikke "Drengetøj". Så vi
+// sender de muligheder, der står på skærmen, og får valgt et nummer.
+async function ask(kind,chosen,opts){
+ try{
+  var r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id:DRAFT_ID,mode:'choose',kind:kind,chosen:chosen,options:opts.map(function(o){return o.t})})});
+  var j=await r.json();
+  return (j.index>=0&&j.index<opts.length)?opts[j.index].e:null;
+ }catch(e){return null}
+}
+
+// Eget eksakt gæt først - det sparer et opslag, når ordlyden allerede passer.
+async function choose(root,kind,chosen,label){
+ var opts=options(root,chosen);
+ if(!opts.length)return null;
+ if(label){
+  var n=norm(label);
+  var hit=opts.filter(function(o){return norm(o.t)===n});
+  if(hit.length)return hit[0].e;
  }
- await save();await closeStray();
- return filled('category')?null:'kategori';
+ return await ask(kind,chosen,opts);
+}
+
+// Kategorivælgeren skal helt i bund: "Gem" på et mellemniveau kasserer valget,
+// mens "Gem" på et blad gemmer det. Bunden kender man på, at der ikke er flere
+// punkter at vælge — kun Gem-knappen står tilbage. Så: klik dig ned, til der
+// ikke er mere, og gem så. Blev feltet ikke udfyldt, prøves der forfra én gang.
+async function categoryOnce(path){
+ var m=await open('category');if(!m)return false;
+ var chosen=[];
+ for(var i=0;i<8;i++){
+  var cur=modal();
+  if(!cur)break; // dialogen lukkede = bladet er valgt
+  var before=norm(cur.textContent);
+  // AI'ens eget forslag prøves først; ellers vælges der blandt Vinteds egne.
+  var t=await choose(cur,'kategori',chosen,path&&path[i]);
+  if(!t){log('kategori: i bund efter '+i+' niveauer');break}
+  var label=(t.textContent||'').replace(/\s+/g,' ').trim().slice(0,40);
+  chosen.push(label);
+  log('kategori niveau '+(i+1)+': '+label);
+  t.click();
+  await waitChange(before,4000);
+ }
+ // Vi er i bund: bekræft bladet.
+ await save();
+ if(modal())await closeStray();
+ return filled('category');
+}
+
+async function fillCategory(path){
+ if(await categoryOnce(path))return null;
+ log('kategori: prøver forfra');
+ return await categoryOnce(path)?null:'kategori';
 }
 
 async function fillBrand(brand){
@@ -111,7 +185,7 @@ async function fillBrand(brand){
  var m=await open('brand');if(!m)return 'mærke';
  var s=m.querySelector('#brand-search-input');
  if(s){s.focus();setv(s,brand);await sleep(1800)}
- var t=pick(modal()||m,brand);
+ var t=await choose(modal()||m,'mærke',[],brand);
  if(!t){await closeStray();return 'mærke'}
  t.click();await sleep(900);
  await save();await closeStray();
@@ -122,7 +196,7 @@ async function fillSize(size,scale){
  if(!size)return null;
  var m=await open('size');if(!m)return 'størrelse';
  if(scale){var c=pick(m,scale);if(c){c.click();await sleep(800)}}
- var t=pick(modal()||m,size);
+ var t=await choose(modal()||m,'størrelse',[],size);
  if(!t){await closeStray();return 'størrelse'}
  t.click();await sleep(800);
  await save();await closeStray();
@@ -139,12 +213,40 @@ async function fillPick(id,label,name){
  return filled(id)?null:name;
 }
 
+// Vinted laeser filerne af selve input-feltet. En side maa ikke AABNE
+// filvaelgeren, men den maa godt lagge filer i feltet og sige til - saa
+// billederne kan faktisk komme med hele vejen.
+async function fillPhotos(urls){
+ if(!urls||!urls.length)return 'billeder';
+ var inp=document.querySelector('[data-testid="add-photos-input"]');
+ if(!inp)return 'billeder';
+ var dt=new DataTransfer(),n=0;
+ for(var i=0;i<urls.length;i++){
+  try{
+   var b=await(await fetch(urls[i],{cache:'no-store'})).blob();
+   if(!b.size)continue;
+   dt.items.add(new File([b],'foto'+(i+1)+'.jpg',{type:b.type||'image/jpeg'}));
+   n++;
+  }catch(e){}
+ }
+ if(!n)return 'billeder';
+ inp.files=dt.files;
+ inp.dispatchEvent(new Event('change',{bubbles:true}));
+ // Vent til miniaturerne staar der, saa uploaden er i gang foer vi gaar videre.
+ for(var j=0;j<40;j++){
+  if(document.querySelectorAll('[data-testid="media-upload-grid"] img').length>=n)return null;
+  await sleep(250);
+ }
+ return null;
+}
+
 var t=q('#title'),de=q('#description'),pe=q('#price');
 if(!t||!de||!pe){alert('Udbakke: du er ikke på opret-siden. Gå til Vinted → Sælg nu, og tryk på bogmærket der.');return}
 
 try{
  var d=await(await fetch(API)).json();
  if(d.empty){alert('Udbakke: ingen klar udkast i køen.');return}
+ DRAFT_ID=d.id;
 
  // Priser mod rigtige, aktive annoncer. Opslaget sker herfra, fra din egen
  // session — Vinted blokerer serverkald, men aldrig sin egen side.
@@ -162,27 +264,47 @@ try{
   }catch(e){note='prisopslag fejlede'}
  }else if(!d.needsPricing){note='pris allerede markedstjekket'}
 
- // Kategorien først: resten af felterne findes ikke uden den.
+ // Felterne først, billederne til sidst. Fotouploaden tegner formularen om,
+ // mens den kører, og en vælger, der bliver skiftet ud midt i et klik, åbner
+ // ikke — så de to ting må ikke overlappe.
  var mangler=[];
- var catFail=await fillCategory(d.categoryPath);
+
+ // Kategorien først: resten af felterne findes ikke uden den.
+ var catFail=await withTimeout(fillCategory(d.categoryPath),90000,'kategori');
+ log('kategori: '+(catFail||'ok'));
  if(catFail){
   mangler.push('kategori','mærke','størrelse','stand','farve');
  }else{
   var steps=[
-   await fillBrand(d.brand),
-   await fillSize(d.size,d.sizeScale),
-   await fillPick('condition',d.condition,'stand'),
-   await fillPick('color',d.color,'farve')
+   ['mærke',fillBrand,[d.brand]],
+   ['størrelse',fillSize,[d.size,d.sizeScale]],
+   ['stand',fillPick,['condition',d.condition,'stand']],
+   ['farve',fillPick,['color',d.color,'farve']]
   ];
-  steps.forEach(function(s){if(s)mangler.push(s)});
+  for(var si=0;si<steps.length;si++){
+   var miss=await withTimeout(steps[si][1].apply(null,steps[si][2]),60000,steps[si][0]);
+   log(steps[si][0]+': '+(miss||'ok'));
+   if(miss)mangler.push(miss);
+  }
  }
 
- // Teksten til sidst, så ingen dialog kan nå at rydde den.
- setv(t,d.title);setv(de,d.description);setv(pe,price);
+ // Teksten til sidst, så ingen dialog kan nå at rydde den. Felterne slås op
+ // igen her: React har tegnet formularen om, siden vi startede, og de gamle
+ // knuder sidder ikke længere i siden.
+ var t2=q('#title'),de2=q('#description'),pe2=q('#price');
+ if(t2)setv(t2,d.title);
+ if(de2)setv(de2,d.description);
+ if(pe2)setv(pe2,price);
+ log('tekst sat');
+
+ // Til sidst billederne. Uploaden kører videre af sig selv herfra.
+ log('billeder: '+(d.photos||[]).length);
+ if(await withTimeout(fillPhotos(d.photos),120000,'billeder'))mangler.push('billeder');
+ log('billeder klar');
 
  alert('Udfyldt: '+d.title+'\n'+note+'.\n\n'+
-  (mangler.length?'Sæt selv: '+mangler.join(', ')+'.\n':'Alle felter er sat.\n')+
-  'Tilføj billeder, tjek annoncen og upload selv.');
+  (mangler.length?'Sæt selv: '+mangler.join(', ')+'.\n\n':'Alle felter og billeder er sat.\n\n')+
+  'Tjek annoncen igennem og tryk Upload.');
 }catch(e){alert('Udbakke-fejl: '+e.message)}
 })();
 `;

@@ -48,6 +48,144 @@ function plainPrice(price: string): string {
   return (price || "").replace(/[^\d.,]/g, "").replace(",", ".");
 }
 
+// Vinteds egne vaerdier. De bliver klikket direkte ind i formularen, saa de
+// skal staa i Vinteds ordlyd - ikke i en fri oversaettelse.
+const VINTED_CONDITIONS = [
+  "Ny med prismærker", "Ny uden prismærker", "Meget god", "God", "Tilfredsstillende",
+];
+const VINTED_COLORS = [
+  "Sort", "Grå", "Hvid", "Flødefarvet", "Beige", "Abrikos", "Orange", "Koral", "Rød",
+  "Bourgogne", "Lyserød", "Rosa", "Lilla", "Lyslilla", "Lyseblå", "Blå", "Marineblå",
+  "Turkis", "Mintgrøn", "Grøn", "Mørkegrøn", "Khaki", "Brun", "Sennepsgul", "Gul",
+  "Sølv", "Guld", "Flerfarvet", "Klar",
+];
+
+const FIELDS_TOOL = {
+  name: "saet_vinted_felter",
+  description: "Udfyld Vinteds egne felter for varen, i Vinteds danske ordlyd.",
+  input_schema: {
+    type: "object",
+    properties: {
+      categoryPath: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          'Vejen ned gennem Vinteds danske kategoritræ, fx ["Børn","Drengetøj","Overtøj","Jakker"]. ' +
+          "Øverste niveau skal være ét af: Kvinder, Mænd, Børn, Bolig, Elektronik, Bøger og medier, " +
+          "Hobby og samlerobjekter, Sport. Gå kun så dybt du er sikker på.",
+      },
+      brand: { type: ["string", "null"], description: "Mærkets navn som det staves på Vinted. null hvis ukendt." },
+      size: { type: ["string", "null"], description: 'Størrelsen som på etiketten, fx "M", "152", "38". null hvis ukendt.' },
+      sizeScale: { type: ["string", "null"], enum: ["S/M/L", "EU", "UK", "FR", "IT", "US", null] },
+      color: { type: ["string", "null"], enum: [...VINTED_COLORS, null] },
+      condition: { type: "string", enum: VINTED_CONDITIONS },
+    },
+    required: ["categoryPath", "condition"],
+  },
+};
+
+async function callTool(system: string, user: string, tool: Record<string, unknown>) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-5",
+      max_tokens: 700,
+      system,
+      tools: [tool],
+      tool_choice: { type: "tool", name: tool.name },
+      messages: [{ role: "user", content: user }],
+    }),
+  });
+  if (!res.ok) throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const block = (data?.content || []).find((b: { type?: string }) => b?.type === "tool_use");
+  if (!block?.input) throw new Error("no_tool_use_in_response");
+  return block.input as Record<string, unknown>;
+}
+
+// Udkast fra foer Vinted-felterne fandtes har dem ikke. Hellere udlede dem her,
+// mens telefonen venter, end at lade saelgeren saette dem i haanden.
+async function backfillFields(draft: Record<string, unknown>) {
+  const out = await callTool(
+    "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
+      "Du placerer en vare præcist i Vinteds egen danske formular.",
+    `Titel: ${draft.title}\nBeskrivelse: ${draft.description}\n` +
+      `Kategori (fritekst): ${draft.category ?? ""}\nStand (fritekst): ${draft.condition ?? ""}\n` +
+      `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}`,
+    FIELDS_TOOL,
+  );
+
+  const fields = {
+    category_path: Array.isArray(out.categoryPath) && out.categoryPath.length
+      ? (out.categoryPath as unknown[]).map((c) => cleanText(c)).filter(Boolean)
+      : null,
+    brand: cleanText(out.brand) || null,
+    size: cleanText(out.size) || null,
+    size_scale: cleanText(out.sizeScale) || null,
+    color: cleanText(out.color) || null,
+    condition: cleanText(out.condition) || null,
+  };
+  await supabase.from("drafts").update(fields).eq("id", draft.id);
+  return fields;
+}
+
+// Vinteds kategoritrae bruger sin helt egen ordlyd - "Toej til drenge", ikke
+// "Drengetoej". Det kan ingen model gaette paalideligt. Derfor laeser telefonen
+// de muligheder, der faktisk staar paa skaermen, og faar valgt et nummer her.
+const CHOICE_TOOL = {
+  name: "vaelg_mulighed",
+  description: "Vælg den mulighed, der passer bedst til varen.",
+  input_schema: {
+    type: "object",
+    properties: {
+      index: {
+        type: "integer",
+        description: "Nummeret på den bedste mulighed. -1 hvis ingen passer, eller hvis vi allerede er præcise nok.",
+      },
+      reason: { type: "string", description: "Meget kort begrundelse" },
+    },
+    required: ["index"],
+  },
+};
+
+const CHOICE_INTRO: Record<string, string> = {
+  kategori:
+    "Du står i Vinteds kategorivælger og skal ét niveau LÆNGERE NED. Vælg det punkt, der fører mod den mest " +
+    "præcise placering af varen. Nogle punkter er genveje, der viser hele stien med > — vælg kun en genvej, " +
+    "hvis hele stien er rigtig. Vælg altid et punkt, hvis bare ét af dem kan rumme varen; en lidt bred, men " +
+    "rigtig kategori er langt bedre end ingen. Er varen unisex eller er køn ikke oplyst, så vælg alligevel " +
+    "den gren, der passer bedst på varen. Svar kun -1, hvis absolut intet punkt kan rumme varen.",
+  størrelse:
+    "Du står i Vinteds størrelsesvælger. Vælg den størrelse, der svarer til varens etiket. " +
+    "Svar -1, hvis ingen af dem gør.",
+  mærke: "Du står i Vinteds mærkeliste. Vælg præcis det mærke, varen er. Svar -1, hvis mærket ikke er på listen.",
+};
+
+async function chooseOption(
+  draft: Record<string, unknown>,
+  kind: string,
+  chosen: string[],
+  options: string[],
+): Promise<number> {
+  const list = options.map((o, i) => `${i}: ${o}`).join("\n");
+  const where = chosen.length ? `Valgt indtil nu: ${chosen.join(" > ")}\n` : "";
+  const out = await callTool(
+    "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
+      (CHOICE_INTRO[kind] || "Vælg den mulighed, der passer bedst."),
+    `Vare: ${draft.title}\nBeskrivelse: ${draft.description}\n` +
+      `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}\n\n` +
+      `${where}Muligheder:\n${list}`,
+    CHOICE_TOOL,
+  );
+  const i = Number(out.index);
+  return Number.isInteger(i) && i >= 0 && i < options.length ? i : -1;
+}
+
 const PRICE_TOOL = {
   name: "saet_pris",
   description: "Sæt den endelige pris ud fra sammenlignelige annoncer.",
@@ -124,7 +262,7 @@ Deno.serve(async (req: Request) => {
       .from("drafts")
       .select(
         "id, title, description, price, search_query, price_grounded, " +
-          "condition, brand, size, size_scale, color, category_path",
+          "condition, brand, size, size_scale, color, category_path, category, photos",
       )
       .eq("status", "ny")
       .order("selected_at", { ascending: false, nullsFirst: false })
@@ -135,31 +273,79 @@ Deno.serve(async (req: Request) => {
     if (error) return json({ error: error.message }, 500);
     if (!data) return json({ empty: true });
 
+    // Udkast fra foer Vinted-felterne fandtes: udled dem nu, saa ogsaa gamle
+    // udkast bliver fyldt helt ud.
+    let row = data as Record<string, unknown>;
+    if (!Array.isArray(row.category_path) || !row.category_path.length) {
+      try {
+        row = { ...row, ...await backfillFields(row) };
+      } catch (err) {
+        console.error("backfill_fields failed", err);
+      }
+    }
+
+    const photoUrls = (Array.isArray(row.photos) ? row.photos : [])
+      .map((p: { url?: string }) => p?.url)
+      .filter((u: unknown): u is string => typeof u === "string" && !!u);
+
     return json({
       id: data.id,
+      photos: photoUrls,
       title: cleanText(data.title),
       description: cleanText(data.description),
       price: plainPrice(data.price || ""),
       searchQuery: data.search_query || data.title || "",
       needsPricing: !data.price_grounded,
       // Vinteds egne felter, i Vinteds egen ordlyd.
-      categoryPath: Array.isArray(data.category_path) ? data.category_path : [],
-      brand: cleanText(data.brand || ""),
-      size: cleanText(data.size || ""),
-      sizeScale: cleanText(data.size_scale || ""),
-      color: cleanText(data.color || ""),
-      condition: cleanText(data.condition || ""),
+      categoryPath: Array.isArray(row.category_path) ? row.category_path : [],
+      brand: cleanText(row.brand || ""),
+      size: cleanText(row.size || ""),
+      sizeScale: cleanText(row.size_scale || ""),
+      color: cleanText(row.color || ""),
+      condition: cleanText(row.condition || ""),
     });
   }
 
   if (req.method === "POST") {
-    let body: { id?: string; comparables?: Array<Record<string, string>> };
+    let body: {
+      id?: string;
+      comparables?: Array<Record<string, string>>;
+      mode?: string;
+      kind?: string;
+      chosen?: unknown[];
+      options?: unknown[];
+    };
     try {
       body = await req.json();
     } catch {
       return json({ error: "bad_json" }, 400);
     }
     if (!body.id) return json({ error: "missing_id" }, 400);
+
+    // Telefonen sender de muligheder, Vinted faktisk viser, og faar et nummer
+    // tilbage. Saa behoever ingen at gaette Vinteds ordlyd.
+    if (body.mode === "choose") {
+      const { data: d, error: e } = await supabase
+        .from("drafts")
+        .select("title, description, brand, size")
+        .eq("id", body.id)
+        .single();
+      if (e) return json({ error: e.message }, 500);
+      const options = Array.isArray(body.options) ? body.options.map(String) : [];
+      if (!options.length) return json({ index: -1 });
+      try {
+        const index = await chooseOption(
+          d as Record<string, unknown>,
+          String(body.kind || "kategori"),
+          Array.isArray(body.chosen) ? body.chosen.map(String) : [],
+          options,
+        );
+        return json({ index });
+      } catch (err) {
+        console.error("choose failed", err);
+        return json({ index: -1 });
+      }
+    }
 
     const { data: draft, error: draftErr } = await supabase
       .from("drafts")
