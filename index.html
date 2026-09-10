@@ -292,6 +292,85 @@
     gap: 6px;
   }
 
+  /* Manuel beskæring — modellen rammer ikke altid rigtigt, og så skal du
+     kunne rette det selv uden at tage billedet om. */
+  .crop-overlay{
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.92);
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    gap: 12px;
+  }
+  .crop-overlay p{
+    margin: 0;
+    color: #EDE8DE;
+    font-size: 13px;
+    text-align: center;
+  }
+  .crop-stage{
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+  }
+  .crop-stage img{
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .crop-box{
+    position: absolute;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+    touch-action: none;
+  }
+  .crop-handle{
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    background: rgba(255,255,255,0.001);
+  }
+  .crop-handle::after{
+    content: "";
+    position: absolute;
+    width: 16px; height: 16px;
+    border: 3px solid #fff;
+    border-radius: 2px;
+  }
+  .crop-handle[data-c="nw"]{ left: -17px; top: -17px; }
+  .crop-handle[data-c="nw"]::after{ left: 9px; top: 9px; border-right: 0; border-bottom: 0; }
+  .crop-handle[data-c="ne"]{ right: -17px; top: -17px; }
+  .crop-handle[data-c="ne"]::after{ right: 9px; top: 9px; border-left: 0; border-bottom: 0; }
+  .crop-handle[data-c="sw"]{ left: -17px; bottom: -17px; }
+  .crop-handle[data-c="sw"]::after{ left: 9px; bottom: 9px; border-right: 0; border-top: 0; }
+  .crop-handle[data-c="se"]{ right: -17px; bottom: -17px; }
+  .crop-handle[data-c="se"]::after{ right: 9px; bottom: 9px; border-left: 0; border-top: 0; }
+  .crop-actions{
+    display: flex;
+    gap: 10px;
+  }
+  .crop-actions button{
+    flex: 1;
+    padding: 13px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .crop-actions .save{ background: var(--accent); color: var(--surface); border: 1px solid var(--accent); }
+  .crop-actions .cancel{ background: none; color: #EDE8DE; border: 1px solid rgba(255,255,255,0.35); }
+
+  .photo-strip img{ cursor: pointer; }
+
   .warn-note{
     font-size: 12.5px;
     line-height: 1.5;
@@ -301,6 +380,12 @@
     padding: 9px 11px;
   }
 
+  .photo-hint{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
   .photo-strip{
     display: flex;
     gap: 6px;
@@ -610,6 +695,23 @@
   </div>
   <div id="hist-list" hidden></div>
 
+  <div class="crop-overlay" id="crop-overlay" hidden>
+    <p id="crop-hint">Træk i hjørnerne for at beskære. Billedet gemmes i den udsnitsstørrelse, du vælger.</p>
+    <div class="crop-stage" id="crop-stage">
+      <img id="crop-img" alt="" crossorigin="anonymous">
+      <div class="crop-box" id="crop-box">
+        <div class="crop-handle" data-c="nw"></div>
+        <div class="crop-handle" data-c="ne"></div>
+        <div class="crop-handle" data-c="sw"></div>
+        <div class="crop-handle" data-c="se"></div>
+      </div>
+    </div>
+    <div class="crop-actions">
+      <button type="button" class="cancel" id="crop-cancel">Annullér</button>
+      <button type="button" class="save" id="crop-save">Gem beskæring</button>
+    </div>
+  </div>
+
   <div class="logout-row">
     <button type="button" class="link-btn" id="logout-btn">Log ud</button>
   </div>
@@ -694,9 +796,11 @@
   function photoStrip(d){
     var photos = d.photos || [];
     if(!photos.length) return '';
-    return '<div class="photo-strip">' + photos.map(function(p){
-      return '<img src="' + escapeHtml(p.url) + '" alt="' + escapeHtml(p.kind || '') + '" loading="lazy">';
-    }).join('') + '</div>';
+    return '<div class="photo-hint">Tryk på et billede for at beskære det selv</div>' +
+      '<div class="photo-strip">' + photos.map(function(p, i){
+        return '<img src="' + escapeHtml(p.url) + '" alt="' + escapeHtml(p.kind || '') +
+               '" data-i="' + i + '" loading="lazy">';
+      }).join('') + '</div>';
   }
 
   function cardTemplate(d){
@@ -809,6 +913,14 @@
             if(res && res.error) throw res.error;
           })
           .catch(function(){ retryBtn.textContent = 'Prøv igen'; });
+      });
+    }
+
+    var strip = el.querySelector('.photo-strip');
+    if(strip){
+      strip.addEventListener('click', function(e){
+        var i = e.target.getAttribute && e.target.getAttribute('data-i');
+        if(i !== null && i !== undefined) openCrop(d, Number(i));
       });
     }
 
@@ -995,6 +1107,160 @@
       reader.readAsDataURL(file);
     });
   }
+
+  // ---- Manuel beskæring -----------------------------------------------------
+  // Modellen rammer ikke altid varens kanter. Her kan et enkelt billede rettes
+  // uden at tage det om; resultatet erstatter billedet i udkastet.
+
+  var cropOverlay = document.getElementById('crop-overlay');
+  var cropStage = document.getElementById('crop-stage');
+  var cropImg = document.getElementById('crop-img');
+  var cropBox = document.getElementById('crop-box');
+  var cropSave = document.getElementById('crop-save');
+  var cropCancel = document.getElementById('crop-cancel');
+  var cropCtx = null; // { draft, photoIndex, rect, frame }
+
+  function layoutCropBox(){
+    if(!cropCtx) return;
+    var r = cropCtx.rect;
+    cropBox.style.left = (cropCtx.frame.left + r.x) + 'px';
+    cropBox.style.top = (cropCtx.frame.top + r.y) + 'px';
+    cropBox.style.width = r.w + 'px';
+    cropBox.style.height = r.h + 'px';
+  }
+
+  function openCrop(d, index){
+    var photo = (d.photos || [])[index];
+    if(!photo) return;
+    cropCtx = { draft: d, photoIndex: index, rect: null, frame: null };
+    cropOverlay.hidden = false;
+    cropImg.onload = function(){
+      var stage = cropStage.getBoundingClientRect();
+      var img = cropImg.getBoundingClientRect();
+      cropCtx.frame = { left: img.left - stage.left, top: img.top - stage.top, w: img.width, h: img.height };
+      // start med hele billedet, så du kun skal trække det væk du ikke vil have
+      cropCtx.rect = { x: 0, y: 0, w: img.width, h: img.height };
+      layoutCropBox();
+    };
+    cropImg.src = photo.url;
+  }
+
+  function pointerPos(e){
+    var t = e.touches ? e.touches[0] : e;
+    var stage = cropStage.getBoundingClientRect();
+    return { x: t.clientX - stage.left, y: t.clientY - stage.top };
+  }
+
+  function startDrag(e, corner){
+    if(!cropCtx || !cropCtx.rect) return;
+    e.preventDefault();
+    var start = pointerPos(e);
+    var r0 = { x: cropCtx.rect.x, y: cropCtx.rect.y, w: cropCtx.rect.w, h: cropCtx.rect.h };
+    var f = cropCtx.frame;
+
+    function move(ev){
+      var p = pointerPos(ev);
+      var dx = p.x - start.x, dy = p.y - start.y;
+      var r = { x: r0.x, y: r0.y, w: r0.w, h: r0.h };
+      var MIN = 40;
+
+      if(!corner){
+        r.x = Math.max(0, Math.min(f.w - r.w, r0.x + dx));
+        r.y = Math.max(0, Math.min(f.h - r.h, r0.y + dy));
+      } else {
+        if(corner.indexOf('w') > -1){
+          var nx = Math.max(0, Math.min(r0.x + r0.w - MIN, r0.x + dx));
+          r.w = r0.w + (r0.x - nx); r.x = nx;
+        }
+        if(corner.indexOf('e') > -1){
+          r.w = Math.max(MIN, Math.min(f.w - r0.x, r0.w + dx));
+        }
+        if(corner.indexOf('n') > -1){
+          var ny = Math.max(0, Math.min(r0.y + r0.h - MIN, r0.y + dy));
+          r.h = r0.h + (r0.y - ny); r.y = ny;
+        }
+        if(corner.indexOf('s') > -1){
+          r.h = Math.max(MIN, Math.min(f.h - r0.y, r0.h + dy));
+        }
+      }
+      cropCtx.rect = r;
+      layoutCropBox();
+      ev.preventDefault();
+    }
+    function end(){
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('touchmove', move);
+      document.removeEventListener('mouseup', end);
+      document.removeEventListener('touchend', end);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchend', end);
+  }
+
+  cropBox.addEventListener('mousedown', function(e){
+    if(e.target.classList.contains('crop-handle')) return;
+    startDrag(e, null);
+  });
+  cropBox.addEventListener('touchstart', function(e){
+    if(e.target.classList.contains('crop-handle')) return;
+    startDrag(e, null);
+  }, { passive: false });
+
+  Array.prototype.forEach.call(cropBox.querySelectorAll('.crop-handle'), function(h){
+    var c = h.getAttribute('data-c');
+    h.addEventListener('mousedown', function(e){ startDrag(e, c); });
+    h.addEventListener('touchstart', function(e){ startDrag(e, c); }, { passive: false });
+  });
+
+  cropCancel.addEventListener('click', function(){
+    cropOverlay.hidden = true;
+    cropCtx = null;
+  });
+
+  cropSave.addEventListener('click', function(){
+    if(!cropCtx || !cropCtx.rect) return;
+    cropSave.disabled = true;
+    cropSave.textContent = 'Gemmer …';
+
+    var d = cropCtx.draft, idx = cropCtx.photoIndex;
+    var photo = d.photos[idx];
+    // Skalér fra visningsstørrelse op til billedets faktiske opløsning.
+    var scale = cropImg.naturalWidth / cropCtx.frame.w;
+    var r = cropCtx.rect;
+    var sx = Math.round(r.x * scale), sy = Math.round(r.y * scale);
+    var sw = Math.round(r.w * scale), sh = Math.round(r.h * scale);
+
+    var canvas = document.createElement('canvas');
+    canvas.width = sw; canvas.height = sh;
+    canvas.getContext('2d').drawImage(cropImg, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    canvas.toBlob(function(blob){
+      if(!blob){ cropSave.disabled = false; cropSave.textContent = 'Gem beskæring'; return; }
+      var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '-manuel.jpg';
+      sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' })
+        .then(function(res){
+          if(res.error) throw res.error;
+          var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+          var photos = d.photos.slice();
+          photos[idx] = { path: path, url: url, kind: photo.kind, optimized: true };
+          var patch = { photos: photos };
+          if(idx === 0){ patch.image_path = path; patch.image_url = url; }
+          return sb.from('drafts').update(patch).eq('id', d.id);
+        })
+        .then(function(res){
+          if(res && res.error) throw res.error;
+          cropOverlay.hidden = true;
+          cropCtx = null;
+        })
+        .catch(function(){ cropSave.textContent = 'Prøv igen'; })
+        .then(function(){
+          cropSave.disabled = false;
+          if(cropSave.textContent === 'Gemmer …') cropSave.textContent = 'Gem beskæring';
+        });
+    }, 'image/jpeg', 0.92);
+  });
 
   // ---- Guidet billedserie -------------------------------------------------
   // Rækkefølgen er ikke tilfældig: coverbilledet afgør klik i søgeresultater,
