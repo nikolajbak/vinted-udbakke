@@ -8,6 +8,7 @@ import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 export interface PhotoGuidance {
   rotationDegrees: number;
   crop: { x0: number; y0: number; x1: number; y1: number };
+  look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
 }
 
 // Vinted viser annoncebilleder i portræt, men at tvinge 4:5 ned over en bred
@@ -38,10 +39,103 @@ export const GUIDANCE_TOOL = {
         type: "boolean",
         description: "true hvis billedet viser navn, adresse eller andet personligt, fx et navnemærke i tøjet",
       },
+      exposure: {
+        type: "number",
+        description:
+          "Eksponering, -0.5 til 0.5. Positiv gør billedet lysere. Mørkt tøj i dårligt lys ligger typisk på 0.15-0.35.",
+      },
+      contrast: {
+        type: "number",
+        description: "Kontrast, -0.4 til 0.4. Positiv giver dybere sort og renere hvid i et fladt billede.",
+      },
+      warmth: {
+        type: "number",
+        description:
+          "Farvetemperatur, -0.5 til 0.5. NEGATIV køler et orange/gult farvestik ned (fx trægulv eller gult pærelys). Positiv varmer et blåligt billede op.",
+      },
+      saturation: {
+        type: "number",
+        description: "Farvemætning, -0.3 til 0.3. Let positiv giver mere liv; negativ dæmper overmættede farver.",
+      },
     },
-    required: ["rotationDegrees", "x0", "y0", "x1", "y1", "personalInfo"],
+    required: [
+      "rotationDegrees", "x0", "y0", "x1", "y1", "personalInfo",
+      "exposure", "contrast", "warmth", "saturation",
+    ],
   },
 };
+
+
+const clamp255 = (n: number) => (n < 0 ? 0 : n > 255 ? 255 : n);
+
+/**
+ * Eksponering, hvidbalance, kontrast og mætning i én gennemgang af billedet.
+ * Modellen bedømmer HVAD der skal rettes; her udføres det.
+ */
+function applyLook(
+  image: { bitmap: Uint8ClampedArray },
+  look: { exposure?: number; contrast?: number; warmth?: number; saturation?: number },
+): void {
+  const ev = Math.max(-0.5, Math.min(0.5, look.exposure ?? 0));
+  const ct = Math.max(-0.4, Math.min(0.4, look.contrast ?? 0));
+  const wb = Math.max(-0.5, Math.min(0.5, look.warmth ?? 0));
+  const sa = Math.max(-0.3, Math.min(0.3, look.saturation ?? 0));
+  if (!ev && !ct && !wb && !sa) return;
+
+  const expGain = 1 + ev;
+  const ctGain = 1 + ct;
+  const rGain = 1 + wb * 0.18;   // varmt stik koeles ved at daempe roed
+  const bGain = 1 - wb * 0.18;   // og loefte blaa
+  const satGain = 1 + sa;
+  const px = image.bitmap;
+
+  for (let i = 0; i < px.length; i += 4) {
+    let r = px[i] * expGain * rGain;
+    let g = px[i + 1] * expGain;
+    let b = px[i + 2] * expGain * bGain;
+
+    if (ct) {
+      r = (r - 128) * ctGain + 128;
+      g = (g - 128) * ctGain + 128;
+      b = (b - 128) * ctGain + 128;
+    }
+    if (sa) {
+      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      r = lum + (r - lum) * satGain;
+      g = lum + (g - lum) * satGain;
+      b = lum + (b - lum) * satGain;
+    }
+    px[i] = clamp255(r);
+    px[i + 1] = clamp255(g);
+    px[i + 2] = clamp255(b);
+  }
+}
+
+/**
+ * Let unsharp mask. Nedskalering bloeder altid kanterne op, og et
+ * marketplace-foto skal se skarpt ud i en lille thumbnail.
+ */
+function sharpen(image: { bitmap: Uint8ClampedArray; width: number; height: number }, amount = 0.45): void {
+  const { width: w, height: h } = image;
+  if (w < 3 || h < 3) return;
+  const src = new Uint8ClampedArray(image.bitmap);
+  const px = image.bitmap;
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const centre = src[i + c];
+        const blur = (
+          src[i - w * 4 + c] + src[i + w * 4 + c] +
+          src[i - 4 + c] + src[i + 4 + c] +
+          centre * 4
+        ) / 8;
+        px[i + c] = clamp255(centre + (centre - blur) * amount * 2);
+      }
+    }
+  }
+}
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
@@ -104,6 +198,9 @@ export async function optimizePhoto(
     const scale = MAX_EDGE / longEdge;
     image = image.resize(Math.round(image.width * scale), Math.round(image.height * scale));
   }
+
+  if (guidance.look) applyLook(image as unknown as { bitmap: Uint8ClampedArray }, guidance.look);
+  sharpen(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number });
 
   return await image.encodeJPEG(90);
 }

@@ -170,7 +170,7 @@ Deno.serve(async (req: Request) => {
       if (l.photo.optimized || /-opt\.jpg$/i.test(l.photo.path)) continue;
       try {
         const g = await callClaudeJson(
-          "Du forbereder ét foto til en Vinted-annonce.\n\n" +
+          "Du er fotograf og forbereder ét foto til en Vinted-annonce.\n\n" +
             "1) Rotation: hvor mange grader med uret skal billedet drejes for at vende rigtigt (0/90/180/270)?\n" +
             "2) Kassen: angiv motivets yderste kanter i normaliserede koordinater 0-1. " +
             "Er billedet et NAERBILLEDE af et maerkat, en etiket, et tryk eller en detalje, skal kassen " +
@@ -178,7 +178,11 @@ Deno.serve(async (req: Request) => {
             "Er billedet en HEL vare, skal kassen foelge varens kanter og holde gulv, borde, " +
             "foedder, ben, haender og moebler udenfor.\n" +
             "3) personalInfo: true hvis der er navn, adresse eller andet personligt at se " +
-            "(fx et paasyet navnemaerke).",
+            "(fx et paasyet navnemaerke).\n" +
+            "4) Billedbehandling: bedoem billedet som en fotograf og angiv de rettelser, det faktisk " +
+            "har brug for. Moerkt toej fotograferet indendoers er typisk undereksponeret og skal loeftes. " +
+            "Et traegulv eller gult paerelys giver et varmt farvestik, som skal koeles ned (negativ warmth), " +
+            "ellers ser sort toej brunligt ud. Er billedet allerede godt, saa svar 0 - overdriv ikke.",
           [
             { type: "image", source: { type: "base64", media_type: l.mediaType, data: toBase64(l.buf) } },
             { type: "text", text: `Billedtype: ${l.photo.kind || "ukendt"}. Vurdér dette ene billede.` },
@@ -193,6 +197,12 @@ Deno.serve(async (req: Request) => {
         const jpeg = await optimizePhoto(l.buf, {
           rotationDegrees: Number(g.rotationDegrees) || 0,
           crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
+          look: {
+            exposure: Number(g.exposure) || 0,
+            contrast: Number(g.contrast) || 0,
+            warmth: Number(g.warmth) || 0,
+            saturation: Number(g.saturation) || 0,
+          },
         });
         const optPath = l.photo.path.replace(/\.jpg$/i, "") + "-opt.jpg";
         const up = await supabase.storage.from("photos").upload(optPath, jpeg, {
