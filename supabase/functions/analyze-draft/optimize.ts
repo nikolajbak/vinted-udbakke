@@ -95,9 +95,9 @@ function maskRegions(
 ): void {
   const { width: W, height: H } = image;
   const px = image.bitmap;
-  // Kun ganske lidt luft: navnemærker sidder ofte klods op ad størrelses-
-  // mærkatet, og for meget margin sluger "SIZE 120" med.
-  const PAD = 0.004;
+  // Kassen daekker hele navneklistermaerket som objekt, ikke teksten alene —
+  // objektkanter rammer modellen paalideligt, tekstkanter goer den ikke.
+  const PAD = 0.008;
 
   for (const r of regions) {
     const x0 = Math.max(0, Math.floor((Math.min(r.x0, r.x1) - PAD) * W));

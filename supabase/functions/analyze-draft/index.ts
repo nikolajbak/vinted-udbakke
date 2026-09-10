@@ -99,6 +99,21 @@ const VISION_TOOL = {
   },
 };
 
+const VERIFY_MASK_TOOL = {
+  name: "tjek_maskering",
+  description: "Sig om der stadig er et personnavn eller anden personlig oplysning at læse på billedet.",
+  input_schema: {
+    type: "object",
+    properties: {
+      stillVisible: {
+        type: "boolean",
+        description: "true hvis et personnavn, en adresse eller lignende stadig kan læses helt eller delvist",
+      },
+    },
+    required: ["stillVisible"],
+  },
+};
+
 const DRAFT_TOOL = {
   name: "skriv_annonce",
   description: "Skriv det færdige annonce-udkast på dansk.",
@@ -179,10 +194,11 @@ Deno.serve(async (req: Request) => {
             "foedder, ben, haender og moebler udenfor.\n" +
             "3) personalRegions: udpeg de omraader der viser PERSONLIGE oplysninger og skal " +
             "maskeres — paasyede navnemaerker, et barns navn, adresse eller telefonnummer. " +
-            "Kassen skal daekke SELVE NAVNET og intet mere. Navnemaerker sidder ofte klods op ad " +
-            "stoerrelses- eller maerkemaerkatet — hold derfor kassen stram, saa fx \"SIZE 120\" eller " +
-            "brandnavnet IKKE bliver daekket. Maskér ALDRIG maerkemaerkater, stoerrelses- eller " +
-            "vaskemaerker, og heller ikke producentens egen adresse. Er der intet personligt, " +
+            "Angiv HELE det klistermaerke eller den lap, navnet staar paa — hele dens omrids, " +
+            "ikke bare bogstaverne. Er der to navnelapper, saa angiv dem hver for sig. " +
+            "Kassen maa IKKE strackke sig ned over stoerrelses- eller maerkemaerkatet: " +
+            "fx \"SIZE 120\" og brandnavnet skal forblive laesbare. Maskér heller aldrig " +
+            "vaskemaerker eller producentens egen adresse. Er der intet personligt, " +
             "returnér en tom liste.\n" +
             "4) Billedbehandling: bedoem billedet som en fotograf og angiv de rettelser, det faktisk " +
             "har brug for. Moerkt toej fotograferet indendoers er typisk undereksponeret og skal loeftes. " +
@@ -200,7 +216,7 @@ Deno.serve(async (req: Request) => {
         const regions = Array.isArray(g.personalRegions) ? g.personalRegions : [];
         if (regions.length) personalInfoSeen = true;
 
-        const jpeg = await optimizePhoto(l.buf, {
+        let jpeg = await optimizePhoto(l.buf, {
           rotationDegrees: Number(g.rotationDegrees) || 0,
           crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
           mask: regions.map(function (r: Record<string, number>) {
@@ -213,6 +229,45 @@ Deno.serve(async (req: Request) => {
             saturation: Number(g.saturation) || 0,
           },
         });
+        // Ét forsøg rammer ikke altid hele navnet. Frem for at stole på det,
+        // ser modellen på sit eget resultat og får lov at udvide masken én gang.
+        if (regions.length) {
+          try {
+            const check = await callClaudeJson(
+              "Du kontrollerer, at personlige oplysninger er maskeret godt nok, før billedet lægges " +
+                "i en offentlig annonce. Kan et personnavn stadig laeses — helt eller delvist, ogsaa " +
+                "kun nogle bogstaver — saa er svaret true. Maerkenavne, stoerrelser og vaskeanvisninger " +
+                "er IKKE personlige og skal ikke give true.",
+              [
+                { type: "image", source: { type: "base64", media_type: "image/jpeg", data: toBase64(jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength) as ArrayBuffer) } },
+                { type: "text", text: "Er der stadig et navn at laese?" },
+              ],
+              VISION_MODEL,
+              VERIFY_MASK_TOOL,
+              200,
+            );
+            if (check.stillVisible === true) {
+              const wider = regions.map(function (r: Record<string, number>) {
+                const cx = (Number(r.x0) + Number(r.x1)) / 2, cy = (Number(r.y0) + Number(r.y1)) / 2;
+                const hw = Math.abs(Number(r.x1) - Number(r.x0)) / 2 * 1.45;
+                const hh = Math.abs(Number(r.y1) - Number(r.y0)) / 2 * 1.45;
+                return { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh };
+              });
+              jpeg = await optimizePhoto(l.buf, {
+                rotationDegrees: Number(g.rotationDegrees) || 0,
+                crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
+                mask: wider,
+                look: {
+                  exposure: Number(g.exposure) || 0,
+                  contrast: Number(g.contrast) || 0,
+                  warmth: Number(g.warmth) || 0,
+                  saturation: Number(g.saturation) || 0,
+                },
+              });
+            }
+          } catch (_e) { /* behold den første maskering */ }
+        }
+
         const optPath = l.photo.path.replace(/\.jpg$/i, "") + "-opt.jpg";
         const up = await supabase.storage.from("photos").upload(optPath, jpeg, {
           contentType: "image/jpeg",
