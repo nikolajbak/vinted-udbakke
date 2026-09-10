@@ -422,8 +422,19 @@
         <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
       </button>
       <div class="sect setup">
-        <span class="label">Udfyld Vinted automatisk</span>
-        <p class="note">Et bogmærke i Safari udfylder kategori, mærke, størrelse, stand, farve, titel, beskrivelse og pris på Vinteds opret-side. Du tilføjer selv billederne og trykker upload. Sæt bogmærket op én gang pr. telefon — det opdaterer sig selv bagefter.</p>
+        <span class="label">Helt automatisk</span>
+        <p class="note">Sæt det op én gang, så udfylder Vinted-annoncen sig selv — kategori, mærke, størrelse, stand, farve, materiale, titel, beskrivelse, pris og billeder — i samme øjeblik du trykker <b>Udfyld i Vinted</b>. Du skal kun tjekke annoncen og trykke upload.</p>
+        <p class="note">Safari må ikke lade én side køre kode på en anden. Derfor skal den gratis app <b>Userscripts</b> have lov — det er den, der giver Vinted-siden besked.</p>
+        <ol>
+          <li>Hent <b>Userscripts</b> i App Store (gratis)</li>
+          <li><b>Indstillinger → Apps → Safari → Udvidelser</b> → slå <b>Userscripts</b> til → giv den <b>Tillad</b> på vinted.dk</li>
+          <li>Tryk <b>Installér automatikken</b> herunder → i Userscripts: <b>Gem</b></li>
+        </ol>
+        <button type="button" class="btn btn-primary" id="m-userscript" style="margin-top:12px">Installér automatikken</button>
+      </div>
+      <div class="sect setup">
+        <span class="label">Eller med et bogmærke</span>
+        <p class="note">Vil du ikke installere noget, gør et bogmærke det samme — du skal bare trykke på det selv, når Vinted-siden er åben.</p>
         <ol>
           <li>Tryk <b>Kopiér bogmærke-kode</b></li>
           <li>I Safari: <b>Del</b> → <b>Tilføj bogmærke</b> → gem i <b>Favoritter</b> som <b>Udfyld Vinted</b></li>
@@ -472,6 +483,7 @@
   var SUPABASE_URL = 'https://gjycsqshkvkcupdnvgvf.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
   var LOGIN_EMAIL = 'adgang@udbakke.local';
+  var FILL_API = 'https://gjycsqshkvkcupdnvgvf.supabase.co/functions/v1/vinted-fill-script?key=a4deb2bc4156ae08d2772aca72de6a70';
   var BOOKMARKLET = "javascript:%28function%28%29%7Bvar%20A%3D%27https%3A%2F%2Fgjycsqshkvkcupdnvgvf.supabase.co%2Ffunctions%2Fv1%2Fvinted-fill-script%3Fkey%3Da4deb2bc4156ae08d2772aca72de6a70%27%3Bwindow.__UDBAKKE_API__%3DA%3Bfetch%28A%2B%27%26script%3D1%27%2C%7Bcache%3A%27no-store%27%7D%29.then%28function%28r%29%7Breturn%20r.text%28%29%7D%29.then%28function%28t%29%7B%280%2Ceval%29%28t%29%7D%29.catch%28function%28e%29%7Balert%28%27Udbakke%3A%20kunne%20ikke%20hente%20scriptet%20-%20%27%2Be.message%29%7D%29%3B%7D%29%28%29%3B";
 
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -996,6 +1008,12 @@
   $('m-logout').addEventListener('click', function(){
     sb.auth.signOut().then(function(){ stack = []; show('login', { fade:true }); });
   });
+  // Userscripts genkender en .user.js-adresse og tilbyder at gemme den. Derfra
+  // henter den selv nye udgaver, så automatikken kan rettes uden at du gør noget.
+  $('m-userscript').addEventListener('click', function(){
+    window.location.href = FILL_API + '&userscript=1';
+  });
+
   $('m-copy').addEventListener('click', function(){
     navigator.clipboard.writeText(BOOKMARKLET).then(function(){
       toast('Koden er kopieret — indsæt den som bogmærkets adresse');

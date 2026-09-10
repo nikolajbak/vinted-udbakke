@@ -274,6 +274,43 @@ Deno.serve(async (req: Request) => {
     return json({ error: "unauthorized" }, 401);
   }
 
+  // Samme automatik pakket som et brugerscript, saa Safari kan koere den af sig
+  // selv, naar opret-siden aabnes. Versionsnummeret foelger indholdet, saa
+  // Userscripts selv henter en ny udgave, naar der er rettet noget.
+  if (req.method === "GET" && url.searchParams.get("userscript") === "1") {
+    // Ikke url.origin: bag Supabase's router er det den interne adresse, og et
+    // brugerscript skal kunne kalde hjem udefra.
+    const api = `${SUPABASE_URL}/functions/v1/vinted-fill-script?key=${SHORTCUT_KEY}`;
+    let h = 0;
+    for (let i = 0; i < RUNNER.length; i++) h = (h * 31 + RUNNER.charCodeAt(i)) >>> 0;
+    const body = [
+      "// ==UserScript==",
+      "// @name         Udbakke → Vinted",
+      "// @namespace    udbakke",
+      `// @version      1.0.${h % 100000}`,
+      "// @description  Udfylder Vinted-annoncen automatisk fra Udbakke",
+      "// @match        https://www.vinted.dk/items/new*",
+      "// @match        https://vinted.dk/items/new*",
+      "// @run-at       document-idle",
+      "// @grant        none",
+      "// @inject-into  page",
+      `// @downloadURL  ${api}&userscript=1`,
+      `// @updateURL    ${api}&userscript=1`,
+      "// ==/UserScript==",
+      "",
+      `window.__UDBAKKE_API__=${JSON.stringify(api)};`,
+      "window.__UDBAKKE_AUTO__=true;",
+      RUNNER,
+    ].join("\n");
+    return new Response(body, {
+      headers: {
+        ...CORS,
+        "content-type": "text/javascript; charset=utf-8",
+        "cache-control": "no-store",
+      },
+    });
+  }
+
   // Bogmaerket er kun en indlaeser. Selve automatikken hentes her, saa den kan
   // rettes uden at bogmaerket skal installeres forfra paa telefonen.
   if (req.method === "GET" && url.searchParams.get("script") === "1") {
@@ -285,6 +322,12 @@ Deno.serve(async (req: Request) => {
   if (req.method === "GET") {
     // The app stamps selected_at when you tap "Udfyld i Vinted" on a specific
     // card, so two people sharing the queue never pull each other's draft.
+    // Automatisk tilstand maa kun gribe ind, naar du netop har trykket "Udfyld i
+    // Vinted" i appen. Ellers ville enhver tur forbi opret-siden faa en gammel
+    // annonce skrevet ind under haenderne paa dig.
+    const auto = url.searchParams.get("auto") === "1";
+    const freshSince = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
     const { data, error } = await supabase
       .from("drafts")
       .select(
@@ -292,6 +335,7 @@ Deno.serve(async (req: Request) => {
           "condition, brand, size, size_scale, color, material, category_path, category, photos",
       )
       .eq("status", "ny")
+      .gte(auto ? "selected_at" : "created_at", auto ? freshSince : "1970-01-01")
       .order("selected_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(1)
@@ -355,6 +399,13 @@ Deno.serve(async (req: Request) => {
 
     // Telefonen sender de muligheder, Vinted faktisk viser, og faar et nummer
     // tilbage. Saa behoever ingen at gaette Vinteds ordlyd.
+    // Faerdig: markeringen ryddes, saa et genindlaes ikke skriver den samme
+    // annonce ind igen.
+    if (body.mode === "clear") {
+      await supabase.from("drafts").update({ selected_at: null }).eq("id", body.id);
+      return json({ ok: true });
+    }
+
     if (body.mode === "choose") {
       const { data: d, error: e } = await supabase
         .from("drafts")

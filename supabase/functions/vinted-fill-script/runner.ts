@@ -15,7 +15,15 @@
 // literal nedenfor.
 export const RUNNER = String.raw`
 (async function(){
+// Kun én gang pr. sideindlæsning: i automatisk tilstand kan scriptet blive
+// sat i gang igen, hver gang Vinted tegner siden om.
+if(window.__UDBAKKE_RAN__)return;
+window.__UDBAKKE_RAN__=true;
+
 var API=window.__UDBAKKE_API__;
+// Automatisk tilstand kører uden at blive bedt om det, så den må aldrig
+// afbryde med en dialog. Den siger kun til, når der faktisk skete noget.
+var AUTO=!!window.__UDBAKKE_AUTO__;
 var DRAFT_ID=null;
 // Spor hvert trin. Naar noget gaar galt paa telefonen, staar det i
 // window.__UDBAKKE_LOG__ i stedet for at vaere usynligt.
@@ -45,6 +53,19 @@ function setv(el,v){
 }
 
 function modal(){return document.querySelector('.ReactModal__Content')}
+
+// En dialog midt i skærmen er i vejen, når man ikke selv har bedt om noget.
+function say(msg){
+ if(!AUTO){alert(msg);return}
+ var el=document.createElement('div');
+ el.textContent=msg;
+ el.setAttribute('style','position:fixed;left:12px;right:12px;bottom:16px;z-index:2147483647;'+
+  'background:#09b1ba;color:#fff;font:600 15px/1.4 -apple-system,system-ui,sans-serif;'+
+  'padding:14px 16px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.28);white-space:pre-line');
+ document.body.appendChild(el);
+ setTimeout(function(){el.style.transition='opacity .4s';el.style.opacity='0';
+  setTimeout(function(){el.remove()},500)},7000);
+}
 
 // Vinteds rækker er div'er med en React-onClick. Den prop er den eneste
 // pålidelige markør for "det her kan klikkes".
@@ -279,12 +300,25 @@ async function waitReady(){
  return false;
 }
 
-var t=q('#title'),de=q('#description'),pe=q('#price');
-if(!t||!de||!pe){alert('Udbakke: du er ikke på opret-siden. Gå til Vinted → Sælg nu, og tryk på bogmærket der.');return}
+// Automatisk tilstand starter, så snart siden er tegnet — felterne kan sagtens
+// mangle endnu.
+async function waitForm(){
+ for(var i=0;i<80;i++){
+  if(q('#title')&&q('#description')&&q('#price'))return true;
+  await sleep(250);
+ }
+ return false;
+}
+if(!await waitForm()){
+ if(!AUTO)alert('Udbakke: du er ikke på opret-siden. Gå til Vinted → Sælg nu, og tryk på bogmærket der.');
+ return;
+}
 
 try{
- var d=await(await fetch(API)).json();
- if(d.empty){alert('Udbakke: ingen klar udkast i køen.');return}
+ var d=await(await timedFetch(API+(AUTO?'&auto=1':''),{},25000)).json();
+ // I automatisk tilstand betyder "tomt", at du ikke har bedt om noget her —
+ // så skal siden være helt i fred.
+ if(d.empty){if(!AUTO)alert('Udbakke: ingen klar udkast i køen.');return}
  DRAFT_ID=d.id;
  log('siden klar: '+(await waitReady()));
 
@@ -343,9 +377,13 @@ try{
  if(await fillPhotos(d.photos))mangler.push('billeder');
  log('billeder klar');
 
- alert('Udfyldt: '+d.title+'\n'+note+'.\n\n'+
-  (mangler.length?'Sæt selv: '+mangler.join(', ')+'.\n\n':'Alle felter og billeder er sat.\n\n')+
-  'Tjek annoncen igennem og tryk Upload.');
-}catch(e){alert('Udbakke-fejl: '+e.message)}
+ // Markeringen ryddes, så et genindlæs ikke fylder den samme annonce ud igen.
+ if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({id:DRAFT_ID,mode:'clear'})},15000)}catch(e){}}
+
+ say('Udfyldt: '+d.title+'\n'+note+'.\n'+
+  (mangler.length?'Sæt selv: '+mangler.join(', ')+'.':'Alle felter og billeder er sat.')+
+  '\nTjek annoncen igennem og tryk Upload.');
+}catch(e){say('Udbakke-fejl: '+e.message)}
 })();
 `;
