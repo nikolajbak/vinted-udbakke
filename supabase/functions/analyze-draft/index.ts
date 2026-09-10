@@ -376,6 +376,10 @@ Deno.serve(async (req: Request) => {
         price_note: cleanText(draft.priceNote),
         search_query: searchQuery,
         price_grounded: grounded,
+        // Maerke og stoerrelse blev laest af maerkatbillederne, men blev ikke gemt.
+        // Vinted har egne felter til dem, saa de skal vaere tilgaengelige.
+        brand: cleanText(vision.brand),
+        size: cleanText(vision.size),
       })
       .eq("id", id);
 

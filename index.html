@@ -207,8 +207,20 @@
   .chip-vent{ background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); }
 
   /* ---- Detaljeskærm ------------------------------------------------------ */
+  .gallery{ position: relative; }
+  .hero-track{
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: var(--s2);
+    scrollbar-width: none;
+  }
+  .hero-track::-webkit-scrollbar{ display: none; }
   .hero{
     width: 100%;
+    flex: 0 0 100%;
+    scroll-snap-align: center;
     max-height: 44vh;
     object-fit: cover;
     border-radius: 12px;
@@ -216,6 +228,9 @@
     background: var(--surface);
     display: block;
   }
+  .dots{ display: flex; justify-content: center; gap: 6px; margin-top: var(--s2); }
+  .dots i{ width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background-color 160ms ease; }
+  .dots i.on{ background: var(--accent); }
   .strip{ display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: var(--s1); margin-top: var(--s2); }
   .strip img{
     width: 60px; height: 75px; flex: none; object-fit: cover;
@@ -442,6 +457,7 @@
       </div>
     </div>
     <div class="crop-btns">
+      <button type="button" class="btn btn-secondary" id="crop-rotate" aria-label="Rotér 90 grader">Rotér</button>
       <button type="button" class="btn btn-secondary" id="crop-cancel">Annullér</button>
       <button type="button" class="btn btn-primary" id="crop-save">Gem beskæring</button>
     </div>
@@ -593,12 +609,21 @@
     var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
 
     var html = '';
-    if(d.image_url) html += '<img class="hero" src="' + esc(d.image_url) + '" alt="">';
+    var gal = photos.length ? photos : (d.image_url ? [{ url: d.image_url, kind: '' }] : []);
+    if(gal.length){
+      html += '<div class="gallery"><div class="hero-track" id="d-track">' +
+        gal.map(function(p){ return '<img class="hero" src="' + esc(p.url) + '" alt="' + esc(p.kind || '') + '">'; }).join('') +
+        '</div>' +
+        (gal.length > 1 ? '<div class="dots" id="d-dots">' + gal.map(function(_, i){
+          return '<i class="' + (i === 0 ? 'on' : '') + '"></i>';
+        }).join('') + '</div>' : '') +
+      '</div>';
+    }
     if(photos.length){
       html += '<div class="strip" id="d-strip">' + photos.map(function(p, i){
         return '<img src="' + esc(p.url) + '" data-i="' + i + '" alt="' + esc(p.kind || '') + '">';
       }).join('') + '</div>';
-      html += '<div class="note">Tryk på et billede for at beskære det selv.</div>';
+      html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det.</div>';
     }
 
     if(d.status === 'ny'){
@@ -608,9 +633,8 @@
         html += '<div class="note">Prisen markedstjekkes mod rigtige annoncer, når du udfylder i Vinted.</div>';
       }
       if(d.price_note) html += '<div class="note">' + esc(d.price_note) + '</div>';
-      if(d.category || d.condition){
-        html += '<div class="note">' + esc([d.category, d.condition].filter(Boolean).join(' · ')) + '</div>';
-      }
+      var facts = [d.brand, d.size, d.category, d.condition].filter(Boolean);
+      if(facts.length) html += '<div class="note">' + esc(facts.join(' · ')) + '</div>';
       if(d.description) html += '<div class="desc">' + esc(d.description) + '</div>';
     } else if(failed){
       html += '<div class="warn">' + esc(d.price_note) + '</div>';
@@ -623,6 +647,16 @@
     }
     html += '<div class="note" style="margin-top:16px">' + esc(relTime(d.created_at)) + '</div>';
     $('d-body').innerHTML = html;
+
+    var track = $('d-track'), dots = $('d-dots');
+    if(track && dots){
+      track.addEventListener('scroll', function(){
+        var i = Math.round(track.scrollLeft / track.clientWidth);
+        Array.prototype.forEach.call(dots.children, function(dot, n){
+          dot.classList.toggle('on', n === i);
+        });
+      }, { passive: true });
+    }
 
     var strip = $('d-strip');
     if(strip){
@@ -843,7 +877,7 @@
   }
   function openCrop(d, i){
     var p = (d.photos || [])[i]; if(!p) return;
-    crop = { draft: d, i: i, rect: null, frame: null };
+    crop = { draft: d, i: i, rect: null, frame: null, rot: 0 };
     $('crop').hidden = false;
     $('crop-img').onload = function(){
       var s = $('crop-stage').getBoundingClientRect(), im = $('crop-img').getBoundingClientRect();
@@ -892,17 +926,51 @@
     h.addEventListener('mousedown', function(e){ drag(e, c); });
     h.addEventListener('touchstart', function(e){ drag(e, c); }, { passive:false });
   });
-  $('crop-cancel').addEventListener('click', function(){ $('crop').hidden = true; crop = null; });
+  // Automatikken retter langt de fleste billeder op, men rammer ikke alt.
+  // Her kan du altid dreje selv.
+  $('crop-rotate').addEventListener('click', function(){
+    if(!crop) return;
+    crop.rot = (crop.rot + 90) % 360;
+    var im = $('crop-img');
+    im.style.transform = 'rotate(' + crop.rot + 'deg)';
+    im.style.transformOrigin = 'center';
+    // Nulstil rammen, så den passer til den nye retning.
+    var s2 = $('crop-stage').getBoundingClientRect(), ir = im.getBoundingClientRect();
+    crop.frame = { left: ir.left - s2.left, top: ir.top - s2.top, w: ir.width, h: ir.height };
+    crop.rect = { x: 0, y: 0, w: ir.width, h: ir.height };
+    layoutBox();
+  });
+
+  $('crop-cancel').addEventListener('click', function(){
+    $('crop').hidden = true;
+    $('crop-img').style.transform = '';
+    crop = null;
+  });
   $('crop-save').addEventListener('click', function(){
     if(!crop || !crop.rect) return;
     var btn = $('crop-save');
     btn.disabled = true; btn.textContent = 'Gemmer …';
     var d = crop.draft, idx = crop.i, img = $('crop-img');
     // Skalér op fra visningsstørrelse til billedets faktiske opløsning.
-    var sc = img.naturalWidth / crop.frame.w, r = crop.rect;
+    var rot = crop.rot || 0;
+    var swap = (rot === 90 || rot === 270);
+    var natW = swap ? img.naturalHeight : img.naturalWidth;
+    var sc = natW / crop.frame.w, r = crop.rect;
+    var cw = Math.round(r.w * sc), ch = Math.round(r.h * sc);
+
+    // Tegn hele billedet roteret på et hjælpe-lærred, og beskær derefter — så
+    // udsnittet svarer til dét, du ser på skærmen.
+    var full = document.createElement('canvas');
+    full.width = swap ? img.naturalHeight : img.naturalWidth;
+    full.height = swap ? img.naturalWidth : img.naturalHeight;
+    var fx = full.getContext('2d');
+    fx.translate(full.width/2, full.height/2);
+    fx.rotate(rot * Math.PI / 180);
+    fx.drawImage(img, -img.naturalWidth/2, -img.naturalHeight/2);
+
     var c = document.createElement('canvas');
-    c.width = Math.round(r.w * sc); c.height = Math.round(r.h * sc);
-    c.getContext('2d').drawImage(img, Math.round(r.x*sc), Math.round(r.y*sc), c.width, c.height, 0, 0, c.width, c.height);
+    c.width = cw; c.height = ch;
+    c.getContext('2d').drawImage(full, Math.round(r.x*sc), Math.round(r.y*sc), cw, ch, 0, 0, cw, ch);
     c.toBlob(function(blob){
       if(!blob){ btn.disabled = false; btn.textContent = 'Gem beskæring'; return; }
       var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '-manuel.jpg';
@@ -916,7 +984,8 @@
         return sb.from('drafts').update(patch).eq('id', d.id);
       }).then(function(res){
         if(res && res.error) throw res.error;
-        $('crop').hidden = true; crop = null; toast('Beskæringen er gemt');
+        $('crop').hidden = true; $('crop-img').style.transform = ''; crop = null;
+        toast('Billedet er gemt');
       }).catch(function(){ btn.textContent = 'Prøv igen'; })
         .then(function(){ btn.disabled = false; if(btn.textContent === 'Gemmer …') btn.textContent = 'Gem beskæring'; });
     }, 'image/jpeg', 0.92);
