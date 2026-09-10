@@ -498,6 +498,12 @@
     if(cur === next) return;
     if(opts.replace && stack.length) stack[stack.length-1] = name; else stack.push(name);
 
+    // Selvrettende: skjul enhver skærm der er synlig uden at være den, vi
+    // kommer fra, så lag aldrig kan hobe sig op oven på hinanden.
+    Array.prototype.forEach.call(document.querySelectorAll('.screen'), function(el){
+      if(el !== next && el !== cur) el.hidden = true;
+    });
+
     next.hidden = false;
     if(reduce){ if(cur && cur !== next) cur.hidden = true; return; }
 
@@ -626,21 +632,31 @@
       });
     }
 
+    // Kun de to handlinger, du bruger hver gang, er fastgjort nederst. Resten
+    // ligger i indholdet — så fylder bundlinjen ikke en tredjedel af skærmen,
+    // og "Kasser" ligger ikke lige ved siden af det, du trykker på dagligt.
+    var rest = '<div class="sect">';
+    if(d.status === 'ny'){
+      rest += '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
+    }
+    rest += '<button type="button" class="btn btn-danger" data-a="discard">Kasser udkast</button></div>';
+    $('d-body').insertAdjacentHTML('beforeend', rest);
+
     var f = '';
     if(d.status === 'ny'){
       f += '<button type="button" class="btn btn-primary" data-a="fill">Udfyld i Vinted</button>';
       f += '<button type="button" class="btn btn-secondary" data-a="save">Gem billeder i Fotos</button>';
-      f += '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>';
-      f += '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
     } else if(failed){
       f += '<button type="button" class="btn btn-primary" data-a="retry">Prøv analysen igen</button>';
     }
-    f += '<button type="button" class="btn btn-danger" data-a="discard">Kasser udkast</button>';
     $('d-footer').innerHTML = f;
+    $('d-footer').hidden = !f;
 
-    Array.prototype.forEach.call($('d-footer').querySelectorAll('[data-a]'), function(b){
-      b.addEventListener('click', function(){ detailAction(b.getAttribute('data-a'), d, b); });
-    });
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#d-footer [data-a], #d-body [data-a]'), function(b){
+        b.addEventListener('click', function(){ detailAction(b.getAttribute('data-a'), d, b); });
+      });
   }
 
   function detailAction(a, d, btn){
