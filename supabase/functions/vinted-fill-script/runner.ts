@@ -140,6 +140,20 @@ async function open(id){
 
 function filled(id){var e=q('#'+id);return !!(e&&norm(e.value))}
 
+// Sidste sikring: passer det, der endte i feltet, overhovedet til varen?
+// Kan der ikke spørges, godkendes valget — et tomt felt er værre end et,
+// der måske kunne have været mere præcist.
+async function verify(kind,value){
+ if(!value)return true;
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id:DRAFT_ID,mode:'verify',kind:kind,value:value})},30000);
+  var j=await r.json();
+  if(j.ok===false)log(kind+' forkastet: '+value+(j.reason?' ('+j.reason+')':''));
+  return j.ok!==false;
+ }catch(e){return true}
+}
+
 // Raekkerne i en vaelger, som de faktisk staar paa skaermen. "Gem" og tomme
 // raekker er ikke valgmuligheder.
 // Vaelgeren gentager det allerede valgte som overskrift oeverst. Den raekke er
@@ -163,10 +177,11 @@ function options(root,skip){
 
 // Vinteds ordlyd kan ingen gætte - "Tøj til drenge", ikke "Drengetøj". Så vi
 // sender de muligheder, der står på skærmen, og får valgt et nummer.
-async function ask(kind,chosen,opts,hint){
+async function ask(kind,chosen,opts,hint,avoid){
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({id:DRAFT_ID,mode:'choose',kind:kind,chosen:chosen,hint:hint,options:opts.map(function(o){return o.t})})},30000);
+   body:JSON.stringify({id:DRAFT_ID,mode:'choose',kind:kind,chosen:chosen,hint:hint,avoid:avoid,
+    options:opts.map(function(o){return o.t})})},30000);
   var j=await r.json();
   return (j.index>=0&&j.index<opts.length)?opts[j.index].e:null;
  }catch(e){return null}
@@ -176,10 +191,17 @@ async function ask(kind,chosen,opts,hint){
 // Præfiks tæller med: standene har hele forklaringen hængende efter navnet
 // ("Tilfredsstillende" + "En hyppigt anvendt artikel med ..."). Korteste
 // træffer vinder, så vi rammer selve rækken og ikke noget, der rummer den.
-async function choose(root,kind,chosen,label){
+async function choose(root,kind,chosen,label,avoid){
  var opts=options(root,chosen);
  if(!opts.length)return null;
- if(label){
+
+ // Vinted foreslår selv hele stier ud fra titlen, og de rammer ofte bedre end
+ // et gæt niveau for niveau. Står der forslag på skærmen, må genvejen herunder
+ // ikke nappe det oplagte punkt, før forslagene overhovedet er set — det var
+ // sådan en regnjakke endte under vindjakker.
+ var harForslag=opts.some(function(o){return o.t.indexOf(' > ')>-1});
+
+ if(label && !harForslag){
   var n=norm(label);
   var hit=opts.filter(function(o){return norm(o.t)===n});
   if(!hit.length)hit=opts.filter(function(o){return norm(o.t).indexOf(n)===0});
@@ -188,14 +210,14 @@ async function choose(root,kind,chosen,label){
    return hit[0].e;
   }
  }
- return await ask(kind,chosen,opts,label);
+ return await ask(kind,chosen,opts,label,avoid);
 }
 
 // Kategorivælgeren skal helt i bund: "Gem" på et mellemniveau kasserer valget,
 // mens "Gem" på et blad gemmer det. Bunden kender man på, at der ikke er flere
 // punkter at vælge — kun Gem-knappen står tilbage. Så: klik dig ned, til der
 // ikke er mere, og gem så. Blev feltet ikke udfyldt, prøves der forfra én gang.
-async function categoryOnce(path){
+async function categoryOnce(path,avoid){
  var m=await open('category');if(!m)return false;
  var chosen=[];
  for(var i=0;i<8;i++){
@@ -203,7 +225,7 @@ async function categoryOnce(path){
   if(!cur)break; // dialogen lukkede = bladet er valgt
   var before=norm(cur.textContent);
   // AI'ens eget forslag prøves først; ellers vælges der blandt Vinteds egne.
-  var t=await choose(cur,'kategori',chosen,path&&path[i]);
+  var t=await choose(cur,'kategori',chosen,path&&path[i],avoid);
   if(!t){log('kategori: i bund efter '+i+' niveauer');break}
   var label=(t.textContent||'').replace(/\s+/g,' ').trim().slice(0,40);
   chosen.push(label);
@@ -218,9 +240,21 @@ async function categoryOnce(path){
 }
 
 async function fillCategory(path){
- if(await categoryOnce(path))return null;
- log('kategori: prøver forfra');
- return await categoryOnce(path)?null:'kategori';
+ var avoid=[];
+ for(var forsoeg=0;forsoeg<2;forsoeg++){
+  // Andet forsøg går uden billedanalysens forslag: var det først valg forkert,
+  // var forslaget som regel dét, der pegede skævt.
+  if(!await categoryOnce(forsoeg?null:path,avoid)){
+   log('kategori: nåede ikke i bund, prøver igen');
+   continue;
+  }
+  var valgt=q('#category').value;
+  if(await verify('kategori',valgt))return null;
+  avoid.push(valgt);
+ }
+ if(!filled('category'))return 'kategori';
+ // Værdien bliver stående — den er bedre end ingenting — men du får besked.
+ return avoid.length?'kategori (tjek den)':null;
 }
 
 async function fillBrand(brand){
@@ -232,7 +266,8 @@ async function fillBrand(brand){
  if(!t){await closeStray();return 'mærke'}
  t.click();await sleep(900);
  await save();await closeStray();
- return filled('brand')?null:'mærke';
+ if(!filled('brand'))return 'mærke';
+ return await verify('mærke',q('#brand').value)?null:'mærke (tjek det)';
 }
 
 async function fillSize(size,scale){
@@ -243,7 +278,8 @@ async function fillSize(size,scale){
  if(!t){await closeStray();return 'størrelse'}
  t.click();await sleep(800);
  await save();await closeStray();
- return filled('size')?null:'størrelse';
+ if(!filled('size'))return 'størrelse';
+ return await verify('størrelse',q('#size').value)?null:'størrelse (tjek den)';
 }
 
 async function fillPick(id,label,name){
@@ -253,7 +289,8 @@ async function fillPick(id,label,name){
  if(!t){await closeStray();return name}
  t.click();await sleep(800);
  await save();await closeStray();
- return filled(id)?null:name;
+ if(!filled(id))return name;
+ return await verify(name,q('#'+id).value)?null:name+' (tjek det)';
 }
 
 // Vinted laeser filerne af selve input-feltet. En side maa ikke AABNE

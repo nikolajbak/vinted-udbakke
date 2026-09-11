@@ -88,7 +88,22 @@ const FIELDS_TOOL = {
   },
 };
 
-async function callTool(system: string, user: string, tool: Record<string, unknown>) {
+async function toBase64(buf: ArrayBuffer): Promise<string> {
+  const bytes = new Uint8Array(buf);
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(out);
+}
+
+type Block = Record<string, unknown>;
+
+async function callTool(
+  system: string,
+  user: string | Block[],
+  tool: Record<string, unknown>,
+) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -110,6 +125,46 @@ async function callTool(system: string, user: string, tool: Record<string, unkno
   const block = (data?.content || []).find((b: { type?: string }) => b?.type === "tool_use");
   if (!block?.input) throw new Error("no_tool_use_in_response");
   return block.input as Record<string, unknown>;
+}
+
+// Kontrollen skal se VAREN, ikke bare laese om den. Laener den sig op ad
+// beskrivelsen, arver den beskrivelsens fejl - og det var netop teksten, der
+// kaldte en regnjakke for en softshell. Billedet er det eneste holdepunkt,
+// der ikke kan vaere farvet af et tidligere kald.
+async function photoBlocks(
+  photos: unknown,
+  kinds: string[],
+  max = 2,
+): Promise<Block[]> {
+  const list = Array.isArray(photos) ? photos as Array<{ url?: string; kind?: string }> : [];
+  if (!list.length) return [];
+  const picked: Array<{ url?: string; kind?: string }> = [];
+  for (const k of kinds) {
+    const hit = list.find((p) => (p.kind || "").toLowerCase().includes(k));
+    if (hit && !picked.includes(hit)) picked.push(hit);
+  }
+  if (!picked.length || picked.length < max) {
+    const first = list[0];
+    if (first && !picked.includes(first)) picked.unshift(first);
+  }
+
+  const blocks: Block[] = [];
+  for (const p of picked.slice(0, max)) {
+    if (!p.url) continue;
+    try {
+      const r = await fetch(p.url);
+      if (!r.ok) continue;
+      blocks.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: r.headers.get("content-type") || "image/jpeg",
+          data: await toBase64(await r.arrayBuffer()),
+        },
+      });
+    } catch { /* et billede mindre er bedre end ingen kontrol */ }
+  }
+  return blocks;
 }
 
 // Udkast fra foer Vinted-felterne fandtes har dem ikke. Hellere udlede dem her,
@@ -172,11 +227,18 @@ const CHOICE_TOOL = {
 
 const CHOICE_INTRO: Record<string, string> = {
   kategori:
-    "Du står i Vinteds kategorivælger og skal ét niveau LÆNGERE NED. Vælg det punkt, der fører mod den mest " +
-    "præcise placering af varen. Nogle punkter er genveje, der viser hele stien med > — vælg kun en genvej, " +
-    "hvis hele stien er rigtig. Vælg altid et punkt, hvis bare ét af dem kan rumme varen; en lidt bred, men " +
-    "rigtig kategori er langt bedre end ingen. Er varen unisex eller er køn ikke oplyst, så vælg alligevel " +
-    "den gren, der passer bedst på varen. Svar kun -1, hvis absolut intet punkt kan rumme varen.",
+    "Du står i Vinteds kategorivælger og skal ét niveau LÆNGERE NED.\n" +
+    "Nogle punkter viser en HEL sti med > imellem. Det er Vinteds egne forslag ud fra titlen, og de " +
+    "rammer ofte præcist dér, hvor varen hører hjemme. Passer en af dem på varen, så vælg den — " +
+    "ét klik placerer varen korrekt med det samme. Passer ingen af dem, så vælg det almindelige punkt, " +
+    "der fører videre ned mod varen.\n" +
+    "Vær opmærksom på, at valget er ENVEJS: vælger du en gren, kan du ikke komme tilbage. Så læs alle " +
+    "punkter igennem, før du vælger — særligt når to grene ligner hinanden (fx en gren til jakker " +
+    "generelt og en gren til regntøj). Er varen regntøj, termotøj, skitøj eller andet med sin egen gren, " +
+    "så tag dén gren frem for den almene.\n" +
+    "Vælg altid et punkt, hvis bare ét af dem kan rumme varen; en lidt bred, men rigtig kategori er " +
+    "langt bedre end ingen. Er køn ikke oplyst, så vælg alligevel den gren, der passer bedst. " +
+    "Svar kun -1, hvis absolut intet punkt kan rumme varen.",
   størrelse:
     "Du står i Vinteds størrelsesvælger. Vælg den størrelse, der svarer til varens etiket. " +
     "Svar -1, hvis ingen af dem gør.",
@@ -192,11 +254,17 @@ async function chooseOption(
   chosen: string[],
   options: string[],
   hint?: string,
+  avoid?: string[],
 ): Promise<number> {
   const list = options.map((o, i) => `${i}: ${o}`).join("\n");
   const where = chosen.length ? `Valgt indtil nu: ${chosen.join(" > ")}\n` : "";
   // Billedanalysen har allerede set varen. Dens bud er bedre end en gaetning
   // ud fra titlen alene - men Vinteds ordlyd vinder over dens formulering.
+  // Et tidligere forsoeg blev forkastet ved kontrollen. Sig hvad, saa den
+  // samme blindgyde ikke vaelges igen.
+  const rejected = avoid && avoid.length
+    ? `Følgende er allerede prøvet og forkastet som forkert: ${avoid.join(", ")}. Vælg noget andet.\n`
+    : "";
   const suggested = hint
     ? `Billedanalysen foreslog her: "${hint}". Vælg det punkt, der ligger tættest på det, ` +
       "medmindre det tydeligvis er forkert.\n"
@@ -206,11 +274,61 @@ async function chooseOption(
       (CHOICE_INTRO[kind] || "Vælg den mulighed, der passer bedst."),
     `Vare: ${draft.title}\nBeskrivelse: ${draft.description}\n` +
       `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}\n\n` +
-      `${where}${suggested}Muligheder:\n${list}`,
+      `${where}${suggested}${rejected}Muligheder:\n${list}`,
     CHOICE_TOOL,
   );
   const i = Number(out.index);
   return Number.isInteger(i) && i >= 0 && i < options.length ? i : -1;
+}
+
+// Et valg, der ser rimeligt ud paa vejen ned, kan vaere forkert i bund. Her
+// bedoemmes RESULTATET mod varen - et langt lettere spoergsmaal end at vaelge
+// rigtigt i blinde, og det er sidste chance for at fange en forkert gren.
+const VERIFY_TOOL = {
+  name: "bedoem_valg",
+  description: "Sig om den valgte værdi passer til varen.",
+  input_schema: {
+    type: "object",
+    properties: {
+      ok: { type: "boolean", description: "true hvis værdien passer til varen" },
+      reason: { type: "string", description: "Én kort sætning, kun hvis den ikke passer" },
+    },
+    required: ["ok"],
+  },
+};
+
+const VERIFY_PHOTOS: Record<string, string[]> = {
+  "mærke": ["maerke", "brand"],
+  "størrelse": ["stoerrelse", "size"],
+  "materiale": ["stoerrelse", "maerke"],
+};
+
+async function verifyChoice(
+  draft: Record<string, unknown>,
+  kind: string,
+  value: string,
+): Promise<{ ok: boolean; reason: string }> {
+  const images = await photoBlocks(draft.photos, VERIFY_PHOTOS[kind] || ["forfra"]);
+  // Hverken titel eller beskrivelse med: de er skrevet af et tidligere kald, og
+  // en kontrol, der faar dem at se, gentager bare deres fejl. Foerste udgave
+  // her forkastede baade "Vindjakker" OG "Regnjakker" for den samme jakke,
+  // fordi beskrivelsen sagde "softshell" og trak svaret med sig.
+  const text = `Billederne viser varen.\nFeltet "${kind}" er sat til: ${value}\n` +
+    `Passer det til det, du kan SE på billederne?`;
+
+  const out = await callTool(
+    "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
+      "Du kontrollerer ét felt i en annonce, før den lægges op.\n" +
+      "Døm UDELUKKENDE ud fra billederne. Du får hverken titel eller beskrivelse at se, " +
+      "og det er med vilje: de kan være forkerte, og du skal være et uafhængigt øje.\n" +
+      "Svar true, hvis værdien passer rimeligt til varen — også når en anden formulering kunne bruges. " +
+      "Svar kun false, når værdien er decideret forkert og vil vildlede en køber: " +
+      "fx en regnjakke sat under vindjakker, eller en kjole sat under nederdele. " +
+      "Vær ikke kræsen for kræsenhedens skyld; et unødigt false koster sælgeren et helt omvalg.",
+    images.length ? [...images, { type: "text", text }] : text,
+    VERIFY_TOOL,
+  );
+  return { ok: out.ok !== false, reason: String(out.reason || "") };
 }
 
 const PRICE_TOOL = {
@@ -399,6 +517,9 @@ Deno.serve(async (req: Request) => {
       kind?: string;
       chosen?: unknown[];
       hint?: unknown;
+      avoid?: unknown[];
+      kind?: string;
+      value?: unknown;
       options?: unknown[];
     };
     try {
@@ -417,6 +538,23 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true });
     }
 
+    if (body.mode === "verify") {
+      const { data: d, error: e } = await supabase
+        .from("drafts")
+        .select("title, description, brand, photos")
+        .eq("id", body.id)
+        .single();
+      if (e) return json({ error: e.message }, 500);
+      try {
+        return json(await verifyChoice(d as Record<string, unknown>, String(body.kind || ""), String(body.value ?? "")));
+      } catch (err) {
+        console.error("verify failed", err);
+        // Kan der ikke kontrolleres, godkendes valget. Et tomt felt er vaerre
+        // end et, der maaske kunne have vaeret mere praecist.
+        return json({ ok: true, reason: "" });
+      }
+    }
+
     if (body.mode === "choose") {
       const { data: d, error: e } = await supabase
         .from("drafts")
@@ -433,6 +571,7 @@ Deno.serve(async (req: Request) => {
           Array.isArray(body.chosen) ? body.chosen.map(String) : [],
           options,
           body.hint ? String(body.hint) : undefined,
+          Array.isArray(body.avoid) ? body.avoid.map(String) : undefined,
         );
         return json({ index });
       } catch (err) {

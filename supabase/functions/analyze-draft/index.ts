@@ -85,7 +85,15 @@ const VISION_TOOL = {
   input_schema: {
     type: "object",
     properties: {
-      productType: { type: "string" },
+      productType: {
+        type: "string",
+        description:
+          "Den PRÆCISE varetype, ikke den almene. Skriv \"regnjakke\", \"termojakke\", \"skaljakke\", " +
+          "\"flyverdragt\" eller \"softshelljakke\" frem for bare \"jakke\" — det er varetypen, der afgør, " +
+          "hvilken kategori varen havner i på Vinted, og en forkert kategori koster salget. " +
+          "Lad mærket og konstruktionen vejlede dig: forsvejsede sømme, gummieret eller blank belægning " +
+          "og et mærke, der laver regntøj, betyder regntøj.",
+      },
       brand: { type: ["string", "null"] },
       color: { type: "string" },
       material: { type: ["string", "null"] },
@@ -164,7 +172,9 @@ const DRAFT_TOOL = {
         type: "array",
         items: { type: "string" },
         description:
-          "Vejen ned gennem Vinteds danske kategoritræ, fra øverste niveau til det mest præcise underpunkt, " +
+          "Vejen ned gennem Vinteds danske kategoritræ, fra øverste niveau til det mest præcise underpunkt. " +
+          "Har varetypen sin egen gren — regntøj, termotøj, skitøj — så brug den frem for den almene " +
+          "jakke-gren. " +
           `fx ["Kvinder","Tøj","Kjoler","Midikjoler"] eller ["Mænd","Tøj","Trøjer og sweatshirts","Hættetrøjer"]. ` +
           `Øverste niveau SKAL være ét af: ${VINTED_TOP.join(", ")}. ` +
           "Brug Vinteds egen danske ordlyd, og gå kun så dybt du er sikker på.",
