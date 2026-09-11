@@ -271,6 +271,10 @@
   /* ---- Login ------------------------------------------------------------- */
   .login-inner{ margin: auto; width: 100%; max-width: 320px; text-align: center; }
   .login-inner h1{ font-size: var(--t-display); margin: var(--s2) 0 var(--s5); }
+  /* Kontofeltet er der for nøgleringens skyld, ikke for at blive udfyldt.
+     Det står dæmpet, så det læses som en oplysning og ikke som noget, der
+     mangler at blive skrevet i. */
+  #user{ opacity: .55; cursor: default; }
   #pw{
     width: 100%; min-height: var(--tap);
     font-family: "Space Mono", ui-monospace, monospace; font-size: 16px;
@@ -347,6 +351,13 @@
       <form class="login-inner" id="login-form">
         <div class="label">Vinted &middot; annonceudkast</div>
         <h1>VintedAuto</h1>
+        <!-- Et kodeordsfelt UDEN brugernavn tvinger nøgleringen til at gætte,
+             hvilken konto koden hører til. På github.io gætter den på
+             GitHub-kontoen og nægter at gemme. Med en konto at knytte koden
+             til bliver det en selvstændig post. Feltet er låst: der er kun
+             den ene fælles konto. -->
+        <input type="text" id="user" value="vintedauto" autocomplete="username"
+               readonly tabindex="-1" aria-label="Konto">
         <input type="password" id="pw" placeholder="Adgangskode" autocomplete="current-password" required>
         <button type="submit" class="btn btn-primary" id="login-btn">Log ind</button>
         <div id="login-err"></div>
