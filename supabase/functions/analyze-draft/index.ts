@@ -174,7 +174,9 @@ const DRAFT_TOOL = {
         description:
           "Vejen ned gennem Vinteds danske kategoritræ, fra øverste niveau til det mest præcise underpunkt. " +
           "Har varetypen sin egen gren — regntøj, termotøj, skitøj — så brug den frem for den almene " +
-          "jakke-gren. " +
+          "jakke-gren. Skal der vælges mellem pige- og drengetøj, så døm efter varens eget udtryk " +
+          "(snit, farve, tryk, detaljer). Er den helt neutral, så vælg den gren, hvor flest købere " +
+          "ville lede efter netop dén vare. " +
           `fx ["Kvinder","Tøj","Kjoler","Midikjoler"] eller ["Mænd","Tøj","Trøjer og sweatshirts","Hættetrøjer"]. ` +
           `Øverste niveau SKAL være ét af: ${VINTED_TOP.join(", ")}. ` +
           "Brug Vinteds egen danske ordlyd, og gå kun så dybt du er sikker på.",
@@ -206,7 +208,18 @@ const DRAFT_TOOL = {
       condition: {
         type: "string",
         enum: VINTED_CONDITIONS,
-        description: "Standen, valgt fra Vinteds fem faste muligheder.",
+        description:
+          "Standen, valgt fra Vinteds fem faste muligheder. Mål efter Vinteds egne ord, ikke efter " +
+          "et skøn:\n" +
+          '"Ny med prismærker" = ubrugt, prismærket sidder på.\n' +
+          '"Ny uden prismærker" = ubrugt, men uden mærke.\n' +
+          '"Meget god" = let brugt, højst små fejl man skal lede efter.\n' +
+          '"God" = brugt, med synlige tegn på slid.\n' +
+          '"Tilfredsstillende" = tydeligt brugt, med pletter, huller, misfarvning eller nullermænd, ' +
+          "der kan ses på billederne.\n" +
+          "Kan man SE en plet, et hul eller en misfarvning på et af billederne, så er standen højst " +
+          '"Tilfredsstillende". At sætte den for højt giver en skuffet køber og en dårlig anmeldelse, ' +
+          "og det koster langt mere end de få kroner, en pænere stand ville have givet.",
       },
       price: { type: "string", description: 'Konkret beløb, fx "89 kr"' },
       priceNote: { type: "string", description: "Kort strategi-begrundelse, 1-2 sætninger" },

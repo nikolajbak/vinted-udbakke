@@ -218,7 +218,7 @@ async function choose(root,kind,chosen,label,avoid){
 // punkter at vælge — kun Gem-knappen står tilbage. Så: klik dig ned, til der
 // ikke er mere, og gem så. Blev feltet ikke udfyldt, prøves der forfra én gang.
 async function categoryOnce(path,avoid){
- var m=await open('category');if(!m)return false;
+ var m=await open('category');if(!m)return null;
  var chosen=[];
  for(var i=0;i<8;i++){
   var cur=modal();
@@ -236,7 +236,10 @@ async function categoryOnce(path,avoid){
  // Vi er i bund: bekræft bladet.
  await save();
  if(modal())await closeStray();
- return filled('category');
+ // Hele stien med tilbage. Bladet alene siger intet om, hvilken gren man kom
+ // ned ad — og det er grenen, der afgør, om varen ligger under pigetøj eller
+ // drengetøj.
+ return filled('category') ? chosen : null;
 }
 
 async function fillCategory(path){
@@ -244,11 +247,14 @@ async function fillCategory(path){
  for(var forsoeg=0;forsoeg<2;forsoeg++){
   // Andet forsøg går uden billedanalysens forslag: var det først valg forkert,
   // var forslaget som regel dét, der pegede skævt.
-  if(!await categoryOnce(forsoeg?null:path,avoid)){
+  var sti=await categoryOnce(forsoeg?null:path,avoid);
+  if(!sti){
    log('kategori: nåede ikke i bund, prøver igen');
    continue;
   }
-  var valgt=q('#category').value;
+  // Hele stien til kontrol, ikke bare bladet: "Regnjakker" er rigtigt uanset
+  // gren, så en forkert gren ville aldrig blive fanget.
+  var valgt=sti.join(' > ');
   if(await verify('kategori',valgt))return null;
   avoid.push(valgt);
  }

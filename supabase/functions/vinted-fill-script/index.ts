@@ -298,6 +298,10 @@ const VERIFY_TOOL = {
 };
 
 const VERIFY_PHOTOS: Record<string, string[]> = {
+  // Kategorien skal se BAADE varen og stoerrelsesmaerkatet. Uden maerkatet er
+  // der ingen maalestok paa et foto af en jakke paa et gulv, og en boernejakke
+  // i str. 120 blev godtaget under damestoerrelser.
+  "kategori": ["forfra", "stoerrelse"],
   "mærke": ["maerke", "brand"],
   "størrelse": ["stoerrelse", "size"],
   "materiale": ["stoerrelse", "maerke"],
@@ -313,8 +317,10 @@ async function verifyChoice(
   // en kontrol, der faar dem at se, gentager bare deres fejl. Foerste udgave
   // her forkastede baade "Vindjakker" OG "Regnjakker" for den samme jakke,
   // fordi beskrivelsen sagde "softshell" og trak svaret med sig.
-  const text = `Billederne viser varen.\nFeltet "${kind}" er sat til: ${value}\n` +
-    `Passer det til det, du kan SE på billederne?`;
+  const text = `Billederne viser varen — og hvor der er et mærkat med, hvad der står på det.\n` +
+    `Feltet "${kind}" er sat til: ${value}\n` +
+    `Passer det til det, du kan SE på billederne? Er værdien en hel kategoristi med > imellem, ` +
+    `skal HELE stien passe — også om varen hører til under børn, kvinder eller mænd.`;
 
   const out = await callTool(
     "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
