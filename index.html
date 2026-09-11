@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VintedAuto">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#E8EAE0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#19170F" media="(prefers-color-scheme: dark)">
-<title>Udbakke</title>
+<title>VintedAuto</title>
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
@@ -345,7 +346,7 @@
     <div class="body" style="display:flex">
       <form class="login-inner" id="login-form">
         <div class="label">Vinted &middot; annonceudkast</div>
-        <h1>Udbakke</h1>
+        <h1>VintedAuto</h1>
         <input type="password" id="pw" placeholder="Adgangskode" autocomplete="current-password" required>
         <button type="submit" class="btn btn-primary" id="login-btn">Log ind</button>
         <div id="login-err"></div>
@@ -357,7 +358,7 @@
     <header class="bar">
       <div>
         <div class="label">Vinted &middot; annonceudkast</div>
-        <h1>Udbakke</h1>
+        <h1>VintedAuto</h1>
       </div>
       <div class="spacer"></div>
       <button type="button" class="icon-btn" id="menu-btn" aria-label="Indstillinger">
@@ -486,7 +487,7 @@
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
   var LOGIN_EMAIL = 'adgang@udbakke.local';
   var FILL_API = 'https://gjycsqshkvkcupdnvgvf.supabase.co/functions/v1/vinted-fill-script?key=a4deb2bc4156ae08d2772aca72de6a70';
-  var BOOKMARKLET = "javascript:%28function%28%29%7Bvar%20A%3D%27https%3A%2F%2Fgjycsqshkvkcupdnvgvf.supabase.co%2Ffunctions%2Fv1%2Fvinted-fill-script%3Fkey%3Da4deb2bc4156ae08d2772aca72de6a70%27%3Bwindow.__UDBAKKE_API__%3DA%3Bfetch%28A%2B%27%26script%3D1%27%2C%7Bcache%3A%27no-store%27%7D%29.then%28function%28r%29%7Breturn%20r.text%28%29%7D%29.then%28function%28t%29%7B%280%2Ceval%29%28t%29%7D%29.catch%28function%28e%29%7Balert%28%27Udbakke%3A%20kunne%20ikke%20hente%20scriptet%20-%20%27%2Be.message%29%7D%29%3B%7D%29%28%29%3B";
+  var BOOKMARKLET = "javascript:%28function%28%29%7Bvar%20A%3D%27https%3A%2F%2Fgjycsqshkvkcupdnvgvf.supabase.co%2Ffunctions%2Fv1%2Fvinted-fill-script%3Fkey%3Da4deb2bc4156ae08d2772aca72de6a70%27%3Bwindow.__UDBAKKE_API__%3DA%3Bfetch%28A%2B%27%26script%3D1%27%2C%7Bcache%3A%27no-store%27%7D%29.then%28function%28r%29%7Breturn%20r.text%28%29%7D%29.then%28function%28t%29%7B%280%2Ceval%29%28t%29%7D%29.catch%28function%28e%29%7Balert%28%27VintedAuto%3A%20kunne%20ikke%20hente%20scriptet%20-%20%27%2Be.message%29%7D%29%3B%7D%29%28%29%3B";
 
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var rows = {};

@@ -417,10 +417,10 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < RUNNER.length; i++) h = (h * 31 + RUNNER.charCodeAt(i)) >>> 0;
     const body = [
       "// ==UserScript==",
-      "// @name         Udbakke → Vinted",
+      "// @name         VintedAuto",
       "// @namespace    udbakke",
       `// @version      1.0.${h % 100000}`,
-      "// @description  Udfylder Vinted-annoncen automatisk fra Udbakke",
+      "// @description  Udfylder Vinted-annoncen automatisk",
       "// @match        https://www.vinted.dk/items/new*",
       "// @match        https://vinted.dk/items/new*",
       "// @run-at       document-idle",

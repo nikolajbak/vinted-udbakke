@@ -353,7 +353,7 @@ async function waitForm(){
  return false;
 }
 if(!await waitForm()){
- if(!AUTO)alert('Udbakke: du er ikke på opret-siden. Gå til Vinted → Sælg nu, og tryk på bogmærket der.');
+ if(!AUTO)alert('VintedAuto: du er ikke på opret-siden. Gå til Vinted → Sælg nu, og tryk på bogmærket der.');
  return;
 }
 
@@ -361,7 +361,7 @@ try{
  var d=await(await timedFetch(API+(AUTO?'&auto=1':''),{},25000)).json();
  // I automatisk tilstand betyder "tomt", at du ikke har bedt om noget her —
  // så skal siden være helt i fred.
- if(d.empty){if(!AUTO)alert('Udbakke: ingen klar udkast i køen.');return}
+ if(d.empty){if(!AUTO)alert('VintedAuto: ingen klar udkast i køen.');return}
  DRAFT_ID=d.id;
  log('siden klar: '+(await waitReady()));
 
@@ -427,6 +427,6 @@ try{
  say('Udfyldt: '+d.title+'\n'+note+'.\n'+
   (mangler.length?'Sæt selv: '+mangler.join(', ')+'.':'Alle felter og billeder er sat.')+
   '\nTjek annoncen igennem og tryk Upload.');
-}catch(e){say('Udbakke-fejl: '+e.message)}
+}catch(e){say('VintedAuto-fejl: '+e.message)}
 })();
 `;
