@@ -99,6 +99,27 @@ const VISION_TOOL = {
   },
 };
 
+// Rotationen er den fejl, en koeber ser foerst. Derfor faar modellen sit eget
+// resultat at se: staar varen rigtigt op NU? Det er et langt lettere
+// spoergsmaal end at regne det ud paa forhaand.
+const VERIFY_ROTATION_TOOL = {
+  name: "tjek_retning",
+  description: "Sig om varen på billedet vender rigtigt, og hvor meget der mangler.",
+  input_schema: {
+    type: "object",
+    properties: {
+      missingDegrees: {
+        type: "integer",
+        enum: [0, 90, 180, 270],
+        description:
+          "Hvor mange grader MED URET billedet mangler at blive drejet, for at varen vender rigtigt. " +
+          "0 hvis den allerede gør.",
+      },
+    },
+    required: ["missingDegrees"],
+  },
+};
+
 const VERIFY_MASK_TOOL = {
   name: "tjek_maskering",
   description: "Sig om der stadig er et personnavn eller anden personlig oplysning at læse på billedet.",
@@ -288,6 +309,45 @@ Deno.serve(async (req: Request) => {
             saturation: Number(g.saturation) || 0,
           },
         });
+        // Retningen tjekkes på resultatet. Et foto af en jakke, der ligger på
+        // gulvet, kan vende hvad som helst, og EXIF siger intet om indholdet —
+        // kun øjet kan afgøre det, og et færdigt billede er lettere at bedømme
+        // end et, der først skal drejes i hovedet.
+        let rotation = Number(g.rotationDegrees) || 0;
+        try {
+          const spin = await callClaudeJson(
+            "Du ser på ét foto fra en Vinted-annonce. Vender varen rigtigt?\n" +
+              "Et tøjstykke vender rigtigt, når halsen/skulderen er opad og sømmen/bunden nedad. " +
+              "Sko vender rigtigt, når sålen er nedad. Et mærkat eller en etiket vender rigtigt, " +
+              "når teksten kan læses vandret uden at dreje hovedet.\n" +
+              "Svar 0, hvis det allerede er rigtigt — tvivler du, så svar 0.",
+            [
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: toBase64(jpeg.buffer as ArrayBuffer) } },
+            ],
+            STRATEGY_MODEL,
+            VERIFY_ROTATION_TOOL,
+            200,
+          );
+          const missing = Number(spin.missingDegrees) || 0;
+          if (missing === 90 || missing === 180 || missing === 270) {
+            rotation = (rotation + missing) % 360;
+            jpeg = await optimizePhoto(l.buf, {
+              rotationDegrees: rotation,
+              crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
+              mask: regions.map(toBox),
+              protect: guards.map(toBox),
+              look: {
+                exposure: Number(g.exposure) || 0,
+                contrast: Number(g.contrast) || 0,
+                warmth: Number(g.warmth) || 0,
+                saturation: Number(g.saturation) || 0,
+              },
+            });
+          }
+        } catch (err) {
+          console.error("rotation_check_failed", err);
+        }
+
         // Ét forsøg rammer ikke altid hele navnet. Frem for at stole på det,
         // ser modellen på sit eget resultat og får lov at udvide masken én gang.
         if (regions.length) {
