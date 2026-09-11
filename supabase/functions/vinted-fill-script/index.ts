@@ -277,10 +277,18 @@ Deno.serve(async (req: Request) => {
   // Samme automatik pakket som et brugerscript, saa Safari kan koere den af sig
   // selv, naar opret-siden aabnes. Versionsnummeret foelger indholdet, saa
   // Userscripts selv henter en ny udgave, naar der er rettet noget.
-  if (req.method === "GET" && url.searchParams.get("userscript") === "1") {
+  // Userscripts tilbyder kun at installere, hvis selve STIEN ender paa
+  // .user.js - et forespoergselsparameter er ikke nok. Supabase sender
+  // undermapper videre til den samme funktion, saa filnavnet kan bare haenges
+  // bagpaa.
+  const wantsUserscript = url.pathname.endsWith(".user.js") ||
+    url.searchParams.get("userscript") === "1";
+  if (req.method === "GET" && wantsUserscript) {
     // Ikke url.origin: bag Supabase's router er det den interne adresse, og et
     // brugerscript skal kunne kalde hjem udefra.
-    const api = `${SUPABASE_URL}/functions/v1/vinted-fill-script?key=${SHORTCUT_KEY}`;
+    const base = `${SUPABASE_URL}/functions/v1/vinted-fill-script`;
+    const api = `${base}?key=${SHORTCUT_KEY}`;
+    const install = `${base}/udbakke.user.js?key=${SHORTCUT_KEY}`;
     let h = 0;
     for (let i = 0; i < RUNNER.length; i++) h = (h * 31 + RUNNER.charCodeAt(i)) >>> 0;
     const body = [
@@ -294,18 +302,21 @@ Deno.serve(async (req: Request) => {
       "// @run-at       document-idle",
       "// @grant        none",
       "// @inject-into  page",
-      `// @downloadURL  ${api}&userscript=1`,
-      `// @updateURL    ${api}&userscript=1`,
+      `// @downloadURL  ${install}`,
+      `// @updateURL    ${install}`,
       "// ==/UserScript==",
       "",
       `window.__UDBAKKE_API__=${JSON.stringify(api)};`,
       "window.__UDBAKKE_AUTO__=true;",
       RUNNER,
     ].join("\n");
+    // text/plain, ikke text/javascript: ellers henter Safari filen ned i stedet
+    // for at vise den, og saa har udvidelsen ingen side at tilbyde installation
+    // paa. Det er ogsaa derfor GitHub udleverer .user.js som ren tekst.
     return new Response(body, {
       headers: {
         ...CORS,
-        "content-type": "text/javascript; charset=utf-8",
+        "content-type": "text/plain; charset=utf-8",
         "cache-control": "no-store",
       },
     });

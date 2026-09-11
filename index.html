@@ -427,9 +427,11 @@
         <p class="note">Safari må ikke lade én side køre kode på en anden. Derfor skal den gratis app <b>Userscripts</b> have lov — det er den, der giver Vinted-siden besked.</p>
         <ol>
           <li>Hent <b>Userscripts</b> i App Store (gratis)</li>
-          <li><b>Indstillinger → Apps → Safari → Udvidelser</b> → slå <b>Userscripts</b> til → giv den <b>Tillad</b> på vinted.dk</li>
-          <li>Tryk <b>Installér automatikken</b> herunder → i Userscripts: <b>Gem</b></li>
+          <li><b>Indstillinger → Apps → Safari → Udvidelser → Userscripts</b>: slå til, og sæt <b>Alle websteder</b> til <b>Tillad</b></li>
+          <li>Tryk <b>Installér automatikken</b> herunder — koden åbner som ren tekst i Safari</li>
+          <li>Tryk på <b>ᴀA</b> i adresselinjen → <b>Userscripts</b> → tryk <b>Install</b></li>
         </ol>
+        <p class="note">Trin 4 er let at overse: installationen sker inde i udvidelsens lille vindue, ikke på selve siden. Ser du kun kode og ingen knap, har udvidelsen ikke fået lov på det websted endnu.</p>
         <button type="button" class="btn btn-primary" id="m-userscript" style="margin-top:12px">Installér automatikken</button>
       </div>
       <div class="sect setup">
@@ -1011,7 +1013,9 @@
   // Userscripts genkender en .user.js-adresse og tilbyder at gemme den. Derfra
   // henter den selv nye udgaver, så automatikken kan rettes uden at du gør noget.
   $('m-userscript').addEventListener('click', function(){
-    window.location.href = FILL_API + '&userscript=1';
+    // Stien SKAL ende paa .user.js - ellers tilbyder Userscripts ikke at
+    // installere den. Et forespoergselsparameter er ikke nok.
+    window.location.href = FILL_API.replace('?key=', '/udbakke.user.js?key=');
   });
 
   $('m-copy').addEventListener('click', function(){
