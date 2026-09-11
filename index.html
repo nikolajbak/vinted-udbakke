@@ -300,10 +300,16 @@
   .login-inner{ margin: auto; width: 100%; max-width: 320px; text-align: center; }
   .login-inner h1{ font-size: var(--t-display); margin: var(--s2) 0 var(--s5); }
   /* Kontofeltet er der for nøgleringens skyld, ikke for at blive udfyldt.
-     Det står dæmpet, så det læses som en oplysning og ikke som noget, der
-     mangler at blive skrevet i. */
-  #user{ opacity: .55; cursor: default; }
-  #pw{
+     Det deler udseende med kodeordsfeltet, så de læses som ét sæt, men står
+     dæmpet og uden kant — ellers ligner det noget, der mangler at blive
+     skrevet i. */
+  #user{
+    background: none; border-color: transparent;
+    color: var(--ink-soft); text-align: center;
+    min-height: auto; padding: 0; margin-bottom: var(--s1);
+    pointer-events: none;
+  }
+  #pw, #user{
     width: 100%; min-height: var(--tap);
     font-family: "Space Mono", ui-monospace, monospace; font-size: 16px;
     padding: 0 var(--s3); border-radius: 10px;
