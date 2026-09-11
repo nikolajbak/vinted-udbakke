@@ -26,6 +26,7 @@
     --moss: #3F5C4C;
     --moss-soft: #E1EAE2;
     --amber: #8C5F1F;
+    --danger: #8E3B2E; --danger-ink: #FDF6F2;
     --amber-soft: #F3E6CE;
     --line: #C9C2B0;
     --focus: #2E63B8;
@@ -42,6 +43,7 @@
       --accent: #D3A6C4; --accent-ink: #1B1712;
       --moss: #9BC0A9; --moss-soft: #24352B;
       --amber: #E3B569; --amber-soft: #3A2E17;
+    --danger: #A8493A; --danger-ink: #FFF2ED;
       --line: #4A4433; --focus: #7FB0FF;
     }
   }
@@ -51,6 +53,7 @@
     --accent: #D3A6C4; --accent-ink: #1B1712;
     --moss: #9BC0A9; --moss-soft: #24352B;
     --amber: #E3B569; --amber-soft: #3A2E17;
+    --danger: #A8493A; --danger-ink: #FFF2ED;
     --line: #4A4433; --focus: #7FB0FF;
   }
 
@@ -194,6 +197,31 @@
   }
   .row-sub{ font-size: var(--t-small); color: var(--ink-soft); }
   .row-price{ font-weight: 700; font-size: var(--t-body); color: var(--ink); }
+  /* Swipe-til-slet, som i Mail: knappen ligger bag rækken og kommer til syne,
+     når rækken trækkes til side. touch-action: pan-y lader browseren beholde
+     den lodrette scroll for sig selv, så vi kun får de vandrette træk at
+     forholde os til — og siden aldrig går i stå under fingeren. */
+  .swipe{ position: relative; border-radius: 12px; overflow: hidden; }
+  .swipe .row{ position: relative; touch-action: pan-y; }
+  .swipe.is-dragging .row{ transition: none; }
+  .swipe.is-going{ opacity: 0; transition: opacity 180ms ease; }
+  .swipe-del{
+    position: absolute; top: 0; right: 0; bottom: 0; width: 108px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    border: 0; margin: 0; padding: 0;
+    background: var(--danger); color: var(--danger-ink);
+    font-weight: 600; font-size: var(--t-small);
+    cursor: pointer;
+  }
+  .swipe-del svg{ width: 20px; height: 20px; fill: none; stroke: currentColor;
+                  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .toast-undo{ display: flex; align-items: center; justify-content: space-between; gap: var(--s3); text-align: left; }
+  .toast-undo button{
+    border: 0; background: none; padding: 0; flex: none;
+    color: var(--paper); font-weight: 700; font-size: var(--t-small);
+    text-decoration: underline; cursor: pointer;
+  }
+
   .chev{ color: var(--ink-soft); display: grid; place-items: center; }
   .chev svg{ width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2;
              stroke-linecap: round; stroke-linejoin: round; }
@@ -337,7 +365,7 @@
   @media (prefers-reduced-motion: no-preference){
     .toast{ animation: toast-in 220ms cubic-bezier(0.2,0.8,0.3,1) both; }
     @keyframes toast-in{ from{ opacity:0; transform: translateY(10px); } to{ opacity:1; transform:none; } }
-    .row{ animation: row-in 240ms cubic-bezier(0.2,0.7,0.3,1) both; }
+    .swipe{ animation: row-in 240ms cubic-bezier(0.2,0.7,0.3,1) both; }
     @keyframes row-in{ from{ opacity:0; transform: translateY(6px); } to{ opacity:1; transform:none; } }
   }
 </style>
@@ -585,6 +613,127 @@
     return '<span class="chip chip-ny">Ny</span>';
   }
 
+  /* ---- Swipe-til-slet ---------------------------------------------------
+     Som i Mail: træk rækken til venstre, og kassér-knappen kommer frem. Slip
+     et kort stykke inde, og den bliver stående, til du trykker. Træk den
+     halvvejs over, og udkastet ryger med det samme.
+
+     Pointer-hændelser frem for touch, så det også virker med en mus — og fordi
+     touch-action: pan-y i stilarket allerede har givet browseren den lodrette
+     scroll. Vi skal derfor aldrig kalde preventDefault og kan ikke komme til at
+     låse siden fast under fingeren. */
+  var ACTION_W = 108;
+  var openSwipe = null;
+
+  function closeSwipe(except){
+    if(openSwipe && openSwipe !== except && openSwipe._shut) openSwipe._shut();
+  }
+
+  function wireSwipe(sw){
+    var row = sw.querySelector('.row');
+    var id = sw.getAttribute('data-id');
+    var startX = 0, startY = 0, base = 0, dx = 0, sideways = false, live = false, decided = false;
+
+    function place(x){ row.style.transform = x ? 'translateX(' + x + 'px)' : ''; }
+    function shut(){ sw.classList.remove('is-open'); place(0); if(openSwipe === sw) openSwipe = null; }
+    function bare(){ sw.classList.add('is-open'); place(-ACTION_W); openSwipe = sw; }
+    sw._shut = shut;
+
+    function discard(){
+      var d = rows[id];
+      if(!d) return;
+      var previous = d.status;
+      if(openSwipe === sw) openSwipe = null;
+      place(-sw.offsetWidth);
+      sw.classList.add('is-going');
+      // Væk med det samme. Venter vi på serveren, føles det trægt, og
+      // realtidskanalen sender alligevel den samme ændring bagefter.
+      d.status = 'kasseret';
+      setTimeout(renderQueue, reduce ? 0 : 190);
+      sb.from('drafts').update({ status: 'kasseret' }).eq('id', id).then(function(res){
+        if(res && res.error){
+          d.status = previous;
+          renderQueue();
+          toast('Kunne ikke kassere udkastet');
+          return;
+        }
+        undoToast(id, previous);
+      });
+    }
+
+    sw.querySelector('.swipe-del').addEventListener('click', function(e){
+      e.stopPropagation();
+      discard();
+    });
+
+    row.addEventListener('pointerdown', function(e){
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      base = sw.classList.contains('is-open') ? -ACTION_W : 0;
+      startX = e.clientX; startY = e.clientY;
+      dx = base; sideways = false; decided = false; live = true;
+    });
+
+    row.addEventListener('pointermove', function(e){
+      if(!live) return;
+      var mx = e.clientX - startX, my = e.clientY - startY;
+      if(!decided){
+        if(Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+        decided = true;
+        // Er bevægelsen mest lodret, er det en scroll. Slip den helt.
+        if(Math.abs(mx) <= Math.abs(my)){ live = false; return; }
+        sideways = true;
+        closeSwipe(sw);
+        sw.classList.add('is-dragging');
+        if(row.setPointerCapture) row.setPointerCapture(e.pointerId);
+      }
+      dx = base + mx;
+      // Den anden vej er der intet at hente, så trækket møder modstand.
+      if(dx > 0) dx *= 0.25;
+      place(dx);
+    });
+
+    function settle(){
+      if(!live) return;
+      live = false;
+      sw.classList.remove('is-dragging');
+      if(!sideways) return;
+      // Trukket over halvdelen af rækken: det er ikke en tøven, det er et valg.
+      if(-dx > sw.offsetWidth * 0.45){ discard(); return; }
+      if(-dx > ACTION_W * 0.5) bare(); else shut();
+      sw.setAttribute('data-swiped', '1');
+      setTimeout(function(){ sw.removeAttribute('data-swiped'); }, 60);
+    }
+    row.addEventListener('pointerup', settle);
+    row.addEventListener('pointercancel', function(){
+      if(!live) return;
+      live = false;
+      sw.classList.remove('is-dragging');
+      if(sideways){ if(sw.classList.contains('is-open')) bare(); else shut(); }
+    });
+  }
+
+  // Et fejlswipe skal kunne fortrydes. Udkastet er kun markeret kasseret,
+  // aldrig slettet, så det er ét kald at få det tilbage.
+  function undoToast(id, previous){
+    var t = document.createElement('div');
+    t.className = 'toast toast-undo';
+    var label = document.createElement('span');
+    label.textContent = 'Udkastet er kasseret';
+    var undo = document.createElement('button');
+    undo.type = 'button';
+    undo.textContent = 'Fortryd';
+    undo.addEventListener('click', function(){
+      t.remove();
+      sb.from('drafts').update({ status: previous }).eq('id', id).then(function(){
+        if(rows[id]) rows[id].status = previous;
+        renderQueue();
+      });
+    });
+    t.appendChild(label); t.appendChild(undo);
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 6000);
+  }
+
   function renderQueue(){
     var list = Object.keys(rows).map(function(k){ return rows[k]; })
       .filter(function(d){ return ['ny','afventer','kladde'].indexOf(d.status) > -1; })
@@ -600,7 +749,12 @@
         : (d.status === 'kladde'
             ? esc((d.photos || []).length + ' billeder taget')
             : esc(relTime(d.created_at)));
-      return '<button type="button" class="row' + (d.status !== 'ny' ? ' is-muted' : '') +
+      return '<div class="swipe" data-id="' + esc(d.id) + '">' +
+        '<button type="button" class="swipe-del" tabindex="-1" aria-label="Kassér udkastet">' +
+          '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M7 7l1 12h8l1-12"/></svg>' +
+          '<span>Kassér</span>' +
+        '</button>' +
+        '<button type="button" class="row' + (d.status !== 'ny' ? ' is-muted' : '') +
              '" data-id="' + esc(d.id) + '">' +
         (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
         '<span class="row-main">' +
@@ -609,17 +763,26 @@
           '<span>' + statusChip(d) + '</span>' +
         '</span>' +
         '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>' +
-      '</button>';
+        '</button>' +
+      '</div>';
     }).join('');
 
     Array.prototype.forEach.call(el.querySelectorAll('.row'), function(r){
       r.addEventListener('click', function(){
+        var sw = r.parentNode;
+        // Et klik falder altid efter et træk. Var det et træk, var det ikke
+        // ment som et tryk.
+        if(sw && sw.getAttribute('data-swiped')) return;
+        // Står en række åben, lukker første tryk den — som i Mail.
+        if(openSwipe){ closeSwipe(null); return; }
         var d = rows[r.getAttribute('data-id')];
         if(!d) return;
         if(d.status === 'kladde'){ resumeSession(d); return; }
         openDetail(d.id);
       });
     });
+
+    Array.prototype.forEach.call(el.querySelectorAll('.swipe'), wireSwipe);
 
     if(currentId && rows[currentId] && !screenEl('detail').hidden) renderDetail();
   }
