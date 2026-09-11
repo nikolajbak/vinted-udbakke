@@ -215,8 +215,8 @@
   }
   .swipe-del svg{ width: 20px; height: 20px; fill: none; stroke: currentColor;
                   stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  .toast-undo{ display: flex; align-items: center; justify-content: space-between; gap: var(--s3); text-align: left; }
-  .toast-undo button{
+  .toast-action{ display: flex; align-items: center; justify-content: space-between; gap: var(--s3); text-align: left; }
+  .toast-action button{
     border: 0; background: none; padding: 0; flex: none;
     color: var(--paper); font-weight: 700; font-size: var(--t-small);
     text-decoration: underline; cursor: pointer;
@@ -716,7 +716,7 @@
   // aldrig slettet, så det er ét kald at få det tilbage.
   function undoToast(id, previous){
     var t = document.createElement('div');
-    t.className = 'toast toast-undo';
+    t.className = 'toast toast-action';
     var label = document.createElement('span');
     label.textContent = 'Udkastet er kasseret';
     var undo = document.createElement('button');
@@ -1247,6 +1247,44 @@
         renderQueue();
       }).subscribe();
   }
+
+  /* ---- Ny udgave --------------------------------------------------------
+     GitHub Pages cacher siden i ti minutter, og en app på hjemmeskærmen
+     genoptager den side, den havde i forvejen — den henter ikke noget nyt,
+     før iOS river webview'et ned. Uden det her ville en rettelse kunne blive
+     ved med at være usynlig, uden at det var til at gennemskue hvorfor.
+
+     Vi spørger derfor selv serveren, om filen har ændret sig, og siger til i
+     stedet for at genindlæse af os selv: en genindlæsning midt i en
+     billedserie ville koste det hele. */
+  var myBuild = null, lastCheck = 0, updateShown = false;
+
+  function checkForUpdate(){
+    var now = Date.now();
+    if(updateShown || now - lastCheck < 60000) return;
+    lastCheck = now;
+    fetch(location.pathname, { method: 'HEAD', cache: 'no-store' }).then(function(r){
+      var tag = r.headers.get('etag') || r.headers.get('last-modified');
+      if(!tag) return;
+      if(!myBuild){ myBuild = tag; return; }
+      if(tag === myBuild) return;
+      updateShown = true;
+      var t = document.createElement('div');
+      t.className = 'toast toast-action';
+      var label = document.createElement('span');
+      label.textContent = 'Der er kommet en ny udgave';
+      var go = document.createElement('button');
+      go.type = 'button'; go.textContent = 'Opdatér';
+      go.addEventListener('click', function(){ location.reload(); });
+      t.appendChild(label); t.appendChild(go);
+      document.body.appendChild(t);
+    }).catch(function(){});
+  }
+
+  checkForUpdate();
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible') checkForUpdate();
+  });
 
   sb.auth.getSession().then(function(res){
     if(res.data.session) enter();
