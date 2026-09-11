@@ -7,6 +7,8 @@ import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 
 export interface PhotoGuidance {
   rotationDegrees: number;
+  subject?: string;
+  subjectCutOff?: boolean;
   crop: { x0: number; y0: number; x1: number; y1: number };
   look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
   mask?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
@@ -24,7 +26,24 @@ export interface PhotoGuidance {
 const RATIO_MAX = 1.2;     // let liggende, til brede varer
 const RATIO_MIN = 4 / 5;   // Vinteds portrætformat
 const MAX_EDGE = 1600;
-const PADDING = 0.035; // luft omkring varen, så den ikke klistrer til kanten
+
+// Luften omkring motivet er ikke én værdi. En hel vare tåler en stram ramme;
+// en tekst eller et logo gør ikke. Klistrer et mærkenavn op ad kanten, læser
+// det som en fejl — også når teksten i sig selv er hel.
+//
+// Er motivet ALLEREDE skåret af i originalen, kan beskæringen ikke skabe det
+// manglende. Så er det rigtige at gå længere væk: rammen bliver bred, motivet
+// fylder mindre, og det afskårne læses som en tilfældighed frem for at være
+// dét, billedet handler om.
+const PADDING: Record<string, number> = {
+  helvare: 0.035,
+  maerkat: 0.14,
+  logo: 0.16,
+  detalje: 0.10,
+  slid: 0.08,
+};
+const PADDING_DEFAULT = 0.05;
+const PADDING_CUT_OFF = 0.28;
 
 export const GUIDANCE_TOOL = {
   name: "vurder_billede",
@@ -36,6 +55,22 @@ export const GUIDANCE_TOOL = {
       rotationDegrees: {
         type: "integer",
         description: "0, 90, 180 eller 270 — hvor meget billedet skal roteres med uret for at vende rigtigt",
+      },
+      subject: {
+        type: "string",
+        enum: ["helvare", "maerkat", "logo", "detalje", "slid"],
+        description:
+          "Hvad billedet handler om. \"helvare\" = hele tøjstykket. \"maerkat\" = et syet mærke med " +
+          "tekst (mærkenavn, størrelse, vaskeanvisning). \"logo\" = et trykt eller præget logo på " +
+          "stoffet. \"detalje\" = en lynlås, knap, lomme, søm eller lignende. \"slid\" = en plet, " +
+          "et hul eller en misfarvning, køberen skal kunne bedømme.",
+      },
+      subjectCutOff: {
+        type: "boolean",
+        description:
+          "true hvis motivet allerede er skåret af billedets kant i det ORIGINALE foto — fx et logo " +
+          "eller en tekst, hvor en del mangler ud over kanten. Det kan ikke laves om ved beskæring, " +
+          "men rammen skal så lægges bredere, så det ikke springer i øjnene.",
       },
       x0: { type: "number", description: "Venstre kant af motivet, 0-1 af bredden" },
       y0: { type: "number", description: "Øverste kant af motivet, 0-1 af højden" },
@@ -94,8 +129,8 @@ export const GUIDANCE_TOOL = {
       },
     },
     required: [
-      "rotationDegrees", "x0", "y0", "x1", "y1", "personalRegions", "protectRegions",
-      "exposure", "contrast", "warmth", "saturation",
+      "rotationDegrees", "subject", "subjectCutOff", "x0", "y0", "x1", "y1",
+      "personalRegions", "protectRegions", "exposure", "contrast", "warmth", "saturation",
     ],
   },
 };
@@ -390,11 +425,15 @@ export async function optimizePhoto(
   const W = image.width;
   const H = image.height;
 
+  const pad = guidance.subjectCutOff
+    ? PADDING_CUT_OFF
+    : (PADDING[guidance.subject || ""] ?? PADDING_DEFAULT);
+
   // Item box in pixels, padded.
-  let x0 = clamp01(box.x0 - PADDING) * W;
-  let y0 = clamp01(box.y0 - PADDING) * H;
-  let x1 = clamp01(box.x1 + PADDING) * W;
-  let y1 = clamp01(box.y1 + PADDING) * H;
+  let x0 = clamp01(box.x0 - pad) * W;
+  let y0 = clamp01(box.y0 - pad) * H;
+  let x1 = clamp01(box.x1 + pad) * W;
+  let y1 = clamp01(box.y1 + pad) * H;
 
   if (!(x1 > x0) || !(y1 > y0)) {
     x0 = 0; y0 = 0; x1 = W; y1 = H;

@@ -49,6 +49,11 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
 - **Vinteds kategorinavne er dens egne** ("Tøj til drenge", ikke "Drengetøj").
   Ingen model gætter dem. Telefonen sender de punkter, der står på skærmen, og
   serveren vælger et nummer.
+- **Beskæringen er motivbevidst.** Luften omkring motivet afhænger af, hvad det
+  ER: en hel vare tåler en stram ramme, et mærkat eller et logo gør ikke —
+  klistret op ad kanten læser det som en fejl. Var motivet allerede skåret af i
+  originalen, lægges rammen bredt, så det afskårne ikke springer i øjnene.
+  Værdierne står i `PADDING` i `optimize.ts`.
 - **Fotoupload tegner formularen om**, så billederne lægges ind til sidst. En
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`

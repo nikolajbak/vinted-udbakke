@@ -128,6 +128,30 @@ const VERIFY_ROTATION_TOOL = {
   },
 };
 
+// En instruktion om at give luft er ikke det samme som luft. Modellen ser
+// derfor sit eget resultat: er motivet klemt op ad kanten, eller er der skaaret
+// noget vaesentligt fra? Saa gaas et skridt tilbage. Det er samme greb som ved
+// rotation og maskering, og begge steder fangede det fejl, instruktionen alene
+// ikke kunne.
+const VERIFY_CROP_TOOL = {
+  name: "tjek_beskaering",
+  description: "Sig om beskæringen er uheldig for det, billedet skal vise.",
+  input_schema: {
+    type: "object",
+    properties: {
+      tooTight: {
+        type: "boolean",
+        description:
+          "true hvis motivet er klemt op ad en kant uden luft omkring sig, eller hvis noget " +
+          "væsentligt — tekst, et logo, en del af varen — er skåret væk af beskæringen. " +
+          "false hvis billedet ser bevidst ud.",
+      },
+      why: { type: "string", description: "Meget kort, kun hvis true" },
+    },
+    required: ["tooTight"],
+  },
+};
+
 const VERIFY_MASK_TOOL = {
   name: "tjek_maskering",
   description: "Sig om der stadig er et personnavn eller anden personlig oplysning at læse på billedet.",
@@ -284,11 +308,22 @@ Deno.serve(async (req: Request) => {
         const g = await callClaudeJson(
           "Du er fotograf og forbereder ét foto til en Vinted-annonce.\n\n" +
             "1) Rotation: hvor mange grader med uret skal billedet drejes for at vende rigtigt (0/90/180/270)?\n" +
-            "2) Kassen: angiv motivets yderste kanter i normaliserede koordinater 0-1. " +
-            "Er billedet et NAERBILLEDE af et maerkat, en etiket, et tryk eller en detalje, skal kassen " +
-            "slutte taet om selve maerkatet/detaljen — ikke om hele toejstykket omkring det. " +
+            "2) Motivet: hvad handler billedet om — hele varen, et maerkat med tekst, et logo, " +
+            "en detalje som en lynlaas eller en knap, eller et slidmaerke? Det afgoer, hvordan der " +
+            "beskaeres, saa vaelg det praecist.\n" +
+            "2b) Kassen: angiv MOTIVETS yderste kanter i normaliserede koordinater 0-1. " +
+            "Er billedet et NAERBILLEDE af et maerkat, et logo, et tryk eller en detalje, skal kassen " +
+            "slutte om selve maerkatet/logoet/detaljen — ikke om hele toejstykket omkring det. " +
             "Er billedet en HEL vare, skal kassen foelge varens kanter og holde gulv, borde, " +
             "foedder, ben, haender og moebler udenfor.\n" +
+            "Taenk som en art director: du saetter ikke bare en kasse om noget, du bestemmer hvad " +
+            "billedet SKAL vise. En tekst eller et logo skal staa helt inde i rammen med luft " +
+            "omkring sig — klistret op ad kanten laeser det som en fejl, ogsaa naar teksten er hel. " +
+            "Luften laegges til automatisk bagefter, saa saet kassen taet om motivet selv.\n" +
+            "2c) subjectCutOff: er en del af motivet allerede UDEN FOR billedets kant i originalen — " +
+            "fx et logo, hvor de sidste bogstaver mangler? Det kan ikke laves om ved beskaering, men " +
+            "rammen bliver saa lagt bredere, saa det afskaarne ikke springer i oejnene. " +
+            "Svar kun true, naar noget faktisk er klippet af kanten.\n" +
             "3) personalRegions: udpeg de omraader der viser PERSONLIGE oplysninger og skal " +
             "maskeres — paasyede navnemaerker, et barns navn, adresse eller telefonnummer. " +
             "Angiv HELE det klistermaerke eller den lap, navnet staar paa — hele dens omrids, " +
@@ -320,7 +355,12 @@ Deno.serve(async (req: Request) => {
           return { x0: Number(r.x0), y0: Number(r.y0), x1: Number(r.x1), y1: Number(r.y1) };
         };
 
+        const frame = {
+          subject: cleanText(g.subject) || undefined,
+          subjectCutOff: g.subjectCutOff === true,
+        };
         let jpeg = await optimizePhoto(l.buf, {
+          ...frame,
           rotationDegrees: Number(g.rotationDegrees) || 0,
           crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
           mask: regions.map(toBox),
@@ -355,6 +395,7 @@ Deno.serve(async (req: Request) => {
           if (missing === 90 || missing === 180 || missing === 270) {
             rotation = (rotation + missing) % 360;
             jpeg = await optimizePhoto(l.buf, {
+              ...frame,
               rotationDegrees: rotation,
               crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
               mask: regions.map(toBox),
@@ -369,6 +410,48 @@ Deno.serve(async (req: Request) => {
           }
         } catch (err) {
           console.error("rotation_check_failed", err);
+        }
+
+        // Beskæringen bedømmes på resultatet. Rammer den skævt, gås der ét
+        // skridt tilbage: en bredere ramme er altid bedre end et motiv, der
+        // ser amputeret ud.
+        try {
+          const crop = await callClaudeJson(
+            "Du er art director og ser på ét færdigbeskåret foto til en Vinted-annonce.\n" +
+              "Er motivet klemt op ad en kant, eller er der skåret noget væsentligt væk? " +
+              "Et mærkat eller et logo skal have luft hele vejen rundt; står teksten helt ude ved " +
+              "kanten, er svaret true. Er varen skåret midt over, er svaret true.\n" +
+              "Ser billedet derimod bevidst ud — også når det er tæt på — så svar false. " +
+              "Et billede, der allerede var skåret af, da det blev taget, er ikke beskæringens skyld; " +
+              "svar kun true, hvis RAMMEN gør det værre.",
+            [
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: toBase64(jpeg.buffer as ArrayBuffer) } },
+            ],
+            STRATEGY_MODEL,
+            VERIFY_CROP_TOOL,
+            200,
+          );
+          if (crop.tooTight === true) {
+            console.log("crop_too_tight", l.photo.kind, crop.why);
+            jpeg = await optimizePhoto(l.buf, {
+              ...frame,
+              // Ét skridt tilbage: behandl motivet som afskåret, så rammen
+              // lægges bredt og der kommer luft omkring.
+              subjectCutOff: true,
+              rotationDegrees: rotation,
+              crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
+              mask: regions.map(toBox),
+              protect: guards.map(toBox),
+              look: {
+                exposure: Number(g.exposure) || 0,
+                contrast: Number(g.contrast) || 0,
+                warmth: Number(g.warmth) || 0,
+                saturation: Number(g.saturation) || 0,
+              },
+            });
+          }
+        } catch (err) {
+          console.error("crop_check_failed", err);
         }
 
         // Ét forsøg rammer ikke altid hele navnet. Frem for at stole på det,
