@@ -337,6 +337,150 @@ async function verifyChoice(
   return { ok: out.ok !== false, reason: String(out.reason || "") };
 }
 
+// ---- Markedsanalyse -------------------------------------------------------
+// Arbejdsdelingen: modellen doemmer HVILKE annoncer der er sammenlignelige og
+// skriver teksten - det er skoen. Regnestykket laegges herude, for en model
+// regner upaalideligt, og prisen er det eneste tal, saelgeren maerker paa
+// pengepungen.
+
+function stats(values: number[]) {
+  const v = values.slice().sort((a, b) => a - b);
+  if (!v.length) return null;
+  const at = (f: number) => v[Math.min(v.length - 1, Math.max(0, Math.round((v.length - 1) * f)))];
+  return { n: v.length, min: v[0], p25: at(0.25), median: at(0.5), p75: at(0.75), max: v[v.length - 1] };
+}
+
+// Danske koebere skimmer og filtrerer i runde spring. 47 kr laeser som et
+// tilfaeldigt tal; 45 laeser som en pris.
+function roundPrice(n: number): number {
+  if (n <= 0) return 0;
+  if (n < 100) return Math.max(15, Math.round(n / 5) * 5);
+  if (n < 300) return Math.round(n / 10) * 10;
+  return Math.round(n / 25) * 25;
+}
+
+type MarketItem = {
+  id?: number; title?: string; price?: number; favourites?: number;
+  brand?: string; size?: string; condition?: string;
+};
+
+const LISTING_TOOL = {
+  name: "skriv_annonce",
+  description: "Skriv den færdige annonce og sæt prisen ud fra markedet.",
+  input_schema: {
+    type: "object",
+    properties: {
+      comparableIndexes: {
+        type: "array",
+        items: { type: "integer" },
+        description:
+          "Numrene på de annoncer, der reelt er sammenlignelige med varen: samme slags vare " +
+          "(en jakke er ikke et sæt), nogenlunde samme størrelse, og en stand der kan måles imod. " +
+          "Vær streng — hellere seks rigtige end tredive omtrentlige.",
+      },
+      title: {
+        type: "string",
+        description:
+          "Titel på dansk. Købere søger på mærke + type + størrelse, så dét skal stå først og med " +
+          "de ord, folk faktisk skriver. Ingen sælger-sprog, ingen udråbstegn.",
+      },
+      description: {
+        type: "string",
+        description:
+          "Beskrivelse på dansk, 3-6 linjer. Vær konkret om mærke, størrelse, materiale, stand og " +
+          "eventuelle fejl. Lad de medsendte eksempler inspirere tonen og hvilke oplysninger købere " +
+          "efterspørger — men skriv om DENNE vare, og opfind aldrig noget, billederne ikke viser.",
+      },
+      price: { type: "integer", description: "Prisen i hele kroner, uden enhed." },
+      priceNote: {
+        type: "string",
+        description: "1-2 sætninger om strategien: hvor feltet ligger, og hvorfor prisen er sat dér.",
+      },
+    },
+    required: ["comparableIndexes", "title", "description", "price", "priceNote"],
+  },
+};
+
+const MARKET_SYSTEM =
+  "Du er en meget erfaren sælger på Vinted med speciale i det danske marked, og du lever af at " +
+  "varer bliver solgt — ikke af at de ligger pænt til skue.\n\n" +
+  "Det vigtigste at forstå ved tallene nedenfor: Vinted skjuler solgte varer. De annoncer, du får " +
+  "at se, er dem der IKKE er blevet solgt. Feltet skævvrider derfor opad, og medianen af de synlige " +
+  "er systematisk højere end dét, de solgte varer faktisk gik for. Hjerter (favoritter) på en vare, " +
+  "der stadig ligger der, betyder 'eftertragtet, men for dyr' — det er et loft, ikke et mål.\n\n" +
+  "Sæt derfor prisen UNDER medianen for de sammenlignelige annoncer. Hvor meget under afhænger af " +
+  "stand og komplethed: er varen i dårligere stand end feltet, skal der mere afstand; er den bedre " +
+  "eller næsten ny, kan den ligge tæt på. Gå aldrig så lavt, at varen ser defekt ud — en pris, der " +
+  "stikker af nedad, skaber mistanke frem for salg.\n\n" +
+  "Skriv titel og beskrivelse, så varen bliver fundet og forstået. Døm varens stand og udseende ud " +
+  "fra billedet, ikke ud fra det udkast, der allerede er skrevet — det kan være forkert.";
+
+async function analyseMarket(
+  draft: Record<string, unknown>,
+  items: MarketItem[],
+  samples: Array<{ price?: number; favourites?: number; text?: string }>,
+) {
+  const list = items.slice(0, 60);
+  const lines = list.map((it, i) =>
+    `${i}: ${it.price} kr | ${it.favourites || 0} hjerter | ${it.brand || "uden mærke"} | ` +
+    `str. ${it.size || "?"} | ${it.condition || "?"} | ${String(it.title || "").slice(0, 60)}`
+  ).join("\n");
+
+  const all = stats(list.map((i) => Number(i.price)).filter((n) => n > 0));
+  const sampleText = samples.length
+    ? "\n\nTekster fra de annoncer, flest har hjertet — til inspiration for tone og indhold, " +
+      "ikke til afskrift:\n" +
+      samples.map((s, i) => `${i + 1}. (${s.price} kr, ${s.favourites} hjerter) ${s.text}`).join("\n\n")
+    : "";
+
+  const images = await photoBlocks(draft.photos, ["forfra"], 1);
+  const text =
+    `Varen: ${draft.title}\nMærke: ${draft.brand ?? "ukendt"} · str. ${draft.size ?? "?"} · ` +
+    `${draft.condition ?? "?"} · ${draft.material ?? "?"} · ${draft.color ?? "?"}\n` +
+    `Nuværende udkast til beskrivelse (kan være forkert): ${draft.description}\n\n` +
+    `${list.length} aktive annoncer på Vinted DK lige nu` +
+    (all ? ` (hele feltet: ${all.min}-${all.max} kr, median ${all.median} kr)` : "") + ":\n" +
+    lines + sampleText +
+    "\n\nVælg de reelt sammenlignelige, skriv annoncen, og sæt prisen.";
+
+  const out = await callTool(
+    MARKET_SYSTEM,
+    images.length ? [...images, { type: "text", text }] : text,
+    LISTING_TOOL,
+  );
+
+  // Modellens egne udvalgte annoncer er grundlaget. Regnestykket laegges her.
+  const chosen = (Array.isArray(out.comparableIndexes) ? out.comparableIndexes : [])
+    .map((i: unknown) => list[Number(i)])
+    .filter(Boolean)
+    .map((i: MarketItem) => Number(i.price))
+    .filter((n) => n > 0);
+  const ref = stats(chosen.length >= 3 ? chosen : list.map((i) => Number(i.price)).filter((n) => n > 0));
+
+  let price = Math.round(Number(out.price) || 0);
+  let guarded = false;
+  if (ref && price > 0) {
+    // Spaerren: uanset hvad modellen naaede frem til, maa prisen ikke lande paa
+    // eller over medianen af de sammenlignelige. Det er hele pointen med at
+    // ville saelge hurtigt, og en model glider let opad.
+    const ceiling = Math.floor(ref.median * 0.92);
+    if (price > ceiling) { price = ceiling; guarded = true; }
+    // Og ikke saa lavt at varen ser defekt ud.
+    const floor = Math.max(15, Math.floor(ref.p25 * 0.6));
+    if (price < floor) { price = floor; guarded = true; }
+  }
+  price = roundPrice(price);
+
+  return {
+    title: cleanText(out.title),
+    description: cleanText(out.description),
+    price,
+    priceNote: cleanText(out.priceNote) + (guarded ? " (justeret til feltet)" : ""),
+    compared: chosen.length,
+    median: ref ? ref.median : null,
+  };
+}
+
 const PRICE_TOOL = {
   name: "saet_pris",
   description: "Sæt den endelige pris ud fra sammenlignelige annoncer.",
@@ -522,6 +666,8 @@ Deno.serve(async (req: Request) => {
       mode?: string;
       kind?: string;
       chosen?: unknown[];
+      items?: unknown[];
+      samples?: unknown[];
       hint?: unknown;
       avoid?: unknown[];
       kind?: string;
@@ -542,6 +688,38 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "clear") {
       await supabase.from("drafts").update({ selected_at: null }).eq("id", body.id);
       return json({ ok: true });
+    }
+
+    if (body.mode === "market") {
+      const { data: d, error: e } = await supabase
+        .from("drafts")
+        .select("title, description, brand, size, condition, material, color, photos")
+        .eq("id", body.id)
+        .single();
+      if (e) return json({ error: e.message }, 500);
+      try {
+        const out = await analyseMarket(
+          d as Record<string, unknown>,
+          Array.isArray(body.items) ? body.items as MarketItem[] : [],
+          Array.isArray(body.samples) ? body.samples as Array<Record<string, never>> : [],
+        );
+        await supabase.from("drafts").update({
+          title: out.title,
+          description: out.description,
+          price: String(out.price),
+          price_note: out.priceNote,
+          price_grounded: true,
+        }).eq("id", body.id);
+        return json({
+          title: out.title,
+          description: out.description,
+          price: String(out.price),
+          note: "pris sat mod " + out.compared + " sammenlignelige (median " + out.median + " kr)",
+        });
+      } catch (err) {
+        console.error("market failed", err);
+        return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
     }
 
     if (body.mode === "verify") {

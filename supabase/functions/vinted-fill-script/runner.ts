@@ -52,7 +52,30 @@ function setv(el,v){
  el.dispatchEvent(new Event('change',{bubbles:true}));
 }
 
-function modal(){return document.querySelector('.ReactModal__Content')}
+// Vinted viser vaelgerne paa to maader. Er vinduet smalt - en telefon - er det
+// en dialog midt paa skaermen. Er det bredt, er panelerne indlejrede i siden
+// og staar aabne hele tiden; der er intet at "aabne", og maalt paa DOM'en ser
+// aabent og lukket fuldstaendig ens ud.
+//
+// Feltet peger selv paa sit panel: #size har data-testid
+// "category-size-single-grid-input", og panelet hedder det samme paa -content.
+// Det gaelder alle seks felter, ogsaa kategorien (catalog-select-dropdown).
+// Derfor slaas panelet op ud fra feltet frem for at lede efter "en dialog".
+var picker = null;
+
+function panelFor(id){
+ var el=q('#'+id); if(!el)return null;
+ var tid=el.getAttribute('data-testid')||'';
+ if(!/-input$/.test(tid))return null;
+ var p=document.querySelector('[data-testid="'+tid.replace(/-input$/,'-content')+'"]');
+ return (p&&p.offsetHeight>0)?p:null;
+}
+
+function modal(){
+ var m=document.querySelector('.ReactModal__Content');
+ if(m)return m;
+ return (picker&&picker.isConnected&&picker.offsetHeight>0)?picker:null;
+}
 
 // En dialog midt i skærmen er i vejen, når man ikke selv har bedt om noget.
 function say(msg){
@@ -123,18 +146,30 @@ async function closeStray(){
 // Et klik paa en knude, der lige er blevet skiftet ud, sker i det tomme rum -
 // derfor slaas feltet op paa ny for hvert forsoeg.
 async function open(id){
+ // Den forrige vaelger maa ikke haenge ved: paa en bred skaerm staar alle
+ // panelerne i siden, og modal() ville ellers svare med det forkerte.
+ picker=null;
  await closeStray();
  // Feltet kan have sin handler, laenge foer Vinted har hentet de data,
  // dialogen skal vise - saa foerste klik falder tomt til jorden. Derfor bankes
  // der paa med korte mellemrum i stedet for at vente et langt traek ad gangen.
  for(var forsoeg=0;forsoeg<12;forsoeg++){
-  var m=modal();if(m)return m;
+  var m=document.querySelector('.ReactModal__Content');
+  if(m)return m;
+  var p0=panelFor(id);
+  if(p0){picker=p0;return p0}
   var el=q('#'+id);
   if(!el)return null;
   if(reactReady(el))el.click();
-  for(var i=0;i<6;i++){m=modal();if(m)return m;await sleep(250)}
+  for(var i=0;i<6;i++){
+   m=document.querySelector('.ReactModal__Content');
+   if(m)return m;
+   var p=panelFor(id);
+   if(p){picker=p;return p}
+   await sleep(250);
+  }
  }
- log(id+': dialogen ville ikke åbne');
+ log(id+': vælgeren åbnede ikke');
  return null;
 }
 
@@ -343,6 +378,94 @@ async function waitReady(){
  return false;
 }
 
+// ---- Markedsanalyse ------------------------------------------------------
+// Vinted skjuler solgte varer, så det, man kan se, er dét, der IKKE er blevet
+// solgt. Feltet skævvrider derfor opad, og "gennemsnittet af de synlige" er
+// systematisk for dyrt. Det er hele grunden til, at prisen skal lægge sig
+// under — ikke for at forære varen væk, men for at ramme dér, hvor de solgte
+// lå, da de forsvandt.
+//
+// favourite_count er det eneste engagements-tal, søgningen giver
+// (view_count er altid 0). Mange hjerter på en vare, der STADIG ligger der,
+// betyder "eftertragtet, men for dyr" — det er et loft, ikke et mål.
+
+function dkkItems(list){
+ return (list||[]).filter(function(i){return i.price&&i.price.currency_code==='DKK'&&+i.price.amount>0})
+  .map(function(i){return{
+   id:i.id, path:i.path, title:i.title,
+   price:+i.price.amount, favourites:i.favourite_count||0,
+   brand:i.brand_title||'', size:i.size_title||'', condition:i.status||''
+  }});
+}
+
+async function search(text,n){
+ try{
+  var r=await timedFetch('/api/v2/catalog/items?search_text='+encodeURIComponent(text)+
+   '&order=relevance&page=1&per_page='+(n||40),
+   {headers:{'Accept':'application/json'},credentials:'include'},20000);
+  if(!r.ok)return [];
+  return dkkItems((await r.json()).items);
+ }catch(e){return []}
+}
+
+// De bedst modtagne annoncers egne ord. Beskrivelsen står ikke i søgesvaret,
+// så siden hentes og teksten trækkes ud. Kun nogle få: hver side er tung at
+// hente på en telefon.
+async function sampleTexts(items){
+ var ud=[];
+ // En Vinted-vareside vejer omkring 2 MB. To er en rimelig pris for at se,
+ // hvordan de bedst modtagne annoncer er skrevet; seks ville ikke være det.
+ // Og på en målt eller langsom forbindelse springes det helt over — teksten
+ // bliver god uden, den bliver bare ikke inspireret.
+ var net=navigator.connection;
+ if(net&&(net.saveData||/2g/.test(net.effectiveType||''))){
+  log('marked: springer tekstprøver over (målt forbindelse)');
+  return ud;
+ }
+ for(var i=0;i<items.length&&ud.length<2;i++){
+  if(!items[i].path)continue;
+  try{
+   var r=await timedFetch(items[i].path,{credentials:'include'},12000);
+   if(!r.ok)continue;
+   var m=(await r.text()).match(/"description":"((?:[^"\\]|\\.){20,900})"/);
+   if(!m)continue;
+   var txt=m[1].replace(/\\n/g,' ').replace(/\\"/g,'"').replace(/\\u[0-9a-fA-F]{4}/g,'').trim();
+   if(txt.length>25)ud.push({price:items[i].price,favourites:items[i].favourites,text:txt.slice(0,600)});
+  }catch(e){}
+ }
+ return ud;
+}
+
+async function markedsanalyse(d){
+ var q1=d.searchQuery||d.title||'';
+ // To søgninger: én med mærket, én uden. Den første rammer præcist, den anden
+ // fanger de varer, en køber ville stille op ved siden af uden at skæve til
+ // mærket.
+ var blad=(d.categoryPath&&d.categoryPath.length)?d.categoryPath[d.categoryPath.length-1]:'';
+ var q2=[blad,d.size].filter(Boolean).join(' ');
+ var a=await search(q1,40);
+ var b=(q2&&q2!==q1)?await search(q2,40):[];
+ var set={},alle=[];
+ a.concat(b).forEach(function(i){if(!set[i.id]){set[i.id]=1;alle.push(i)}});
+ if(alle.length<4){log('marked: kun '+alle.length+' annoncer, beholder skønnet');return null}
+
+ var top=alle.slice().sort(function(x,y){return y.favourites-x.favourites});
+ var samples=await sampleTexts(top);
+ log('marked: '+alle.length+' annoncer, '+samples.length+' tekstprøver');
+
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id:DRAFT_ID,mode:'market',items:alle,samples:samples})},60000);
+  var j=await r.json();
+  if(j&&j.price){log('marked: '+(j.note||'pris sat'));return j}
+ }catch(e){log('marked: opslaget fejlede')}
+ return null;
+}
+
+// Markedsanalysen skriver titel og beskrivelse om. De lægges her og sættes
+// ind til sidst, sammen med prisen.
+var bedre={title:null,description:null};
+
 // Automatisk tilstand starter, så snart siden er tegnet — felterne kan sagtens
 // mangle endnu.
 async function waitForm(){
@@ -365,21 +488,17 @@ try{
  DRAFT_ID=d.id;
  log('siden klar: '+(await waitReady()));
 
- // Priser mod rigtige, aktive annoncer. Opslaget sker herfra, fra din egen
- // session — Vinted blokerer serverkald, men aldrig sin egen side.
+ // Markedsopslaget sker HERFRA, fra din egen session: Vinted blokerer
+ // serverkald, men aldrig sin egen side. Serveren kan altså ikke se markedet —
+ // det kan telefonen.
  var price=d.price,note='foreløbig pris';
- if(d.needsPricing&&d.searchQuery){
-  try{
-   var r=await fetch('/api/v2/catalog/items?search_text='+encodeURIComponent(d.searchQuery)+'&order=relevance&page=1&per_page=12',{headers:{'Accept':'application/json'},credentials:'include'});
-   if(r.ok){
-    var comps=((await r.json()).items||[]).map(function(i){return{title:i.title,price:(i.price&&i.price.amount)||String(i.price||''),currency:(i.price&&i.price.currency_code)||'DKK'}}).filter(function(x){return x.price});
-    if(comps.length){
-     var pj=await(await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:d.id,comparables:comps})})).json();
-     if(pj.price){price=pj.price;if(pj.grounded)note='pris tjekket mod '+comps.length+' annoncer'}
-    }
-   }
-  }catch(e){note='prisopslag fejlede'}
- }else if(!d.needsPricing){note='pris allerede markedstjekket'}
+ var marked=await markedsanalyse(d);
+ if(marked){
+  if(marked.title)bedre.title=marked.title;
+  if(marked.description)bedre.description=marked.description;
+  if(marked.price)price=marked.price;
+  note=marked.note||note;
+ }
 
  // Felterne først, billederne til sidst. Fotouploaden tegner formularen om,
  // mens den kører, og en vælger, der bliver skiftet ud midt i et klik, åbner
@@ -410,8 +529,8 @@ try{
  // igen her: React har tegnet formularen om, siden vi startede, og de gamle
  // knuder sidder ikke længere i siden.
  var t2=q('#title'),de2=q('#description'),pe2=q('#price');
- if(t2)setv(t2,d.title);
- if(de2)setv(de2,d.description);
+ if(t2)setv(t2,bedre.title||d.title);
+ if(de2)setv(de2,bedre.description||d.description);
  if(pe2)setv(pe2,price);
  log('tekst sat');
 

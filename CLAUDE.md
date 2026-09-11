@@ -53,8 +53,20 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`
   — en side må ikke åbne filvælgeren, men godt fylde feltet.
-- **Vinted blokerer datacenter-IP'er.** Prisopslaget sker derfor fra telefonens
-  egen session, ikke fra serveren.
+- **Vinted blokerer datacenter-IP'er.** Hele markedsopslaget sker derfor fra
+  telefonens egen session, ikke fra serveren.
+- **Vinted skjuler solgte varer.** Det, søgningen viser, er dét, der IKKE er
+  solgt, så feltet skævvrider opad. Prisen skal derfor lægge sig under medianen
+  af de sammenlignelige — spærren i `analyseMarket` håndhæver det.
+- **`favourite_count` er brugbar, `view_count` er altid 0.** Mange hjerter på en
+  vare, der stadig ligger der, er et loft, ikke et mål.
+- **En Vinted-vareside vejer ~2 MB.** Tekstprøver til beskrivelsen er derfor
+  skåret til to og springes over på en målt forbindelse.
+- **Vælgerne ser forskellige ud efter vinduets bredde.** Smalt (telefon): en
+  dialog, `.ReactModal__Content`. Bredt (computer): panelerne er indlejret i
+  siden og står åbne hele tiden — åbent og lukket ser ens ud i DOM'en. Feltet
+  peger selv på sit panel: `data-testid` på inputtet med `-input` skiftet ud med
+  `-content`. Det gælder alle seks felter.
 - **Anthropic-API'et her tager ikke assistant-prefill** → brug `tool_choice`.
 - **Userscripts (iOS) installerer kun fra en URL, hvis STIEN ender på
   `.user.js`**, og filen skal udleveres som `text/plain`, ellers henter Safari
