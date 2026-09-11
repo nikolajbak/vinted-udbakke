@@ -1278,6 +1278,10 @@
       go.addEventListener('click', function(){ location.reload(); });
       t.appendChild(label); t.appendChild(go);
       document.body.appendChild(t);
+      // Banneret ligger fast i bunden og ville ellers daekke skaermen for evigt.
+      // Det traekker sig, og faar lov at melde sig igen naeste gang appen
+      // hentes frem - saa minder det om sig selv uden at staa i vejen.
+      setTimeout(function(){ t.remove(); updateShown = false; }, 10000);
     }).catch(function(){});
   }
 
