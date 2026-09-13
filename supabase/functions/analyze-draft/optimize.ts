@@ -25,7 +25,7 @@ export interface PhotoGuidance {
 // at ligge lidt på tværs.
 const RATIO_MAX = 1.2;     // let liggende, til brede varer
 const RATIO_MIN = 4 / 5;   // Vinteds portrætformat
-const MAX_EDGE = 1600;
+const MAX_EDGE = 1200;
 
 // Luften omkring motivet er ikke én værdi. En hel vare tåler en stram ramme;
 // en tekst eller et logo gør ikke. Klistrer et mærkenavn op ad kanten, læser
@@ -224,34 +224,36 @@ function autoTone(image: { bitmap: Uint8ClampedArray }): void {
   const pixels = px.length / 4;
   if (!pixels) return;
 
+  // Ét gennemløb, fire histogrammer. Hvidbalancen blev før læst i et ekstra
+  // gennemløb over alle pixels; den kan udledes af kanalernes egne histogrammer
+  // og koster så ingenting.
   const lumHist = new Uint32Array(256);
-  for (let i = 0; i < px.length; i += 4) {
-    lumHist[(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) | 0]++;
-  }
-
-  // Hvidbalance fra de lyseste 10 %: dét, der BURDE være neutralt. Et trægulv
-  // eller gult pærelys farver hele billedet, og sort tøj bliver brunligt.
-  const brightWanted = Math.max(1, Math.floor(pixels * 0.10));
-  let seen = 0, brightFrom = 255;
-  for (let v = 255; v >= 0; v--) {
-    seen += lumHist[v];
-    if (seen >= brightWanted) { brightFrom = v; break; }
-  }
-  let sr = 0, sg = 0, sb = 0, n = 0;
+  const ch = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
   for (let i = 0; i < px.length; i += 4) {
     const r = px[i], g = px[i + 1], b = px[i + 2];
-    if ((0.2126 * r + 0.7152 * g + 0.0722 * b) >= brightFrom) { sr += r; sg += g; sb += b; n++; }
+    ch[0][r]++; ch[1][g]++; ch[2][b]++;
+    lumHist[(0.2126 * r + 0.7152 * g + 0.0722 * b) | 0]++;
   }
+
+  // De lyseste 10 % af hver kanal: dét, der BURDE være neutralt. Et trægulv
+  // eller gult pærelys farver hele billedet, og sort tøj bliver brunligt.
+  const brightWanted = Math.max(1, Math.floor(pixels * 0.10));
+  const brightMean = (h: Uint32Array) => {
+    let n = 0, sum = 0;
+    for (let v = 255; v >= 0 && n < brightWanted; v--) {
+      const take = Math.min(h[v], brightWanted - n);
+      n += take; sum += take * v;
+    }
+    return n ? sum / n : 0;
+  };
+  const mr = brightMean(ch[0]), mg = brightMean(ch[1]), mb = brightMean(ch[2]);
   let gainR = 1, gainG = 1, gainB = 1;
-  if (n > pixels * 0.01) {
-    const mr = sr / n, mg = sg / n, mb = sb / n;
+  if (mr > 1 && mg > 1 && mb > 1) {
     const mean = (mr + mg + mb) / 3;
     // Stramt loft: en rød kjole fylder også de lyseste partier, og den må ikke
     // blegnes i jagten på en neutral grå.
     const cap = (x: number) => Math.max(0.88, Math.min(1.14, x));
-    if (mr > 1 && mg > 1 && mb > 1) {
-      gainR = cap(mean / mr); gainG = cap(mean / mg); gainB = cap(mean / mb);
-    }
+    gainR = cap(mean / mr); gainG = cap(mean / mg); gainB = cap(mean / mb);
   }
 
   // Sort- og hvidpunkt fra histogrammets haler. 0,3 % i hver ende: nok til at
@@ -394,12 +396,13 @@ function rotateBox(
 export async function optimizePhoto(
   buf: ArrayBuffer,
   guidance: PhotoGuidance,
+  preview = false,
 ): Promise<Uint8Array> {
   let image = await Image.decode(new Uint8Array(buf));
 
   // Maskering sker på originalen, før rotation og beskæring, så modellens
   // koordinater passer uden at skulle regnes om.
-  if (guidance.mask && guidance.mask.length) {
+  if (!preview && guidance.mask && guidance.mask.length) {
     maskRegions(
       image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number },
       guidance.mask,
@@ -463,15 +466,22 @@ export async function optimizePhoto(
 
   image = image.crop(Math.round(cx), Math.round(cy), Math.round(cw), Math.round(ch));
 
+  // Kontrolbilledet skal kun bedoemmes af et oeje, ikke ses af en koeber. Det
+  // laves lille og springer alt det dyre over: maskering, fremkaldelse og
+  // skarphed. Det var netop dem, ganget med tre gennemloeb pr. foto, der
+  // sprang Supabases CPU-graense.
+  const maxEdge = preview ? 560 : MAX_EDGE;
   const longEdge = Math.max(image.width, image.height);
-  if (longEdge > MAX_EDGE) {
-    const scale = MAX_EDGE / longEdge;
+  if (longEdge > maxEdge) {
+    const scale = maxEdge / longEdge;
     image = image.resize(Math.round(image.width * scale), Math.round(image.height * scale));
   }
 
   // Målingen først, skønnet bagefter. Modellen så det URETTEDE billede, så
   // dens tal ville rette anden gang for det, autoTone allerede har rettet -
   // derfor kun en brøkdel af dem: et nap, ikke en ny fremkaldelse.
+  if (preview) return await image.encodeJPEG(60);
+
   autoTone(image as unknown as { bitmap: Uint8ClampedArray });
   if (guidance.look) {
     const nudge = 0.35;

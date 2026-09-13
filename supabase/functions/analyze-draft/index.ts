@@ -107,38 +107,22 @@ const VISION_TOOL = {
   },
 };
 
-// Rotationen er den fejl, en koeber ser foerst. Derfor faar modellen sit eget
-// resultat at se: staar varen rigtigt op NU? Det er et langt lettere
-// spoergsmaal end at regne det ud paa forhaand.
-const VERIFY_ROTATION_TOOL = {
-  name: "tjek_retning",
-  description: "Sig om varen på billedet vender rigtigt, og hvor meget der mangler.",
+// En instruktion om at give luft er ikke det samme som luft. Modellen ser
+// derfor sit eget resultat: er motivet klemt op ad kanten, eller er der skaaret
+// noget vaesentligt fra? Saa gaas et skridt tilbage. Det er samme greb som ved
+// rotation og maskering, og begge steder fangede det fejl, instruktionen alene
+// ikke kunne.
+const CHECK_TOOL = {
+  name: "tjek_billede",
+  description: "Sig om billedet vender rigtigt, og om beskæringen er uheldig.",
   input_schema: {
     type: "object",
     properties: {
       missingDegrees: {
         type: "integer",
         enum: [0, 90, 180, 270],
-        description:
-          "Hvor mange grader MED URET billedet mangler at blive drejet, for at varen vender rigtigt. " +
-          "0 hvis den allerede gør.",
+        description: "Hvor mange grader MED URET billedet mangler at blive drejet. 0 hvis det allerede vender rigtigt.",
       },
-    },
-    required: ["missingDegrees"],
-  },
-};
-
-// En instruktion om at give luft er ikke det samme som luft. Modellen ser
-// derfor sit eget resultat: er motivet klemt op ad kanten, eller er der skaaret
-// noget vaesentligt fra? Saa gaas et skridt tilbage. Det er samme greb som ved
-// rotation og maskering, og begge steder fangede det fejl, instruktionen alene
-// ikke kunne.
-const VERIFY_CROP_TOOL = {
-  name: "tjek_beskaering",
-  description: "Sig om beskæringen er uheldig for det, billedet skal vise.",
-  input_schema: {
-    type: "object",
-    properties: {
       tooTight: {
         type: "boolean",
         description:
@@ -148,7 +132,7 @@ const VERIFY_CROP_TOOL = {
       },
       why: { type: "string", description: "Meget kort, kun hvis true" },
     },
-    required: ["tooTight"],
+    required: ["missingDegrees", "tooTight"],
   },
 };
 
@@ -258,9 +242,12 @@ Deno.serve(async (req: Request) => {
   }
 
   let id: string;
+  // Sat, naar kaldet gaelder ét bestemt foto.
+  let only: number | null = null;
   try {
     const body = await req.json();
     id = body.id;
+    only = typeof body.photo === "number" ? body.photo : null;
     if (!id) throw new Error("missing id");
   } catch (e) {
     return new Response(`bad_request: ${e}`, { status: 400 });
@@ -282,10 +269,35 @@ Deno.serve(async (req: Request) => {
       : [];
     if (!photos.length) throw new Error("no_photos");
 
-    // Fetch every photo once; the bytes get reused for optimisation and for
-    // the model calls.
+    // Hvert foto faar sin egen invokation. Supabase maaler CPU pr. kald, og ét
+    // foto paa 1800x1350 fylder en maerkbar del af budgettet - fem i samme kald
+    // sprang det, og analysen blev haengende uden nogensinde at fejle synligt.
+    // Sekventielt, saa skrivningerne til photos-listen ikke kan traede paa
+    // hinanden.
+    if (only === null) {
+      for (let i = 0; i < photos.length; i++) {
+        try {
+          const r = await fetch(`${SUPABASE_URL}/functions/v1/analyze-draft`, {
+            method: "POST",
+            headers: { "x-webhook-secret": WEBHOOK_SECRET, "content-type": "application/json" },
+            body: JSON.stringify({ id, photo: i }),
+          });
+          if (!r.ok) console.error("foto", i, "fejlede:", (await r.text()).slice(0, 200));
+        } catch (err) {
+          console.error("foto", i, err);
+        }
+      }
+      const { data: fresh } = await supabase.from("drafts").select("photos").eq("id", id).single();
+      if (Array.isArray(fresh?.photos) && fresh.photos.length) {
+        photos.splice(0, photos.length, ...(fresh.photos as Photo[]));
+      }
+    }
+
+    const wanted = only === null ? photos : (photos[only] ? [photos[only]] : []);
+    if (!wanted.length) throw new Error("photo_index_out_of_range");
+
     const loaded: Array<{ photo: Photo; buf: ArrayBuffer; mediaType: string }> = [];
-    for (const photo of photos) {
+    for (const photo of wanted) {
       const imgRes = await fetch(photo.url);
       if (!imgRes.ok) continue;
       loaded.push({
@@ -301,7 +313,7 @@ Deno.serve(async (req: Request) => {
     // ikke beskaaret. Ét billede ad gangen er markant mere praecist.
     // Best-effort: originalen staar, hvis noget fejler.
     let personalInfoSeen = false;
-    for (const l of loaded) {
+    for (const l of (only === null ? [] : loaded)) {
       if (!l.photo.path) continue;
       if (l.photo.optimized || /-opt\.jpg$/i.test(l.photo.path)) continue;
       try {
@@ -359,99 +371,54 @@ Deno.serve(async (req: Request) => {
           subject: cleanText(g.subject) || undefined,
           subjectCutOff: g.subjectCutOff === true,
         };
-        let jpeg = await optimizePhoto(l.buf, {
-          ...frame,
-          rotationDegrees: Number(g.rotationDegrees) || 0,
-          crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
-          mask: regions.map(toBox),
-          protect: guards.map(toBox),
-          look: {
-            exposure: Number(g.exposure) || 0,
-            contrast: Number(g.contrast) || 0,
-            warmth: Number(g.warmth) || 0,
-            saturation: Number(g.saturation) || 0,
-          },
-        });
-        // Retningen tjekkes på resultatet. Et foto af en jakke, der ligger på
-        // gulvet, kan vende hvad som helst, og EXIF siger intet om indholdet —
-        // kun øjet kan afgøre det, og et færdigt billede er lettere at bedømme
-        // end et, der først skal drejes i hovedet.
+        const look = {
+          exposure: Number(g.exposure) || 0,
+          contrast: Number(g.contrast) || 0,
+          warmth: Number(g.warmth) || 0,
+          saturation: Number(g.saturation) || 0,
+        };
+        const box = { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) };
         let rotation = Number(g.rotationDegrees) || 0;
-        try {
-          const spin = await callClaudeJson(
-            "Du ser på ét foto fra en Vinted-annonce. Vender varen rigtigt?\n" +
-              "Et tøjstykke vender rigtigt, når halsen/skulderen er opad og sømmen/bunden nedad. " +
-              "Sko vender rigtigt, når sålen er nedad. Et mærkat eller en etiket vender rigtigt, " +
-              "når teksten kan læses vandret uden at dreje hovedet.\n" +
-              "Svar 0, hvis det allerede er rigtigt — tvivler du, så svar 0.",
-            [
-              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: toBase64(jpeg.buffer as ArrayBuffer) } },
-            ],
-            STRATEGY_MODEL,
-            VERIFY_ROTATION_TOOL,
-            200,
-          );
-          const missing = Number(spin.missingDegrees) || 0;
-          if (missing === 90 || missing === 180 || missing === 270) {
-            rotation = (rotation + missing) % 360;
-            jpeg = await optimizePhoto(l.buf, {
-              ...frame,
-              rotationDegrees: rotation,
-              crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
-              mask: regions.map(toBox),
-              protect: guards.map(toBox),
-              look: {
-                exposure: Number(g.exposure) || 0,
-                contrast: Number(g.contrast) || 0,
-                warmth: Number(g.warmth) || 0,
-                saturation: Number(g.saturation) || 0,
-              },
-            });
-          }
-        } catch (err) {
-          console.error("rotation_check_failed", err);
-        }
 
-        // Beskæringen bedømmes på resultatet. Rammer den skævt, gås der ét
-        // skridt tilbage: en bredere ramme er altid bedre end et motiv, der
-        // ser amputeret ud.
+        // Ét fuldt gennemløb. Afkodningen af originalen er det dyre trin, så
+        // den sker én gang — et separat kontrolbillede kostede en afkodning
+        // mere pr. foto og sprængte Supabases CPU-grænse.
+        let jpeg = await optimizePhoto(l.buf, {
+          ...frame, rotationDegrees: rotation, crop: box,
+          mask: regions.map(toBox), protect: guards.map(toBox), look,
+        });
+
+        // Retning og beskæring bedømmes på dét, vi allerede har liggende.
+        // Selve kontrollen koster ingen CPU, kun et kald; og et nyt gennemløb
+        // betales kun, når der faktisk er noget galt.
         try {
-          const crop = await callClaudeJson(
-            "Du er art director og ser på ét færdigbeskåret foto til en Vinted-annonce.\n" +
-              "Er motivet klemt op ad en kant, eller er der skåret noget væsentligt væk? " +
-              "Et mærkat eller et logo skal have luft hele vejen rundt; står teksten helt ude ved " +
-              "kanten, er svaret true. Er varen skåret midt over, er svaret true.\n" +
-              "Ser billedet derimod bevidst ud — også når det er tæt på — så svar false. " +
-              "Et billede, der allerede var skåret af, da det blev taget, er ikke beskæringens skyld; " +
-              "svar kun true, hvis RAMMEN gør det værre.",
+          const check = await callClaudeJson(
+            "Du er art director og ser på ét foto, der er gjort klar til en Vinted-annonce.\n" +
+              "1) Vender varen rigtigt? Et tøjstykke vender rigtigt, når halsen/skulderen er opad. " +
+              "Sko, når sålen er nedad. Et mærkat, når teksten kan læses vandret. Svar 0 ved tvivl.\n" +
+              "2) Er motivet klemt op ad en kant uden luft omkring sig, eller er noget væsentligt " +
+              "skåret væk af RAMMEN? Et mærkat eller et logo skal have luft hele vejen rundt. " +
+              "Var motivet allerede skåret af, da billedet blev taget, er det ikke rammens skyld.",
             [
               { type: "image", source: { type: "base64", media_type: "image/jpeg", data: toBase64(jpeg.buffer as ArrayBuffer) } },
             ],
             STRATEGY_MODEL,
-            VERIFY_CROP_TOOL,
-            200,
+            CHECK_TOOL,
+            250,
           );
-          if (crop.tooTight === true) {
-            console.log("crop_too_tight", l.photo.kind, crop.why);
+          const missing = Number(check.missingDegrees) || 0;
+          const spin = (missing === 90 || missing === 180 || missing === 270);
+          const tight = check.tooTight === true;
+          if (spin || tight) {
+            if (spin) rotation = (rotation + missing) % 360;
             jpeg = await optimizePhoto(l.buf, {
-              ...frame,
-              // Ét skridt tilbage: behandl motivet som afskåret, så rammen
-              // lægges bredt og der kommer luft omkring.
-              subjectCutOff: true,
-              rotationDegrees: rotation,
-              crop: { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) },
-              mask: regions.map(toBox),
-              protect: guards.map(toBox),
-              look: {
-                exposure: Number(g.exposure) || 0,
-                contrast: Number(g.contrast) || 0,
-                warmth: Number(g.warmth) || 0,
-                saturation: Number(g.saturation) || 0,
-              },
+              ...frame, subjectCutOff: tight || frame.subjectCutOff,
+              rotationDegrees: rotation, crop: box,
+              mask: regions.map(toBox), protect: guards.map(toBox), look,
             });
           }
         } catch (err) {
-          console.error("crop_check_failed", err);
+          console.error("billedtjek fejlede", err);
         }
 
         // Ét forsøg rammer ikke altid hele navnet. Frem for at stole på det,
@@ -510,13 +477,18 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (loaded.some((l) => l.photo.optimized)) {
-      await supabase.from("drafts").update({
-        photos: loaded.map((l) => l.photo),
-        image_path: loaded[0].photo.path,
-        image_url: loaded[0].photo.url,
-        personal_info: personalInfoSeen,
-      }).eq("id", id);
+    // Delkaldet skriver sit ene foto tilbage i listen og stopper her.
+    if (only !== null) {
+      if (loaded[0].photo.optimized) {
+        const { data: cur } = await supabase.from("drafts").select("photos, personal_info").eq("id", id).single();
+        const list = (Array.isArray(cur?.photos) ? cur.photos : []) as Photo[];
+        list[only] = loaded[0].photo;
+        const patch: Record<string, unknown> = { photos: list };
+        if (only === 0) { patch.image_path = loaded[0].photo.path; patch.image_url = loaded[0].photo.url; }
+        if (personalInfoSeen) patch.personal_info = true;
+        await supabase.from("drafts").update(patch).eq("id", id);
+      }
+      return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } });
     }
 
     // Cap what we send onward: the first few carry almost all the signal.

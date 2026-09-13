@@ -59,6 +59,12 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   klistret op ad kanten læser det som en fejl. Var motivet allerede skåret af i
   originalen, lægges rammen bredt, så det afskårne ikke springer i øjnene.
   Værdierne står i `PADDING` i `optimize.ts`.
+- **Supabase måler CPU pr. kald, og billedbehandling er dyr.** Ét foto på
+  1800×1350 fylder en mærkbar del af budgettet; fem i samme kald gav
+  "CPU Time exceeded", og analysen hang uden at fejle synligt. `analyze-draft`
+  kalder derfor sig selv med `{id, photo: n}` — ét foto pr. invokation,
+  sekventielt. Læg aldrig flere fotos tilbage i ét kald, og undgå ekstra
+  afkodninger: dekodningen er det dyre trin, ikke opløsningen.
 - **Fotoupload tegner formularen om**, så billederne lægges ind til sidst. En
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`
