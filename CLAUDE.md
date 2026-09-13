@@ -65,6 +65,12 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   kalder derfor sig selv med `{id, photo: n}` — ét foto pr. invokation,
   sekventielt. Læg aldrig flere fotos tilbage i ét kald, og undgå ekstra
   afkodninger: dekodningen er det dyre trin, ikke opløsningen.
+- **Vinteds billedformat er målt på Vinted selv.** Hver annonce vises med 800 px
+  på den lange kant; kopien de beholder til zoom er 1200×1600 og aldrig større.
+  Derfor `MAX_EDGE = 1600` og portræt helt ned til 3:4. Deres egne filer vejer
+  220–690 kB, så kvalitet 88 er rigeligt — de koder alligevel om.
+- **Send billeder til modellen som URL, ikke base64.** De ligger offentligt i
+  Storage. Base64 kostede både CPU og det meste af ventetiden.
 - **Fotoupload tegner formularen om**, så billederne lægges ind til sidst. En
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`

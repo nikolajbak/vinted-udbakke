@@ -23,9 +23,15 @@ export interface PhotoGuidance {
 // skal rammen vokse i højden - og så kommer gulvet, fødderne og bordkanten med
 // ind igen, præcis dét beskæringen skulle af med. Derfor får brede varer lov
 // at ligge lidt på tværs.
+// Maalt paa Vinted selv: hver eneste annonce vises med 800 px paa den lange
+// kant, og den kopi, de beholder til zoom, er 1200x1600 - aldrig stoerre.
+// 3:4 er altsaa deres eget format, saa en hoej vare faar lov at ramme det
+// praecist i stedet for at blive vist med sorte kanter i gitteret.
 const RATIO_MAX = 1.2;     // let liggende, til brede varer
-const RATIO_MIN = 4 / 5;   // Vinteds portrætformat
-const MAX_EDGE = 1200;
+const RATIO_MIN = 3 / 4;   // Vinteds eget portrætformat
+// Vinteds loft. Mere kasserer de selv ved upload; mindre koster zoom-detalje,
+// og zoom er dér, en koeber bedoemmer stoffet.
+const MAX_EDGE = 1600;
 
 // Luften omkring motivet er ikke én værdi. En hel vare tåler en stram ramme;
 // en tekst eller et logo gør ikke. Klistrer et mærkenavn op ad kanten, læser
@@ -496,7 +502,9 @@ export async function optimizePhoto(
   }
   sharpen(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number });
 
-  // 92 frem for 90: stoffets tekstur er det, en køber zoomer ind på, og
-  // forskellen i filstørrelse er få procent.
-  return await image.encodeJPEG(92);
+  // 88, ikke 92: Vinted koder alligevel om til deres egne stoerrelser, saa de
+  // sidste par procent bliver kastet vaek. Til gengaeld skal filen hentes ned
+  // og lægges op igen fra telefonen, og dér taeller hver kilobyte.
+  // Vinteds egne filer i denne stoerrelse vejer 220-690 kB; vi lander under.
+  return await image.encodeJPEG(88);
 }

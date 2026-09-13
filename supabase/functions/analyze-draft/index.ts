@@ -274,30 +274,55 @@ Deno.serve(async (req: Request) => {
     // sprang det, og analysen blev haengende uden nogensinde at fejle synligt.
     // Sekventielt, saa skrivningerne til photos-listen ikke kan traede paa
     // hinanden.
+    let personalInfoSeen = false;
+
     if (only === null) {
-      for (let i = 0; i < photos.length; i++) {
+      // Samtidigt, ikke i koe. Fem kald i traek tog laengere end Supabase lader
+      // ét kald vare, saa billederne blev faerdige mens selve analysen aldrig
+      // naaede i mål. Hvert delkald har sit eget CPU-budget, saa de kan lige
+      // saa godt loebe ved siden af hinanden.
+      const results = await Promise.all(photos.map(async (_p, i) => {
         try {
           const r = await fetch(`${SUPABASE_URL}/functions/v1/analyze-draft`, {
             method: "POST",
             headers: { "x-webhook-secret": WEBHOOK_SECRET, "content-type": "application/json" },
             body: JSON.stringify({ id, photo: i }),
           });
-          if (!r.ok) console.error("foto", i, "fejlede:", (await r.text()).slice(0, 200));
+          if (!r.ok) {
+            console.error("foto", i, "fejlede:", (await r.text()).slice(0, 200));
+            return false;
+          }
+          return (await r.json())?.personal === true;
         } catch (err) {
           console.error("foto", i, err);
+          return false;
         }
-      }
+      }));
+      personalInfoSeen = results.some(Boolean);
+
       const { data: fresh } = await supabase.from("drafts").select("photos").eq("id", id).single();
       if (Array.isArray(fresh?.photos) && fresh.photos.length) {
         photos.splice(0, photos.length, ...(fresh.photos as Photo[]));
       }
+      // Forsidebilledet og personflaget saettes her, én gang, naar alle er inde.
+      await supabase.from("drafts").update({
+        image_path: photos[0]?.path,
+        image_url: photos[0]?.url,
+        personal_info: personalInfoSeen,
+      }).eq("id", id);
     }
 
     const wanted = only === null ? photos : (photos[only] ? [photos[only]] : []);
     if (!wanted.length) throw new Error("photo_index_out_of_range");
 
+    // Kun delkaldet har brug for selve bytes - det skal behandle billedet.
+    // Orkestreringen noejes med adresserne og lader modellen hente dem.
     const loaded: Array<{ photo: Photo; buf: ArrayBuffer; mediaType: string }> = [];
     for (const photo of wanted) {
+      if (only === null) {
+        loaded.push({ photo, buf: new ArrayBuffer(0), mediaType: "image/jpeg" });
+        continue;
+      }
       const imgRes = await fetch(photo.url);
       if (!imgRes.ok) continue;
       loaded.push({
@@ -312,7 +337,6 @@ Deno.serve(async (req: Request) => {
     // returnerede modellen upræcise kasser, og naerbilleder blev stort set
     // ikke beskaaret. Ét billede ad gangen er markant mere praecist.
     // Best-effort: originalen staar, hvis noget fejler.
-    let personalInfoSeen = false;
     for (const l of (only === null ? [] : loaded)) {
       if (!l.photo.path) continue;
       if (l.photo.optimized || /-opt\.jpg$/i.test(l.photo.path)) continue;
@@ -352,7 +376,7 @@ Deno.serve(async (req: Request) => {
             "Et traegulv eller gult paerelys giver et varmt farvestik, som skal koeles ned (negativ warmth), " +
             "ellers ser sort toej brunligt ud. Er billedet allerede godt, saa svar 0 - overdriv ikke.",
           [
-            { type: "image", source: { type: "base64", media_type: l.mediaType, data: toBase64(l.buf) } },
+            { type: "image", source: { type: "url", url: l.photo.url } },
             { type: "text", text: `Billedtype: ${l.photo.kind || "ukendt"}. Vurdér dette ene billede.` },
           ],
           STRATEGY_MODEL,
@@ -480,15 +504,13 @@ Deno.serve(async (req: Request) => {
     // Delkaldet skriver sit ene foto tilbage i listen og stopper her.
     if (only !== null) {
       if (loaded[0].photo.optimized) {
-        const { data: cur } = await supabase.from("drafts").select("photos, personal_info").eq("id", id).single();
-        const list = (Array.isArray(cur?.photos) ? cur.photos : []) as Photo[];
-        list[only] = loaded[0].photo;
-        const patch: Record<string, unknown> = { photos: list };
-        if (only === 0) { patch.image_path = loaded[0].photo.path; patch.image_url = loaded[0].photo.url; }
-        if (personalInfoSeen) patch.personal_info = true;
-        await supabase.from("drafts").update(patch).eq("id", id);
+        await supabase.rpc("set_draft_photo", {
+          p_id: id, p_index: only, p_photo: loaded[0].photo,
+        });
       }
-      return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, personal: personalInfoSeen }), {
+        headers: { "content-type": "application/json" },
+      });
     }
 
     // Cap what we send onward: the first few carry almost all the signal.
@@ -499,7 +521,10 @@ Deno.serve(async (req: Request) => {
       imageBlocks.push({ type: "text", text: `Billede (${l.photo.kind || "ukendt vinkel"}):` });
       imageBlocks.push({
         type: "image",
-        source: { type: "base64", media_type: l.mediaType, data: toBase64(l.buf) },
+        // URL frem for base64: billedet ligger i forvejen offentligt, og at
+        // pakke 5 x en halv megabyte om til base64 og sende det med kostede
+        // baade CPU og det meste af ventetiden.
+        source: { type: "url", url: l.photo.url },
       });
     }
 
