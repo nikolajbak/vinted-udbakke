@@ -15,6 +15,11 @@ PGPASSWORD="$SUPABASE_DB_PASSWORD" /opt/homebrew/opt/libpq/bin/psql \
   "host=aws-0-eu-central-1.pooler.supabase.com port=6543 dbname=postgres user=postgres.gjycsqshkvkcupdnvgvf sslmode=require" -f fil.sql
 ```
 
+**Kør `./build.sh` før hver commit, der rører `style.css` eller `app.js`.** Den
+stempler et indholds-fingeraftryk ind i adresserne (`app.js?v=…`). Uden det
+ville opdaterings-banneret tie — det sammenligner `index.html`s ETag — og
+GitHub Pages kunne servere ny HTML med gammel JS i op til ti minutter.
+
 Deno findes ikke lokalt. Skal noget afprøves i kørselsmiljøet, så deploy en
 midlertidig funktion og slet den bagefter.
 
@@ -22,7 +27,7 @@ midlertidig funktion og slet den bagefter.
 
 | Hvad | Hvor |
 |---|---|
-| App (én fil) | `index.html` |
+| App | `index.html` + `style.css` + `app.js` |
 | Billedanalyse + optimering | `supabase/functions/analyze-draft/` |
 | Udfyldning af Vinted-formularen | `supabase/functions/vinted-fill-script/` |
 | Automatikken bogmærket/brugerscriptet kører | `…/vinted-fill-script/runner.ts` |
