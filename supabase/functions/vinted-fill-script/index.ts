@@ -565,8 +565,8 @@ Deno.serve(async (req: Request) => {
       "// @namespace    udbakke",
       `// @version      1.0.${h % 100000}`,
       "// @description  Udfylder Vinted-annoncen automatisk",
-      "// @match        https://www.vinted.dk/items/new*",
-      "// @match        https://vinted.dk/items/new*",
+      "// @match        https://www.vinted.dk/items/*",
+      "// @match        https://vinted.dk/items/*",
       "// @run-at       document-idle",
       "// @grant        none",
       "// @inject-into  page",
@@ -685,6 +685,16 @@ Deno.serve(async (req: Request) => {
     // tilbage. Saa behoever ingen at gaette Vinteds ordlyd.
     // Faerdig: markeringen ryddes, saa et genindlaes ikke skriver den samme
     // annonce ind igen.
+    // Annoncen er landet paa Vinted. Udkastet hoerer ikke laengere til i koen.
+    if (body.mode === "posted") {
+      await supabase.from("drafts").update({
+        status: "afsendt",
+        posted_at: new Date().toISOString(),
+        selected_at: null,
+      }).eq("id", body.id);
+      return json({ ok: true });
+    }
+
     if (body.mode === "clear") {
       await supabase.from("drafts").update({ selected_at: null }).eq("id", body.id);
       return json({ ok: true });

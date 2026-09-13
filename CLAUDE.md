@@ -71,6 +71,10 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   220–690 kB, så kvalitet 88 er rigeligt — de koder alligevel om.
 - **Send billeder til modellen som URL, ikke base64.** De ligger offentligt i
   Storage. Base64 kostede både CPU og det meste af ventetiden.
+- **Brugerscriptet kører på hele `/items/*`, ikke kun `/items/new`.** Efter
+  Upload sender Vinted brugeren videre til annoncens egen side; dér ser scriptet
+  markøren i `localStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
+  det kører kun, når man trykker på det.
 - **Fotoupload tegner formularen om**, så billederne lægges ind til sidst. En
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`

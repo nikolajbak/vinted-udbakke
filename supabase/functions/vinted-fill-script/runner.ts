@@ -466,6 +466,26 @@ async function markedsanalyse(d){
 // ind til sidst, sammen med prisen.
 var bedre={title:null,description:null};
 
+// Er vi havnet på en annonces egen side, og lå der et udkast i formularen for
+// lidt siden, så er det dét, du netop har lagt op. Så flytter appen det selv
+// over i "Afsendte annoncer" — du skal ikke også huske at sige det.
+async function meldPostet(){
+ if(!/^\/items\/\d/.test(location.pathname))return false;
+ var raw; try{raw=localStorage.getItem('udbakke_afventer')}catch(e){return false}
+ if(!raw)return false;
+ var v; try{v=JSON.parse(raw)}catch(e){v=null}
+ try{localStorage.removeItem('udbakke_afventer')}catch(e){}
+ // En time. Ligger der noget ældre, er det en rest fra en annonce, du
+ // fortrød — den må ikke markeres som solgt-og-lagt-op.
+ if(!v||!v.id||(Date.now()-v.tid)>3600000)return false;
+ try{
+  await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id:v.id,mode:'posted'})},20000);
+  log('annoncen er lagt op — flyttet til afsendte');
+ }catch(e){}
+ return true;
+}
+
 // Automatisk tilstand starter, så snart siden er tegnet — felterne kan sagtens
 // mangle endnu.
 async function waitForm(){
@@ -475,6 +495,8 @@ async function waitForm(){
  }
  return false;
 }
+if(await meldPostet())return;
+if(!/\/items\/new/.test(location.pathname))return;
 if(!await waitForm()){
  if(!AUTO)alert('VintedAuto: du er ikke på opret-siden. Gå til Vinted → Sælg nu, og tryk på bogmærket der.');
  return;
@@ -538,6 +560,10 @@ try{
  log('billeder: '+(d.photos||[]).length);
  if(await fillPhotos(d.photos))mangler.push('billeder');
  log('billeder klar');
+
+ // Gem hvilket udkast der ligger i formularen. Trykker du Upload, sender Vinted
+ // dig videre til annoncens egen side - og dér kan vi se, at den er landet.
+ try{localStorage.setItem('udbakke_afventer',JSON.stringify({id:DRAFT_ID,tid:Date.now()}))}catch(e){}
 
  // Markeringen ryddes, så et genindlæs ikke fylder den samme annonce ud igen.
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
