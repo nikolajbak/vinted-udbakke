@@ -253,6 +253,10 @@ Deno.serve(async (req: Request) => {
     return new Response(`bad_request: ${e}`, { status: 400 });
   }
 
+  // Ét tal i loggen pr. annonce. Nok til at se, om noget er ved at skride,
+  // uden at fylde loggen med mellemregninger.
+  const t0 = Date.now();
+
   try {
     const { data: row, error: rowErr } = await supabase
       .from("drafts")
@@ -583,6 +587,7 @@ Deno.serve(async (req: Request) => {
       DRAFT_TOOL,
     );
 
+console.log("annonce klar paa", Date.now() - t0, "ms");
     const { error } = await supabase
       .from("drafts")
       .update({

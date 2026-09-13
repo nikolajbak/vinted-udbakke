@@ -101,6 +101,12 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
 
 ## Afprøvning
 
+**Udløs analysen som appen gør det: sæt `status` til `afventer`** og vent på, at
+den bliver `ny`. Kald ikke `analyze-draft` manuelt oveni — triggeren har
+allerede fyret, og to samtidige gennemløb slås om det samme arbejde. Det kostede
+mig en fejlagtig konklusion om, at pipelinen tog tre minutter; et rent gennemløb
+med fem billeder tager omkring 25 sekunder.
+
 Browserruden throttler timere, når den er skjult: et gennemløb, der tager 40 s
 på telefonen, kan tage flere minutter her. Tiderne i loggen er derfor ikke
 retvisende — kun rækkefølgen og udfaldet er.
