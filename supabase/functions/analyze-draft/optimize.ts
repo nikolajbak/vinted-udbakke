@@ -5,7 +5,18 @@
 
 import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 
+// Fremkaldelsen af en hel serie. Maales én gang og genbruges, saa varen ser
+// ens ud paa alle billeder.
+export interface Tone {
+  gains: [number, number, number];
+  black: number;
+  white: number;
+  gamma: number;
+}
+
 export interface PhotoGuidance {
+  tone?: Tone;
+  toneOut?: { tone?: Tone };
   rotationDegrees: number;
   subject?: string;
   subjectCutOff?: boolean;
@@ -225,10 +236,19 @@ function maskRegions(
  * Alt er holdt i stramme tøjler: en annonce skal vise varens rigtige farve.
  * Et billede, der er pænere end virkeligheden, giver en skuffet køber.
  */
-function autoTone(image: { bitmap: Uint8ClampedArray }): void {
+function autoTone(image: { bitmap: Uint8ClampedArray }, given?: Tone): Tone | null {
   const px = image.bitmap;
   const pixels = px.length / 4;
-  if (!pixels) return;
+  if (!pixels) return null;
+
+  // Er fremkaldelsen allerede maalt paa seriens foerste billede, bruges den som
+  // den er. Maaler hvert billede sit eget, faar en jakke med meget gulv i
+  // rammen en anden farve end den samme jakke set taettere paa - og det er
+  // praecis dét, der faar en annonce til at se roddet ud.
+  if (given) {
+    applyTone(px, given);
+    return given;
+  }
 
   // Ét gennemløb, fire histogrammer. Hvidbalancen blev før læst i et ekstra
   // gennemløb over alle pixels; den kan udledes af kanalernes egne histogrammer
@@ -285,14 +305,19 @@ function autoTone(image: { bitmap: Uint8ClampedArray }): void {
     gamma = Math.max(0.62, Math.min(1.25, gamma));
   }
 
-  const span = white - black;
+  const tone: Tone = { gains: [gainR, gainG, gainB], black, white, gamma };
+  applyTone(px, tone);
+  return tone;
+}
+
+function applyTone(px: Uint8ClampedArray, t: Tone): void {
+  const span = Math.max(1, t.white - t.black);
   const lut = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)];
-  const gains = [gainR, gainG, gainB];
   for (let c = 0; c < 3; c++) {
     for (let v = 0; v < 256; v++) {
-      const balanced = v * gains[c];
-      const stretched = Math.max(0, Math.min(1, (balanced - black) / span));
-      lut[c][v] = clamp255(255 * Math.pow(stretched, gamma));
+      const balanced = v * t.gains[c];
+      const stretched = Math.max(0, Math.min(1, (balanced - t.black) / span));
+      lut[c][v] = clamp255(255 * Math.pow(stretched, t.gamma));
     }
   }
   for (let i = 0; i < px.length; i += 4) {
@@ -454,7 +479,12 @@ export async function optimizePhoto(
   // Pick the allowed ratio closest to the item's own shape, then grow (never
   // shrink) into it, so nothing of the item is lost and no side fills up with
   // background.
-  const target = Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
+  // En hel vare faar altid Vinteds eget 3:4. Naerbilleder maa gerne foelge
+  // motivets egen facon - men hovedbillederne skal staa ens i gitteret, ellers
+  // ser annoncen rodet ud, uanset hvor gode de enkelte billeder er.
+  const target = guidance.subject === "helvare"
+    ? RATIO_MIN
+    : Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
   if (cw / ch > target) {
     ch = cw / target;
   } else {
@@ -488,7 +518,8 @@ export async function optimizePhoto(
   // derfor kun en brøkdel af dem: et nap, ikke en ny fremkaldelse.
   if (preview) return await image.encodeJPEG(60);
 
-  autoTone(image as unknown as { bitmap: Uint8ClampedArray });
+  const used = autoTone(image as unknown as { bitmap: Uint8ClampedArray }, guidance.tone);
+  if (guidance.toneOut && used) guidance.toneOut.tone = used;
   if (guidance.look) {
     const nudge = 0.35;
     applyLook(image as unknown as { bitmap: Uint8ClampedArray }, {

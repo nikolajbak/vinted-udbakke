@@ -260,7 +260,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { data: row, error: rowErr } = await supabase
       .from("drafts")
-      .select("photos, image_url")
+      .select("photos, image_url, tone")
       .eq("id", id)
       .single();
     if (rowErr) throw new Error(`row_fetch_failed: ${rowErr.message}`);
@@ -280,12 +280,19 @@ Deno.serve(async (req: Request) => {
     // hinanden.
     let personalInfoSeen = false;
 
+    // Seriens fremkaldelse: maalt paa det foerste billede, genbrugt paa resten.
+    // Ellers faar den samme jakke forskellig farve fra billede til billede, alt
+    // efter hvor meget gulv der er med i rammen. Erklaeret her, ikke inde i
+    // loekken - den skal ogsaa kunne laeses, naar billedet gemmes bagefter.
+    const tone = (row?.tone ?? undefined) as Tone | undefined;
+    const toneOut: { tone?: Tone } = {};
+
     if (only === null) {
       // Samtidigt, ikke i koe. Fem kald i traek tog laengere end Supabase lader
       // ét kald vare, saa billederne blev faerdige mens selve analysen aldrig
       // naaede i mål. Hvert delkald har sit eget CPU-budget, saa de kan lige
       // saa godt loebe ved siden af hinanden.
-      const results = await Promise.all(photos.map(async (_p, i) => {
+      const kald = async (i: number) => {
         try {
           const r = await fetch(`${SUPABASE_URL}/functions/v1/analyze-draft`, {
             method: "POST",
@@ -301,8 +308,12 @@ Deno.serve(async (req: Request) => {
           console.error("foto", i, err);
           return false;
         }
-      }));
-      personalInfoSeen = results.some(Boolean);
+      };
+      // Foerste billede alene: det maaler seriens fremkaldelse, som resten
+      // henter. Derefter loeber de oevrige ved siden af hinanden.
+      const first = photos.length ? await kald(0) : false;
+      const rest = await Promise.all(photos.slice(1).map((_p, i) => kald(i + 1)));
+      personalInfoSeen = [first, ...rest].some(Boolean);
 
       const { data: fresh } = await supabase.from("drafts").select("photos").eq("id", id).single();
       if (Array.isArray(fresh?.photos) && fresh.photos.length) {
@@ -412,7 +423,7 @@ Deno.serve(async (req: Request) => {
         // den sker én gang — et separat kontrolbillede kostede en afkodning
         // mere pr. foto og sprængte Supabases CPU-grænse.
         let jpeg = await optimizePhoto(l.buf, {
-          ...frame, rotationDegrees: rotation, crop: box,
+          ...frame, rotationDegrees: rotation, crop: box, tone, toneOut,
           mask: regions.map(toBox), protect: guards.map(toBox), look,
         });
 
@@ -441,7 +452,7 @@ Deno.serve(async (req: Request) => {
             if (spin) rotation = (rotation + missing) % 360;
             jpeg = await optimizePhoto(l.buf, {
               ...frame, subjectCutOff: tight || frame.subjectCutOff,
-              rotationDegrees: rotation, crop: box,
+              rotationDegrees: rotation, crop: box, tone: tone ?? toneOut.tone,
               mask: regions.map(toBox), protect: guards.map(toBox), look,
             });
           }
@@ -511,6 +522,10 @@ Deno.serve(async (req: Request) => {
         await supabase.rpc("set_draft_photo", {
           p_id: id, p_index: only, p_photo: loaded[0].photo,
         });
+        // Foerste billede laegger fremkaldelsen frem til resten af serien.
+        if (only === 0 && !tone && toneOut.tone) {
+          await supabase.from("drafts").update({ tone: toneOut.tone }).eq("id", id);
+        }
       }
       return new Response(JSON.stringify({ ok: true, personal: personalInfoSeen }), {
         headers: { "content-type": "application/json" },

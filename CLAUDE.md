@@ -75,6 +75,13 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   Upload sender Vinted brugeren videre til annoncens egen side; dér ser scriptet
   markøren i `localStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
   det kører kun, når man trykker på det.
+- **Hele serien fremkaldes ens.** Hvidbalance, sort-/hvidpunkt og gamma måles på
+  det FØRSTE billede, gemmes i `drafts.tone` og genbruges på resten. Måler hvert
+  billede sit eget, får den samme jakke forskellig farve alt efter hvor meget
+  gulv der er i rammen — forfra blev oliven og udvasket, bagfra næsten sort.
+  Derfor kører foto 0 alene først, resten parallelt bagefter.
+- **Hele varer beskæres altid til 3:4**, nærbilleder må følge motivets facon.
+  Ens hovedbilleder er det, der får annoncen til at se ordentlig ud i gitteret.
 - **Fotoupload tegner formularen om**, så billederne lægges ind til sidst. En
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`
