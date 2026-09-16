@@ -337,7 +337,8 @@
     // og "Kasser" ligger ikke lige ved siden af det, du trykker på dagligt.
     var rest = '<div class="sect">';
     if(d.status === 'ny'){
-      rest += '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
+      rest += '<button type="button" class="btn btn-quiet" data-a="reshopper">Klargør til Reshopper</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
               '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
     }
     rest += '<button type="button" class="btn btn-danger" data-a="discard">Kasser udkast</button></div>';
@@ -369,6 +370,7 @@
         setTimeout(function(){ btn.disabled = false; btn.textContent = 'Udfyld i Vinted'; }, 2500);
       });
     }
+    else if(a === 'reshopper') reshopper(d, btn);
     else if(a === 'copy'){
       var text = [d.title, d.description, d.price ? 'Pris: ' + d.price : ''].filter(Boolean).join('\n\n');
       if(navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ toast('Teksten er kopieret'); });
@@ -392,6 +394,78 @@
 
   // Billederne fra kameraet lander aldrig i kamerarullen — iOS giver dem
   // direkte til siden. Delingsarket har "Gem billeder", som tager alle på én gang.
+  /* ---- Reshopper ---------------------------------------------------------
+     Reshopper opretter kun varer fra deres egen app — der er ingen webformular
+     at udfylde, som der er på Vinted. Så langt vi kan komme er at lægge
+     annoncen færdig i DERES felter og rækkefølge, så indtastningen bliver ren
+     afskrift frem for at skulle skrives forfra.
+
+     Felterne står i den orden, deres app spørger om dem. Tryk på en linje for
+     at kopiere netop den. */
+  var RESHOPPER_API = FILL_API.replace('vinted-fill-script', 'reshopper-draft');
+
+  var SEGMENT = { kids:'Børn', women:'Mor', home:'Bolig' };
+  var KATEGORI = { shoes:'Sko', clothes:'Tøj', toys:'Legetøj', gear:'Udstyr', furniture:'Møbler',
+    garden:'Have', bikes:'Cykler', booksAndMedia:'Bøger og medier', maternity:'Gravid',
+    misc:'Diverse', accessories:'Tilbehør', interior:'Indretning' };
+  var STAND = { brandNew:'Ny med mærke', new:'Ny uden mærke', used:'Brugt', broken:'Defekt' };
+  var KOEN = { boy:'Dreng', girl:'Pige' };
+
+  function reshopper(d, btn){
+    btn.disabled = true; btn.textContent = 'Klargør …';
+    fetch(RESHOPPER_API, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: d.id })
+    }).then(function(r){ return r.json(); }).then(function(r){
+      btn.disabled = false; btn.textContent = 'Klargør til Reshopper';
+      if(!r || r.error){ toast('Kunne ikke klargøre: ' + ((r && r.error) || 'ukendt fejl')); return; }
+      visReshopper(d, r);
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Klargør til Reshopper';
+      toast('Kunne ikke klargøre');
+    });
+  }
+
+  function visReshopper(d, r){
+    var felter = [
+      ['Kategori', (SEGMENT[r.segment] || r.segment) + ' › ' + (KATEGORI[r.category] || r.category)],
+      ['Mærke', r.brandOrTitle],
+      ['Alder', r.age],
+      ['Størrelse', r.size],
+      ['Køn', KOEN[r.gender] || ''],
+      ['Stand', STAND[r.conditionType] || r.conditionType],
+      ['Overskrift', r.description],
+      ['Beskrivelse', r.extendedDescription],
+      ['Pris', r.priceInKroner ? r.priceInKroner + ' kr.' : '']
+    ].filter(function(f){ return f[1]; });
+
+    var html = '<div class="sect"><span class="label">Til Reshopper</span>' +
+      '<p class="note">Tryk på en linje for at kopiere den. Billederne henter du med ' +
+      '“Gem billeder i Fotos”, så de ligger i kamerarullen, når deres app spørger.</p>' +
+      felter.map(function(f){
+        return '<button type="button" class="rs-row" data-v="' + esc(f[1]) + '">' +
+          '<span class="rs-k">' + esc(f[0]) + '</span>' +
+          '<span class="rs-v">' + esc(f[1]) + '</span></button>';
+      }).join('') + '</div>';
+
+    var gammel = document.getElementById('rs-blok');
+    if(gammel) gammel.remove();
+    var wrap = document.createElement('div');
+    wrap.id = 'rs-blok'; wrap.innerHTML = html;
+    $('d-body').appendChild(wrap);
+    Array.prototype.forEach.call(wrap.querySelectorAll('.rs-row'), function(b){
+      b.addEventListener('click', function(){
+        var v = b.getAttribute('data-v');
+        if(navigator.clipboard) navigator.clipboard.writeText(v).then(function(){
+          b.classList.add('is-taken');
+          setTimeout(function(){ b.classList.remove('is-taken'); }, 1200);
+          toast('Kopieret');
+        });
+      });
+    });
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function savePhotos(d, btn){
     var photos = d.photos || [];
     if(!photos.length) return;
