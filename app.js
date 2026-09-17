@@ -420,6 +420,9 @@
       btn.disabled = false; btn.textContent = 'Klargør til Reshopper';
       if(!r || r.error){ toast('Kunne ikke klargøre: ' + ((r && r.error) || 'ukendt fejl')); return; }
       visReshopper(d, r);
+      // Billederne skal ligge i kamerarullen, INDEN Reshopper-appen åbnes —
+      // ellers står man i deres billedvælger med en tom rulle.
+      savePhotos(d, null);
     }).catch(function(){
       btn.disabled = false; btn.textContent = 'Klargør til Reshopper';
       toast('Kunne ikke klargøre');
@@ -427,49 +430,85 @@
   }
 
   function visReshopper(d, r){
+    // Rækkefølgen følger Reshoppers egen opret-skærm, så du kan gå lige ned
+    // gennem listen uden at lede efter det næste felt.
     var felter = [
-      ['Kategori', (SEGMENT[r.segment] || r.segment) + ' › ' + (KATEGORI[r.category] || r.category)],
+      ['Afdeling', SEGMENT[r.segment] || r.segment],
+      ['Kategori', KATEGORI[r.category] || r.category],
+      ['Overskrift', r.description],
       ['Mærke', r.brandOrTitle],
-      ['Alder', r.age],
       ['Størrelse', r.size],
+      ['Alder', r.age],
       ['Køn', KOEN[r.gender] || ''],
       ['Stand', STAND[r.conditionType] || r.conditionType],
-      ['Overskrift', r.description],
       ['Beskrivelse', r.extendedDescription],
-      ['Pris', r.priceInKroner ? r.priceInKroner + ' kr.' : '']
+      ['Pris', r.priceInKroner ? String(r.priceInKroner) : '']
     ].filter(function(f){ return f[1]; });
 
+    // Hvor langt du er, huskes pr. udkast. Bliver du afbrudt midt i, kan du se
+    // hvad der mangler i stedet for at begynde forfra.
+    var noegle = 'rs-taget-' + d.id, taget = {};
+    try { taget = JSON.parse(localStorage.getItem(noegle) || '{}'); } catch(e){}
+
     var html = '<div class="sect"><span class="label">Til Reshopper</span>' +
-      '<p class="note">Tryk på en linje for at kopiere den. Billederne henter du med ' +
-      '“Gem billeder i Fotos”, så de ligger i kamerarullen, når deres app spørger.</p>' +
-      felter.map(function(f){
-        return '<button type="button" class="rs-row" data-v="' + esc(f[1]) + '">' +
-          '<span class="rs-k">' + esc(f[0]) + '</span>' +
+      '<p class="note">Billederne er på vej i kamerarullen. Tryk på hver linje for at kopiere ' +
+      'den — de står i samme rækkefølge som i Reshoppers opret-skærm.</p>' +
+      felter.map(function(f, i){
+        return '<button type="button" class="rs-row' + (taget[f[0]] ? ' is-done' : '') +
+          '" data-k="' + esc(f[0]) + '" data-v="' + esc(f[1]) + '">' +
+          '<span class="rs-k">' + esc(i + 1) + '. ' + esc(f[0]) + '</span>' +
           '<span class="rs-v">' + esc(f[1]) + '</span></button>';
-      }).join('') + '</div>';
+      }).join('') +
+      '<button type="button" class="btn btn-primary" id="rs-open" style="margin-top:12px">Åbn Reshopper</button>' +
+      '<button type="button" class="btn btn-quiet" id="rs-reset">Nulstil afkrydsning</button></div>';
 
     var gammel = document.getElementById('rs-blok');
     if(gammel) gammel.remove();
     var wrap = document.createElement('div');
     wrap.id = 'rs-blok'; wrap.innerHTML = html;
     $('d-body').appendChild(wrap);
+    function gem(){ try { localStorage.setItem(noegle, JSON.stringify(taget)); } catch(e){} }
+
     Array.prototype.forEach.call(wrap.querySelectorAll('.rs-row'), function(b){
       b.addEventListener('click', function(){
-        var v = b.getAttribute('data-v');
-        if(navigator.clipboard) navigator.clipboard.writeText(v).then(function(){
-          b.classList.add('is-taken');
-          setTimeout(function(){ b.classList.remove('is-taken'); }, 1200);
-          toast('Kopieret');
+        var v = b.getAttribute('data-v'), k = b.getAttribute('data-k');
+        if(!navigator.clipboard) return;
+        navigator.clipboard.writeText(v).then(function(){
+          b.classList.add('is-done');
+          taget[k] = 1; gem();
+          // Ned til det næste, der mangler — så fingeren aldrig skal lede.
+          var naeste = wrap.querySelector('.rs-row:not(.is-done)');
+          if(naeste) naeste.scrollIntoView({ behavior:'smooth', block:'center' });
         });
       });
     });
+
+    // reshopper:// er deres egen adresse — den står i appens Info.plist.
+    // Findes appen ikke, sker der ingenting, så vi falder tilbage på App Store.
+    wrap.querySelector('#rs-open').addEventListener('click', function(){
+      var t = Date.now();
+      window.location.href = 'reshopper://';
+      setTimeout(function(){
+        if(Date.now() - t < 1500) window.location.href = 'https://apps.apple.com/dk/app/reshopper/id551998942';
+      }, 800);
+    });
+
+    wrap.querySelector('#rs-reset').addEventListener('click', function(){
+      taget = {}; gem();
+      Array.prototype.forEach.call(wrap.querySelectorAll('.rs-row'), function(x){ x.classList.remove('is-done'); });
+      toast('Afkrydsningen er nulstillet');
+    });
+
     wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function savePhotos(d, btn){
     var photos = d.photos || [];
-    if(!photos.length) return;
-    btn.disabled = true; btn.textContent = 'Henter billeder …';
+    if(!photos.length) return Promise.resolve();
+    // Kaldes både fra knappen og fra Reshopper-flowet, hvor der ikke er nogen
+    // knap at slå fra.
+    var label = btn && btn.textContent;
+    if(btn){ btn.disabled = true; btn.textContent = 'Henter billeder …'; }
     Promise.all(photos.map(function(p, i){
       return fetch(p.url).then(function(r){ return r.blob(); }).then(function(b){
         return new File([b], (i+1) + '-' + (p.kind || 'billede') + '.jpg', { type: 'image/jpeg' });
@@ -480,7 +519,7 @@
       }
       toast('Hold fingeren på et billede og vælg "Føj til Fotos"');
     }).catch(function(){}).then(function(){
-      btn.disabled = false; btn.textContent = 'Gem billeder i Fotos';
+      if(btn){ btn.disabled = false; btn.textContent = label; }
     });
   }
 
