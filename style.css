@@ -377,3 +377,21 @@
 .rs-row.is-done .rs-k::after{ content: ' ✓'; color: var(--accent); font-weight: 700; }
 .rs-k{ font-size: var(--t-label); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
 .rs-v{ font-size: var(--t-body); color: var(--ink); line-height: 1.4; white-space: pre-wrap; }
+
+/* De korte felter staar som EN tabel, ikke som otte knapper. De skal laeses i
+   et blik og tastes i Reshopper — der er ikke noget at trykke paa her. */
+.rs-list{
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface); overflow: hidden; margin-bottom: var(--s3);
+}
+.rs-li{
+  display: flex; align-items: baseline; gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+.rs-li:last-child{ border-bottom: 0; }
+.rs-li .rs-k{ flex: 0 0 5.5rem; }
+.rs-li .rs-v{ flex: 1; min-width: 0; font-weight: 600; }
+/* Naar du kommer tilbage fra Reshopper, skal fingeren ikke lede efter, hvad
+   der mangler. */
+.rs-row.is-next{ border-color: var(--accent); background: var(--raised); }

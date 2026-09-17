@@ -400,8 +400,8 @@
      annoncen færdig i DERES felter og rækkefølge, så indtastningen bliver ren
      afskrift frem for at skulle skrives forfra.
 
-     Felterne står i den orden, deres app spørger om dem. Tryk på en linje for
-     at kopiere netop den. */
+     De korte felter læses én gang og tastes; kun overskrift og beskrivelse
+     kopieres, for hvert kopieret felt koster et skift frem og tilbage. */
   var RESHOPPER_API = FILL_API.replace('vinted-fill-script', 'reshopper-draft');
 
   var SEGMENT = { kids:'Børn', women:'Mor', home:'Bolig' };
@@ -429,20 +429,28 @@
     });
   }
 
+  var RS_VIS = null;  // lytteren der peger på næste tekstfelt, når du kommer tilbage
+
   function visReshopper(d, r){
-    // Rækkefølgen følger Reshoppers egen opret-skærm, så du kan gå lige ned
-    // gennem listen uden at lede efter det næste felt.
-    var felter = [
+    // Kun to ting skal på klippebordet: overskriften og beskrivelsen. Resten er
+    // vælgere og korte tal — dem taster du hurtigere direkte, end du kan skifte
+    // app for at indsætte dem. Klippebordet holder kun én ting ad gangen, så
+    // hvert kopieret felt koster en tur frem og tilbage; det er turene, ikke
+    // tastningen, der tager tiden.
+    var vaelg = [
       ['Afdeling', SEGMENT[r.segment] || r.segment],
       ['Kategori', KATEGORI[r.category] || r.category],
-      ['Overskrift', r.description],
       ['Mærke', r.brandOrTitle],
       ['Størrelse', r.size],
       ['Alder', r.age],
       ['Køn', KOEN[r.gender] || ''],
       ['Stand', STAND[r.conditionType] || r.conditionType],
-      ['Beskrivelse', r.extendedDescription],
-      ['Pris', r.priceInKroner ? String(r.priceInKroner) : '']
+      ['Pris', r.priceInKroner ? r.priceInKroner + ' kr' : '']
+    ].filter(function(f){ return f[1]; });
+
+    var tekst = [
+      ['Overskrift', r.description],
+      ['Beskrivelse', r.extendedDescription]
     ].filter(function(f){ return f[1]; });
 
     // Hvor langt du er, huskes pr. udkast. Bliver du afbrudt midt i, kan du se
@@ -451,12 +459,16 @@
     try { taget = JSON.parse(localStorage.getItem(noegle) || '{}'); } catch(e){}
 
     var html = '<div class="sect"><span class="label">Til Reshopper</span>' +
-      '<p class="note">Billederne er på vej i kamerarullen. Tryk på hver linje for at kopiere ' +
-      'den — de står i samme rækkefølge som i Reshoppers opret-skærm.</p>' +
-      felter.map(function(f, i){
+      '<p class="note">Billederne er på vej i kamerarullen. Læs de korte felter ' +
+      'én gang og tast dem i Reshopper — kun de to nederste skal kopieres.</p>' +
+      '<div class="rs-list">' + vaelg.map(function(f){
+        return '<div class="rs-li"><span class="rs-k">' + esc(f[0]) + '</span>' +
+          '<span class="rs-v">' + esc(f[1]) + '</span></div>';
+      }).join('') + '</div>' +
+      tekst.map(function(f, i){
         return '<button type="button" class="rs-row' + (taget[f[0]] ? ' is-done' : '') +
           '" data-k="' + esc(f[0]) + '" data-v="' + esc(f[1]) + '">' +
-          '<span class="rs-k">' + esc(i + 1) + '. ' + esc(f[0]) + '</span>' +
+          '<span class="rs-k">' + esc(i + 1) + '. ' + esc(f[0]) + ' — tryk for at kopiere</span>' +
           '<span class="rs-v">' + esc(f[1]) + '</span></button>';
       }).join('') +
       '<button type="button" class="btn btn-primary" id="rs-open" style="margin-top:12px">Åbn Reshopper</button>' +
@@ -464,40 +476,62 @@
 
     var gammel = document.getElementById('rs-blok');
     if(gammel) gammel.remove();
+    if(RS_VIS){ document.removeEventListener('visibilitychange', RS_VIS); RS_VIS = null; }
     var wrap = document.createElement('div');
     wrap.id = 'rs-blok'; wrap.innerHTML = html;
     $('d-body').appendChild(wrap);
     function gem(){ try { localStorage.setItem(noegle, JSON.stringify(taget)); } catch(e){} }
+    function naeste(){ return wrap.querySelector('.rs-row:not(.is-done)'); }
+
+    // Peger på det næste, der mangler. Kopierer IKKE af sig selv: Safari giver
+    // kun adgang til klippebordet under et tryk, og et felt, der lagde sig på
+    // klippebordet uden du bad om det, ville skubbe det forrige ud, før du nåede
+    // at sætte det ind.
+    function peg(){
+      Array.prototype.forEach.call(wrap.querySelectorAll('.rs-row'), function(x){ x.classList.remove('is-next'); });
+      var n = naeste();
+      if(n){ n.classList.add('is-next'); n.scrollIntoView({ behavior:'smooth', block:'center' }); }
+    }
+
+    function kopier(b){
+      if(!navigator.clipboard) return Promise.reject();
+      return navigator.clipboard.writeText(b.getAttribute('data-v')).then(function(){
+        b.classList.add('is-done'); b.classList.remove('is-next');
+        taget[b.getAttribute('data-k')] = 1; gem();
+      });
+    }
 
     Array.prototype.forEach.call(wrap.querySelectorAll('.rs-row'), function(b){
-      b.addEventListener('click', function(){
-        var v = b.getAttribute('data-v'), k = b.getAttribute('data-k');
-        if(!navigator.clipboard) return;
-        navigator.clipboard.writeText(v).then(function(){
-          b.classList.add('is-done');
-          taget[k] = 1; gem();
-          // Ned til det næste, der mangler — så fingeren aldrig skal lede.
-          var naeste = wrap.querySelector('.rs-row:not(.is-done)');
-          if(naeste) naeste.scrollIntoView({ behavior:'smooth', block:'center' });
-        });
-      });
+      b.addEventListener('click', function(){ kopier(b).then(peg, function(){}); });
     });
 
     // reshopper:// er deres egen adresse — den står i appens Info.plist.
     // Findes appen ikke, sker der ingenting, så vi falder tilbage på App Store.
     wrap.querySelector('#rs-open').addEventListener('click', function(){
-      var t = Date.now();
-      window.location.href = 'reshopper://';
-      setTimeout(function(){
-        if(Date.now() - t < 1500) window.location.href = 'https://apps.apple.com/dk/app/reshopper/id551998942';
-      }, 800);
+      // Tag det første tekstfelt med over. Trykket her ER brugerhandlingen,
+      // så klippebordet må skrives — så slipper du for en tur tilbage efter det.
+      var n = naeste();
+      var aabn = function(){
+        var t = Date.now();
+        window.location.href = 'reshopper://';
+        setTimeout(function(){
+          if(Date.now() - t < 1500) window.location.href = 'https://apps.apple.com/dk/app/reshopper/id551998942';
+        }, 800);
+      };
+      if(n) kopier(n).then(aabn, aabn); else aabn();
     });
 
     wrap.querySelector('#rs-reset').addEventListener('click', function(){
       taget = {}; gem();
       Array.prototype.forEach.call(wrap.querySelectorAll('.rs-row'), function(x){ x.classList.remove('is-done'); });
+      peg();
       toast('Afkrydsningen er nulstillet');
     });
+
+    RS_VIS = function(){
+      if(document.visibilityState === 'visible' && document.body.contains(wrap)) peg();
+    };
+    document.addEventListener('visibilitychange', RS_VIS);
 
     wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
