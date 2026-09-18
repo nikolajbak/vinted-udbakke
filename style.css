@@ -222,6 +222,11 @@
   .gallery{ position: relative; }
   .hero-track{
     display: flex;
+    /* Uden dette straekker flex hvert billede til det HOEJESTE i serien: et
+       3:4-naerbillede gjorde en liggende cardigan 576x768 i stedet for
+       576x480, altsaa mast paa hoejkant. Billedet saa strukket ud, og det VAR
+       det - af rækken, ikke af billedbehandlingen. */
+    align-items: flex-start;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
@@ -240,6 +245,9 @@
        billedet, saa det du ser ER filen. Saetter vi et format her, letterboxer
        vi den anden vej og lyver om resultatet. */
     height: auto;
+    /* Sikkerhedsnet: skulle noget alligevel paatvinge en hoejde, skal billedet
+       letterboxes - aldrig forvraenges. */
+    object-fit: contain;
     border-radius: 12px;
     border: 1px solid var(--line);
     background: var(--surface);

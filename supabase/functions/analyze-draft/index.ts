@@ -527,7 +527,14 @@ Deno.serve(async (req: Request) => {
         });
         if (up.error) continue;
         l.photo.path = optPath;
-        l.photo.url = supabase.storage.from("photos").getPublicUrl(optPath).data.publicUrl;
+        // Filen skrives til den SAMME sti hver gang (upsert), saa baade Safari
+        // og Supabases CDN ville blive ved med at vise den kopi, de allerede
+        // har. Et stempel i adressen goer den til en ny adresse, og saa hentes
+        // billedet forfra. Uden det ligner en rettet billedbehandling, at intet
+        // er sket.
+        const stempel = Date.now().toString(36);
+        const raa = supabase.storage.from("photos").getPublicUrl(optPath).data.publicUrl;
+        l.photo.url = raa + (raa.includes("?") ? "&" : "?") + "v=" + stempel;
         l.photo.optimized = true;
         l.buf = jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength) as ArrayBuffer;
         l.mediaType = "image/jpeg";
