@@ -22,6 +22,8 @@ export interface PhotoGuidance {
   subjectCutOff?: boolean;
   backgroundClutter?: boolean;
   padStyle?: string;
+  seriesRatio?: number;
+  ratioOut?: { ratio?: number };
   crop: { x0: number; y0: number; x1: number; y1: number };
   look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
   mask?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
@@ -546,15 +548,19 @@ export async function optimizePhoto(
   // Pick the allowed ratio closest to the item's own shape, then grow (never
   // shrink) into it, so nothing of the item is lost and no side fills up with
   // background.
-  // Formatet laegger sig saa taet paa motivets egen facon, som baandet
-  // tillader. Det er dét, der goer varen saa stor som muligt: hver grad, vi
-  // tvinger formatet vaek fra varens facon, er en bræmme ramme, der skal
-  // fyldes - og en vare, der bliver mindre i gitteret.
+  // HELE SERIEN faar ét format, og det maales paa det foerste billede.
   //
-  // Foer blev hele varer altid tvunget til 3:4 for at staa ens i gitteret. Med
-  // en bred cardigan kostede det to tredjedele af rammen i tom ramme. Ens
-  // format er ikke mere vaerd end en vare, man kan se.
-  const target = Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
+  // De to hensyn traekker hver sin vej: et format, der foelger hver vare, goer
+  // varen saa stor som muligt - men saa har de fem billeder i én annonce fem
+  // forskellige facons, og det ser rodet ud. Et fast format (foer: altid 3:4)
+  // er ens, men kostede en bred cardigan to tredjedele af rammen i tom ramme.
+  //
+  // Svaret er at maale formatet paa hovedbilledet og give resten DET. Saa er
+  // annoncen ens, og maalestokken er varen selv frem for et tal, vi har valgt.
+  // Samme greb som fremkaldelsen, der ogsaa maales paa foto 0 og genbruges.
+  const egen = Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
+  const target = guidance.seriesRatio && guidance.seriesRatio > 0 ? guidance.seriesRatio : egen;
+  if (guidance.ratioOut && !guidance.seriesRatio) guidance.ratioOut.ratio = egen;
   // For at ramme formatet skal rammen VOKSE - og den vokser ud i det, der
   // ligger rundt om varen. Er det et rent gulv, er det fint. Er det
   // fotografens fodder, en sengekant eller et andet moebel, er det praecis

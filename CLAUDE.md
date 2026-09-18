@@ -112,11 +112,13 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   systemkameraet. Rammeguiden står derfor på optageskærmen lige FØR trykket. Et
   rigtigt overlay ville kræve `getUserMedia` og et eget kamera — og dét koster
   billedkvalitet på iOS.
-- **Formatet følger varens egen facon, så tæt som båndet tillader.** Hver grad,
-  formatet tvinges væk fra varen, er en bræmme ramme, der skal fyldes — og en
-  vare, der bliver mindre i gitteret. En bred cardigan, tvunget til 3:4, mistede
-  to tredjedele af rammen til tom ramme. Ens format er ikke mere værd end en
-  vare, man kan se.
+- **Hele serien får ÉT format, målt på det første billede** og gemt i
+  `drafts.ratio` — samme greb som fremkaldelsen. De to hensyn trækker hver sin
+  vej: et format pr. billede gør varen størst, men giver fem forskellige facons
+  i én annonce; et fast format (før: altid 3:4) er ens, men kostede en bred
+  cardigan to tredjedele af rammen. Målestokken er nu hovedbilledet, altså varen
+  selv, i stedet for et tal vi har valgt. Prisen er, at et nærbillede i
+  portrætfacon får brede bånd i siden.
 - **Ingen `object-fit: cover` på et annoncebillede nogen steder i appen.** Et
   bredt billede klippet ned i en høj kasse ser ud, som om billedbehandlingen har
   strakt det. Køkort, billedstribe og historik viser nu `contain` på papirfarven.

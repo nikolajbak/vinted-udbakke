@@ -260,7 +260,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { data: row, error: rowErr } = await supabase
       .from("drafts")
-      .select("photos, image_url, tone, pad_style")
+      .select("photos, image_url, tone, pad_style, ratio")
       .eq("id", id)
       .single();
     if (rowErr) throw new Error(`row_fetch_failed: ${rowErr.message}`);
@@ -286,6 +286,9 @@ Deno.serve(async (req: Request) => {
     // loekken - den skal ogsaa kunne laeses, naar billedet gemmes bagefter.
     const tone = (row?.tone ?? undefined) as Tone | undefined;
     const toneOut: { tone?: Tone } = {};
+    // Formatet deles som fremkaldelsen: maalt paa foto 0, genbrugt af resten.
+    const seriesRatio = Number(row?.ratio) || undefined;
+    const ratioOut: { ratio?: number } = {};
 
     if (only === null) {
       // Samtidigt, ikke i koe. Fem kald i traek tog laengere end Supabase lader
@@ -443,7 +446,7 @@ Deno.serve(async (req: Request) => {
         // den sker én gang — et separat kontrolbillede kostede en afkodning
         // mere pr. foto og sprængte Supabases CPU-grænse.
         let jpeg = await optimizePhoto(l.buf, {
-          ...frame, rotationDegrees: rotation, crop: box, tone, toneOut,
+          ...frame, rotationDegrees: rotation, crop: box, tone, toneOut, seriesRatio, ratioOut,
           mask: regions.map(toBox), protect: guards.map(toBox), look,
         });
 
@@ -473,6 +476,7 @@ Deno.serve(async (req: Request) => {
             jpeg = await optimizePhoto(l.buf, {
               ...frame, subjectCutOff: tight || frame.subjectCutOff,
               rotationDegrees: rotation, crop: box, tone: tone ?? toneOut.tone,
+              seriesRatio: seriesRatio ?? ratioOut.ratio, ratioOut,
               mask: regions.map(toBox), protect: guards.map(toBox), look,
             });
           }
@@ -549,9 +553,13 @@ Deno.serve(async (req: Request) => {
         await supabase.rpc("set_draft_photo", {
           p_id: id, p_index: only, p_photo: loaded[0].photo,
         });
-        // Foerste billede laegger fremkaldelsen frem til resten af serien.
-        if (only === 0 && !tone && toneOut.tone) {
-          await supabase.from("drafts").update({ tone: toneOut.tone }).eq("id", id);
+        // Foerste billede laegger fremkaldelsen OG formatet frem til resten af
+        // serien. Begge dele maales paa hovedbilledet, saa annoncen staar ens.
+        const felter: Record<string, unknown> = {};
+        if (only === 0 && !tone && toneOut.tone) felter.tone = toneOut.tone;
+        if (only === 0 && !seriesRatio && ratioOut.ratio) felter.ratio = ratioOut.ratio;
+        if (Object.keys(felter).length) {
+          await supabase.from("drafts").update(felter).eq("id", id);
         }
       }
       return new Response(JSON.stringify({ ok: true, personal: personalInfoSeen }), {
