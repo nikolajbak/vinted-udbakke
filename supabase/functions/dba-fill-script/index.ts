@@ -183,11 +183,30 @@ const MARKET_SYSTEM =
 
 async function analyseMarket(
   draft: Record<string, unknown>,
-  items: Array<{ id: string; price: number; text: string }>,
+  items: Array<{ id: string; price: number; text: string; tier?: string }>,
+  maerkeAntal = 0,
+  kategoriNavn = "",
 ): Promise<Record<string, unknown> | null> {
   const photos = (Array.isArray(draft.photos) ? draft.photos : []) as Array<{ url?: string; kind?: string }>;
-  const list = items.map((it, i) => `${i}: ${it.price} kr — ${it.text}`).join("\n");
+  const list = items.map((it, i) => `${i}: [${it.tier ?? "?"}] ${it.price} kr — ${it.text}`).join("\n");
   const billeder = photos.map((p, i) => `${i + 1}: ${p.kind ?? "billede"}`).join(", ");
+
+  // Sig hvad grundlaget ER. Blander man faa annoncer af maerket sammen med
+  // mange fra kategorien uden at sige det, laeser modellen det hele som ét
+  // felt og traekker prisen mod kategoriens midte - ogsaa naar maerket ligger
+  // klart over eller under den.
+  const katAntal = items.length - maerkeAntal;
+  const grundlag = maerkeAntal >= 8
+    ? `Grundlaget er ${maerkeAntal} annoncer med SAMME MÆRKE. De er den rette målestok.\n\n`
+    : maerkeAntal > 0
+    ? `Bemærk: der er kun ${maerkeAntal} annoncer med samme mærke — for få til at stå alene. ` +
+      `Derfor er der hentet ${katAntal} annoncer fra samme kategori${kategoriNavn ? ` (${kategoriNavn})` : ""} ` +
+      `som bredere grundlag. Hver annonce er mærket [mærke] eller [kategori].\n` +
+      `Brug kategorien til at se, hvor markedet ligger, og brug de få af mærket til at afgøre, ` +
+      `om denne vare hører over, under eller midt i det felt. Et stærkt mærke skal ikke trækkes ` +
+      `ned til kategoriens midte — og et svagt skal ikke løftes op til den.\n\n`
+    : `Varen har intet oplyst mærke, så grundlaget er ${katAntal} annoncer fra samme ` +
+      `kategori${kategoriNavn ? ` (${kategoriNavn})` : ""}. Døm ud fra billederne, hvor i det felt varen hører hjemme.\n\n`;
 
   const content: unknown[] = photos
     .filter((p) => p?.url)
@@ -198,6 +217,7 @@ async function analyseMarket(
       `Mærke: ${draft.brand ?? ""}\nStørrelse: ${draft.size ?? ""}\nStand: ${draft.condition ?? ""}\n` +
       `Farve: ${draft.color ?? ""}\nMateriale: ${draft.material ?? ""}\n\n` +
       `Billederne ovenfor er i rækkefølgen: ${billeder}\n\n` +
+      grundlag +
       `Annoncer på DBA lige nu:\n${list}`,
   });
 
@@ -234,7 +254,8 @@ async function analyseMarket(
     // over medianen af de sammenlignelige. Det synlige felt er de usolgte.
     if (price > med) {
       price = med;
-      note = `lagt på medianen af ${valgte.length} sammenlignelige (${med} kr)`;
+      const kilde = maerkeAntal >= 8 ? "af samme mærke" : "fra samme kategori";
+      note = `lagt på medianen af ${valgte.length} sammenlignelige ${kilde} (${med} kr)`;
     }
     price = roundPrice(price);
   } else {
@@ -351,6 +372,7 @@ Deno.serve(async (req: Request) => {
     let body: {
       id?: string; mode?: string; kind?: string; chosen?: string[];
       options?: string[]; hint?: string; items?: unknown[];
+      maerkeAntal?: number; kategoriNavn?: string;
     };
     try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
     if (!body.id) return json({ error: "missing_id" }, 400);
@@ -367,12 +389,17 @@ Deno.serve(async (req: Request) => {
         .eq("id", body.id).single();
       if (!data) return json({ error: "no_draft" }, 404);
       const items = (Array.isArray(body.items) ? body.items : [])
-        .map((i) => i as { id: string; price: number; text: string })
+        .map((i) => i as { id: string; price: number; text: string; tier?: string })
         .filter((i) => i && Number(i.price) > 0)
         .slice(0, 60);
       if (items.length < 4) return json({ note: "for få annoncer" });
       try {
-        const out = await analyseMarket(data as Record<string, unknown>, items);
+        const out = await analyseMarket(
+          data as Record<string, unknown>,
+          items,
+          Number(body.maerkeAntal) || 0,
+          String(body.kategoriNavn ?? ""),
+        );
         return json(out ?? { note: "analysen gav intet" });
       } catch (err) {
         console.error("market failed", err);

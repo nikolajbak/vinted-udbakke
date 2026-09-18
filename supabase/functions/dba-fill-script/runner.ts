@@ -191,22 +191,50 @@ async function soeg(q){
  }catch(e){return []}
 }
 
-async function markedsanalyse(d,valgtKategori){
- // To soegninger: én med maerket, som rammer praecist, og én uden, som fanger
- // de varer en koeber ville stille op ved siden af uden at skaeve til maerket.
- var type=valgtKategori||((d.categoryPath&&d.categoryPath.length)?d.categoryPath[d.categoryPath.length-1]:'');
- var q1=[d.brand,type].filter(Boolean).join(' ')||d.searchQuery||d.title;
- var q2=[type,d.size].filter(Boolean).join(' ');
- var a=await soeg(q1);
- var b=(q2&&q2!==q1)?await soeg(q2):[];
- var set={},alle=[];
- a.concat(b).forEach(function(i){if(!set[i.id]){set[i.id]=1;alle.push(i)}});
+async function markedsanalyse(d,sti){
+ // Grundlaget bygges i trin, fra det praeciseste og udad. Maerket foerst:
+ // en CeLaVi-regnjakke er den bedste maalestok for en anden CeLaVi-regnjakke.
+ // Men er der faa af maerket - eller slet ingen - siger de faa priser mere om
+ // tilfaeldigheder end om markedet. Saa udvides der til KATEGORIEN, og
+ // modellen faar at vide, hvad den kigger paa, saa den kan regne maerkets
+ // placering ind i stedet for at behandle det hele som ét felt.
+ var leaf=(sti&&sti[2])||((d.categoryPath&&d.categoryPath.length)?d.categoryPath[d.categoryPath.length-1]:'');
+ var mid=(sti&&sti[1])||'';
+ var set={},maerke=[],kategori=[];
+
+ async function saml(q,bunke,tier){
+  if(!q)return;
+  var r=await soeg(q);
+  r.forEach(function(i){
+   if(set[i.id])return;
+   set[i.id]=1;i.tier=tier;bunke.push(i);
+  });
+ }
+
+ // Trin 1-2: maerket.
+ if(d.brand){
+  await saml([d.brand,leaf].filter(Boolean).join(' '),maerke,'mærke');
+  if(maerke.length<8&&mid)await saml([d.brand,mid].filter(Boolean).join(' '),maerke,'mærke');
+ }
+
+ // Trin 3-5: kategorien. Koeres naar maerket ikke gav nok - og ogsaa naar
+ // varen slet intet maerke har.
+ var NOK=12;
+ if(maerke.length<8){
+  await saml([leaf,d.size].filter(Boolean).join(' '),kategori,'kategori');
+  if(maerke.length+kategori.length<NOK)await saml(leaf,kategori,'kategori');
+  if(maerke.length+kategori.length<NOK&&mid)
+   await saml([mid,d.size].filter(Boolean).join(' '),kategori,'kategori');
+ }
+
+ var alle=maerke.concat(kategori);
  if(alle.length<4){log('marked: kun '+alle.length+' annoncer, beholder skoennet');return null}
- log('marked: '+alle.length+' annoncer fra DBA');
+ log('marked: '+alle.length+' annoncer ('+maerke.length+' af maerket, '+kategori.length+' fra kategorien)');
  try{
-  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({id:DRAFT_ID,mode:'market',items:alle.slice(0,60)})},60000);
-  var j=await r.json();
+  var r2=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id:DRAFT_ID,mode:'market',items:alle.slice(0,60),
+    maerkeAntal:maerke.length,kategoriNavn:leaf||mid})},60000);
+  var j=await r2.json();
   if(j&&(j.price||j.description)){log('marked: '+(j.note||'sat'));return j}
  }catch(e){log('marked: opslaget fejlede')}
  return null;
@@ -279,7 +307,7 @@ try{
  // varen ("Overtøj til børn"), og soegningen rammer bedre end Vinteds.
  var bedre={title:null,description:null,captions:null};
  var price=d.price;
- var marked=await markedsanalyse(d,VALGT_KATEGORI);
+ var marked=await markedsanalyse(d,VALGT_STI);
  if(marked){
   if(marked.title)bedre.title=marked.title;
   if(marked.description)bedre.description=marked.description;

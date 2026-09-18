@@ -128,6 +128,13 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   tast tegn for tegn (`keydown` + `InputEvent` + `keyup`, ~110 ms), vent ~1,4 s
   på listen, og vælg med **piletast ned + retur**. Et klik på forslaget virker
   IKKE. Det kostede tre prøvekørsler, hvor DOM'en så perfekt ud hver gang.
+- **DBA-grundlaget bygges i trin: mærket først, kategorien som reserve.** Er der
+  færre end otte annoncer med samme mærke, siger de få priser mere om
+  tilfældigheder end om markedet, og der hentes annoncer fra samme kategori
+  oveni. Modellen får at VIDE, hvad den kigger på — hver annonce er mærket
+  `[mærke]` eller `[kategori]`. Uden den skelnen læser den det hele som ét felt
+  og trækker prisen mod kategoriens midte, også når mærket ligger klart over
+  eller under den.
 - **Kontrollér DBA mod serveren, ikke mod DOM'en.** `GET
   /recommerce/create/api/item/{id}` viser, hvad der faktisk er gemt. Tre felter
   så udfyldte ud og var tomme på serveren.
