@@ -260,7 +260,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { data: row, error: rowErr } = await supabase
       .from("drafts")
-      .select("photos, image_url, tone")
+      .select("photos, image_url, tone, pad_style")
       .eq("id", id)
       .single();
     if (rowErr) throw new Error(`row_fetch_failed: ${rowErr.message}`);
@@ -423,6 +423,7 @@ Deno.serve(async (req: Request) => {
           subject: cleanText(g.subject) || undefined,
           subjectCutOff: g.subjectCutOff === true,
           backgroundClutter: g.backgroundClutter === true,
+          padStyle: (row?.pad_style as string) || "hvid",
         };
         const look = {
           exposure: Number(g.exposure) || 0,

@@ -21,6 +21,7 @@ export interface PhotoGuidance {
   subject?: string;
   subjectCutOff?: boolean;
   backgroundClutter?: boolean;
+  padStyle?: string;
   crop: { x0: number; y0: number; x1: number; y1: number };
   look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
   mask?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
@@ -446,6 +447,33 @@ function rotateBox(
  * Rotates, then expands the item's box to Vinted's 4:5 without ever cutting
  * into the item itself, and caps the long edge.
  */
+// Baggrundens egen farve, aflaest i billedets fire hjoerner.
+//
+// Hjoernerne er valgt med vilje. Beskaeringen er stram om varen, saa varen
+// roerer alle fire KANTER - men en vares omrids fylder aldrig sit eget
+// hjoerne. Der er altid underlag. Gennemsnittet af de fire er derfor
+// baggrunden, ogsaa naar varen fylder det meste af rammen.
+//
+// Et fladt felt, ikke en udstraekning af kantraekken: en udstraekning ville
+// traekke varens egen oeverste pixelraekke opad i striber, netop fordi den
+// stramme beskaering lader varen roere kanten.
+function kantFarve(img: { bitmap: Uint8ClampedArray; width: number; height: number }): number {
+  const { bitmap: px, width: W, height: H } = img;
+  const n = Math.max(4, Math.round(Math.min(W, H) * 0.06));
+  let r = 0, g = 0, b = 0, c = 0;
+  const hjoerner: Array<[number, number]> = [[0, 0], [W - n, 0], [0, H - n], [W - n, H - n]];
+  for (const [ox, oy] of hjoerner) {
+    for (let y = oy; y < oy + n; y++) {
+      for (let x = ox; x < ox + n; x++) {
+        const i = (y * W + x) * 4;
+        r += px[i]; g += px[i + 1]; b += px[i + 2]; c++;
+      }
+    }
+  }
+  if (!c) return Image.rgbaToColor(255, 255, 255, 255);
+  return Image.rgbaToColor(Math.round(r / c), Math.round(g / c), Math.round(b / c), 255);
+}
+
 export async function optimizePhoto(
   buf: ArrayBuffer,
   guidance: PhotoGuidance,
@@ -553,8 +581,8 @@ export async function optimizePhoto(
 
   image = image.crop(Math.round(cx), Math.round(cy), Math.round(cw), Math.round(ch));
 
-  // Den hvide ramme. Laegges kun naar der blev beskaaret stramt - ellers har
-  // billedet allerede formatet.
+  // Rammen, der bringer billedet op i format. Laegges kun naar der blev
+  // beskaaret stramt - ellers har billedet allerede formatet.
   if (isoler) {
     let tw = image.width;
     let th = image.height;
@@ -562,7 +590,9 @@ export async function optimizePhoto(
     else tw = Math.round(th * target);
     if (tw > image.width || th > image.height) {
       const bund = new Image(tw, th);
-      bund.fill(Image.rgbaToColor(255, 255, 255, 255));
+      bund.fill(guidance.padStyle === "kant"
+        ? kantFarve(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number })
+        : Image.rgbaToColor(255, 255, 255, 255));
       bund.composite(image, Math.round((tw - image.width) / 2), Math.round((th - image.height) / 2));
       image = bund;
     }
