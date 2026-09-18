@@ -81,6 +81,20 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget
   gulv der er i rammen — forfra blev oliven og udvasket, bagfra næsten sort.
   Derfor kører foto 0 alene først, resten parallelt bagefter.
+- **Rammen vokser ikke ud i rod.** For at ramme formatet skal beskæringen vokse,
+  og den vokser ud i dét, der ligger omkring varen. Er baggrunden rolig, er det
+  fint. Er der fødder, sengekant eller møbler tæt på (`backgroundClutter`),
+  beskæres der stramt om varen, og resten fyldes med **hvidt** — varen står
+  isoleret som på et produktfoto, og formatet er alligevel præcist. Uden det
+  greb hentede formatjusteringen præcis dét ind igen, beskæringen skulle af med.
+- **Læseretningen er facit for rotation, når der er tekst i billedet.**
+  Tyngdekraften er facit, når der ikke er. Står det ikke i prompten, vender
+  mærkater tilfældigt.
+- **iOS' eget kamera kan ikke få et overlay.** Appen bruger
+  `<input type="file" capture>`, og en webside må ikke tegne oven på
+  systemkameraet. Rammeguiden står derfor på optageskærmen lige FØR trykket. Et
+  rigtigt overlay ville kræve `getUserMedia` og et eget kamera — og dét koster
+  billedkvalitet på iOS.
 - **Hele varer beskæres altid til 3:4**, nærbilleder må følge motivets facon.
   Ens hovedbilleder er det, der får annoncen til at se ordentlig ud i gitteret.
 - **Fotoupload tegner formularen om**, så billederne lægges ind til sidst. En

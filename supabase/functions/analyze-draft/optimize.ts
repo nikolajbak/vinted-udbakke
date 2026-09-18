@@ -20,6 +20,7 @@ export interface PhotoGuidance {
   rotationDegrees: number;
   subject?: string;
   subjectCutOff?: boolean;
+  backgroundClutter?: boolean;
   crop: { x0: number; y0: number; x1: number; y1: number };
   look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
   mask?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
@@ -71,7 +72,12 @@ export const GUIDANCE_TOOL = {
     properties: {
       rotationDegrees: {
         type: "integer",
-        description: "0, 90, 180 eller 270 — hvor meget billedet skal roteres med uret for at vende rigtigt",
+        description:
+          "0, 90, 180 eller 270 — hvor meget billedet skal roteres MED URET for at vende rigtigt. " +
+          "Er der tekst i billedet (mærkat, vaskeanvisning, logo, tryk), er LÆSERETNINGEN facit: " +
+          "billedet vender rigtigt, når teksten læses vandret fra venstre mod højre. " +
+          "Er der ingen tekst, er tyngdekraften facit: op skal være op — en jakkes krave opad, " +
+          "et par buksers linning opad.",
       },
       subject: {
         type: "string",
@@ -88,6 +94,14 @@ export const GUIDANCE_TOOL = {
           "true hvis motivet allerede er skåret af billedets kant i det ORIGINALE foto — fx et logo " +
           "eller en tekst, hvor en del mangler ud over kanten. Det kan ikke laves om ved beskæring, " +
           "men rammen skal så lægges bredere, så det ikke springer i øjnene.",
+      },
+      backgroundClutter: {
+        type: "boolean",
+        description:
+          "true hvis der er forstyrrende baggrund TÆT på motivet, som ikke kan beskæres væk uden " +
+          "at skære i selve varen: fotografens fødder eller ben, en hånd, en sengekant, en " +
+          "bordkant, et møbel, andet tøj eller genstande. Er baggrunden rolig og ensartet — et " +
+          "rent gulv, en væg, et lagen uden kanter i billedet — så svar false.",
       },
       x0: { type: "number", description: "Venstre kant af motivet, 0-1 af bredden" },
       y0: { type: "number", description: "Øverste kant af motivet, 0-1 af højden" },
@@ -146,7 +160,7 @@ export const GUIDANCE_TOOL = {
       },
     },
     required: [
-      "rotationDegrees", "subject", "subjectCutOff", "x0", "y0", "x1", "y1",
+      "rotationDegrees", "subject", "subjectCutOff", "backgroundClutter", "x0", "y0", "x1", "y1",
       "personalRegions", "protectRegions", "exposure", "contrast", "warmth", "saturation",
     ],
   },
@@ -485,13 +499,29 @@ export async function optimizePhoto(
   const target = guidance.subject === "helvare"
     ? RATIO_MIN
     : Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
-  if (cw / ch > target) {
-    ch = cw / target;
-  } else {
-    cw = ch * target;
+  // For at ramme formatet skal rammen VOKSE - og den vokser ud i det, der
+  // ligger rundt om varen. Er det et rent gulv, er det fint. Er det
+  // fotografens fodder, en sengekant eller et andet moebel, er det praecis
+  // dét, beskaeringen skulle af med, og saa goer vi ondt vaerre ved at goere
+  // rammen stoerre.
+  //
+  // Derfor to veje. Er baggrunden rolig, vokser rammen som foer. Er der rod
+  // taet paa - eller kan formatet slet ikke naas inden for billedet - saa
+  // beskaeres der STRAMT om varen, og resten fyldes ud med hvidt bagefter.
+  // Varen staar da isoleret paa hvid bund, som paa et produktfoto, og
+  // formatet er alligevel praecist.
+  const voksetW = cw / ch > target ? cw : ch * target;
+  const voksetH = cw / ch > target ? cw / target : ch;
+  const passerIkke = voksetW > W || voksetH > H;
+  const isoler = guidance.backgroundClutter === true || passerIkke;
+
+  if (!isoler) {
+    cw = voksetW;
+    ch = voksetH;
   }
 
-  // Keep it inside the image, shrinking only if the frame simply isn't big enough.
+  // Hold rammen inden for billedet. Ved isolering er den allerede stram om
+  // varen, saa her sker der intet.
   if (cw > W) { ch = ch * (W / cw); cw = W; }
   if (ch > H) { cw = cw * (H / ch); ch = H; }
 
@@ -501,6 +531,21 @@ export async function optimizePhoto(
   cy = Math.max(0, Math.min(H - ch, cy));
 
   image = image.crop(Math.round(cx), Math.round(cy), Math.round(cw), Math.round(ch));
+
+  // Den hvide ramme. Laegges kun naar der blev beskaaret stramt - ellers har
+  // billedet allerede formatet.
+  if (isoler) {
+    let tw = image.width;
+    let th = image.height;
+    if (tw / th > target) th = Math.round(tw / target);
+    else tw = Math.round(th * target);
+    if (tw > image.width || th > image.height) {
+      const bund = new Image(tw, th);
+      bund.fill(Image.rgbaToColor(255, 255, 255, 255));
+      bund.composite(image, Math.round((tw - image.width) / 2), Math.round((th - image.height) / 2));
+      image = bund;
+    }
+  }
 
   // Kontrolbilledet skal kun bedoemmes af et oeje, ikke ses af en koeber. Det
   // laves lille og springer alt det dyre over: maskering, fremkaldelse og

@@ -359,6 +359,10 @@ Deno.serve(async (req: Request) => {
         const g = await callClaudeJson(
           "Du er fotograf og forbereder ét foto til en Vinted-annonce.\n\n" +
             "1) Rotation: hvor mange grader med uret skal billedet drejes for at vende rigtigt (0/90/180/270)?\n" +
+            "Er der TEKST i billedet - et maerkat, en vaskeanvisning, et logo, et tryk - saa er\n" +
+            "laeseretningen facit: billedet vender rigtigt, naar teksten kan laeses vandret fra\n" +
+            "venstre mod hoejre. Er der ingen tekst, er tyngdekraften facit: en jakkes krave opad,\n" +
+            "et par buksers linning opad.\n" +
             "2) Motivet: hvad handler billedet om — hele varen, et maerkat med tekst, et logo, " +
             "en detalje som en lynlaas eller en knap, eller et slidmaerke? Det afgoer, hvordan der " +
             "beskaeres, saa vaelg det praecist.\n" +
@@ -371,6 +375,11 @@ Deno.serve(async (req: Request) => {
             "billedet SKAL vise. En tekst eller et logo skal staa helt inde i rammen med luft " +
             "omkring sig — klistret op ad kanten laeser det som en fejl, ogsaa naar teksten er hel. " +
             "Luften laegges til automatisk bagefter, saa saet kassen taet om motivet selv.\n" +
+            "2b-2) backgroundClutter: er der forstyrrende baggrund TAET paa varen, som ikke kan\n" +
+            "beskaeres vaek uden at skaere i varen selv - fotografens foedder eller ben, en haand,\n" +
+            "en sengekant, en bordkant, et moebel, andet toej? Svar true. Er baggrunden rolig og\n" +
+            "ensartet, svar false. Ved true beskaeres der stramt om varen, og resten fyldes med\n" +
+            "hvidt, saa varen staar isoleret som paa et produktfoto.\n" +
             "2c) subjectCutOff: er en del af motivet allerede UDEN FOR billedets kant i originalen — " +
             "fx et logo, hvor de sidste bogstaver mangler? Det kan ikke laves om ved beskaering, men " +
             "rammen bliver saa lagt bredere, saa det afskaarne ikke springer i oejnene. " +
@@ -409,6 +418,7 @@ Deno.serve(async (req: Request) => {
         const frame = {
           subject: cleanText(g.subject) || undefined,
           subjectCutOff: g.subjectCutOff === true,
+          backgroundClutter: g.backgroundClutter === true,
         };
         const look = {
           exposure: Number(g.exposure) || 0,

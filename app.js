@@ -296,7 +296,7 @@
       html += '<div class="price-row"><span class="price-big mono">' + esc(d.price || '?') + '</span>' +
               (d.price_grounded === false ? '<span class="chip chip-vent">Foreløbig</span>' : '') + '</div>';
       if(d.price_grounded === false){
-        html += '<div class="note">Prisen markedstjekkes mod rigtige annoncer, når du udfylder i Vinted.</div>';
+        html += '<div class="note">Prisen markedstjekkes mod rigtige annoncer, når du udfylder på markedspladsen.</div>';
       }
       if(d.price_note) html += '<div class="note">' + esc(d.price_note) + '</div>';
       var facts = [d.brand, d.size, d.category, d.condition].filter(Boolean);
@@ -337,8 +337,7 @@
     // og "Kasser" ligger ikke lige ved siden af det, du trykker på dagligt.
     var rest = '<div class="sect">';
     if(d.status === 'ny'){
-      rest += '<button type="button" class="btn btn-quiet" data-a="reshopper">Klargør til Reshopper</button>' +
-              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
+      rest += '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
               '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
     }
     rest += '<button type="button" class="btn btn-danger" data-a="discard">Kasser udkast</button></div>';
@@ -348,6 +347,10 @@
     if(d.status === 'ny'){
       f += '<button type="button" class="btn btn-primary" data-a="fill">Udfyld i Vinted</button>';
       f += '<button type="button" class="btn btn-secondary" data-a="dba">Udfyld i DBA</button>';
+      // Reshopper staar paa linje med de to andre markedspladser. Den er en
+      // afskrift og ikke en udfyldning, men for den der staar med varen er det
+      // det samme valg: hvor skal den op?
+      f += '<button type="button" class="btn btn-secondary" data-a="reshopper">Klargør til Reshopper</button>';
       f += '<button type="button" class="btn btn-secondary" data-a="save">Gem billeder i Fotos</button>';
     } else if(failed){
       f += '<button type="button" class="btn btn-primary" data-a="retry">Prøv analysen igen</button>';
@@ -570,13 +573,30 @@
   }
 
   /* ---- Optagelse -------------------------------------------------------- */
+  // Rammeguiden. iOS' eget kamera kan ikke faa et overlay paa - en webside maa
+  // ikke tegne oven paa systemkameraet - saa guiden staar paa skaermen lige
+  // FOER du trykker, i stedet for inde i soegeren.
+  var G_HEL = '<svg class="guide" viewBox="0 0 90 120" aria-hidden="true">' +
+    '<rect class="ramme" x="5" y="5" width="80" height="110" rx="4"/>' +
+    '<path class="vare" d="M30 22 L22 30 L22 52 L28 52 L28 98 L62 98 L62 52 L68 52 L68 30 L60 22 L52 26 L38 26 Z"/>' +
+    '</svg>';
+  var G_NAER = '<svg class="guide" viewBox="0 0 90 120" aria-hidden="true">' +
+    '<rect class="ramme" x="5" y="5" width="80" height="110" rx="4"/>' +
+    '<rect class="vare" x="24" y="44" width="42" height="32" rx="3"/>' +
+    '</svg>';
+  var G_SLID = '<svg class="guide" viewBox="0 0 90 120" aria-hidden="true">' +
+    '<rect class="ramme" x="5" y="5" width="80" height="110" rx="4"/>' +
+    '<rect class="vare" x="20" y="38" width="50" height="44" rx="3"/>' +
+    '<ellipse class="rod" cx="45" cy="60" rx="11" ry="8"/>' +
+    '</svg>';
+
   var STEPS = [
-    { kind:'forfra', title:'Forfra', hint:'Hele varen lige forfra på en rolig baggrund. Det bliver coverbilledet, folk ser i søgeresultater.' },
-    { kind:'bagfra', title:'Bagfra', hint:'Hele varen set bagfra.' },
-    { kind:'maerke', title:'Mærket', hint:'Nærbillede af brandmærket. Købere spørger altid efter det — og det er dét, der gør mærket i annoncen rigtigt.' },
-    { kind:'stoerrelsesmaerke', title:'Størrelses- og vaskemærke', hint:'Nærbillede af mærkatet med størrelse og materiale. Købere filtrerer på størrelse.' },
-    { kind:'detalje', title:'Detalje', hint:'Stof, tryk, lynlås eller knapper tæt på. Viser kvaliteten.' },
-    { kind:'slid', title:'Slid eller fejl', hint:'Kun hvis der er noget. Ærlighed her giver færre tvister — spring over hvis varen er fejlfri.' }
+    { kind:'forfra', title:'Forfra', guide:G_HEL, hint:'Hele varen lige forfra, med lidt luft hele vejen rundt. Hold fødder, sengekant og møbler ude af billedet — det bliver coverbilledet, folk ser i søgeresultater.' },
+    { kind:'bagfra', title:'Bagfra', guide:G_HEL, hint:'Hele varen set bagfra, samme afstand som forfra.' },
+    { kind:'maerke', title:'Mærket', guide:G_NAER, hint:'Nærbillede af brandmærket med luft omkring. Hold det vandret, så teksten kan læses.' },
+    { kind:'stoerrelsesmaerke', title:'Størrelses- og vaskemærke', guide:G_NAER, hint:'Mærkatet med størrelse og materiale, vandret så teksten kan læses. Købere filtrerer på størrelse.' },
+    { kind:'detalje', title:'Detalje', guide:G_NAER, hint:'Stof, tryk, lynlås eller knapper tæt på — med luft omkring, så intet skæres af kanten.' },
+    { kind:'slid', title:'Slid eller fejl', guide:G_SLID, hint:'Kun hvis der er noget. Hold fejlen midt i billedet. Ærlighed her giver færre tvister — spring over hvis varen er fejlfri.' }
   ];
   var session = null;
 
@@ -586,6 +606,8 @@
     $('cap-count').textContent = step ? ('Billede ' + (i+1) + ' af ' + STEPS.length) : 'Klar til udkast';
     $('cap-title').textContent = step ? step.title : 'Alle billeder taget';
     $('cap-hint').textContent = step ? step.hint : 'Du kan tage flere billeder, eller lave udkastet nu.';
+    $('cap-guide').innerHTML = step && step.guide ? step.guide : '';
+    $('cap-guide').hidden = !(step && step.guide);
     $('cap-skip').hidden = !step;
     $('cap-finish').hidden = session.photos.length === 0;
     $('cap-progress').innerHTML = STEPS.map(function(_, n){
@@ -797,7 +819,7 @@
     c.width = cw; c.height = ch;
     c.getContext('2d').drawImage(full, Math.round(r.x*sc), Math.round(r.y*sc), cw, ch, 0, 0, cw, ch);
     c.toBlob(function(blob){
-      if(!blob){ btn.disabled = false; btn.textContent = 'Gem beskæring'; return; }
+      if(!blob){ btn.disabled = false; btn.textContent = 'Gem'; return; }
       var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '-manuel.jpg';
       sb.storage.from('photos').upload(path, blob, { contentType:'image/jpeg' }).then(function(res){
         if(res.error) throw res.error;
@@ -812,7 +834,7 @@
         $('crop').hidden = true; $('crop-img').style.transform = ''; crop = null;
         toast('Billedet er gemt');
       }).catch(function(){ btn.textContent = 'Prøv igen'; })
-        .then(function(){ btn.disabled = false; if(btn.textContent === 'Gemmer …') btn.textContent = 'Gem beskæring'; });
+        .then(function(){ btn.disabled = false; if(btn.textContent === 'Gemmer …') btn.textContent = 'Gem'; });
     }, 'image/jpeg', 0.92);
   });
 
