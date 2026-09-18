@@ -845,13 +845,20 @@
   });
   // Userscripts genkender en .user.js-adresse og tilbyder at gemme den. Derfra
   // henter den selv nye udgaver, så automatikken kan rettes uden at du gør noget.
+  // x-safari- tvinger rigtig Safari. Uden det aabner adressen inde i PWAens
+  // egen webvisning, og dér findes Userscripts-udvidelsen ikke: man ser koden,
+  // men der er ingen ᴀA-menu og intet at installere med. Knappen ser ud til
+  // ikke at virke, selv om den gjorde praecis det, den fik besked paa.
+  function installer(url){
+    window.location.href = 'x-safari-' + url;
+  }
   $('m-userscript').addEventListener('click', function(){
     // Stien SKAL ende paa .user.js - ellers tilbyder Userscripts ikke at
     // installere den. Et forespoergselsparameter er ikke nok.
-    window.location.href = FILL_API.replace('?key=', '/udbakke.user.js?key=');
+    installer(FILL_API.replace('?key=', '/udbakke.user.js?key='));
   });
   $('m-userscript-dba').addEventListener('click', function(){
-    window.location.href = DBA_API.replace('?key=', '/dba.user.js?key=');
+    installer(DBA_API.replace('?key=', '/dba.user.js?key='));
   });
 
   $('m-copy').addEventListener('click', function(){

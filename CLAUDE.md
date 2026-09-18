@@ -146,6 +146,11 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   peger selv på sit panel: `data-testid` på inputtet med `-input` skiftet ud med
   `-content`. Det gælder alle seks felter.
 - **Anthropic-API'et her tager ikke assistant-prefill** → brug `tool_choice`.
+- **Alt, der skal åbne i RIGTIG Safari, skal have `x-safari-` foran.** I den
+  installerede PWA åbner en almindelig `https://`-adresse inde i appens egen
+  webvisning, og dér findes Userscripts-udvidelsen ikke: man ser koden, men der
+  er ingen ᴀA-menu at installere fra. Knappen ser ud til ikke at virke. Gælder
+  både installations-knapperne og "Udfyld i …".
 - **Userscripts (iOS) installerer kun fra en URL, hvis STIEN ender på
   `.user.js`**, og filen skal udleveres som `text/plain`, ellers henter Safari
   den ned i stedet for at vise den.
