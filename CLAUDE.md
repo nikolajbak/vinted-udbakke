@@ -121,6 +121,16 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
 - **DBA's comboboxer (størrelse, mærke, materiale) gemmer på `change` +
   `focusout`.** Et `input` alene sætter kun teksten på skærmen. DBA slår selv
   teksten op og gemmer sit eget nummer — "Name It" blev til `9270`.
+- **DBA's comboboxer kan ikke fyldes ved at sætte en værdi.** Størrelse, mærke
+  og materiale åbner først deres forslagsliste ved rigtige TASTETRYK. Et
+  programmeret `input` efterlader listen lukket, og så er der intet at gemme —
+  feltet står rigtigt på skærmen, mens serveren gemmer ingenting. Opskriften er:
+  tast tegn for tegn (`keydown` + `InputEvent` + `keyup`, ~110 ms), vent ~1,4 s
+  på listen, og vælg med **piletast ned + retur**. Et klik på forslaget virker
+  IKKE. Det kostede tre prøvekørsler, hvor DOM'en så perfekt ud hver gang.
+- **Kontrollér DBA mod serveren, ikke mod DOM'en.** `GET
+  /recommerce/create/api/item/{id}` viser, hvad der faktisk er gemt. Tre felter
+  så udfyldte ud og var tomme på serveren.
 - **DBA's kategori er tre vælgere, der hænger sammen.** Underkategorien fyldes
   først, når hovedkategorien er valgt, og produktkategorien først efter den. Slå
   feltet op på ny for hvert trin.

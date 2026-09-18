@@ -83,88 +83,46 @@ function optionsOf(el){
   .filter(function(o){return o.v&&o.t});
 }
 function setSelect(el,v){el.value=v;fire(el,'input');fire(el,'change')}
-function setText(el,v){nativeSet(el,v);fire(el,'input');fire(el,'change')}
+// Prisen blev ikke gemt uden focusout, selv om titel og beskrivelse blev.
+function setText(el,v){nativeSet(el,v);fire(el,'input');fire(el,'change');fire(el,'focusout',FocusEvent)}
 
-// Stoerrelse, maerke og materiale er comboboxer. De gemmer foerst, naar
-// feltet forlades — et "input" alene saetter teksten paa skaermen og intet
-// andet. DBA slaar selv teksten op og gemmer sit eget nummer for den.
-function setCombo(el,v){
- nativeSet(el,v);
- fire(el,'input');fire(el,'change');fire(el,'focusout',FocusEvent);
-}
-
-// DBA's ordlyd er deres egen — "Brugt - men i god stand", ikke "God". Eget
-// gaet foerst, saa det billige tilfaelde er gratis; ellers spoerger vi.
-async function choose(kind,valgt,opts,hint){
- if(hint){
-  var n=norm(hint);
-  var m=opts.filter(function(o){return norm(o.t)===n});
-  if(!m.length)m=opts.filter(function(o){return norm(o.t).indexOf(n)===0});
-  if(m.length)return m[0];
+// Stoerrelse, maerke og materiale er comboboxer, og de kan IKKE fyldes ved at
+// saette en vaerdi. Komponenten aabner foerst sin forslagsliste, naar der
+// kommer rigtige tastetryk — et programmeret "input" alene efterlader den
+// lukket, og saa er der intet at gemme. Feltet staar rigtigt paa skaermen
+// imens, og serveren gemmer ingenting. Maalt: uden det her blev maerke,
+// stoerrelse og materiale tomme i tre proevekoersler i traek.
+//
+// Opskriften er: tast tegn for tegn, vent paa listen, og vaelg med
+// piletast + retur. Et klik paa forslaget virker IKKE.
+async function setCombo(el,v){
+ var proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
+ var set=Object.getOwnPropertyDescriptor(proto,'value').set;
+ el.focus();
+ set.call(el,'');
+ el.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true}));
+ await sleep(300);
+ for(var i=0;i<v.length;i++){
+  set.call(el,v.slice(0,i+1));
+  el.dispatchEvent(new KeyboardEvent('keydown',{key:v[i],bubbles:true,composed:true}));
+  el.dispatchEvent(new InputEvent('input',{data:v[i],inputType:'insertText',bubbles:true,composed:true}));
+  el.dispatchEvent(new KeyboardEvent('keyup',{key:v[i],bubbles:true,composed:true}));
+  await sleep(110);
  }
- try{
-  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({id:DRAFT_ID,mode:'choose',kind:kind,chosen:valgt,hint:hint,
-    options:opts.map(function(o){return o.t})})},30000);
-  var j=await r.json();
-  return (j.index>=0&&j.index<opts.length)?opts[j.index]:null;
- }catch(e){return null}
-}
-
-async function ventPaaFelt(label,ms){
- var slut=Date.now()+(ms||5000);
- while(Date.now()<slut){
-  var e=fieldFor(label);
-  if(e&&optionsOf(e).length)return e;
-  if(e&&e.tagName!=='SELECT')return e;
-  await sleep(250);
- }
- return fieldFor(label);
-}
-
-// Kategorien er tre vaelgere, der haenger sammen: underkategorien fyldes
-// foerst, naar hovedkategorien er valgt, og produktkategorien foerst efter
-// den. Derfor slaas feltet op paa ny for hvert trin, og der ventes paa, at
-// mulighederne faktisk er kommet.
-async function fillCategory(path){
- var trin=['Hovedkategori','Underkategori','Produktkategori'],valgt=[];
- for(var i=0;i<trin.length;i++){
-  var el=await ventPaaFelt(trin[i],8000);
-  if(!el){log(trin[i]+': feltet kom aldrig');break}
-  var opts=optionsOf(el);
-  if(!opts.length){log(trin[i]+': ingen muligheder');break}
-  var t=await choose('kategori',valgt,opts,path&&path[i]);
-  if(!t){log(trin[i]+': intet valg');break}
-  setSelect(el,t.v);valgt.push(t.t);
-  log(trin[i]+': '+t.t);
-  await sleep(1400);
- }
- return valgt.length===3?null:'kategori';
-}
-
-async function fillSelect(label,kind,value,fallback){
- var el=await ventPaaFelt(label,6000);
- if(!el)return label.toLowerCase();
- var opts=optionsOf(el);
- if(!opts.length)return label.toLowerCase();
- var t=await choose(kind,[],opts,value);
- if(!t&&fallback){
-  t=opts.filter(function(o){return norm(o.t)===norm(fallback)})[0]||null;
- }
- if(!t)return label.toLowerCase();
- setSelect(el,t.v);
- log(label+': '+t.t);
- await sleep(700);
- return null;
+ await sleep(1400);
+ ['ArrowDown','Enter'].forEach(function(k){
+  el.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true,composed:true}));
+  el.dispatchEvent(new KeyboardEvent('keyup',{key:k,bubbles:true,composed:true}));
+ });
+ await sleep(900);
 }
 
 async function fillCombo(label,value){
  if(!value)return null;
  var el=fieldFor(label);
  if(!el)return label.toLowerCase();
- setCombo(el,value);
- await sleep(1200);
- log(label+': '+value);
+ await setCombo(el,value);
+ log(label+': '+value+(el.value?'':' (tom bagefter)'));
  return el.value?null:label.toLowerCase();
 }
 
@@ -188,6 +146,90 @@ async function fillPhotos(urls){
  inp.files=dt.files;
  fire(inp,'change');
  await sleep(2000);
+ return null;
+}
+
+// ---- Markedsanalyse paa DBA ---------------------------------------------
+// Prisen paa udkastet er sat ud fra VINTED. DBA er et andet marked med andre
+// koebere, og for boernetoej ligger det maerkbart hoejere - CeLaVi-regnjakker
+// laa paa 50-100 kr paa DBA, hvor Vinted-skoennet sagde 35. Derfor slaas
+// markedet op paa DBA selv, fra din egen session.
+//
+// Ligesom paa Vinted gaelder det, at det man KAN se, er dét der endnu ikke er
+// solgt. Feltet skaevvrider opad, og prisen skal derfor lande paa eller under
+// medianen af de sammenlignelige.
+
+function parsePris(t){
+ var m=(t||'').match(/^\s*([\d.]+)\s*kr/i);
+ if(!m)return 0;
+ return parseInt(m[1].replace(/\./g,''),10)||0;
+}
+
+// DBA's soegeside er almindelig HTML. Kortene har prisen foerst og derefter
+// titel, stoerrelse, maerke og by i én stroem - den laeser modellen fint, og
+// vi skal kun bruge tallet selv til regnestykket.
+async function soeg(q){
+ try{
+  var r=await timedFetch('/recommerce/forsale/search?q='+encodeURIComponent(q),
+   {credentials:'include'},20000);
+  if(!r.ok)return [];
+  var doc=new DOMParser().parseFromString(await r.text(),'text/html');
+  var set={},ud=[];
+  Array.prototype.forEach.call(doc.querySelectorAll('a[href*="/recommerce/forsale/item/"]'),function(a){
+   var id=(a.getAttribute('href')||'').match(/item\/(\d+)/);
+   if(!id||set[id[1]])return;
+   var card=a;
+   for(var k=0;k<6&&card;k++){card=card.parentElement;
+    if(card&&/\d[\d.]*\s*kr/i.test(card.textContent||''))break}
+   var t=(card?card.textContent:'').replace(/\s+/g,' ').trim();
+   var pris=parsePris(t);
+   if(!pris)return;
+   set[id[1]]=1;
+   ud.push({id:id[1],price:pris,text:t.slice(0,150)});
+  });
+  return ud;
+ }catch(e){return []}
+}
+
+async function markedsanalyse(d,valgtKategori){
+ // To soegninger: én med maerket, som rammer praecist, og én uden, som fanger
+ // de varer en koeber ville stille op ved siden af uden at skaeve til maerket.
+ var type=valgtKategori||((d.categoryPath&&d.categoryPath.length)?d.categoryPath[d.categoryPath.length-1]:'');
+ var q1=[d.brand,type].filter(Boolean).join(' ')||d.searchQuery||d.title;
+ var q2=[type,d.size].filter(Boolean).join(' ');
+ var a=await soeg(q1);
+ var b=(q2&&q2!==q1)?await soeg(q2):[];
+ var set={},alle=[];
+ a.concat(b).forEach(function(i){if(!set[i.id]){set[i.id]=1;alle.push(i)}});
+ if(alle.length<4){log('marked: kun '+alle.length+' annoncer, beholder skoennet');return null}
+ log('marked: '+alle.length+' annoncer fra DBA');
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id:DRAFT_ID,mode:'market',items:alle.slice(0,60)})},60000);
+  var j=await r.json();
+  if(j&&(j.price||j.description)){log('marked: '+(j.note||'sat'));return j}
+ }catch(e){log('marked: opslaget fejlede')}
+ return null;
+}
+
+// Billedteksterne findes foerst, naar billederne er lagt ind - der er ét felt
+// pr. billede, i samme raekkefoelge som de blev uploadet.
+async function fillCaptions(tekster){
+ if(!tekster||!tekster.length)return null;
+ var felter=[];
+ for(var forsoeg=0;forsoeg<20;forsoeg++){
+  felter=deep('textarea').filter(function(e){return e.placeholder==='Billedtekst'});
+  if(felter.length)break;
+  await sleep(500);
+ }
+ if(!felter.length)return 'billedtekster';
+ var n=Math.min(felter.length,tekster.length);
+ for(var i=0;i<n;i++){
+  if(!tekster[i])continue;
+  setText(felter[i],tekster[i]);
+  await sleep(350);
+ }
+ log('billedtekster: '+n+' af '+felter.length);
  return null;
 }
 
@@ -233,6 +275,18 @@ try{
  log('kategori: '+(catFail||'ok'));
  if(catFail)mangler.push('kategori');
 
+ // Markedet slaas op EFTER kategorien: saa kender vi DBA's eget ord for
+ // varen ("Overtøj til børn"), og soegningen rammer bedre end Vinteds.
+ var bedre={title:null,description:null,captions:null};
+ var price=d.price;
+ var marked=await markedsanalyse(d,VALGT_KATEGORI);
+ if(marked){
+  if(marked.title)bedre.title=marked.title;
+  if(marked.description)bedre.description=marked.description;
+  if(marked.captions)bedre.captions=marked.captions;
+  if(marked.price)price=String(marked.price);
+ }
+
  var trin=[
   ['Størrelse',null,d.size],
   ['Mærke',null,d.brand],
@@ -258,14 +312,19 @@ try{
 
  // Teksten til sidst, saa ingen omtegning kan naa at rydde den.
  var t=fieldFor('Annonceoverskrift'),b=fieldFor('Beskrivelse'),p=fieldFor('Pris');
- if(t)setText(t,d.title);
- if(b)setText(b,d.description);
- if(p&&d.price)setText(p,d.price);
- log('tekst sat');
+ if(t)setText(t,bedre.title||d.title);
+ if(b)setText(b,bedre.description||d.description);
+ if(p&&price)setText(p,price);
+ log('tekst sat'+(marked?' (markedsjusteret)':''));
 
  log('billeder: '+(d.photos||[]).length);
  if(await fillPhotos(d.photos))mangler.push('billeder');
  log('billeder klar');
+
+ // Billedteksterne til allersidst: felterne findes foerst, naar billederne
+ // ligger der.
+ var capFail=await fillCaptions(bedre.captions||d.captions);
+ if(capFail)mangler.push(capFail);
 
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({id:DRAFT_ID,mode:'clear'})},15000)}catch(e){}}
