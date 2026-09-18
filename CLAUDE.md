@@ -20,6 +20,14 @@ stempler et indholds-fingeraftryk ind i adresserne (`app.js?v=…`). Uden det
 ville opdaterings-banneret tie — det sammenligner `index.html`s ETag — og
 GitHub Pages kunne servere ny HTML med gammel JS i op til ti minutter.
 
+**Kør `node tools/check-runner.mjs supabase/functions/*/runner.ts` før hver
+deploy af en runner.** Runnerne lever inde i en `String.raw`-tekst, så hverken
+TypeScript eller deploy ser dem som kode. `node --check` fanger syntaksfejl, men
+ikke en funktion, der er KALDT og ikke DEFINERET — og netop dét skete: en
+tekst-erstatning slettede `fillCategory`, `fillSelect`, `choose` og
+`ventPaaFelt` på én gang, scriptet blev udgivet, og fejlen dukkede først op på
+telefonen som "Can't find variable".
+
 Deno findes ikke lokalt. Skal noget afprøves i kørselsmiljøet, så deploy en
 midlertidig funktion og slet den bagefter.
 

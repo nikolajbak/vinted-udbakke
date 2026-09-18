@@ -117,6 +117,73 @@ async function setCombo(el,v){
  await sleep(900);
 }
 
+// DBA's ordlyd er deres egen — "Brugt - men i god stand", ikke "God". Eget
+// gaet foerst, saa det billige tilfaelde er gratis; ellers spoerger vi.
+async function choose(kind,valgt,opts,hint){
+ if(hint){
+  var n=norm(hint);
+  var m=opts.filter(function(o){return norm(o.t)===n});
+  if(!m.length)m=opts.filter(function(o){return norm(o.t).indexOf(n)===0});
+  if(m.length)return m[0];
+ }
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id:DRAFT_ID,mode:'choose',kind:kind,chosen:valgt,hint:hint,
+    options:opts.map(function(o){return o.t})})},30000);
+  var j=await r.json();
+  return (j.index>=0&&j.index<opts.length)?opts[j.index]:null;
+ }catch(e){return null}
+}
+
+async function ventPaaFelt(label,ms){
+ var slut=Date.now()+(ms||5000);
+ while(Date.now()<slut){
+  var e=fieldFor(label);
+  if(e&&optionsOf(e).length)return e;
+  if(e&&e.tagName!=='SELECT')return e;
+  await sleep(250);
+ }
+ return fieldFor(label);
+}
+
+// Kategorien er tre vaelgere, der haenger sammen: underkategorien fyldes
+// foerst, naar hovedkategorien er valgt, og produktkategorien foerst efter
+// den. Derfor slaas feltet op paa ny for hvert trin, og der ventes paa, at
+// mulighederne faktisk er kommet.
+var VALGT_STI=[];
+async function fillCategory(path){
+ var trin=['Hovedkategori','Underkategori','Produktkategori'],valgt=[];
+ for(var i=0;i<trin.length;i++){
+  var el=await ventPaaFelt(trin[i],8000);
+  if(!el){log(trin[i]+': feltet kom aldrig');break}
+  var opts=optionsOf(el);
+  if(!opts.length){log(trin[i]+': ingen muligheder');break}
+  var t=await choose('kategori',valgt,opts,path&&path[i]);
+  if(!t){log(trin[i]+': intet valg');break}
+  setSelect(el,t.v);valgt.push(t.t);
+  log(trin[i]+': '+t.t);
+  await sleep(1400);
+ }
+ VALGT_STI=valgt.slice();
+ return valgt.length===3?null:'kategori';
+}
+
+async function fillSelect(label,kind,value,fallback){
+ var el=await ventPaaFelt(label,6000);
+ if(!el)return label.toLowerCase();
+ var opts=optionsOf(el);
+ if(!opts.length)return label.toLowerCase();
+ var t=await choose(kind,[],opts,value);
+ if(!t&&fallback){
+  t=opts.filter(function(o){return norm(o.t)===norm(fallback)})[0]||null;
+ }
+ if(!t)return label.toLowerCase();
+ setSelect(el,t.v);
+ log(label+': '+t.t);
+ await sleep(700);
+ return null;
+}
+
 async function fillCombo(label,value){
  if(!value)return null;
  var el=fieldFor(label);
