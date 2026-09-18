@@ -229,19 +229,20 @@
     scrollbar-width: none;
   }
   .hero-track::-webkit-scrollbar{ display: none; }
-  /* Billedet vises i markedspladsens eget format paa hvid bund - ikke
-     beskaaret til at fylde rammen. Det er hele pointen: du skal kunne se,
-     hvordan annoncen kommer til at se ud, ikke en pænere udgave af den. */
+  /* Billedet vises praecis som filen er - ikke beskaaret til at fylde rammen,
+     og ikke presset ned i et format beholderen har bestemt. Det er hele
+     pointen: du skal kunne se, hvordan annoncen bliver. */
   .hero{
     width: 100%;
     flex: 0 0 100%;
     scroll-snap-align: center;
-    aspect-ratio: 3 / 4;
-    max-height: 52vh;
-    object-fit: contain;
+    /* Ingen fast hoejde og intet paatvunget format: beholderen foelger
+       billedet, saa det du ser ER filen. Saetter vi et format her, letterboxer
+       vi den anden vej og lyver om resultatet. */
+    height: auto;
     border-radius: 12px;
     border: 1px solid var(--line);
-    background: #fff;
+    background: var(--surface);
     display: block;
   }
   .dots{ display: flex; justify-content: center; gap: 6px; margin-top: var(--s2); }
@@ -274,7 +275,7 @@
   .step-hint{ font-size: var(--t-small); color: var(--ink-soft); margin: var(--s2) 0 0; line-height: 1.55; }
   .shots{ display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
   .shot{ width: 60px; }
-  .shot img{ width: 60px; height: 80px; object-fit: contain; background: #fff; border-radius: 8px; border: 1px solid var(--line); display: block; }
+  .shot img{ width: 60px; height: 80px; object-fit: contain; background: var(--surface); border-radius: 8px; border: 1px solid var(--line); display: block; }
   .shot span{ display: block; font-family: "Space Mono", ui-monospace, monospace; font-size: 9px;
               color: var(--ink-soft); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

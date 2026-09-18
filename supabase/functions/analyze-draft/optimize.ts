@@ -542,12 +542,15 @@ export async function optimizePhoto(
   // Pick the allowed ratio closest to the item's own shape, then grow (never
   // shrink) into it, so nothing of the item is lost and no side fills up with
   // background.
-  // En hel vare faar altid Vinteds eget 3:4. Naerbilleder maa gerne foelge
-  // motivets egen facon - men hovedbillederne skal staa ens i gitteret, ellers
-  // ser annoncen rodet ud, uanset hvor gode de enkelte billeder er.
-  const target = guidance.subject === "helvare"
-    ? RATIO_MIN
-    : Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
+  // Formatet laegger sig saa taet paa motivets egen facon, som baandet
+  // tillader. Det er dét, der goer varen saa stor som muligt: hver grad, vi
+  // tvinger formatet vaek fra varens facon, er en bræmme ramme, der skal
+  // fyldes - og en vare, der bliver mindre i gitteret.
+  //
+  // Foer blev hele varer altid tvunget til 3:4 for at staa ens i gitteret. Med
+  // en bred cardigan kostede det to tredjedele af rammen i tom ramme. Ens
+  // format er ikke mere vaerd end en vare, man kan se.
+  const target = Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
   // For at ramme formatet skal rammen VOKSE - og den vokser ud i det, der
   // ligger rundt om varen. Er det et rent gulv, er det fint. Er det
   // fotografens fodder, en sengekant eller et andet moebel, er det praecis

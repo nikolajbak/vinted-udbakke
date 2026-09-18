@@ -108,8 +108,16 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   systemkameraet. Rammeguiden står derfor på optageskærmen lige FØR trykket. Et
   rigtigt overlay ville kræve `getUserMedia` og et eget kamera — og dét koster
   billedkvalitet på iOS.
-- **Hele varer beskæres altid til 3:4**, nærbilleder må følge motivets facon.
-  Ens hovedbilleder er det, der får annoncen til at se ordentlig ud i gitteret.
+- **Formatet følger varens egen facon, så tæt som båndet tillader.** Hver grad,
+  formatet tvinges væk fra varen, er en bræmme ramme, der skal fyldes — og en
+  vare, der bliver mindre i gitteret. En bred cardigan, tvunget til 3:4, mistede
+  to tredjedele af rammen til tom ramme. Ens format er ikke mere værd end en
+  vare, man kan se.
+- **Vis billedet i appen præcis som filen er.** Beholderen må hverken have fast
+  højde eller påtvunget format: `aspect-ratio: 3/4` sammen med `max-height`
+  gjorde elementet bredere end billedet, og så lyste appens egen baggrund
+  igennem i siderne. Det lignede en fejl i billedbehandlingen og var en fejl i
+  CSS'en.
 - **Fotoupload tegner formularen om**, så billederne lægges ind til sidst. En
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`
