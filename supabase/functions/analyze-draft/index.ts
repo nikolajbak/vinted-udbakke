@@ -358,11 +358,15 @@ Deno.serve(async (req: Request) => {
       try {
         const g = await callClaudeJson(
           "Du er fotograf og forbereder ét foto til en Vinted-annonce.\n\n" +
-            "1) Rotation: hvor mange grader med uret skal billedet drejes for at vende rigtigt (0/90/180/270)?\n" +
-            "Er der TEKST i billedet - et maerkat, en vaskeanvisning, et logo, et tryk - saa er\n" +
-            "laeseretningen facit: billedet vender rigtigt, naar teksten kan laeses vandret fra\n" +
-            "venstre mod hoejre. Er der ingen tekst, er tyngdekraften facit: en jakkes krave opad,\n" +
-            "et par buksers linning opad.\n" +
+            "1) Rotation: hvor mange grader MED URET skal billedet drejes (0/90/180/270)?\n" +
+            "Spoergsmaalet er IKKE, hvad der vendte opad da fotoet blev taget - telefonen kan\n" +
+            "have vaeret holdt paa hoejkant, paa skraa eller paa hovedet, og det siger intet om\n" +
+            "varen. Spoergsmaalet er, hvilken af de fire drejninger der viser VAREN bedst, som\n" +
+            "den ville blive vist i en butik: en overdel med skuldre og krave oeverst, bukser med\n" +
+            "linningen oeverst, sko staaende paa saalen. Er der TEKST i billedet - maerkat,\n" +
+            "vaskeanvisning, logo, tryk - afgoer laeseretningen det: teksten skal kunne laeses\n" +
+            "vandret fra venstre mod hoejre. Ligger varen loest uden en oplagt top og bund, saa\n" +
+            "vaelg den drejning, der giver den roligste og mest genkendelige silhuet.\n" +
             "2) Motivet: hvad handler billedet om — hele varen, et maerkat med tekst, et logo, " +
             "en detalje som en lynlaas eller en knap, eller et slidmaerke? Det afgoer, hvordan der " +
             "beskaeres, saa vaelg det praecist.\n" +

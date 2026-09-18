@@ -61,6 +61,9 @@ const PADDING: Record<string, number> = {
   slid: 0.08,
 };
 const PADDING_DEFAULT = 0.05;
+// Naar varen isoleres paa hvidt, er den hvide ramme luften. Beskaeringen
+// skal derfor kun holde en haarsbred, saa varen ikke roerer kanten.
+const PADDING_ISOLERET = 0.012;
 const PADDING_CUT_OFF = 0.28;
 
 export const GUIDANCE_TOOL = {
@@ -73,11 +76,16 @@ export const GUIDANCE_TOOL = {
       rotationDegrees: {
         type: "integer",
         description:
-          "0, 90, 180 eller 270 — hvor meget billedet skal roteres MED URET for at vende rigtigt. " +
-          "Er der tekst i billedet (mærkat, vaskeanvisning, logo, tryk), er LÆSERETNINGEN facit: " +
-          "billedet vender rigtigt, når teksten læses vandret fra venstre mod højre. " +
-          "Er der ingen tekst, er tyngdekraften facit: op skal være op — en jakkes krave opad, " +
-          "et par buksers linning opad.",
+          "0, 90, 180 eller 270 — hvor meget billedet skal roteres MED URET. " +
+          "Spørgsmålet er IKKE, hvad der vendte opad, da fotoet blev taget: telefonen kan have " +
+          "været holdt på højkant, på skrå eller på hovedet, og det siger intet om varen. " +
+          "Spørgsmålet er, hvilken af de fire drejninger der viser VAREN bedst — sådan som den " +
+          "ville blive vist i en butik eller et katalog. En overdel med skuldre og krave øverst " +
+          "og kanten nederst. Et par bukser med linningen øverst og benene nedad. Et par sko " +
+          "stående på sålen. Er der tekst i billedet (mærkat, vaskeanvisning, logo, tryk), " +
+          "afgør læseretningen det: teksten skal kunne læses vandret fra venstre mod højre. " +
+          "Ligger varen løst på et bord uden en oplagt top og bund, så vælg den drejning, der " +
+          "giver den roligste, mest genkendelige silhuet.",
       },
       subject: {
         type: "string",
@@ -473,8 +481,21 @@ export async function optimizePhoto(
   const W = image.width;
   const H = image.height;
 
+  // Luften om motivet. Men skal billedet ISOLERES, leverer den hvide ramme
+  // allerede luften - laegger beskaeringen ogsaa sin egen til, faar man begge
+  // dele: en bræmme af sengetoej klemt inde mellem varen og det hvide. Det
+  // laeser som en fejl, ikke som et produktfoto. Saa naar vi isolerer,
+  // beskaeres der taet, og det hvide staar for resten.
+  // HELE varer isoleres altid. Hovedbillederne er dem, der skal ligne
+  // produktfotos i gitteret, og en hel vare har ingen gavn af den flade, den
+  // ligger paa - et gulv, et sengetaeppe, et bord er stoej uanset hvor paent
+  // det er. Naerbilleder beholder deres omgivelser: stoffet omkring et maerkat
+  // er en del af det, koeberen skal kunne se.
+  const vilIsolere = guidance.subject === "helvare" || guidance.backgroundClutter === true;
   const pad = guidance.subjectCutOff
     ? PADDING_CUT_OFF
+    : vilIsolere
+    ? PADDING_ISOLERET
     : (PADDING[guidance.subject || ""] ?? PADDING_DEFAULT);
 
   // Item box in pixels, padded.
@@ -513,7 +534,7 @@ export async function optimizePhoto(
   const voksetW = cw / ch > target ? cw : ch * target;
   const voksetH = cw / ch > target ? cw / target : ch;
   const passerIkke = voksetW > W || voksetH > H;
-  const isoler = guidance.backgroundClutter === true || passerIkke;
+  const isoler = vilIsolere || passerIkke;
 
   if (!isoler) {
     cw = voksetW;

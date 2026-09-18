@@ -81,6 +81,19 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget
   gulv der er i rammen — forfra blev oliven og udvasket, bagfra næsten sort.
   Derfor kører foto 0 alene først, resten parallelt bagefter.
+- **Hele varer isoleres altid; nærbilleder gør ikke.** Et hovedbillede skal ligne
+  et produktfoto i gitteret, og en hel vare har ingen gavn af den flade, den
+  ligger på — gulv, sengetæppe eller bord er støj uanset hvor pænt det er. Et
+  nærbillede beholder sine omgivelser: stoffet omkring et mærkat er en del af
+  det, køberen skal se.
+- **Isolerer vi, skal beskæringen være TÆT.** Den hvide ramme leverer luften.
+  Lægger beskæringen også sin egen til, får man begge dele: en bræmme sengetøj
+  klemt inde mellem varen og det hvide, som læser som en fejl. Målt på et rigtigt
+  foto — første forsøg så præcis sådan ud.
+- **Rotationen handler om varen, ikke om tyngdekraften.** Telefonen kan holdes på
+  højkant eller på hovedet, så hvad der vendte opad under optagelsen siger intet.
+  Spørgsmålet er, hvilken af de fire drejninger der viser varen som i en butik —
+  og er der tekst i billedet, afgør læseretningen det.
 - **Rammen vokser ikke ud i rod.** For at ramme formatet skal beskæringen vokse,
   og den vokser ud i dét, der ligger omkring varen. Er baggrunden rolig, er det
   fint. Er der fødder, sengekant eller møbler tæt på (`backgroundClutter`),
