@@ -31,6 +31,7 @@ midlertidig funktion og slet den bagefter.
 | Billedanalyse + optimering | `supabase/functions/analyze-draft/` |
 | Udfyldning af Vinted-formularen | `supabase/functions/vinted-fill-script/` |
 | Automatikken bogmærket/brugerscriptet kører | `…/vinted-fill-script/runner.ts` |
+| Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 
 `runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
 `/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
@@ -106,6 +107,27 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   den ned i stedet for at vise den.
 - **`window.__UDBAKKE_*` må ikke omdøbes.** Et installeret bogmærke sætter dem,
   før det henter automatikken; et andet navn brækker det uden varsel.
+- **DBA er Schibsteds FINN-platform, ikke DBA's egen kode.** Hele opret-formularen
+  er Warp-webkomponenter, og den ligger i shadow DOM — `document.querySelector`
+  finder ingenting. Opslag skal gå gennem hver shadow-rod undervejs.
+- **DBA's felter kan ikke peges på.** Hvert tekstfelt har id `textfield`, hver
+  vælger `select_id`, og kun overskriften har et `name`. Feltet findes derfor på
+  den ETIKET, der står ved siden af det — enten `label` på værten (Pris,
+  Postnummer) eller som første barn i en forfader. Vejen op går både gennem
+  almindelige forældre OG shadow-værter.
+- **Begivenheder til DBA skal være `composed: true`.** Uden det slipper de ikke
+  ud af shadow-roden, komponenten opdager aldrig ændringen, og intet bliver
+  gemt — mens feltet på skærmen ser helt rigtigt ud. Målt, ikke læst.
+- **DBA's comboboxer (størrelse, mærke, materiale) gemmer på `change` +
+  `focusout`.** Et `input` alene sætter kun teksten på skærmen. DBA slår selv
+  teksten op og gemmer sit eget nummer — "Name It" blev til `9270`.
+- **DBA's kategori er tre vælgere, der hænger sammen.** Underkategorien fyldes
+  først, når hovedkategorien er valgt, og produktkategorien først efter den. Slå
+  feltet op på ny for hvert trin.
+- **DBA's billedfelt er et almindeligt `input[type=file]` i den normale DOM.**
+  Samme `DataTransfer`-greb som på Vinted virker uændret.
+- **DBA's kategorinumre står i deres offentlige søgning.** `sub_category=1.68.3913`
+  er det samme `3913`, som kladden gemmer. Ingen af dem skal gættes.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

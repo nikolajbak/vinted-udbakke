@@ -347,6 +347,7 @@
     var f = '';
     if(d.status === 'ny'){
       f += '<button type="button" class="btn btn-primary" data-a="fill">Udfyld i Vinted</button>';
+      f += '<button type="button" class="btn btn-secondary" data-a="dba">Udfyld i DBA</button>';
       f += '<button type="button" class="btn btn-secondary" data-a="save">Gem billeder i Fotos</button>';
     } else if(failed){
       f += '<button type="button" class="btn btn-primary" data-a="retry">Prøv analysen igen</button>';
@@ -368,6 +369,16 @@
         // adressen og åbner appen, hvor bogmærket ikke findes.
         window.location.href = 'x-safari-https://www.vinted.dk/items/new';
         setTimeout(function(){ btn.disabled = false; btn.textContent = 'Udfyld i Vinted'; }, 2500);
+      });
+    }
+    else if(a === 'dba'){
+      btn.disabled = true; btn.textContent = 'Åbner DBA …';
+      sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id).then(function(){
+        // x-safari- af samme grund som på Vinted: DBA har sin egen app, og
+        // deres universal links ville ellers kapre adressen og åbne den,
+        // hvor brugerscriptet ikke findes.
+        window.location.href = 'x-safari-https://www.dba.dk/create-item/start';
+        setTimeout(function(){ btn.disabled = false; btn.textContent = 'Udfyld i DBA'; }, 2500);
       });
     }
     else if(a === 'reshopper') reshopper(d, btn);
@@ -403,6 +414,7 @@
      De korte felter læses én gang og tastes; kun overskrift og beskrivelse
      kopieres, for hvert kopieret felt koster et skift frem og tilbage. */
   var RESHOPPER_API = FILL_API.replace('vinted-fill-script', 'reshopper-draft');
+  var DBA_API = FILL_API.replace('vinted-fill-script', 'dba-fill-script');
 
   var SEGMENT = { kids:'Børn', women:'Mor', home:'Bolig' };
   var KATEGORI = { shoes:'Sko', clothes:'Tøj', toys:'Legetøj', gear:'Udstyr', furniture:'Møbler',
@@ -815,6 +827,9 @@
     // Stien SKAL ende paa .user.js - ellers tilbyder Userscripts ikke at
     // installere den. Et forespoergselsparameter er ikke nok.
     window.location.href = FILL_API.replace('?key=', '/udbakke.user.js?key=');
+  });
+  $('m-userscript-dba').addEventListener('click', function(){
+    window.location.href = DBA_API.replace('?key=', '/dba.user.js?key=');
   });
 
   $('m-copy').addEventListener('click', function(){
