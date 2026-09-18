@@ -281,6 +281,42 @@ async function waitForm(){
  return false;
 }
 
+// Appen sender dig til /create-item/start, og dér FINDES opret-formularen ikke
+// endnu: DBA vil foerst vide, hvilken slags annonce det er. Uden det her staar
+// man paa "Ny annonce" og venter paa felter, der aldrig kommer - det ligner, at
+// appen er gaaet i staa.
+async function startNyAnnonce(){
+ for(var i=0;i<24;i++){
+  var f=deep('form').filter(function(x){
+   return /ad-insertion-frontpage/.test(x.getAttribute('action')||'') &&
+          x.querySelector('input[name="adType"][value="recommerce"]');
+  })[0];
+  if(f){
+   log('vaelger Markedspladsen');
+   // requestSubmit foerst, saa sidens egen handler faar lov at koere med.
+   if(f.requestSubmit)f.requestSubmit(); else f.submit();
+   return true;
+  }
+  await sleep(250);
+ }
+ return false;
+}
+
+if(/\/create-item\//.test(location.pathname)){
+ // Kun naar der faktisk venter et udkast. Ellers ville en tilfaeldig tur forbi
+ // "Ny annonce" oprette en kladde af sig selv.
+ var venter=null;
+ try{ venter=await(await timedFetch(API+(AUTO?'&auto=1':''),{},25000)).json(); }catch(e){ return; }
+ if(!venter||venter.empty){
+  if(!AUTO)alert('VintedAuto: ingen klar udkast i køen. Tryk "Udfyld i DBA" i appen først.');
+  return;
+ }
+ if(!await startNyAnnonce()&&!AUTO){
+  alert('VintedAuto: kunne ikke vælge Markedspladsen. Tryk selv på den, så fortsætter automatikken.');
+ }
+ return;
+}
+
 if(!/\/recommerce\/create\//.test(location.pathname)){
  if(!AUTO)alert('VintedAuto: du er ikke på DBAs opret-side. Gå til DBA → Ny annonce → Markedspladsen, og prøv igen.');
  return;

@@ -298,6 +298,8 @@ Deno.serve(async (req: Request) => {
       "// @description  Udfylder DBA-annoncen automatisk",
       "// @match        https://www.dba.dk/recommerce/create/*",
       "// @match        https://dba.dk/recommerce/create/*",
+      "// @match        https://www.dba.dk/create-item/*",
+      "// @match        https://dba.dk/create-item/*",
       "// @run-at       document-idle",
       "// @grant        none",
       "// @inject-into  page",

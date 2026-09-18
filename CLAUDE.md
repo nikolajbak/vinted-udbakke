@@ -151,6 +151,15 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   den ned i stedet for at vise den.
 - **`window.__UDBAKKE_*` må ikke omdøbes.** Et installeret bogmærke sætter dem,
   før det henter automatikken; et andet navn brækker det uden varsel.
+- **DBA's opret-side er to sider, ikke én.** `/create-item/start` spørger først
+  om annoncetype; selve formularen ligger på `/recommerce/create/{id}` og findes
+  slet ikke før valget. Brugerscriptet skal derfor matche BEGGE — ellers står man
+  på "Ny annonce" og venter på felter, der aldrig kommer. Valget sker ved at
+  indsende formularen med `adType=recommerce`, og kun når der faktisk venter et
+  udkast, så et tilfældigt besøg ikke opretter en kladde.
+- **Ændrer du `@match` i et brugerscript, skal det installeres forfra.** Listen
+  er bagt ind ved installationen; Userscripts henter først den nye, når den
+  opdaterer, og indtil da fyrer scriptet ikke på de nye adresser.
 - **DBA er Schibsteds FINN-platform, ikke DBA's egen kode.** Hele opret-formularen
   er Warp-webkomponenter, og den ligger i shadow DOM — `document.querySelector`
   finder ingenting. Opslag skal gå gennem hver shadow-rod undervejs.
