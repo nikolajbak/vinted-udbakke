@@ -376,8 +376,13 @@ Deno.serve(async (req: Request) => {
             "Er billedet en HEL vare, skal kassen foelge varens kanter og holde gulv, borde, " +
             "foedder, ben, haender og moebler udenfor.\n" +
             "Taenk som en art director: du saetter ikke bare en kasse om noget, du bestemmer hvad " +
-            "billedet SKAL vise. En tekst eller et logo skal staa helt inde i rammen med luft " +
-            "omkring sig — klistret op ad kanten laeser det som en fejl, ogsaa naar teksten er hel. " +
+            "billedet SKAL vise. Det afgoerende er, at INTET vaesentligt gaar tabt: hele varen, " +
+            "hele maerkatet, hver linje tekst. Er der to maerkater ved siden af hinanden - fx en " +
+            "lille stoerrelseslap og en stor vaskeanvisning - skal kassen rumme dem BEGGE, for " +
+            "begge dele er oplysninger, koeberen skal kunne laese. Hellere en kasse, der er lidt " +
+            "for rummelig, end en der klipper den sidste linje af.\n" +
+            "En tekst eller et logo skal staa helt inde i rammen med luft omkring sig — klistret " +
+            "op ad kanten laeser det som en fejl, ogsaa naar teksten er hel. " +
             "Luften laegges til automatisk bagefter, saa saet kassen taet om motivet selv.\n" +
             "2b-2) backgroundClutter: er der forstyrrende baggrund TAET paa varen, som ikke kan\n" +
             "beskaeres vaek uden at skaere i varen selv - fotografens foedder eller ben, en haand,\n" +

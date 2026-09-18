@@ -81,6 +81,10 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget
   gulv der er i rammen — forfra blev oliven og udvasket, bagfra næsten sort.
   Derfor kører foto 0 alene først, resten parallelt bagefter.
+- **KUN hele varer isoleres — aldrig nærbilleder.** Et nærbillede beskåret stramt
+  mister den sidste linje tekst: `backgroundClutter` slog isoleringen til på
+  vaskemærkatet, og dets højre kant blev klippet af. På et nærbillede er stoffet
+  omkring mærkatet ikke rod, men sammenhængen.
 - **Hele varer isoleres altid; nærbilleder gør ikke.** Et hovedbillede skal ligne
   et produktfoto i gitteret, og en hel vare har ingen gavn af den flade, den
   ligger på — gulv, sengetæppe eller bord er støj uanset hvor pænt det er. Et
@@ -113,6 +117,9 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   vare, der bliver mindre i gitteret. En bred cardigan, tvunget til 3:4, mistede
   to tredjedele af rammen til tom ramme. Ens format er ikke mere værd end en
   vare, man kan se.
+- **Ingen `object-fit: cover` på et annoncebillede nogen steder i appen.** Et
+  bredt billede klippet ned i en høj kasse ser ud, som om billedbehandlingen har
+  strakt det. Køkort, billedstribe og historik viser nu `contain` på papirfarven.
 - **Vis billedet i appen præcis som filen er.** Beholderen må hverken have fast
   højde eller påtvunget format: `aspect-ratio: 3/4` sammen med `max-height`
   gjorde elementet bredere end billedet, og så lyste appens egen baggrund

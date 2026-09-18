@@ -56,8 +56,8 @@ const MAX_EDGE = 1600;
 // dét, billedet handler om.
 const PADDING: Record<string, number> = {
   helvare: 0.035,
-  maerkat: 0.14,
-  logo: 0.16,
+  maerkat: 0.18,
+  logo: 0.18,
   detalje: 0.10,
   slid: 0.08,
 };
@@ -519,7 +519,11 @@ export async function optimizePhoto(
   // ligger paa - et gulv, et sengetaeppe, et bord er stoej uanset hvor paent
   // det er. Naerbilleder beholder deres omgivelser: stoffet omkring et maerkat
   // er en del af det, koeberen skal kunne se.
-  const vilIsolere = guidance.subject === "helvare" || guidance.backgroundClutter === true;
+  // KUN hele varer isoleres. Et naerbillede maa aldrig beskaeres stramt: dér er
+  // stoffet omkring maerkatet ikke rod, men sammenhaengen - og et maerkat, der
+  // roerer kanten, mister den sidste linje tekst. Da isoleringen ogsaa gjaldt
+  // naerbilleder, blev vaskemaerkatets hoejre kant klippet af.
+  const vilIsolere = guidance.subject === "helvare";
   const pad = guidance.subjectCutOff
     ? PADDING_CUT_OFF
     : vilIsolere
