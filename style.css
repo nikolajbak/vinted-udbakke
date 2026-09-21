@@ -167,8 +167,11 @@
   }
   .row:active{ transform: scale(0.99); background: var(--raised); }
   .row.is-muted .row-title{ color: var(--ink-soft); font-weight: 500; }
+  /* Kvadratisk. Billedet vises stadig helt (contain), men en kvadratisk kasse
+     spilder mindst plads, naar serien kan vaere baade liggende og staaende —
+     en hoej kasse lod et liggende billede sidde som en stribe i tomrum. */
   .row img, .row .ph{
-    width: 72px; height: 90px;
+    width: 72px; height: 72px;
     object-fit: contain; background: var(--surface); border-radius: 8px;
     border: 1px solid var(--line); background: var(--paper);
     display: block;
@@ -258,7 +261,7 @@
   .dots i.on{ background: var(--accent); }
   .strip{ display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: var(--s1); margin-top: var(--s2); }
   .strip img{
-    width: 60px; height: 75px; flex: none; object-fit: contain;
+    width: 64px; height: 64px; flex: none; object-fit: contain;
     border-radius: 8px; border: 1px solid var(--line); cursor: pointer; background: var(--surface);
   }
   .price-row{ display: flex; align-items: baseline; gap: var(--s2); margin-top: var(--s4); }
@@ -282,8 +285,8 @@
   .step-title{ font-size: var(--t-title); font-weight: 700; margin: 0; }
   .step-hint{ font-size: var(--t-small); color: var(--ink-soft); margin: var(--s2) 0 0; line-height: 1.55; }
   .shots{ display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
-  .shot{ width: 60px; }
-  .shot img{ width: 60px; height: 80px; object-fit: contain; background: var(--surface); border-radius: 8px; border: 1px solid var(--line); display: block; }
+  .shot{ width: 64px; }
+  .shot img{ width: 64px; height: 64px; object-fit: contain; background: var(--surface); border-radius: 8px; border: 1px solid var(--line); display: block; }
   .shot span{ display: block; font-family: "Space Mono", ui-monospace, monospace; font-size: 9px;
               color: var(--ink-soft); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -350,7 +353,7 @@
 
   .hist-row{ display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0;
              border-bottom: 1px solid var(--line); }
-  .hist-row img{ width: 40px; height: 50px; object-fit: contain; background: var(--surface); border-radius: 6px; border: 1px solid var(--line); }
+  .hist-row img{ width: 44px; height: 44px; object-fit: contain; background: var(--surface); border-radius: 6px; border: 1px solid var(--line); }
   .hist-row div{ min-width: 0; }
   .hist-row .t{ font-weight: 600; font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hist-row .s{ font-size: var(--t-small); color: var(--ink-soft); }
@@ -414,8 +417,39 @@
    lige foer du trykker, i stedet for inde i soegeren. */
 .guide{
   display: block; width: 116px; margin: var(--s3) auto var(--s2);
-  border-radius: 10px; background: #fff; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--raised); border: 1px solid var(--line);
 }
 .guide .ramme{ fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 4; }
-.guide .vare{ fill: var(--moss-soft); stroke: var(--moss); stroke-width: 2; }
+.guide .vare{ fill: var(--surface); stroke: var(--ink-soft); stroke-width: 2; }
+/* Guiden er en tegning, ikke en fremhaevning. Med hvid bund og maettet groent
+   var den det lyseste paa skaermen i moerkt tema og trak oejet vaek fra selve
+   vejledningen ved siden af. */
 .guide .rod{ fill: var(--danger); opacity: .28; }
+
+/* ---- Markedspladser ------------------------------------------------------ */
+/* Tre paa en linje. Stablet aad de 200 af 704 px og klemte indholdet ned
+   under to tredjedele af skaermen. */
+.market-row{ display: flex; gap: var(--s2); }
+.market-row .btn{ flex: 1 1 0; width: auto; min-width: 0; padding: 0 var(--s2); }
+.btn-market{ background: var(--raised); color: var(--ink); border-color: var(--line); }
+.btn-market:active{ background: var(--surface); }
+/* Sendt derhen: daempet og med flueben, saa man kan se hvad der mangler uden
+   at laese. Knappen virker stadig - man kan sagtens skulle derind igen. */
+.btn-market.is-done{ background: var(--moss-soft); color: var(--moss); border-color: var(--moss); }
+.btn-market.is-done::after{ content: ' ✓'; font-weight: 700; }
+
+/* Samme tre pladser som prikker paa koekortet. */
+.marks{ display: inline-flex; gap: 4px; margin-left: var(--s2); vertical-align: middle; }
+.marks i{ width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--line); display: block; }
+.marks i.on{ background: var(--moss); border-color: var(--moss); }
+
+/* Opsætningen er en mur af tekst, der laeses en gang og staar i vejen resten
+   af tiden. Knapperne staar altid fremme; forklaringen foldes ud ved behov. */
+.setup details{ margin-bottom: var(--s3); }
+.setup summary{
+  cursor: pointer; font-size: var(--t-small); color: var(--ink-soft);
+  padding: var(--s2) 0; list-style: none;
+}
+.setup summary::-webkit-details-marker{ display: none; }
+.setup summary::before{ content: '▸ '; }
+.setup details[open] summary::before{ content: '▾ '; }

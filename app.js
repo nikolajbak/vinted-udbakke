@@ -81,6 +81,16 @@
   });
 
   /* ---- Kø --------------------------------------------------------------- */
+  // Tre prikker paa kortet: hvor har varen vaeret? Med én markedsplads var det
+  // ligegyldigt; med tre er det dét, man skal kunne se uden at aabne udkastet.
+  function markedsMaerker(d){
+    if(d.status !== 'ny') return '';
+    var sendt = sendtTil(d);
+    return '<span class="marks">' + MARKEDER.map(function(m){
+      return '<i class="' + (sendt[m.k] ? 'on' : '') + '" title="' + esc(m.navn) + '"></i>';
+    }).join('') + '</span>';
+  }
+
   function statusChip(d){
     if(d.status === 'kladde') return '<span class="chip chip-vent">Kladde</span>';
     if(d.status === 'afventer'){
@@ -237,7 +247,7 @@
         '<span class="row-main">' +
           '<span class="row-title">' + esc(d.title || (d.status === 'kladde' ? 'Ufærdig billedserie' : 'Analyserer billeder …')) + '</span>' +
           '<span class="row-sub">' + sub + '</span>' +
-          '<span>' + statusChip(d) + '</span>' +
+          '<span>' + statusChip(d) + markedsMaerker(d) + '</span>' +
         '</span>' +
         '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>' +
         '</button>' +
@@ -337,7 +347,11 @@
     // og "Kasser" ligger ikke lige ved siden af det, du trykker på dagligt.
     var rest = '<div class="sect">';
     if(d.status === 'ny'){
-      rest += '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
+      // "Gem billeder i Fotos" er en hjaelpehandling og hoerer til her, ikke
+      // paa linje med de tre markedspladser. Den fyldte en fjerdedel af foden
+      // og trak opmaerksomhed fra det, skaermen handler om.
+      rest += '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
               '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
     }
     rest += '<button type="button" class="btn btn-danger" data-a="discard">Kasser udkast</button></div>';
@@ -345,13 +359,16 @@
 
     var f = '';
     if(d.status === 'ny'){
-      f += '<button type="button" class="btn btn-primary" data-a="fill">Udfyld i Vinted</button>';
-      f += '<button type="button" class="btn btn-secondary" data-a="dba">Udfyld i DBA</button>';
-      // Reshopper staar paa linje med de to andre markedspladser. Den er en
-      // afskrift og ikke en udfyldning, men for den der staar med varen er det
-      // det samme valg: hvor skal den op?
-      f += '<button type="button" class="btn btn-secondary" data-a="reshopper">Klargør til Reshopper</button>';
-      f += '<button type="button" class="btn btn-secondary" data-a="save">Gem billeder i Fotos</button>';
+      // Tre markedspladser paa EN linje frem for fire stablede knapper. Stablet
+      // aad foden 200 af 704 px og klemte indholdet ned under to tredjedele af
+      // skaermen — og navnet alene er nok, naar overskriften allerede siger
+      // hvilken vare det er.
+      var sendt = sendtTil(d);
+      f += '<div class="market-row">' + MARKEDER.map(function(m){
+        var ok = !!sendt[m.k];
+        return '<button type="button" class="btn btn-market' + (ok ? ' is-done' : '') +
+          '" data-a="' + m.a + '">' + esc(m.navn) + '</button>';
+      }).join('') + '</div>';
     } else if(failed){
       f += '<button type="button" class="btn btn-primary" data-a="retry">Prøv analysen igen</button>';
     }
@@ -364,27 +381,37 @@
       });
   }
 
+  // Et tryk paa en markedsplads noterer, at varen er sendt DERHEN. Det er ikke
+  // det samme som at den ER lagt op — kun Vinted-scriptet kan bekraefte det —
+  // men det er dét, der skal til for at kunne se, hvad man mangler. Du kan
+  // altid trykke igen; maerket forsvinder foerst med "Nulstil" paa udkastet.
+  function markerSendt(d, key){
+    var sendt = sendtTil(d);
+    if(sendt[key]) return;
+    sendt[key] = new Date().toISOString();
+    d.posted_to = sendt;
+    sb.from('drafts').update({ posted_to: sendt }).eq('id', d.id).then(function(){});
+  }
+
+  // x-safari- tvinger Safari. Uden det kaprer markedspladsernes universal
+  // links adressen og aabner deres egen app, hvor brugerscriptet ikke findes.
+  function aabnMarked(d, btn, key, navn, url){
+    btn.disabled = true; btn.textContent = 'Åbner …';
+    markerSendt(d, key);
+    sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id).then(function(){
+      window.location.href = 'x-safari-' + url;
+      setTimeout(function(){ btn.disabled = false; btn.textContent = navn; }, 2500);
+    });
+  }
+
   function detailAction(a, d, btn){
     if(a === 'fill'){
-      btn.disabled = true; btn.textContent = 'Åbner Vinted …';
-      sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id).then(function(){
-        // x-safari- tvinger Safari; ellers kaprer Vinteds Universal Links
-        // adressen og åbner appen, hvor bogmærket ikke findes.
-        window.location.href = 'x-safari-https://www.vinted.dk/items/new';
-        setTimeout(function(){ btn.disabled = false; btn.textContent = 'Udfyld i Vinted'; }, 2500);
-      });
+      aabnMarked(d, btn, 'vinted', 'Vinted', 'https://www.vinted.dk/items/new');
     }
     else if(a === 'dba'){
-      btn.disabled = true; btn.textContent = 'Åbner DBA …';
-      sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id).then(function(){
-        // x-safari- af samme grund som på Vinted: DBA har sin egen app, og
-        // deres universal links ville ellers kapre adressen og åbne den,
-        // hvor brugerscriptet ikke findes.
-        window.location.href = 'x-safari-https://www.dba.dk/create-item/start';
-        setTimeout(function(){ btn.disabled = false; btn.textContent = 'Udfyld i DBA'; }, 2500);
-      });
+      aabnMarked(d, btn, 'dba', 'DBA', 'https://www.dba.dk/create-item/start');
     }
-    else if(a === 'reshopper') reshopper(d, btn);
+    else if(a === 'reshopper'){ markerSendt(d, 'reshopper'); reshopper(d, btn); }
     else if(a === 'copy'){
       var text = [d.title, d.description, d.price ? 'Pris: ' + d.price : ''].filter(Boolean).join('\n\n');
       if(navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ toast('Teksten er kopieret'); });
@@ -419,6 +446,15 @@
   var RESHOPPER_API = FILL_API.replace('vinted-fill-script', 'reshopper-draft');
   var DBA_API = FILL_API.replace('vinted-fill-script', 'dba-fill-script');
 
+  // De tre markedspladser ét sted, saa kø, detalje og handling ikke kan komme
+  // til at sige noget forskelligt om den samme vare.
+  var MARKEDER = [
+    { k:'vinted',    navn:'Vinted',    a:'fill' },
+    { k:'dba',       navn:'DBA',       a:'dba' },
+    { k:'reshopper', navn:'Reshopper', a:'reshopper' }
+  ];
+  function sendtTil(d){ return (d && d.posted_to) || {}; }
+
   var SEGMENT = { kids:'Børn', women:'Mor', home:'Bolig' };
   var KATEGORI = { shoes:'Sko', clothes:'Tøj', toys:'Legetøj', gear:'Udstyr', furniture:'Møbler',
     garden:'Have', bikes:'Cykler', booksAndMedia:'Bøger og medier', maternity:'Gravid',
@@ -432,14 +468,14 @@
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: d.id })
     }).then(function(r){ return r.json(); }).then(function(r){
-      btn.disabled = false; btn.textContent = 'Klargør til Reshopper';
+      btn.disabled = false; btn.textContent = 'Reshopper';
       if(!r || r.error){ toast('Kunne ikke klargøre: ' + ((r && r.error) || 'ukendt fejl')); return; }
       visReshopper(d, r);
       // Billederne skal ligge i kamerarullen, INDEN Reshopper-appen åbnes —
       // ellers står man i deres billedvælger med en tom rulle.
       savePhotos(d, null);
     }).catch(function(){
-      btn.disabled = false; btn.textContent = 'Klargør til Reshopper';
+      btn.disabled = false; btn.textContent = 'Reshopper';
       toast('Kunne ikke klargøre');
     });
   }

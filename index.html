@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=f3e2365d">
+<link rel="stylesheet" href="style.css?v=d02c611a">
 </head>
 <body>
 
@@ -23,7 +23,7 @@
   <section class="screen" id="s-login" hidden>
     <div class="body" style="display:flex">
       <form class="login-inner" id="login-form">
-        <div class="label">Vinted &middot; annonceudkast</div>
+        <div class="label">Vinted &middot; DBA &middot; Reshopper</div>
         <h1>VintedAuto</h1>
         <!-- Et kodeordsfelt UDEN brugernavn tvinger nøgleringen til at gætte,
              hvilken konto koden hører til. På github.io gætter den på
@@ -42,7 +42,7 @@
   <section class="screen" id="s-queue" hidden>
     <header class="bar">
       <div>
-        <div class="label">Vinted &middot; annonceudkast</div>
+        <div class="label">Vinted &middot; DBA &middot; Reshopper</div>
         <h1>VintedAuto</h1>
       </div>
       <div class="spacer"></div>
@@ -110,8 +110,10 @@
       </button>
       <div class="sect setup">
         <span class="label">Helt automatisk</span>
-        <p class="note">Sæt det op én gang, så udfylder Vinted-annoncen sig selv — kategori, mærke, størrelse, stand, farve, materiale, titel, beskrivelse, pris og billeder — i samme øjeblik du trykker <b>Udfyld i Vinted</b>. Du skal kun tjekke annoncen og trykke upload.</p>
-        <p class="note">Safari må ikke lade én side køre kode på en anden. Derfor skal den gratis app <b>Userscripts</b> have lov — det er den, der giver Vinted-siden besked.</p>
+        <p class="note">Sæt det op én gang, så udfylder annoncen sig selv — kategori, mærke, størrelse, stand, farve, materiale, titel, beskrivelse, pris og billeder — i samme øjeblik du vælger en markedsplads på udkastet. Du skal kun tjekke annoncen og lægge den op.</p>
+        <details>
+          <summary>Sådan sætter du det op</summary>
+        <p class="note">Safari må ikke lade én side køre kode på en anden. Derfor skal den gratis app <b>Userscripts</b> have lov — det er den, der giver markedspladsens side besked.</p>
         <ol>
           <li>Hent <b>Userscripts</b> i App Store (gratis)</li>
           <li><b>Indstillinger → Apps → Safari → Udvidelser → Userscripts</b>: slå til, og sæt <b>Alle websteder</b> til <b>Tillad</b></li>
@@ -119,12 +121,13 @@
           <li>Tryk på <b>ᴀA</b> i adresselinjen → <b>Userscripts</b> → tryk <b>Install</b></li>
         </ol>
         <p class="note">Trin 4 er let at overse: installationen sker inde i udvidelsens lille vindue, ikke på selve siden. Ser du kun kode og ingen knap, har udvidelsen ikke fået lov på det websted endnu.</p>
+        </details>
         <button type="button" class="btn btn-primary" id="m-userscript" style="margin-top:12px">Installér automatikken (Vinted)</button>
         <button type="button" class="btn btn-secondary" id="m-userscript-dba">Installér automatikken (DBA)</button>
       </div>
       <div class="sect setup">
         <span class="label">Eller med et bogmærke</span>
-        <p class="note">Vil du ikke installere noget, gør et bogmærke det samme — du skal bare trykke på det selv, når Vinted-siden er åben.</p>
+        <p class="note">Vil du ikke installere noget, gør et bogmærke det samme — du skal bare trykke på det selv, når Vinted-siden er åben. Bogmærket virker kun til Vinted.</p>
         <ol>
           <li>Tryk <b>Kopiér bogmærke-kode</b></li>
           <li>I Safari: <b>Del</b> → <b>Tilføj bogmærke</b> → gem i <b>Favoritter</b> som <b>Udfyld Vinted</b></li>
@@ -168,6 +171,6 @@
          style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
 </div>
 
-<script src="app.js?v=61a9f1ad"></script>
+<script src="app.js?v=3ba9b506"></script>
 </body>
 </html>

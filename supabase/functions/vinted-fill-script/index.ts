@@ -687,10 +687,19 @@ Deno.serve(async (req: Request) => {
     // annonce ind igen.
     // Annoncen er landet paa Vinted. Udkastet hoerer ikke laengere til i koen.
     if (body.mode === "posted") {
+      // Foer flyttede dette udkastet direkte til "afsendt". Med tre
+      // markedspladser er det forkert: at annoncen er landet paa Vinted siger
+      // intet om DBA og Reshopper, og udkastet forsvandt ud af koeen, foer man
+      // var faerdig med det. Nu noteres KUN Vinted som klaret; udkastet
+      // forlader koeen, naar du selv siger til, eller naar alle tre er sat.
+      const { data: nu } = await supabase
+        .from("drafts").select("posted_to").eq("id", body.id).single();
+      const sendt = { ...(nu?.posted_to ?? {}), vinted: new Date().toISOString() };
+      const alle = ["vinted", "dba", "reshopper"].every((k) => sendt[k]);
       await supabase.from("drafts").update({
-        status: "afsendt",
-        posted_at: new Date().toISOString(),
+        posted_to: sendt,
         selected_at: null,
+        ...(alle ? { status: "afsendt", posted_at: new Date().toISOString() } : {}),
       }).eq("id", body.id);
       return json({ ok: true });
     }

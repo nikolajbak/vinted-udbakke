@@ -80,6 +80,13 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   220–690 kB, så kvalitet 88 er rigeligt — de koder alligevel om.
 - **Send billeder til modellen som URL, ikke base64.** De ligger offentligt i
   Storage. Base64 kostede både CPU og det meste af ventetiden.
+- **Et udkast forlader ikke køen, fordi Vinted er klaret.** Med tre
+  markedspladser siger "lagt op på Vinted" intet om DBA og Reshopper.
+  `drafts.posted_to` noterer hver plads for sig; `mode:'posted'` fra
+  Vinted-scriptet sætter kun `vinted`. Udkastet flyttes til `afsendt`, når du
+  selv trykker "Markér som postet", eller når alle tre er sat. Et tryk på en
+  markedsplads noterer, at varen er sendt DERHEN — ikke at den er lagt op; kun
+  Vinted-scriptet kan bekræfte det sidste.
 - **Brugerscriptet kører på hele `/items/*`, ikke kun `/items/new`.** Efter
   Upload sender Vinted brugeren videre til annoncens egen side; dér ser scriptet
   markøren i `localStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
