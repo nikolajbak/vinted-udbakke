@@ -7,6 +7,10 @@ analysen og udfyldningen kører som Supabase Edge Functions.
 - Supabase-projekt: `gjycsqshkvkcupdnvgvf`
 - Alle nøgler: `.env.secrets` (chmod 600, gitignored) — `set -a; . ./.env.secrets; set +a`
 
+**Hvor vi er nu: `STATUS.md`.** Denne fil rummer det målte, som ikke må laves
+om. `STATUS.md` rummer det, der er i gang — hvad der er afprøvet, hvad der ikke
+er, og hvad der står for tur. Læs den først i en ny session.
+
 ## Kommandoer
 
 ```bash
