@@ -60,7 +60,7 @@ def stempler():
     ud = []
     for f in ("app.js", "style.css"):
         i = html.find(f + "?v=")
-        ud.append(html[i:html.find('"', i)] if i > -1 else f + " (ustemplet)")
+        ud.append("`%s`" % html[i:html.find('"', i)] if i > -1 else "%s (ustemplet)" % f)
     return " · ".join(ud)
 
 
@@ -80,7 +80,7 @@ def main():
         linjer.append("")
     linjer += [
         "Commit `%s` — %s  " % (sha, emne),
-        "App: `%s`  " % stempler(),
+        "App: %s  " % stempler(),
         "Udrullet: %s" % (", ".join(udrullet) if udrullet else "ingen funktioner (kun noteret)"),
         "",
         "| funktion | live | indhold |",

@@ -70,6 +70,17 @@ if [ -n "$sidste" ] && [ -z "$udrul" ] && [ $# -eq 0 ]; then
   echo "Kun appen er aendret — ingen funktioner at udrulle."
 fi
 
+# Herfra og frem kan en afbrydelse efterlade noget halvt: udrullet, men ikke
+# maerket. Vaerktoejet her bliver hentet frem, naar noget braender — saa skal
+# det ogsaa sige, hvor man staar, hvis det selv gaar ned.
+halvt() {
+  echo
+  echo "Afbrudt undervejs. Der er ikke sat maerke, og der er ikke pushet."
+  echo "  Hvor naaede den til:     git log --oneline -3; git status --short"
+  echo "  Hvad koerer der faktisk: python3 tools/tjek-live.py"
+}
+trap halvt EXIT
+
 for f in $udrul; do
   echo "Udruller $f …"
   npx --yes supabase@latest functions deploy "$f" --project-ref "$PROJEKT" >/dev/null
@@ -89,6 +100,7 @@ git commit -q -m "Udgivelse $tag"
 git tag -a "$tag" -m "Udgivelse $tag${udrul:+ — $udrul}"
 git push -q origin main --follow-tags
 
+trap - EXIT
 echo
 echo "$tag er ude.${udrul:+ Udrullet:$udrul}"
 echo "Tilbage hertil senere:  ./tools/tilbage.sh $tag"

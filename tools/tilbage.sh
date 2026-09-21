@@ -76,6 +76,17 @@ if [ -z "$(git status --porcelain)" ]; then
   exit 0
 fi
 
+# Herfra og frem kan en afbrydelse efterlade noget halvt: udrullet, men ikke
+# maerket. Vaerktoejet her bliver hentet frem, naar noget braender — saa skal
+# det ogsaa sige, hvor man staar, hvis det selv gaar ned.
+halvt() {
+  echo
+  echo "Afbrudt undervejs. Der er ikke sat maerke, og der er ikke pushet."
+  echo "  Hvor naaede den til:     git log --oneline -3; git status --short"
+  echo "  Hvad koerer der faktisk: python3 tools/tjek-live.py"
+}
+trap halvt EXIT
+
 echo "Ruller tilbage til $tag:"
 git status --short
 
@@ -105,5 +116,6 @@ git commit -q --amend --no-edit
 git tag -a "$nytag" -m "Tilbagerulning til $tag${udrul:+ — $udrul}"
 git push -q origin main --follow-tags
 
+trap - EXIT
 echo
 echo "Rullet tilbage til $tag. Det staar som $nytag."
