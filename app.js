@@ -9,6 +9,7 @@
   var rows = {};
   var started = false;
   var currentId = null;
+  var queueTegnet = false;
 
   var $ = function(id){ return document.getElementById(id); };
   function esc(s){
@@ -26,6 +27,35 @@
     if(h < 24) return 'for ' + h + ' t. siden';
     return 'for ' + Math.round(h/24) + ' dage siden';
   }
+  // Skelettet har listens form, saa der ikke staar en snurrende cirkel og
+  // siger "vent" uden at sige hvad man venter paa - og saa siden ikke hopper,
+  // naar indholdet lander.
+  function visSkelet(el, n){
+    var r = '';
+    for(var i = 0; i < (n || 3); i++){
+      r += '<div class="skel-row"><i></i><span class="skel-tekst">' +
+           '<i></i><i></i><i></i></span></div>';
+    }
+    el.className = 'skel';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = r;
+    el.hidden = false;
+  }
+
+  // En fejl er ikke en blindgyde. Foer stod der "Prøv at genindlæse" - altsaa
+  // en instruks om at gaa uden om appen for at gentage det, appen selv lige
+  // har forsoegt.
+  function visFejl(el, overskrift, besked, igen){
+    el.className = 'empty';
+    el.removeAttribute('aria-hidden');
+    el.hidden = false;
+    el.innerHTML = '<h3>' + esc(overskrift) + '</h3><p>' + esc(besked) + '</p>';
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn btn-secondary'; b.textContent = 'Prøv igen';
+    b.addEventListener('click', igen);
+    el.appendChild(b);
+  }
+
   function toast(msg){
     var t = document.createElement('div');
     t.className = 'toast'; t.textContent = msg;
@@ -253,6 +283,11 @@
         '</button>' +
       '</div>';
     }).join('');
+
+    // Koen tegnes om, hver gang et udkast skifter status. Uden det her ville
+    // hele listen tone ind forfra ved hver realtidsopdatering.
+    el.classList.toggle('er-ny', !queueTegnet);
+    queueTegnet = true;
 
     Array.prototype.forEach.call(el.querySelectorAll('.row'), function(r){
       r.addEventListener('click', function(){
@@ -902,20 +937,44 @@
       toast('Koden er kopieret — indsæt den som bogmærkets adresse');
     }).catch(function(){ toast('Kunne ikke kopiere'); });
   });
-  $('m-hist').addEventListener('click', function(){
-    $('hist-body').innerHTML = '<p class="note">Henter …</p>';
-    show('hist');
+  function hentHistorik(){
+    var krop = $('hist-body');
+    krop.innerHTML = '<div class="skel" id="hist-skel"></div>';
+    visSkelet($('hist-skel'), 3);
     sb.from('drafts').select('*').eq('status','afsendt').order('posted_at',{ascending:false}).limit(30)
       .then(function(res){
+        if(res.error){
+          krop.innerHTML = '<div class="empty" id="hist-fejl"></div>';
+          visFejl($('hist-fejl'), 'Historikken kunne ikke hentes',
+            res.error.message || 'Forbindelsen svarede ikke.', hentHistorik);
+          return;
+        }
         var data = res.data || [];
-        $('hist-body').innerHTML = data.length ? data.map(function(d){
+        krop.innerHTML = data.length ? data.map(function(d){
           return '<div class="hist-row">' +
             (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '') +
             '<div><div class="t">' + esc(d.title || '') + '</div>' +
             '<div class="s">' + esc(d.price || '') + ' · ' + esc(relTime(d.posted_at)) + '</div></div></div>';
         }).join('') : '<div class="empty"><p>Ingen postede annoncer endnu.</p></div>';
       });
-  });
+  }
+  $('m-hist').addEventListener('click', function(){ show('hist'); hentHistorik(); });
+
+  function hentKoe(){
+    visSkelet($('queue-loading'), 3);
+    $('queue-empty').hidden = true;
+    sb.from('drafts').select('*').in('status', ['ny','afventer','kladde'])
+      .order('created_at', { ascending:false })
+      .then(function(res){
+        if(res.error){
+          visFejl($('queue-loading'), 'Køen kunne ikke hentes',
+            res.error.message || 'Forbindelsen svarede ikke.', hentKoe);
+          return;
+        }
+        (res.data || []).forEach(function(d){ rows[d.id] = d; });
+        renderQueue();
+      });
+  }
 
   /* ---- Login og opstart -------------------------------------------------- */
   $('login-form').addEventListener('submit', function(e){
@@ -936,13 +995,7 @@
     if(started) return;
     started = true;
 
-    sb.from('drafts').select('*').in('status', ['ny','afventer','kladde'])
-      .order('created_at', { ascending:false })
-      .then(function(res){
-        if(res.error){ $('queue-loading').innerHTML = '<p>Kunne ikke hente køen. Prøv at genindlæse.</p>'; return; }
-        (res.data || []).forEach(function(d){ rows[d.id] = d; });
-        renderQueue();
-      });
+    hentKoe();
 
     sb.channel('drafts-live').on('postgres_changes',
       { event:'*', schema:'public', table:'drafts' }, function(p){

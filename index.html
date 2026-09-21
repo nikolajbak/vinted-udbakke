@@ -9,12 +9,13 @@
 <meta name="theme-color" content="#E8EAE0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#19170F" media="(prefers-color-scheme: dark)">
 <title>VintedAuto</title>
+<meta name="description" content="Tag billeder af en vare, og få annoncen skrevet og udfyldt på Vinted, DBA og Reshopper.">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=d02c611a">
+<link rel="stylesheet" href="style.css?v=09e32b6c">
 </head>
 <body>
 
@@ -53,10 +54,23 @@
     <div class="body">
       <div id="queue-list"></div>
       <div class="empty" id="queue-empty" hidden>
+        <!-- Samme stregsprog som rammeguiden paa optageskaermen: en stiplet
+             ramme om varen. Den tomme skaerm er det foerste, man moeder. -->
+        <svg class="empty-mark" viewBox="0 0 72 56" aria-hidden="true">
+          <rect class="ramme" x="1.5" y="1.5" width="69" height="53" rx="5"/>
+          <path d="M29 13.5 22 17.5 19 24.5 24.5 26.5 25.5 44.5 46.5 44.5 47.5 26.5 53 24.5 50 17.5 43 13.5"/>
+          <path d="M29 13.5c1.5 4 11.5 4 14 0"/>
+        </svg>
         <h3>Ingen udkast endnu</h3>
         <p>Tryk <b>Nyt produkt</b> og følg billedserien. Claude skriver annoncen ud fra billederne, og du gennemser den bagefter.</p>
       </div>
-      <div class="empty" id="queue-loading"><p>Henter …</p></div>
+      <!-- Skelettet staar i HTML'en, saa det er der allerede foer app.js er
+           hentet - og det har raekkens form, saa listen ikke hopper. -->
+      <div class="skel" id="queue-loading" aria-hidden="true">
+        <div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>
+        <div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>
+        <div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>
+      </div>
     </div>
     <div class="footer">
       <button type="button" class="btn btn-primary" id="new-btn">Nyt produkt</button>
@@ -171,6 +185,6 @@
          style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
 </div>
 
-<script src="app.js?v=3ba9b506"></script>
+<script src="app.js?v=8c34e060"></script>
 </body>
 </html>
