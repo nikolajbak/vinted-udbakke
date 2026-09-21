@@ -22,6 +22,25 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    Felterne bliver fyldt, men de indgår ikke i den `PUT`, trin 1 sender. Enten
    commits de ved trinskiftet, eller også går de tabt. Det er den vigtigste
    ubekendte.
+
+   **Instrumentet er bygget og udrullet — nu mangler kun at køre det.** Runneren
+   lytter på DBAs egne kald og læser annoncen tilbage fra
+   `GET /recommerce/create/api/item/{id}`, ikke fra DOM'en. Den melder tre
+   gange: hvad serveren har lige efter udfyldningen, hvad hvert af sidens egne
+   kald bar med sig, og hvad der står bagefter. Grøn banner = alt gemt, brun =
+   noget mangler; hele forløbet står i `window.__UDBAKKE_DBA_LOG__`.
+   Kontrollen leder efter selve VÆRDIEN i svaret i stedet for et gættet
+   feltnavn, så den også fortæller, hvad DBA kalder felterne.
+
+   Navigerer DBA ved *Fortsæt*, dør lytteren med siden; derfor lægges det
+   forventede i `sessionStorage`, og næste kørsel på samme annonce melder i
+   stedet for at udfylde igen.
+
+   **Vælg en vare, der har mindst fire sammenlignelige annoncer på DBA.**
+   Billedteksterne kommer KUN fra markedsanalysen — `captions` findes ikke i
+   den `GET`, runneren henter udkastet med, så `d.captions` er altid
+   `undefined`. Falder markedsopslaget igennem, er der ingen billedtekster at
+   måle på, og den halvdel af spørgsmålet står ubesvaret hen.
 2. **DBA-brugerscriptet efter rettelserne.** To ting kom til bagefter: valget af
    annoncetype på `/create-item/start`, og fire funktioner (`fillCategory`,
    `fillSelect`, `choose`, `ventPaaFelt`), der var slettet ved et uheld og er

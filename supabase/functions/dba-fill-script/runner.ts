@@ -322,22 +322,165 @@ async function fillCaptions(tekster){
  for(var i=0;i<n;i++){
   if(!tekster[i])continue;
   setText(felter[i],tekster[i]);
+  FORVENTET.tekster.push(tekster[i]);
   await sleep(350);
  }
  log('billedtekster: '+n+' af '+felter.length);
  return null;
 }
 
-function say(msg){
- if(!AUTO){alert(msg);return}
+// ---- Kontrol mod serveren -------------------------------------------------
+// DOM'en lyver: tre felter saa udfyldte ud og var tomme, da de blev laest
+// tilbage. Her er spoergsmaalet et andet end om noget staar paa skaermen —
+// gemmer DBA pris og billedtekster, naar man trykker Fortsaet? De to felter er
+// ikke med i den PUT, trin 1 sender, saa enten commits de ved trinskiftet,
+// eller ogsaa gaar de tabt.
+//
+// To instrumenter svarer paa det:
+//  1. Vi lytter paa sidens EGNE kald og ser, hvad trinskiftets PUT bar med sig.
+//  2. Vi laeser annoncen tilbage fra serveren bagefter. Det er facit.
+
+var FORVENTET={pris:null,tekster:[]};
+var FAERDIG=false,kontrolTimer=null,sidsteSvar='';
+
+function itemId(){
+ var m=location.pathname.match(/\/recommerce\/create\/([^\/?#]+)/);
+ return m?m[1]:null;
+}
+
+async function laesServer(){
+ var id=itemId();
+ if(!id)return null;
+ try{
+  var r=await timedFetch('/recommerce/create/api/item/'+id,{credentials:'include',cache:'no-store'},15000);
+  if(!r.ok){log('kontrol: serveren svarede '+r.status);return null}
+  return await r.json();
+ }catch(e){return null}
+}
+
+// Vi leder efter VAERDIEN, ikke efter et feltnavn vi har gaettet. Saa svarer
+// kontrollen ogsaa, hvis DBA kalder prisen noget andet end vi tror — og den
+// fortaeller os til gengaeld, hvad feltet saa hedder.
+function stier(obj,vaerdi,sti,ud){
+ ud=ud||[];sti=sti||'';
+ if(obj===null||obj===undefined)return ud;
+ if(typeof obj==='object'){
+  Object.keys(obj).forEach(function(k){stier(obj[k],vaerdi,sti?sti+'.'+k:k,ud)});
+  return ud;
+ }
+ if(norm(vaerdi)&&norm(String(obj))===norm(String(vaerdi)))ud.push(sti||'(rod)');
+ return ud;
+}
+
+async function kontroller(naar){
+ var s=await laesServer();
+ if(!s){log('kontrol ('+naar+'): kunne ikke laese annoncen tilbage');return null}
+ var pris=[];
+ if(FORVENTET.pris){
+  pris=stier(s,FORVENTET.pris);
+  // Prisen kan ligge i oere. Samme tal, anden enhed, og saa ville den ellers
+  // blive meldt tabt, mens den er gemt.
+  if(!pris.length)pris=stier(s,String(Number(FORVENTET.pris)*100));
+ }
+ var fundet=0,hvor='';
+ for(var i=0;i<FORVENTET.tekster.length;i++){
+  var f=stier(s,FORVENTET.tekster[i]);
+  if(f.length){fundet++;if(!hvor)hvor=f[0]}
+ }
+ var svar='pris '+(FORVENTET.pris?(pris.length?'GEMT i '+pris.join(', '):'IKKE gemt'):'ikke sat')+
+  ' · billedtekster '+fundet+' af '+FORVENTET.tekster.length+(hvor?' (fx '+hvor+')':'');
+ log('kontrol ('+naar+'): '+svar);
+ return {tekst:svar,pris:pris.length>0,tekster:fundet};
+}
+
+function meld(k){
+ if(!k)return;
+ var alt=(!FORVENTET.pris||k.pris)&&k.tekster===FORVENTET.tekster.length;
+ banner('Kontrol mod DBAs server\n'+k.tekst,alt?'#1b6f4a':'#7a3b1f');
+}
+
+// Sidens eget kald er startskuddet: naar DBA selv har sendt noget, er der noget
+// nyt at laese tilbage. Halvandet sekunds luft, saa serveren er faerdig.
+function efterKald(){
+ if(!FAERDIG)return;
+ clearTimeout(kontrolTimer);
+ kontrolTimer=setTimeout(function(){
+  kontroller('efter sidens eget kald').then(function(k){
+   if(!k||k.tekst===sidsteSvar)return;
+   sidsteSvar=k.tekst;
+   meld(k);
+  });
+ },1500);
+}
+
+function noterKald(metode,adresse,krop){
+ var u=String(adresse||'');
+ if(u.indexOf('/recommerce/create/api/')<0)return;
+ var m=String(metode||'GET').toUpperCase();
+ if(m==='GET')return;
+ var bar=[];
+ if(typeof krop==='string'&&krop){
+  if(FORVENTET.pris&&krop.indexOf(FORVENTET.pris)>-1)bar.push('pris');
+  var n=0;
+  for(var i=0;i<FORVENTET.tekster.length;i++)if(krop.indexOf(FORVENTET.tekster[i])>-1)n++;
+  if(n)bar.push(n+' billedtekster');
+ }
+ log('sidens kald: '+m+' '+u.split('?')[0]+' — indeholdt '+
+  (bar.length?bar.join(' + '):'hverken pris eller billedtekster'));
+ efterKald();
+}
+
+// Wrappet skal ligge FOER siden sender noget. @inject-into page goer det
+// muligt: koerte scriptet i sin egen verden, ville sidens fetch vaere en anden
+// end vores, og vi ville ikke se et eneste kald.
+function spion(){
+ var oFetch=window.fetch;
+ window.fetch=function(input,init){
+  try{
+   var u=typeof input==='string'?input:(input&&input.url)||'';
+   var m=(init&&init.method)||(input&&input.method)||'GET';
+   noterKald(m,u,init&&typeof init.body==='string'?init.body:null);
+  }catch(e){}
+  return oFetch.apply(this||window,arguments);
+ };
+ var X=window.XMLHttpRequest.prototype,oOpen=X.open,oSend=X.send;
+ X.open=function(m,u){try{this.__um=m;this.__uu=u}catch(e){}return oOpen.apply(this,arguments)};
+ X.send=function(b){
+  try{noterKald(this.__um,this.__uu,typeof b==='string'?b:null)}catch(e){}
+  return oSend.apply(this,arguments);
+ };
+}
+
+// Navigerer siden ved Fortsaet, doer lytteren med den. Derfor laegges det
+// forventede i sessionStorage, som overlever et sideskift i samme faneblad:
+// saa kan naeste koersel paa samme annonce svare i stedet for os.
+function gemForventet(){
+ try{sessionStorage.setItem('udbakke-dba-forventet',JSON.stringify({id:itemId(),f:FORVENTET}))}catch(e){}
+}
+function hentForventet(){
+ try{
+  var g=JSON.parse(sessionStorage.getItem('udbakke-dba-forventet')||'null');
+  if(g&&g.id&&g.id===itemId()&&g.f&&g.f.tekster)return g.f;
+ }catch(e){}
+ return null;
+}
+
+// Kontrollen melder sig laenge efter, at fyldningen er forbi, og den maa
+// aldrig blokere siden. Derfor har den sin egen banner - alert er kun til den
+// besked, man staar og venter paa.
+function banner(msg,farve){
  var el=document.createElement('div');
  el.textContent=msg;
  el.setAttribute('style','position:fixed;left:12px;right:12px;bottom:16px;z-index:2147483647;'+
-  'background:#1b6f4a;color:#fff;font:600 15px/1.4 -apple-system,system-ui,sans-serif;'+
+  'background:'+(farve||'#1b6f4a')+';color:#fff;font:600 15px/1.4 -apple-system,system-ui,sans-serif;'+
   'padding:14px 16px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.28);white-space:pre-line');
  document.body.appendChild(el);
  setTimeout(function(){el.style.transition='opacity .4s';el.style.opacity='0';
   setTimeout(function(){el.remove()},500)},7000);
+}
+function say(msg){
+ if(!AUTO){alert(msg);return}
+ banner(msg);
 }
 
 async function waitForm(){
@@ -388,6 +531,19 @@ if(!/\/recommerce\/create\//.test(location.pathname)){
  if(!AUTO)alert('VintedAuto: du er ikke på DBAs opret-side. Gå til DBA → Ny annonce → Markedspladsen, og prøv igen.');
  return;
 }
+spion();
+
+// Har en tidligere koersel fyldt denne annonce ud, er vi her efter et
+// trinskifte, ikke for at udfylde igen. Saa er der intet at gaette paa: laes
+// annoncen tilbage og meld, hvad serveren faktisk har.
+var tidligere=hentForventet();
+if(tidligere){
+ FORVENTET=tidligere;FAERDIG=true;
+ try{sessionStorage.removeItem('udbakke-dba-forventet')}catch(e){}
+ meld(await kontroller('efter trinskiftet'));
+ return;
+}
+
 if(!await waitForm()){
  if(!AUTO)alert('VintedAuto: formularen kom aldrig frem.');
  return;
@@ -445,7 +601,7 @@ try{
  var t=fieldFor('Annonceoverskrift'),b=fieldFor('Beskrivelse'),p=fieldFor('Pris');
  if(t)setText(t,bedre.title||d.title);
  if(b)setText(b,bedre.description||d.description);
- if(p&&price)setText(p,price);
+ if(p&&price){setText(p,price);FORVENTET.pris=String(price)}
  log('tekst sat'+(marked?' (markedsjusteret)':''));
 
  log('billeder: '+(d.photos||[]).length);
@@ -457,12 +613,18 @@ try{
  var capFail=await fillCaptions(bedre.captions||d.captions);
  if(capFail)mangler.push(capFail);
 
+ // Grundlinjen: hvad har serveren FOER man trykker Fortsaet? Herfra lytter
+ // kontrollen med paa sidens egne kald og melder, hvad trinskiftet gemte.
+ await kontroller('lige efter udfyldning');
+ FAERDIG=true;
+ gemForventet();
+
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({id:DRAFT_ID,mode:'clear'})},15000)}catch(e){}}
 
  say('Udfyldt på DBA: '+d.title+'\n'+
   (mangler.length?'Sæt selv: '+mangler.join(', ')+'.':'Alle felter og billeder er sat.')+
-  '\nTjek annoncen igennem og tryk Opret annonce.');
+  '\nTjek annoncen igennem og tryk Fortsaet — saa melder kontrollen, hvad DBA gemte.');
 }catch(e){say('VintedAuto-fejl: '+e.message)}
 })();
 `;
