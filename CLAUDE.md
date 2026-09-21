@@ -13,6 +13,30 @@ er, og hvad der står for tur. Læs den først i en ny session.
 
 ## Kommandoer
 
+**Udgiv med `./tools/udgiv.sh`, ikke med `functions deploy`.** Supabase gemmer
+et versionsnummer og ingen kilde, og `deploy` sender dét, der tilfældigvis
+ligger i arbejdstræet — også ukommitteret arbejde. Så er der ingen vej tilbage.
+`udgiv.sh` nægter at udgive fra et snavset træ, tjekker at `index.html`s
+stempel passer til filerne, kører runner-tjekket, udruller kun det, der er
+ændret siden sidste udgivelse, kontrollerer at den udleverede tekst svarer til
+git, og sætter et `udgivelse-NNNN`-mærke. Hver udgivelse står i `UDGIVELSER.md`.
+
+```bash
+./tools/udgiv.sh                                  # udgiv det, der er ændret
+./tools/udgiv.sh dba-fill-script                  # udgiv kun den ene
+./tools/tilbage.sh                                # se udgivelserne
+./tools/tilbage.sh udgivelse-0003                 # hele udgivelsen tilbage
+./tools/tilbage.sh udgivelse-0003 dba-fill-script # kun den ene funktion
+./tools/tilbage.sh udgivelse-0003 app             # kun PWAen
+python3 tools/tjek-live.py                        # kører telefonen det, git siger?
+```
+
+`tilbage.sh` skriver aldrig historien om. Den henter indholdet fra mærket og
+lægger det oven på som et nyt commit, så selve tilbagerulningen også kan
+fortrydes.
+
+Til enkeltting uden om udgivelsen — en midlertidig funktion, en migrering:
+
 ```bash
 npx --yes supabase@latest functions deploy <navn> --project-ref gjycsqshkvkcupdnvgvf
 PGPASSWORD="$SUPABASE_DB_PASSWORD" /opt/homebrew/opt/libpq/bin/psql \
