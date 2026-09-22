@@ -14,6 +14,19 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0003 — 2026-09-22 16:12
+
+Commit `4611263` — Giv knapperne i en sektion luft, og laeg afstanden i systemet  
+App: `app.js?v=8863fec1` · `style.css?v=3bce8da2`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v48 | `5fe7fff8` |
+| dba-fill-script | v9 | `dca7af78` |
+| reshopper-draft | v2 | `cdb3cb0a` |
+| vinted-fill-script | v38 | `d88d6182` |
+
 ## udgivelse-0002 — 2026-09-21 14:24
 
 Commit `16b434c` — Loft appen: musetilstande, maalbredde, skelet - og sort tekst i moerkt tema  
