@@ -350,13 +350,13 @@
     } else if(failed){
       html += '<div class="warn">' + esc(d.price_note) + '</div>';
     } else {
-      html += '<div class="note" style="margin-top:16px">Claude analyserer billederne og skriver udkastet. Det tager typisk under et minut.</div>';
+      html += '<div class="note note-luft">Claude analyserer billederne og skriver udkastet. Det tager typisk under et minut.</div>';
     }
 
     if(d.personal_info){
       html += '<div class="warn">Der blev fundet personlige oplysninger på et af billederne — fx et påsyet navnemærke — og de er automatisk maskeret. Tjek billederne, før du uploader.</div>';
     }
-    html += '<div class="note" style="margin-top:16px">' + esc(relTime(d.created_at)) + '</div>';
+    html += '<div class="note note-luft">' + esc(relTime(d.created_at)) + '</div>';
     $('d-body').innerHTML = html;
 
     var track = $('d-track'), dots = $('d-dots');
@@ -557,7 +557,7 @@
           '<span class="rs-k">' + esc(i + 1) + '. ' + esc(f[0]) + ' — tryk for at kopiere</span>' +
           '<span class="rs-v">' + esc(f[1]) + '</span></button>';
       }).join('') +
-      '<button type="button" class="btn btn-primary" id="rs-open" style="margin-top:12px">Åbn Reshopper</button>' +
+      '<button type="button" class="btn btn-primary" id="rs-open">Åbn Reshopper</button>' +
       '<button type="button" class="btn btn-quiet" id="rs-reset">Nulstil afkrydsning</button></div>';
 
     var gammel = document.getElementById('rs-blok');

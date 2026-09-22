@@ -312,6 +312,7 @@
   .price-row{ display: flex; align-items: baseline; gap: var(--s2); margin-top: var(--s4); }
   .price-big{ font-size: var(--t-display); font-weight: 700; letter-spacing: -0.02em; }
   .note{ font-size: var(--t-small); color: var(--ink-soft); margin-top: var(--s1); line-height: 1.55; }
+  .note-luft{ margin-top: var(--s4); }
   .desc{ font-size: var(--t-body); line-height: 1.6; white-space: pre-wrap; margin-top: var(--s4);
          max-width: 65ch; }
   .warn{
@@ -320,8 +321,13 @@
     color: var(--amber); background: var(--amber-soft);
     border-radius: 10px; padding: var(--s3);
   }
-  .sect{ margin-top: var(--s5); }
+  .sect{ margin-top: var(--s6); }
   .sect > .label{ display: block; margin-bottom: var(--s2); }
+  /* Afstanden hoerer til systemet, ikke til et style-attribut paa hver knap.
+     Uden den stod "Installér automatikken (Vinted)" og "(DBA)" klistret
+     sammen som én kontrol, hvor den nederste halvdel saa slukket ud. */
+  .sect > .btn{ margin-top: var(--s3); }
+  .sect > .btn + .btn{ margin-top: var(--s2); }
 
   /* ---- Optageskærm ------------------------------------------------------- */
   .progress{ display: flex; gap: 5px; margin-bottom: var(--s4); }
