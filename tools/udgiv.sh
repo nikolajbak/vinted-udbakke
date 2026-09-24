@@ -100,7 +100,13 @@ git commit -q -m "Udgivelse $tag"
 git tag -a "$tag" -m "Udgivelse $tag${udrul:+ — $udrul}"
 git push -q origin main --follow-tags
 
+# Herfra kan intet gaa tabt: der er pushet og maerket. Resten er bekraeftelse,
+# og en vrangvillig Pages maa ikke faa udgivelsen til at se afbrudt ud.
 trap - EXIT
 echo
+sh tools/vent-paa-pages.sh || pages=nej
+
+echo
 echo "$tag er ude.${udrul:+ Udrullet:$udrul}"
+[ "${pages:-ja}" = ja ] || echo "OBS: appen er IKKE bekraeftet live paa Pages — se beskeden ovenfor."
 echo "Tilbage hertil senere:  ./tools/tilbage.sh $tag"

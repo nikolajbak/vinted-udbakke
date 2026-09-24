@@ -116,6 +116,12 @@ git commit -q --amend --no-edit
 git tag -a "$nytag" -m "Tilbagerulning til $tag${udrul:+ — $udrul}"
 git push -q origin main --follow-tags
 
+# En tilbagerulning, der ikke naar frem til Pages, er lige saa farlig som en
+# udgivelse, der ikke goer: man tror det gamle er tilbage, og det er det ikke.
 trap - EXIT
 echo
+sh tools/vent-paa-pages.sh || pages=nej
+
+echo
 echo "Rullet tilbage til $tag. Det staar som $nytag."
+[ "${pages:-ja}" = ja ] || echo "OBS: appen er IKKE bekraeftet live paa Pages — se beskeden ovenfor."

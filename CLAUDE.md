@@ -21,6 +21,17 @@ stempel passer til filerne, kører runner-tjekket, udruller kun det, der er
 ændret siden sidste udgivelse, kontrollerer at den udleverede tekst svarer til
 git, og sætter et `udgivelse-NNNN`-mærke. Hver udgivelse står i `UDGIVELSER.md`.
 
+**Til sidst venter den på, at GitHub Pages faktisk har udgivet commit'et.**
+Et grønt `udgiv.sh` betød før "pushet og mærket", ikke "live" — og 22.
+september stod et commit på `main` i 25 minutter, uden at Pages så meget som
+satte et byg i kø. Pages meldte sig "operational"; bygget blev bare aldrig
+udløst, og ét `POST .../pages/builds` satte det i gang på under et minut.
+Sker det igen, skubber scriptet selv på efter halvandet minut. Den tjekker to
+ting, for de er ikke det samme: at Pages har **bygget** commit'et, og at siden
+faktisk **udleverer** de stempler, `index.html` bærer — et byg kan være
+færdigt, mens kanten stadig har den gamle HTML. Et Pages-problem vælter aldrig
+udgivelsen; når vi er der, er der pushet og mærket.
+
 ```bash
 ./tools/udgiv.sh                                  # udgiv det, der er ændret
 ./tools/udgiv.sh dba-fill-script                  # udgiv kun den ene
@@ -29,6 +40,7 @@ git, og sætter et `udgivelse-NNNN`-mærke. Hver udgivelse står i `UDGIVELSER.m
 ./tools/tilbage.sh udgivelse-0003 dba-fill-script # kun den ene funktion
 ./tools/tilbage.sh udgivelse-0003 app             # kun PWAen
 python3 tools/tjek-live.py                        # kører telefonen det, git siger?
+sh tools/vent-paa-pages.sh                        # er HEAD ude på Pages? (kaldes selv af de to)
 ```
 
 `tilbage.sh` skriver aldrig historien om. Den henter indholdet fra mærket og
