@@ -11,6 +11,13 @@
   var currentId = null;
   var queueTegnet = false;
 
+  // iOS og iPadOS er det eneste sted, x-safari- findes, og det eneste sted
+  // kameraet aabner af sig selv. En iPad melder sig som Macintosh, saa
+  // beroeringspunkterne afgoer den.
+  var UA = navigator.userAgent || '';
+  var PAA_IOS = /iPad|iPhone|iPod/.test(UA) ||
+                (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+
   var $ = function(id){ return document.getElementById(id); };
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -68,12 +75,32 @@
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function screenEl(name){ return $('s-' + name); }
 
+  // Browserens tilbageknap findes ikke i en PWA paa telefonen, saa den er
+  // aldrig blevet savnet. I Safari paa en Mac findes den - og uden det her
+  // ville Cmd+[ forlade appen midt i et udkast i stedet for at gaa ét skridt
+  // tilbage. Stakken er stadig sandheden; historien er kun en skygge af den,
+  // saa knappen har noget at gribe fat i.
+  //
+  // Et tal, ikke et flag: to hurtige tilbage-tryk ville ellers kunne dele det
+  // samme flag, og det andet popstate blive laest som brugerens eget.
+  var springer = 0;
+
+  function skygge(erstat){
+    try{
+      if(erstat) history.replaceState({ udbakke: stack.length }, '');
+      else history.pushState({ udbakke: stack.length }, '');
+    }catch(e){}
+  }
+
   function show(name, opts){
     opts = opts || {};
     var next = screenEl(name);
     var cur = stack.length ? screenEl(stack[stack.length - 1]) : null;
     if(cur === next) return;
     if(opts.replace && stack.length) stack[stack.length-1] = name; else stack.push(name);
+    // Kun naar vi gaar DYBERE. Bundskaermen skal ikke have sin egen post -
+    // ellers kunne man ikke forlade appen med tilbageknappen igen.
+    if(stack.length > 1) skygge(!!opts.replace);
 
     // Selvrettende: skjul enhver skærm der er synlig uden at være den, vi
     // kommer fra, så lag aldrig kan hobe sig op oven på hinanden.
@@ -93,8 +120,11 @@
     }
   }
 
-  function back(){
+  function back(fraHistorik){
     if(stack.length < 2) return;
+    // Kom trykket fra appens egen pil, skal historien med tilbage. Kom det fra
+    // browseren, har den allerede gjort sit.
+    if(fraHistorik !== true){ springer++; try{ history.back(); }catch(e){ springer--; } }
     var cur = screenEl(stack.pop());
     var prev = screenEl(stack[stack.length - 1]);
     prev.hidden = false;
@@ -107,7 +137,22 @@
   }
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function(b){
-    b.addEventListener('click', back);
+    b.addEventListener('click', function(){ back(); });
+  });
+
+  window.addEventListener('popstate', function(){
+    if(springer > 0){ springer--; return; }
+    // Paa bundskaermen lader vi browseren goere sit, saa appen kan forlades.
+    if(stack.length > 1) back(true);
+  });
+
+  // Escape er tilbage paa et tastatur. Ikke naar beskaeringen staar aaben -
+  // dér har den sin egen Annullér, og skaermen bagved skal ikke skifte under
+  // den.
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape' || e.defaultPrevented) return;
+    if(!$('crop').hidden) return;
+    if(stack.length > 1){ e.preventDefault(); back(); }
   });
 
   /* ---- Kø --------------------------------------------------------------- */
@@ -428,15 +473,36 @@
     sb.from('drafts').update({ posted_to: sendt }).eq('id', d.id).then(function(){});
   }
 
-  // x-safari- tvinger Safari. Uden det kaprer markedspladsernes universal
-  // links adressen og aabner deres egen app, hvor brugerscriptet ikke findes.
+  // Paa iOS tvinger x-safari- adressen ud i RIGTIG Safari. Uden det aabner
+  // den inde i PWAens egen webvisning, hvor hverken Userscripts-udvidelsen
+  // eller markedspladsernes universal links findes.
+  //
+  // Paa en Mac findes den ordning ikke, og den er heller ikke noedvendig: dér
+  // er appen bare et faneblad, og svaret er et nyt faneblad. Vinduet skal
+  // aabnes MENS klikket staar paa - venter vi paa databasen foerst, spaerrer
+  // Safari det som et pop op.
+  function aabnUdad(url, foerst){
+    var vent = foerst || Promise.resolve();
+    if(PAA_IOS){
+      var iosGaa = function(){ window.location.href = 'x-safari-' + url; };
+      vent.then(iosGaa, iosGaa);
+      return;
+    }
+    var vindue = window.open('about:blank', '_blank');
+    var gaa = function(){
+      // Blev fanebladet spaerret alligevel, gaar vi selv derhen.
+      if(vindue && !vindue.closed) vindue.location = url;
+      else window.location.href = url;
+    };
+    vent.then(gaa, gaa);
+  }
+
   function aabnMarked(d, btn, key, navn, url){
     btn.disabled = true; btn.textContent = 'Åbner …';
     markerSendt(d, key);
-    sb.from('drafts').update({ selected_at: new Date().toISOString() }).eq('id', d.id).then(function(){
-      window.location.href = 'x-safari-' + url;
-      setTimeout(function(){ btn.disabled = false; btn.textContent = navn; }, 2500);
-    });
+    aabnUdad(url, sb.from('drafts')
+      .update({ selected_at: new Date().toISOString() }).eq('id', d.id));
+    setTimeout(function(){ btn.disabled = false; btn.textContent = navn; }, 2500);
   }
 
   function detailAction(a, d, btn){
@@ -598,6 +664,10 @@
       // så klippebordet må skrives — så slipper du for en tur tilbage efter det.
       var n = naeste();
       var aabn = function(){
+        // Reshopper findes kun til telefonen. Paa en Mac ville deeplinket
+        // ingenting goere, og App Store-faldgruben ville aabne en side om en
+        // app, man ikke kan hente dér.
+        if(!PAA_IOS){ toast('Reshopper findes kun som app — teksten er kopieret'); return; }
         var t = Date.now();
         window.location.href = 'reshopper://';
         setTimeout(function(){
@@ -636,6 +706,22 @@
     })).then(function(files){
       if(navigator.canShare && navigator.canShare({ files: files })){
         return navigator.share({ files: files, title: d.title || 'Vinted-billeder' });
+      }
+      // Paa en Mac er der intet delingsark med "Gem billeder". Dér er svaret
+      // en almindelig overfoersel. De forskydes, fordi Safari ellers kun
+      // tager den foerste.
+      if(!PAA_IOS){
+        files.forEach(function(f, i){
+          setTimeout(function(){
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(f);
+            a.download = f.name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function(){ URL.revokeObjectURL(a.href); }, 10000);
+          }, i * 250);
+        });
+        toast(files.length + ' billeder lægges i Overførsler');
+        return;
       }
       toast('Hold fingeren på et billede og vælg "Føj til Fotos"');
     }).catch(function(){}).then(function(){
@@ -758,6 +844,12 @@
   }
 
   $('new-btn').addEventListener('click', startSession);
+  if(!PAA_IOS){
+    // capture beder om kameraet. En Mac har ikke det kamera, og Safari
+    // ignorerer attributten - men saa skal knappen heller ikke love et tryk.
+    $('cam').removeAttribute('capture');
+    $('cap-shoot').textContent = 'Vælg billede';
+  }
   $('cap-shoot').addEventListener('click', function(){ $('cam').click(); });
   $('cap-skip').addEventListener('click', function(){
     if(session && session.step < STEPS.length){ session.step++; renderCapture(); }
@@ -920,9 +1012,7 @@
   // egen webvisning, og dér findes Userscripts-udvidelsen ikke: man ser koden,
   // men der er ingen ᴀA-menu og intet at installere med. Knappen ser ud til
   // ikke at virke, selv om den gjorde praecis det, den fik besked paa.
-  function installer(url){
-    window.location.href = 'x-safari-' + url;
-  }
+  function installer(url){ aabnUdad(url); }
   $('m-userscript').addEventListener('click', function(){
     // Stien SKAL ende paa .user.js - ellers tilbyder Userscripts ikke at
     // installere den. Et forespoergselsparameter er ikke nok.
@@ -931,6 +1021,28 @@
   $('m-userscript-dba').addEventListener('click', function(){
     installer(DBA_API.replace('?key=', '/dba.user.js?key='));
   });
+
+  // Opsaetningen er skrevet til telefonen, for det er dér den hoerer hjemme.
+  // Paa en Mac er den samme udvidelse og det samme bogmaerke - men menuerne
+  // ligger andre steder, og en vejledning, der peger paa knapper der ikke
+  // findes, er vaerre end ingen.
+  if(!PAA_IOS){
+    $('ol-udvidelse').innerHTML =
+      '<li>Hent <b>Userscripts</b> i App Store — den findes også til Mac</li>' +
+      '<li><b>Safari → Indstillinger → Udvidelser</b>: slå <b>Userscripts</b> til</li>' +
+      '<li>Tryk på udvidelsens ikon i værktøjslinjen → <b>Altid tillad på alle websteder</b></li>' +
+      '<li>Tryk <b>Installér automatikken</b> herunder — koden åbner i et nyt faneblad</li>' +
+      '<li>Tryk på <b>Userscripts</b>-ikonet → <b>Install</b></li>';
+    $('note-udvidelse').textContent =
+      'Det sidste trin er let at overse: installationen sker i udvidelsens lille ' +
+      'vindue i værktøjslinjen, ikke på selve siden. Ser du kun kode og ingen knap, ' +
+      'har udvidelsen ikke fået lov på det websted endnu.';
+    $('ol-bogmaerke').innerHTML =
+      '<li>Tryk <b>Kopiér bogmærke-kode</b></li>' +
+      '<li><b>Bogmærker → Tilføj bogmærke</b> — gem i <b>Favoritter</b> som <b>Udfyld Vinted</b></li>' +
+      '<li><b>Bogmærker → Redigér bogmærker</b> → højreklik på det → <b>Redigér adresse</b> → ' +
+      'slet adressen, <b>indsæt</b> koden</li>';
+  }
 
   $('m-copy').addEventListener('click', function(){
     navigator.clipboard.writeText(BOOKMARKLET).then(function(){

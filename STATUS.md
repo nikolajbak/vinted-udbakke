@@ -18,6 +18,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Appen i Safari på Mac.** Det iOS-specifikke er gjort betinget:
+   `x-safari-` bruges kun på iOS (på Mac åbnes et nyt faneblad, og vinduet
+   åbnes *mens* klikket står på, ellers spærrer Safari det), kameraknappen
+   hedder "Vælg billede", "Gem billeder i Fotos" lægger dem i Overførsler,
+   Reshopper-deeplinket springes over, og opsætningsvejledningerne peger på
+   Macens menuer. Browserens tilbageknap og Escape er koblet til routeren.
+   Prøvet i en Chromium-rude, ikke i Safari — **kør den igennem på Macen**:
+   log ind, opret et udkast, beskær med musen, og tryk Vinted og DBA.
+
 1. **DBA: gemmes pris og billedtekster, når man går gennem *Fortsæt*?**
    Felterne bliver fyldt, men de indgår ikke i den `PUT`, trin 1 sender. Enten
    commits de ved trinskiftet, eller også går de tabt. Det er den vigtigste

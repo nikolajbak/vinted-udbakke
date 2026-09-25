@@ -128,13 +128,14 @@
         <details>
           <summary>Sådan sætter du det op</summary>
         <p class="note">Safari må ikke lade én side køre kode på en anden. Derfor skal den gratis app <b>Userscripts</b> have lov — det er den, der giver markedspladsens side besked.</p>
-        <ol>
+        <!-- iOS-trinene staar her; app.js bytter dem ud paa en Mac. -->
+        <ol id="ol-udvidelse">
           <li>Hent <b>Userscripts</b> i App Store (gratis)</li>
           <li><b>Indstillinger → Apps → Safari → Udvidelser → Userscripts</b>: slå til, og sæt <b>Alle websteder</b> til <b>Tillad</b></li>
           <li>Tryk <b>Installér automatikken</b> herunder — koden åbner som ren tekst i Safari</li>
           <li>Tryk på <b>ᴀA</b> i adresselinjen → <b>Userscripts</b> → tryk <b>Install</b></li>
         </ol>
-        <p class="note">Trin 4 er let at overse: installationen sker inde i udvidelsens lille vindue, ikke på selve siden. Ser du kun kode og ingen knap, har udvidelsen ikke fået lov på det websted endnu.</p>
+        <p class="note" id="note-udvidelse">Trin 4 er let at overse: installationen sker inde i udvidelsens lille vindue, ikke på selve siden. Ser du kun kode og ingen knap, har udvidelsen ikke fået lov på det websted endnu.</p>
         </details>
         <button type="button" class="btn btn-primary" id="m-userscript">Installér automatikken (Vinted)</button>
         <button type="button" class="btn btn-secondary" id="m-userscript-dba">Installér automatikken (DBA)</button>
@@ -142,7 +143,7 @@
       <div class="sect setup">
         <span class="label">Eller med et bogmærke</span>
         <p class="note">Vil du ikke installere noget, gør et bogmærke det samme — du skal bare trykke på det selv, når Vinted-siden er åben. Bogmærket virker kun til Vinted.</p>
-        <ol>
+        <ol id="ol-bogmaerke">
           <li>Tryk <b>Kopiér bogmærke-kode</b></li>
           <li>I Safari: <b>Del</b> → <b>Tilføj bogmærke</b> → gem i <b>Favoritter</b> som <b>Udfyld Vinted</b></li>
           <li><b>Bogmærker</b> → <b>Rediger</b> → tryk på det → slet adressen, <b>indsæt</b> koden → <b>Færdig</b></li>
@@ -185,6 +186,6 @@
          style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
 </div>
 
-<script src="app.js?v=8863fec1"></script>
+<script src="app.js?v=554a69e1"></script>
 </body>
 </html>
