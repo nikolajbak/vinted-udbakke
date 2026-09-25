@@ -191,6 +191,15 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
 - **Vinted skjuler solgte varer.** Det, søgningen viser, er dét, der IKKE er
   solgt, så feltet skævvrider opad. Prisen skal derfor lægge sig under medianen
   af de sammenlignelige — spærren i `analyseMarket` håndhæver det.
+- **Vinteds pris er hele kroner — aldrig decimaler.** Prisen kan komme tre
+  steder fra: markedsopslaget, kontrolrunden mod sammenlignelige annoncer, og
+  udkastets egen foreløbige pris fra billedanalysen. Kun de to første var
+  rundet af, og en model svarer gerne `7,5` eller `12.50`. Derfor sidder
+  `vintedPris` som sidste gate i runneren, lige før feltet, hvor alle tre veje
+  mødes — og i `index.ts` på de to serverveje, så appen viser det samme tal,
+  som Vinted får. Afrundingen sker FØR mindsteprisen, så `7,6` bliver til `8`
+  ad én vej og ikke to. En tom eller ulæselig pris får lov at stå: den skal
+  falde i øjnene, ikke erstattes af et opfundet tal.
 - **`favourite_count` er brugbar, `view_count` er altid 0.** Mange hjerter på en
   vare, der stadig ligger der, er et loft, ikke et mål.
 - **En Vinted-vareside vejer ~2 MB.** Tekstprøver til beskrivelsen er derfor

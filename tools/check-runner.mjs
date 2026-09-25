@@ -13,6 +13,7 @@ const GLOBALE = new Set([
   "parseFloat","setTimeout","clearTimeout","fetch","alert","eval","DataTransfer",
   "File","Event","InputEvent","KeyboardEvent","FocusEvent","DOMParser","AbortController",
   "encodeURIComponent","decodeURIComponent","Boolean","RegExp","Error",
+  "isFinite","isNaN",
 ]);
 
 let fejl = 0;

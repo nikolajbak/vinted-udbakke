@@ -48,6 +48,27 @@ function plainPrice(price: string): string {
   return (price || "").replace(/[^\d.,]/g, "").replace(",", ".");
 }
 
+// Prisen paa Vinted er hele kroner. Ingen decimaler, og aldrig under MIN_PRIS.
+//
+// En model svarer gerne 7,5 eller 12.50, og en gennemsnitsberegning giver af
+// sig selv kommatal. Afrundingen sker FOER gulvet, saa 7,6 bliver til 8 ad den
+// rigtige vej og ikke to gange.
+//
+// roundPrice loefter i forvejen alt under 100 til mindst 15, saa gulvet bider
+// sjaeldent. Det staar her alligevel, saa reglen er en regel og ikke et
+// sammentraef: aendrer nogen de 15, skal prisen stadig ikke kunne falde under.
+const MIN_PRIS = 8;
+
+function vintedPris(v: number): number {
+  if (!isFinite(v) || v <= 0) return v;   // ingen pris er ikke en lav pris
+  return Math.max(MIN_PRIS, Math.round(v));
+}
+function vintedPristekst(p: string): string {
+  const n = Number(plainPrice(p));
+  if (!isFinite(n) || n <= 0) return p;
+  return `${vintedPris(n)} kr`;
+}
+
 // Vinteds egne vaerdier. De bliver klikket direkte ind i formularen, saa de
 // skal staa i Vinteds ordlyd - ikke i en fri oversaettelse.
 const VINTED_CONDITIONS = [
@@ -469,7 +490,7 @@ async function analyseMarket(
     const floor = Math.max(15, Math.floor(ref.p25 * 0.6));
     if (price < floor) { price = floor; guarded = true; }
   }
-  price = roundPrice(price);
+  price = vintedPris(roundPrice(price));
 
   return {
     title: cleanText(out.title),
@@ -799,6 +820,7 @@ Deno.serve(async (req: Request) => {
 
     try {
       const result = await priceFromComparables(draft, comparables);
+      result.price = vintedPristekst(result.price);
       await supabase
         .from("drafts")
         .update({

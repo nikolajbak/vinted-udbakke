@@ -513,6 +513,20 @@ try{
  // Markedsopslaget sker HERFRA, fra din egen session: Vinted blokerer
  // serverkald, men aldrig sin egen side. Serveren kan altså ikke se markedet —
  // det kan telefonen.
+ // Vinted vil have hele kroner. Prisen kan komme tre steder fra:
+ // markedsopslaget, en tidligere kontrolrunde, eller udkastets egen
+ // foreloebige pris fra billedanalysen — og kun de to foerste er rundet af.
+ // Derfor staar reglen HER, lige foer feltet, hvor alle tre veje moedes.
+ var MIN_PRIS=8;
+ function vintedPris(v){
+  // Baade 12.50 og 12,50 kan naa hertil: udkastet gemmer prisen som tekst.
+  var n=parseFloat(String(v==null?'':v).replace(',','.'));
+  // Tom eller ulaeselig pris er ikke en pris med decimaler - dér skal der ikke
+  // opfindes et tal, feltet skal staa tomt og falde i oejnene.
+  if(!isFinite(n)||n<=0)return v;
+  return String(Math.max(MIN_PRIS,Math.round(n)));
+ }
+
  var price=d.price,note='foreløbig pris';
  var marked=await markedsanalyse(d);
  if(marked){
@@ -550,6 +564,12 @@ try{
  // Teksten til sidst, så ingen dialog kan nå at rydde den. Felterne slås op
  // igen her: React har tegnet formularen om, siden vi startede, og de gamle
  // knuder sidder ikke længere i siden.
+ var rettet=vintedPris(price);
+ if(String(rettet)!==String(price)){
+  log('pris: '+price+' rettet til '+rettet+' (hele kroner)');
+  price=rettet;
+ }
+
  var t2=q('#title'),de2=q('#description'),pe2=q('#price');
  if(t2)setv(t2,bedre.title||d.title);
  if(de2)setv(de2,bedre.description||d.description);
