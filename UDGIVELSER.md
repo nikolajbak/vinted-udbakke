@@ -14,6 +14,19 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0007 — 2026-09-25 11:29
+
+Commit `c2f1866` — Gor koeber-assistenten platform-bevidst  
+App: `app.js?v=554a69e1` · `style.css?v=3bce8da2`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v48 | `5fe7fff8` |
+| dba-fill-script | v9 | `dca7af78` |
+| reshopper-draft | v2 | `cdb3cb0a` |
+| vinted-fill-script ← | v45 | `8fe8c9ac` |
+
 ## udgivelse-0006 — 2026-09-25 10:32
 
 Commit `802a3b0` — Byg hjernen bag koeber-assistenten: svar og modbud  
