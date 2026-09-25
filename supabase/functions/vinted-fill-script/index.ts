@@ -555,6 +555,98 @@ async function priceFromComparables(
   return block.input as { price: string; priceNote: string };
 }
 
+// ---- Koeber-assistent: svar paa spoergsmaal, modbyd paa bud -----------------
+// Hjernen bag ét-tryks-svaret. Telefonens userscript laeser samtalen og
+// varen af Vinted-siden og sender dem hertil; serveren skriver svaret eller
+// beregner modbuddet. Selve afsendelsen sker foerst, naar du trykker send -
+// en udadvendt handling med en rigtig koeber og rigtige penge maa ikke ske
+// tavst, og en auto-svarende bot er dét, der faar en konto lukket.
+const NEGOTIATE_TOOL = {
+  name: "svar_koeber",
+  description: "Skriv svaret til koeberen, eller beregn et modbud paa et bud.",
+  input_schema: {
+    type: "object",
+    properties: {
+      intent: {
+        type: "string",
+        enum: ["answer", "counter", "accept", "defer"],
+        description:
+          "answer: et fagligt svar paa et spoergsmaal. counter: et modbud paa et bud. " +
+          "accept: buddet er godt nok til at tage imod. defer: kan ikke svares fra varens " +
+          "data (fx leveringstid, personlig aftale) - overlad det til saelgeren.",
+      },
+      message: {
+        type: "string",
+        description:
+          "Beskeden til koeberen paa dansk. Kort, venlig, konkret. Ved 'defer' maa den " +
+          "gerne vaere tom eller et forslag til, hvad saelgeren selv kan skrive.",
+      },
+      counterPrice: {
+        type: "integer",
+        description: "Kun ved intent=counter: modbuddet i hele kroner.",
+      },
+      note: {
+        type: "string",
+        description: "Én kort linje til SAELGEREN om hvorfor - vises, men sendes ikke.",
+      },
+    },
+    required: ["intent", "message", "note"],
+  },
+};
+
+async function negotiate(
+  item: Record<string, unknown>,
+  buyerMessage: string,
+  offer: number,
+): Promise<Record<string, unknown>> {
+  const listed = Number(plainPrice(String(item.price ?? ""))) || 0;
+  const facts = [
+    item.title && `Titel: ${cleanText(item.title)}`,
+    item.brand && `Maerke: ${cleanText(item.brand)}`,
+    item.size && `Stoerrelse: ${cleanText(item.size)}`,
+    item.condition && `Stand: ${cleanText(item.condition)}`,
+    item.material && `Materiale: ${cleanText(item.material)}`,
+    listed && `Udbudspris: ${listed} kr`,
+    item.description && `Beskrivelse: ${cleanText(item.description)}`,
+  ].filter(Boolean).join("\n");
+
+  const system =
+    "Du er en erfaren, venlig dansk Vinted-saelger. Du svarer koebere kort og konkret. " +
+    "Svar KUN ud fra varens data herunder. Kan spoergsmaalet ikke besvares derfra - " +
+    "leveringstid, personlige aftaler, om du vil holde varen - saa vaelg 'defer' og find " +
+    "ikke paa noget. Ved et bud: er buddet paa eller over udbudsprisen, saa 'accept'. Ellers " +
+    "'counter' med et modbud mellem buddet og udbudsprisen - aldrig over din egen pris, aldrig " +
+    "under buddet, og hele kroner. Begrund modbuddet kort med stand eller maerke. Vaer aldrig " +
+    "presset eller anmassende.";
+
+  const parts: string[] = [facts];
+  if (offer > 0) parts.push(`\nKoeberen har budt ${offer} kr.`);
+  if (buyerMessage) parts.push(`\nKoeberens besked: "${buyerMessage.slice(0, 800)}"`);
+  parts.push("\nSkriv svaret, eller beregn modbuddet.");
+
+  const out = await callTool(system, parts.join("\n"), NEGOTIATE_TOOL);
+  const intent = String(out.intent || "defer");
+
+  // Serveren har det sidste ord om tallet - en model glider. Et modbud skal
+  // ligge OVER buddet og PAA/UNDER din egen pris, ellers giver det ikke mening.
+  let counterPrice: number | undefined;
+  if (intent === "counter") {
+    let c = vintedPris(Number(out.counterPrice) || 0);
+    if (listed > 0 && c > listed) c = listed;                 // aldrig over egen pris
+    if (offer > 0 && c <= offer) {                            // skal slaa buddet
+      c = listed > offer ? vintedPris((offer + listed) / 2) : vintedPris(offer + 1);
+    }
+    counterPrice = c;
+  }
+
+  return {
+    intent,
+    message: cleanText(out.message || ""),
+    note: cleanText(out.note || ""),
+    ...(counterPrice ? { counterPrice } : {}),
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
@@ -694,12 +786,30 @@ Deno.serve(async (req: Request) => {
       kind?: string;
       value?: unknown;
       options?: unknown[];
+      item?: Record<string, unknown>;
+      buyerMessage?: string;
+      offer?: number;
     };
     try {
       body = await req.json();
     } catch {
       return json({ error: "bad_json" }, 400);
     }
+    // Koeber-assistenten arbejder ud fra dét, telefonen laeser af Vinted-siden,
+    // ikke fra et udkast. Derfor er den her FOER id-vaernet: den daekker enhver
+    // vare, du har til salg - ogsaa dem appen ikke selv har lagt op.
+    if (body.mode === "negotiate") {
+      const item = (body.item && typeof body.item === "object") ? body.item : {};
+      const buyerMessage = typeof body.buyerMessage === "string" ? body.buyerMessage : "";
+      const offer = Number(body.offer) > 0 ? Number(body.offer) : 0;
+      if (!buyerMessage && !offer) return json({ error: "empty_context" }, 400);
+      try {
+        return json(await negotiate(item, buyerMessage, offer));
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
+    }
+
     if (!body.id) return json({ error: "missing_id" }, 400);
 
     // Telefonen sender de muligheder, Vinted faktisk viser, og faar et nummer
