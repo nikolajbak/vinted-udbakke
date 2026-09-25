@@ -14,6 +14,19 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0005 — 2026-09-25 09:27
+
+Commit `5662bb5` — Skriv Vinted-prisen i hele kroner  
+App: `app.js?v=554a69e1` · `style.css?v=3bce8da2`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v48 | `5fe7fff8` |
+| dba-fill-script | v9 | `dca7af78` |
+| reshopper-draft | v2 | `cdb3cb0a` |
+| vinted-fill-script ← | v39 | `652c33b1` |
+
 ## udgivelse-0004 — 2026-09-25 09:12
 
 Commit `22a9000` — Gor appen brugbar i Safari paa en Mac  
