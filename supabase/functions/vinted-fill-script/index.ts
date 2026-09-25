@@ -594,10 +594,23 @@ const NEGOTIATE_TOOL = {
   },
 };
 
+// Markedet er ikke det samme. DBA-koebere betaler typisk mere for samme vare
+// end paa Vinted (maalt: CeLaVi-regnjakker 50-100 kr paa DBA mod Vinted-skoen
+// paa 35). Udbudsprisen herunder er allerede sat til den rigtige platform, saa
+// modbuddet er forankret korrekt - men modellen skal VIDE hvilket marked den
+// staar i, saa den ikke doemmer en hoej DBA-pris som for hoej og byder for
+// langt ned.
+const MARKEDER: Record<string, string> = {
+  vinted: "Du saelger paa Vinted. Prisen er sat til hurtigt salg, saa hold igen med at give for meget yderligere.",
+  dba: "Du saelger paa DBA. DBA er et hoejere marked end Vinted - koebere dér betaler typisk mere for samme vare, og der forhandles gerne. Udbudsprisen er allerede sat til DBA's marked, saa den er ikke for hoej; forsvar den roligt.",
+  reshopper: "Du saelger paa Reshopper (dansk boern/familie-genbrug). Der forhandles venligt og i det smaa.",
+};
+
 async function negotiate(
   item: Record<string, unknown>,
   buyerMessage: string,
   offer: number,
+  platform: string,
 ): Promise<Record<string, unknown>> {
   const listed = Number(plainPrice(String(item.price ?? ""))) || 0;
   const facts = [
@@ -610,8 +623,9 @@ async function negotiate(
     item.description && `Beskrivelse: ${cleanText(item.description)}`,
   ].filter(Boolean).join("\n");
 
+  const markedsnote = MARKEDER[platform] || "Du er en erfaren dansk genbrugssaelger.";
   const system =
-    "Du er en erfaren, venlig dansk Vinted-saelger. Du svarer koebere kort og konkret. " +
+    "Du er en erfaren, venlig dansk genbrugssaelger. " + markedsnote + " Du svarer koebere kort og konkret. " +
     "Svar KUN ud fra varens data herunder. Kan spoergsmaalet ikke besvares derfra - " +
     "leveringstid, personlige aftaler, om du vil holde varen - saa vaelg 'defer' og find " +
     "ikke paa noget. Ved et bud: er buddet paa eller over udbudsprisen, saa 'accept'. Ellers " +
@@ -789,6 +803,7 @@ Deno.serve(async (req: Request) => {
       item?: Record<string, unknown>;
       buyerMessage?: string;
       offer?: number;
+      platform?: string;
     };
     try {
       body = await req.json();
@@ -802,9 +817,10 @@ Deno.serve(async (req: Request) => {
       const item = (body.item && typeof body.item === "object") ? body.item : {};
       const buyerMessage = typeof body.buyerMessage === "string" ? body.buyerMessage : "";
       const offer = Number(body.offer) > 0 ? Number(body.offer) : 0;
+      const platform = String(body.platform ?? "").toLowerCase();
       if (!buyerMessage && !offer) return json({ error: "empty_context" }, 400);
       try {
-        return json(await negotiate(item, buyerMessage, offer));
+        return json(await negotiate(item, buyerMessage, offer, platform));
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
       }

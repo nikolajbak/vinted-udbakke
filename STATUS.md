@@ -18,6 +18,17 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Køber-assistenten (svar + modbud).** Server-hjernen er bygget og afprøvet:
+   POST `mode:'negotiate'` med `{item, buyerMessage?, offer?, platform}`. Den er
+   **platform-bevidst** — `platform:'vinted'|'dba'|'reshopper'` styrer marked og
+   tone, fordi DBA ligger højere end Vinted (Sophie Schnoor: 175 Vinted, 225
+   DBA — ikke en fejl). Modbuddet forankres i den udbudspris, runneren læser på
+   siden, og tvinges over buddet og på/under egen pris.
+   **Mangler: hånden.** Userscripts, der læser samtalen og indsætter svaret til
+   ét-tryks-afsendelse — én til Vinted, én til DBA (shadow-DOM). Måle-sonder er
+   sendt; vælgerne skal måles på en rigtig samtale, før hånden bygges. Runneren
+   SKAL sende `platform` med. Reshopper får ingen hånd (native app).
+
 0. **Appen i Safari på Mac.** Det iOS-specifikke er gjort betinget:
    `x-safari-` bruges kun på iOS (på Mac åbnes et nyt faneblad, og vinduet
    åbnes *mens* klikket står på, ellers spærrer Safari det), kameraknappen
