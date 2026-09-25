@@ -70,6 +70,21 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    mønster, men ikke målt.
 4. **Reshopper-deeplinket.** Om `reshopper://` faktisk åbner appen fra PWAen.
 
+## På listen — ikke begyndt
+
+- **Web-push i den installerede PWA.** Appen har ingen egne notifikationer i
+  dag; den svage led er at vide, *hvornår* der er noget at gøre. iOS-web-push
+  er muligt, men kun i en PWA lagt på hjemmeskærmen (iOS 16.4+), aldrig i et
+  browser-faneblad. Kræver: en service worker, `Notification.requestPermission`
+  udløst af et tryk, en push-subscription (VAPID-nøgler) gemt i basen, og en
+  Edge Function der sender via Web Push-protokollen.
+
+  Realistisk indhold: **"udkast er klar"** (serveren VED det — `analyze-draft`
+  sætter `ny`) og påmindelser ("3 udkast venter på at blive lagt op"). Derimod
+  **ikke** "en køber har budt" — serveren kan ikke se det (datacenter-spærring
+  + ingen Vinted-session), dét dækker Vinteds og DBA's egne pushbeskeder. Byg
+  ikke en køber-bud-push; den kan ikke lade sig gøre herfra.
+
 ## Beslutninger, der er truffet
 
 - **Kantfyldning frem for hvid ramme.** Sømmen er synlig, fordi ét gennemsnit
