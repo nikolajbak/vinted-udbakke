@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0008 — 2026-09-27 22:08
+
+Commit `c744c31` — Byg web-push: sig til paa telefonen naar et udkast er klar  
+App: `app.js?v=45992f6c` · `style.css?v=3bce8da2`  
+Udrullet: analyze-draft, push-send, push-subscribe
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v51 | `e68ee069` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send ← | v3 | `cce82c40` |
+| push-subscribe ← | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v46 | `8fe8c9ac` |
+
 ## udgivelse-0007 — 2026-09-25 11:29
 
 Commit `c2f1866` — Gor koeber-assistenten platform-bevidst  
