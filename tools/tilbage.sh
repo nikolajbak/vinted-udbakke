@@ -14,7 +14,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 PROJEKT=gjycsqshkvkcupdnvgvf
-FUNKTIONER="analyze-draft dba-fill-script reshopper-draft vinted-fill-script"
+FUNKTIONER="analyze-draft dba-fill-script push-send push-subscribe reshopper-draft vinted-fill-script"
 APPFILER="index.html style.css app.js"
 
 [ -f .env.secrets ] || { echo "Mangler .env.secrets"; exit 1; }
@@ -100,7 +100,7 @@ staar uroert, saa selve tilbagerulningen kan ogsaa fortrydes."
 
 for f in $udrul; do
   echo "Udruller $f …"
-  npx --yes supabase@latest functions deploy "$f" --project-ref "$PROJEKT" >/dev/null
+  npx --yes supabase@latest functions deploy "$f" --no-verify-jwt --project-ref "$PROJEKT" >/dev/null
 done
 
 echo "Kontrollerer at live svarer til git …"

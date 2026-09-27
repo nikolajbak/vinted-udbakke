@@ -1,0 +1,13 @@
+{
+  "name": "VintedAuto",
+  "short_name": "VintedAuto",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#E8EAE0",
+  "theme_color": "#E8EAE0",
+  "icons": [
+    { "src": "icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

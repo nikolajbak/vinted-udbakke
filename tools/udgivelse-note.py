@@ -7,7 +7,7 @@
 import io, json, os, subprocess, sys, time, urllib.request
 
 PROJEKT = "gjycsqshkvkcupdnvgvf"
-FUNKTIONER = ["analyze-draft", "dba-fill-script", "reshopper-draft", "vinted-fill-script"]
+FUNKTIONER = ["analyze-draft", "dba-fill-script", "push-send", "push-subscribe", "reshopper-draft", "vinted-fill-script"]
 FIL = "UDGIVELSER.md"
 
 HOVED = """# Udgivelser

@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#19170F" media="(prefers-color-scheme: dark)">
 <title>VintedAuto</title>
 <meta name="description" content="Tag billeder af en vare, og få annoncen skrevet og udfyldt på Vinted, DBA og Reshopper.">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
@@ -123,6 +124,11 @@
         <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
       </button>
       <div class="sect setup">
+        <span class="label">Notifikationer</span>
+        <p class="note" id="notif-note">Få besked på telefonen, når et udkast er klar til at blive lagt op. Virker kun i appen på hjemmeskærmen — ikke i et browser-faneblad.</p>
+        <button type="button" class="btn btn-secondary" id="m-notif">Slå notifikationer til</button>
+      </div>
+      <div class="sect setup">
         <span class="label">Helt automatisk</span>
         <p class="note">Sæt det op én gang, så udfylder annoncen sig selv — kategori, mærke, størrelse, stand, farve, materiale, titel, beskrivelse, pris og billeder — i samme øjeblik du vælger en markedsplads på udkastet. Du skal kun tjekke annoncen og lægge den op.</p>
         <details>
@@ -186,6 +192,6 @@
          style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
 </div>
 
-<script src="app.js?v=554a69e1"></script>
+<script src="app.js?v=45992f6c"></script>
 </body>
 </html>

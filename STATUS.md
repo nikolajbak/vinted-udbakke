@@ -18,6 +18,21 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Web-push — bygget, mangler test på en rigtig iPhone.** Hele kæden er ude:
+   `sw.js` + `manifest.webmanifest`, opt-in i Indstillinger, `push-subscribe`
+   (gemmer abonnementet, RLS-låst tabel `push_subs`), `push-send` (fanout via
+   `npm:web-push`, rydder døde abonnementer), og `analyze-draft` fyrer en push
+   ("Udkast klar") når status bliver `ny`. VAPID-nøgler ligger i `.env.secrets`
+   og som Supabase-hemmeligheder. Server-siden er verificeret (funktionerne
+   booter, abonnement gemmes, fanout kører); selve LEVERINGEN kan kun testes i
+   en installeret PWA på iOS — det er den eneste kontekst iOS tillader web-push.
+
+   **Test sådan:** læg appen på hjemmeskærmen (Del → Føj til hjemmeskærm), åbn
+   den DERFRA, Indstillinger → **Slå notifikationer til**, giv lov. Lav så et
+   udkast (eller sæt et udkast til `afventer`) — når det bliver `ny`, skal der
+   komme en notifikation. Kun "udkast klar" og påmindelser kan pushes; ikke
+   køber-bud (serveren kan ikke se Vinteds indbakke).
+
 0. **Køber-assistenten (svar + modbud).** Server-hjernen er bygget og afprøvet:
    POST `mode:'negotiate'` med `{item, buyerMessage?, offer?, platform}`. Den er
    **platform-bevidst** — `platform:'vinted'|'dba'|'reshopper'` styrer marked og
@@ -69,21 +84,6 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    mærket + kategorien) er afprøvet; grenen uden mærke er bygget efter samme
    mønster, men ikke målt.
 4. **Reshopper-deeplinket.** Om `reshopper://` faktisk åbner appen fra PWAen.
-
-## På listen — ikke begyndt
-
-- **Web-push i den installerede PWA.** Appen har ingen egne notifikationer i
-  dag; den svage led er at vide, *hvornår* der er noget at gøre. iOS-web-push
-  er muligt, men kun i en PWA lagt på hjemmeskærmen (iOS 16.4+), aldrig i et
-  browser-faneblad. Kræver: en service worker, `Notification.requestPermission`
-  udløst af et tryk, en push-subscription (VAPID-nøgler) gemt i basen, og en
-  Edge Function der sender via Web Push-protokollen.
-
-  Realistisk indhold: **"udkast er klar"** (serveren VED det — `analyze-draft`
-  sætter `ny`) og påmindelser ("3 udkast venter på at blive lagt op"). Derimod
-  **ikke** "en køber har budt" — serveren kan ikke se det (datacenter-spærring
-  + ingen Vinted-session), dét dækker Vinteds og DBA's egne pushbeskeder. Byg
-  ikke en køber-bud-push; den kan ikke lade sig gøre herfra.
 
 ## Beslutninger, der er truffet
 

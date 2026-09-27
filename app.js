@@ -546,6 +546,20 @@
      kopieres, for hvert kopieret felt koster et skift frem og tilbage. */
   var RESHOPPER_API = FILL_API.replace('vinted-fill-script', 'reshopper-draft');
   var DBA_API = FILL_API.replace('vinted-fill-script', 'dba-fill-script');
+  var PUSH_SUB_API = FILL_API.replace('vinted-fill-script', 'push-subscribe');
+  var VAPID_PUBLIC = 'BMp994zMZHBAr9aT92AhhbdjYBB_wsE4vAX3DVk0uMjYOLMepNHI-V9C6cxmvj2N5iyrBuKjFEAh-GQ6-t4hbnw';
+  // base64url -> Uint8Array, som applicationServerKey kraever.
+  function vapidBytes(b64){
+    var pad = '='.repeat((4 - b64.length % 4) % 4);
+    var raw = atob((b64 + pad).replace(/-/g,'+').replace(/_/g,'/'));
+    var arr = new Uint8Array(raw.length);
+    for(var i=0;i<raw.length;i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+  }
+  // Web-push virker kun i en installeret PWA paa iOS, og kun i sikker kontekst.
+  function pushMuligt(){
+    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  }
 
   // De tre markedspladser ét sted, saa kø, detalje og handling ikke kan komme
   // til at sige noget forskelligt om den samme vare.
@@ -1022,6 +1036,49 @@
     installer(DBA_API.replace('?key=', '/dba.user.js?key='));
   });
 
+  // ---- Notifikationer -----------------------------------------------------
+  function notifTilstand(){
+    var b = $('m-notif'), note = $('notif-note');
+    if(!b) return;
+    if(!pushMuligt()){
+      b.disabled = true; b.textContent = 'Ikke muligt her';
+      note.textContent = 'Notifikationer kraever, at appen er lagt paa hjemmeskaermen (Del → Foej til hjemmeskaerm) og aabnet derfra. I et browser-faneblad kan iOS ikke sende dem.';
+      return;
+    }
+    if(Notification.permission === 'granted'){
+      b.disabled = false; b.classList.remove('btn-secondary'); b.classList.add('btn-quiet');
+      b.textContent = 'Notifikationer er slaaet til';
+    } else if(Notification.permission === 'denied'){
+      b.disabled = true; b.textContent = 'Blokeret i Indstillinger';
+      note.textContent = 'Du har afvist notifikationer. Slaa dem til igen under Indstillinger → VintedAuto → Notifikationer paa telefonen.';
+    } else {
+      b.disabled = false; b.textContent = 'Slaa notifikationer til';
+    }
+  }
+
+  function slaaNotifTil(){
+    var b = $('m-notif');
+    b.disabled = true; b.textContent = 'Beder om lov …';
+    Notification.requestPermission().then(function(p){
+      if(p !== 'granted'){ notifTilstand(); return; }
+      return navigator.serviceWorker.ready.then(function(reg){
+        return reg.pushManager.getSubscription().then(function(eks){
+          return eks || reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: vapidBytes(VAPID_PUBLIC)
+          });
+        });
+      }).then(function(sub){
+        return fetch(PUSH_SUB_API, {
+          method: 'POST', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ subscription: sub.toJSON() })
+        });
+      }).then(function(){ toast('Notifikationer er slaaet til'); });
+    }).catch(function(e){ toast('Kunne ikke slaa til: ' + e.message); })
+      .then(function(){ notifTilstand(); });
+  }
+  if($('m-notif')) $('m-notif').addEventListener('click', slaaNotifTil);
+
   // Opsaetningen er skrevet til telefonen, for det er dér den hoerer hjemme.
   // Paa en Mac er den samme udvidelse og det samme bogmaerke - men menuerne
   // ligger andre steder, og en vejledning, der peger paa knapper der ikke
@@ -1151,6 +1208,12 @@
       // Det traekker sig, og faar lov at melde sig igen naeste gang appen
       // hentes frem - saa minder det om sig selv uden at staa i vejen.
       setTimeout(function(){ t.remove(); updateShown = false; }, 10000);
+    }).catch(function(){});
+  }
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(function(){
+      if(typeof notifTilstand === 'function') notifTilstand();
     }).catch(function(){});
   }
 

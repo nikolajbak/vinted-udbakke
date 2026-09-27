@@ -666,6 +666,23 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
 
     if (error) throw new Error(`db_update_failed: ${error.message}`);
 
+    // Sig til paa telefonen at udkastet er klar. Fire-and-forget: en push, der
+    // fejler, maa aldrig vaelte analysen, der lige lykkedes.
+    try {
+      const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
+      if (webhookSecret) {
+        fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-webhook-secret": webhookSecret },
+          body: JSON.stringify({
+            title: "Udkast klar",
+            body: cleanText(draft.title) || "Et nyt udkast er klar til at blive lagt op.",
+            url: "/vinted-udbakke/",
+          }),
+        }).catch(() => {});
+      }
+    } catch (_e) { /* push er en ekstra, ikke en betingelse */ }
+
     return new Response(JSON.stringify({ ok: true, blocked }), {
       headers: { "content-type": "application/json" },
     });

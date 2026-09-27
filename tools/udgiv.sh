@@ -14,7 +14,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 PROJEKT=gjycsqshkvkcupdnvgvf
-FUNKTIONER="analyze-draft dba-fill-script reshopper-draft vinted-fill-script"
+FUNKTIONER="analyze-draft dba-fill-script push-send push-subscribe reshopper-draft vinted-fill-script"
 
 [ -f .env.secrets ] || { echo "Mangler .env.secrets"; exit 1; }
 set -a; . ./.env.secrets; set +a
@@ -83,7 +83,7 @@ trap halvt EXIT
 
 for f in $udrul; do
   echo "Udruller $f …"
-  npx --yes supabase@latest functions deploy "$f" --project-ref "$PROJEKT" >/dev/null
+  npx --yes supabase@latest functions deploy "$f" --no-verify-jwt --project-ref "$PROJEKT" >/dev/null
 done
 
 # Kontrollen gaar mod det, der faktisk udleveres — ikke mod det, vi sendte.
