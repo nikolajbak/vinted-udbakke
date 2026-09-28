@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0009 — 2026-09-28 09:45
+
+Commit `91ef356` — Faa opdaterings-banneret til at virke: sammenlign stempler, ikke ETag  
+App: `app.js?v=e064d3fd` · `style.css?v=3bce8da2`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v51 | `e68ee069` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v46 | `8fe8c9ac` |
+
 ## udgivelse-0008 — 2026-09-27 22:08
 
 Commit `c744c31` — Byg web-push: sig til paa telefonen naar et udkast er klar  
