@@ -1183,32 +1183,49 @@
      Vi spørger derfor selv serveren, om filen har ændret sig, og siger til i
      stedet for at genindlæse af os selv: en genindlæsning midt i en
      billedserie ville koste det hele. */
-  var myBuild = null, lastCheck = 0, updateShown = false;
+  var lastCheck = 0, updateShown = false;
+
+  // Den koerende sides EGET stempel: app.js?v=XXXX i dens eget script-tag.
+  // Foer sammenlignede vi index.htmls ETag over tid, og det svigtede naar iOS
+  // aabnede appen frisk med gammel kode: den satte bare den nye ETag som
+  // udgangspunkt og opdagede aldrig, at koden var forael. Nu spoerger vi:
+  // matcher det, jeg KOERER, det serveren har lige nu?
+  function minBuild(){
+    var sc = document.querySelector('script[src*="app.js?v="]');
+    var m = sc && sc.getAttribute('src').match(/app\.js\?v=([0-9a-f]+)/);
+    return m ? m[1] : null;
+  }
 
   function checkForUpdate(){
     var now = Date.now();
-    if(updateShown || now - lastCheck < 60000) return;
+    if(updateShown || now - lastCheck < 30000) return;
     lastCheck = now;
-    fetch(location.pathname, { method: 'HEAD', cache: 'no-store' }).then(function(r){
-      var tag = r.headers.get('etag') || r.headers.get('last-modified');
-      if(!tag) return;
-      if(!myBuild){ myBuild = tag; return; }
-      if(tag === myBuild) return;
-      updateShown = true;
-      var t = document.createElement('div');
-      t.className = 'toast toast-action';
-      var label = document.createElement('span');
-      label.textContent = 'Der er kommet en ny udgave';
-      var go = document.createElement('button');
-      go.type = 'button'; go.textContent = 'Opdatér';
-      go.addEventListener('click', function(){ location.reload(); });
-      t.appendChild(label); t.appendChild(go);
-      document.body.appendChild(t);
-      // Banneret ligger fast i bunden og ville ellers daekke skaermen for evigt.
-      // Det traekker sig, og faar lov at melde sig igen naeste gang appen
-      // hentes frem - saa minder det om sig selv uden at staa i vejen.
-      setTimeout(function(){ t.remove(); updateShown = false; }, 10000);
-    }).catch(function(){});
+    var mit = minBuild();
+    if(!mit) return;                 // kan ikke afgoere -> ti hellere
+    // Cache-bust, saa vi ser serverens sandhed og ikke webview'ets kopi.
+    fetch(location.pathname + '?_=' + now, { cache: 'no-store' })
+      .then(function(r){ return r.text(); })
+      .then(function(html){
+        var m = html.match(/app\.js\?v=([0-9a-f]+)/);
+        if(!m || m[1] === mit) return;   // ingen nyt, eller samme udgave
+        var nyt = m[1];
+        updateShown = true;
+        var t = document.createElement('div');
+        t.className = 'toast toast-action';
+        var label = document.createElement('span');
+        label.textContent = 'Der er kommet en ny udgave';
+        var go = document.createElement('button');
+        go.type = 'button'; go.textContent = 'Opdatér';
+        // Naviger til en cache-bustet adresse: saa henter iOS en frisk
+        // index.html, der peger paa den nye app.js?v=, i stedet for at
+        // genindlaese sin egen gemte kopi.
+        go.addEventListener('click', function(){
+          location.replace(location.pathname + '?u=' + nyt);
+        });
+        t.appendChild(label); t.appendChild(go);
+        document.body.appendChild(t);
+        setTimeout(function(){ t.remove(); updateShown = false; }, 10000);
+      }).catch(function(){});
   }
 
   if('serviceWorker' in navigator){
