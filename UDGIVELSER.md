@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0020 — 2026-09-30 17:29
+
+Commit `01923a5` — Isoler kun en hel vare, naar det koster lidt  
+App: `app.js?v=f9220621` · `style.css?v=1594422e`  
+Udrullet: analyze-draft
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v55 | `a94d0e20` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v50 | `51698b03` |
+
 ## udgivelse-0019 — 2026-09-30 17:20
 
 Commit `60855fc` — Lad naerbilleder boeje formatet, og find baggrunden som flertal  
