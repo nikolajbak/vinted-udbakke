@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0012 — 2026-09-30 11:00
+
+Commit `faeec58` — Lad de afsendte annoncer aabne  
+App: `app.js?v=83a3c7f0` · `style.css?v=01cc6ac7`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v51 | `e68ee069` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v48 | `60249c2c` |
+
 ## udgivelse-0011 — 2026-09-30 07:03
 
 Commit `96ad4bc` — Lad prisvagtens begrundelse naevne den pris, der faktisk bliver sat  
