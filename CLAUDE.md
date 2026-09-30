@@ -333,6 +333,34 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   prisvagten prisen ned, skal appen kunne vise BEGGE dele — ellers ved du ikke,
   om tallet i appen er det, køberen ser. Udkastet overskrives aldrig af en
   synkronisering.
+- **Isolering koster det, den fylder op — og prisen afhænger af faconen.** En
+  høj parka i et kvadrat koster 6 % af højden i bræmme, en bred bomberjakke i
+  det SAMME kvadrat koster 35-42 %. Målt på produkt 7 og 8. Derfor isoleres der
+  kun, når baggrunden er rodet, eller når det koster højst en sjettedel.
+- **Rammen kan sjældent glide fri af rodet.** Prøvet: lad rammen lægge sig,
+  hvor der er mindst uro (forskellen mellem nabopixels, række for række). Det
+  virker kun, når der ER et roligt sted at lægge den. På produkt 8 er der 120 px
+  roligt lagen over jakken og 1315 px ramme at fylde, så hver eneste placering
+  tager gulvet med. Målingen ligger i `uroAkser`/`roligstePlads` og bruges, når
+  rammen vokser.
+- **Bræmmen får farven fra den side, den rører.** Hjørnefarven er ét tal for
+  hele rammen og gav en synlig søm — helt hvidt op ad et lagen, der er cremet og
+  skygget. Med `sideFarve` pr. side forsvinder sømmen: en bræmme på 35 % kan
+  ikke ses på det færdige billede, selv om den kan måles.
+- **Et nærbillede må bøje seriens format; en hel vare må ikke.** Et hængemærke
+  er højere, end billedet er bredt, og kan aldrig ligge i en kvadratisk ramme —
+  målt til 43-46 % bjælke. Hele varer bøjer ikke: de ses i gitteret.
+- **Retningskontrollen skal pege på kraven, ikke gætte grader.** Bad man den om
+  et gradtal og skrev "svar 0 ved tvivl", kom produkt 8's forfra-billede ud på
+  hovedet med kontrollens accept. Nu svarer den, hvor den ende ligger, der bæres
+  øverst — krave, halsåbning, skulderlinje, linning — og koden regner graderne.
+- **Billedmodellens svar svinger fra kørsel til kørsel.** Samme foto gav på fire
+  gennemløb forskellig rotation, forskelligt `backgroundClutter` og forskellig
+  motivkasse. Nærbillederne er stabile; hovedbilledet er det ikke. Mål derfor
+  aldrig en billedrettelse på ét gennemløb.
+- **Dømm ikke en bjælke på en nedskaleret kopi.** `sips -Z` + fremvisning
+  skjulte en hvid bræmme på 42 %, som lå der. Mål pixels, eller se den fulde
+  fil.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.
