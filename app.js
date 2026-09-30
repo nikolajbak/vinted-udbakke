@@ -586,7 +586,7 @@
       }).then(function(){});
       markerSendt(d, 'vinted');
       toast('Annoncen er tilknyttet. Tryk Opdatér, så læser appen den.');
-      renderDetail();
+      renderDetail(); renderQueue();
       hentAnnoncer(d.id);
     });
   }
