@@ -1193,7 +1193,15 @@
         if(res.error) throw res.error;
         var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
         var photos = d.photos.slice();
-        photos[idx] = { path: path, url: url, kind: photos[idx].kind, optimized: true };
+        // Behold originalen. Den manuelle beskaering lagde sin egen fil ind og
+        // glemte, hvad den kom af - og saa er der ingen vej tilbage, hverken
+        // for dig eller for en ny gennemkoersel af billedbehandlingen. Produkt
+        // 8's forfra-billede maatte findes igen paa tidsstemplet i Storage.
+        var foer = photos[idx];
+        photos[idx] = {
+          path: path, url: url, kind: foer.kind, optimized: true,
+          org: foer.org || foer.path
+        };
         var patch = { photos: photos };
         if(idx === 0){ patch.image_path = path; patch.image_url = url; }
         return sb.from('drafts').update(patch).eq('id', d.id);
