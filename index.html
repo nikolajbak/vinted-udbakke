@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=01cc6ac7">
+<link rel="stylesheet" href="style.css?v=6b51f320">
 </head>
 <body>
 
@@ -119,6 +119,14 @@
       <h2>Indstillinger</h2>
     </header>
     <div class="body">
+      <button type="button" class="menu-item" id="m-scan">
+        <span>Scan etiket<small>Find varen ud fra QR-koden eller løbenummeret</small></span>
+        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+      </button>
+      <button type="button" class="menu-item" id="m-labels">
+        <span>Etiketter<small>Løbenummer og QR-kode til udprintning</small></span>
+        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+      </button>
       <button type="button" class="menu-item" id="m-vagt">
         <span>Prisvagt<small>Holder øje med det, der ikke er solgt</small></span>
         <span class="tal" id="vagt-tal" hidden></span>
@@ -167,6 +175,43 @@
     </div>
   </section>
 
+  <section class="screen" id="s-scan" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>Scan etiket</h2>
+    </header>
+    <div class="body">
+      <div class="scan-stage" id="scan-stage">
+        <video id="scan-video" playsinline muted></video>
+        <div class="scan-ramme" aria-hidden="true"></div>
+      </div>
+      <p class="note" id="scan-note">Hold kameraet hen over QR-koden på etiketten.</p>
+      <div class="sect">
+        <span class="label">Eller tast løbenummeret</span>
+        <form id="scan-form" class="scan-form">
+          <input type="text" id="scan-nr" inputmode="numeric" autocomplete="off"
+                 placeholder="0004" aria-label="Løbenummer">
+          <button type="submit" class="btn btn-secondary">Slå op</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="s-labels" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>Etiketter</h2>
+      <div class="spacer"></div>
+      <button type="button" class="link-btn" id="lbl-alle">Fravælg alle</button>
+    </header>
+    <div class="body" id="lbl-body"></div>
+    <div class="footer" id="lbl-footer" hidden></div>
+  </section>
+
   <section class="screen" id="s-vagt" hidden>
     <header class="bar">
       <button type="button" class="icon-btn" data-back aria-label="Tilbage">
@@ -208,6 +253,10 @@
          style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
 </div>
 
-<script src="app.js?v=83a3c7f0"></script>
+<!-- Arket, printeren faar. Det ligger uden for #app, saa print-CSS kan skjule
+     appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
+<div id="print-sheet" aria-hidden="true"></div>
+
+<script src="app.js?v=ba676520"></script>
 </body>
 </html>

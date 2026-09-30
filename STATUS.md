@@ -18,6 +18,30 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Løbenumre, QR og etiketter — bygget i dag.** Hver vare har nu et
+   løbenummer fra en sekvens (`drafts.nr`, de fem eksisterende er nummereret
+   1–5), og QR-koden er det samme nummer som en adresse ind i appen.
+   Tre nye steder: **Scan etiket** (kamera + jsQR, med tastefelt som reserve),
+   **Etiketter** (listen med nummer og QR, afkrydsning og udskrivning), og
+   selve arket, der deles i sider på 21 og printes med `window.print()`.
+
+   **Målt:** etiketten er 63,5 × 38,1 mm, arket 194 × 266,7 mm — det passer på
+   A4 med de margener, `@page` sætter. QR-koden er tegnet i 25 mm ved 300 dpi
+   og læst korrekt tilbage med `jsQR`, også ned til en fjerdedel af den
+   størrelse.
+
+   **Ikke målt — kør det igennem:**
+   - **Kameraet i den installerede PWA på iOS.** `getUserMedia` virker i
+     Safari, men en PWA på hjemmeskærmen er en anden sag. Går det galt, siger
+     skærmen det og peger på tastefeltet — men afprøv det.
+   - **Selve udskrivningen.** `window.print()` åbner ikke altid et printpanel
+     i en installeret PWA. Print første ark fra Macen, og hold et rigtigt
+     etiketark op imod det, før du printer mange.
+   - **Scanning med telefonens eget kamera.** QR-koden åbner appens adresse i
+     Safari, ikke nødvendigvis i den installerede PWA — og Safari har sin egen
+     login-session.
+
+
 0. **Prisvagten — bygget i dag, intet af den er kørt på en rigtig annonce.**
    Hele kæden er ude: tabellerne `listings` og `price_events`, beslutningen i
    `prisvagt.ts`, fire nye tilstande i `vinted-fill-script`

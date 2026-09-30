@@ -94,6 +94,7 @@
 
   function show(name, opts){
     opts = opts || {};
+    stopScan();
     var next = screenEl(name);
     var cur = stack.length ? screenEl(stack[stack.length - 1]) : null;
     if(cur === next) return;
@@ -122,6 +123,7 @@
 
   function back(fraHistorik){
     if(stack.length < 2) return;
+    stopScan();
     // Kom trykket fra appens egen pil, skal historien med tilbage. Kom det fra
     // browseren, har den allerede gjort sit.
     if(fraHistorik !== true){ springer++; try{ history.back(); }catch(e){ springer--; } }
@@ -425,7 +427,9 @@
     if(d.personal_info){
       html += '<div class="warn">Der blev fundet personlige oplysninger på et af billederne — fx et påsyet navnemærke — og de er automatisk maskeret. Tjek billederne, før du uploader.</div>';
     }
-    html += '<div class="note note-luft">' + esc(relTime(d.created_at)) + '</div>';
+    html += '<div class="note note-luft">' +
+            (d.nr ? '<b class="mono">' + esc(fmtNr(d.nr)) + '</b> · ' : '') +
+            esc(relTime(d.created_at)) + '</div>';
     $('d-body').innerHTML = html;
 
     var track = $('d-track'), dots = $('d-dots');
@@ -1172,6 +1176,307 @@
         });
       });
   }
+  /* ---- Løbenummer, QR og etiketter ----------------------------------------
+     Et produkt findes to steder: i appen og i en papkasse. Løbenummeret er
+     det, der binder dem sammen — det står på etiketten på pakken, og QR-koden
+     ved siden af er det samme nummer, bare så telefonen kan læse det.
+
+     Nummeret kommer fra en sekvens i databasen og bliver aldrig genbrugt, så
+     en etiket, der er klistret på en pakke, betyder det samme om et år.
+
+     QR-koden peger på appens EGEN adresse, ikke på noget hos os her — så
+     virker iPhonens indbyggede kamera som scanner, uden at der skal åbnes
+     noget først. Derfor står adressen fast: en etiket printet fra en Mac skal
+     pege samme sted hen som en printet fra telefonen. */
+
+  var APP_URL = 'https://nikolajbak.github.io/vinted-udbakke/';
+
+  function fmtNr(n){ return n ? '#' + String(n).padStart(4, '0') : ''; }
+  function qrTekst(nr){ return APP_URL + '#v' + nr; }
+
+  // Bibliotekerne hentes FØRST når de skal bruges. De to skærme her er ikke
+  // dem, appen åbnes for, og 300 kB på hver opstart ville betale for noget,
+  // der bruges en gang om ugen.
+  var HENTET = {};
+  function hentScript(url){
+    if(HENTET[url]) return HENTET[url];
+    HENTET[url] = new Promise(function(ok, nej){
+      var el = document.createElement('script');
+      el.src = url; el.async = true;
+      el.onload = function(){ ok(); };
+      el.onerror = function(){ HENTET[url] = null; nej(new Error('kunne ikke hentes')); };
+      document.head.appendChild(el);
+    });
+    return HENTET[url];
+  }
+  function qrKlar(){
+    if(window.qrcode) return Promise.resolve();
+    return hentScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js');
+  }
+  function scannerKlar(){
+    if(window.jsQR) return Promise.resolve();
+    return hentScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js');
+  }
+
+  // SVG frem for billede: etiketten skal printes, og et punktbillede skaleret
+  // op til 26 mm bliver grimt netop dér, hvor det skal kunne læses.
+  function qrSvg(tekst){
+    var q = window.qrcode(0, 'M');
+    q.addData(tekst);
+    q.make();
+    // Margenen er QR-kodens hvide kant. Standarden beder om fire MODULER, og
+    // biblioteket regner margenen i samme enhed som cellSize — ikke i moduler.
+    // margin: 4 gav derfor én modulbredde, og en kode uden ordentlig kant er
+    // den slags fejl, der først viser sig som en etiket, telefonen ikke vil
+    // læse. Målt i den færdige SVG, ikke læst i dokumentationen.
+    var CELLE = 4;
+    return q.createSvgTag({ cellSize: CELLE, margin: CELLE * 4, scalable: true });
+  }
+
+  /* ---- Slå op på nummer -------------------------------------------------- */
+
+  // Et scan kan give tre ting: appens egen adresse med #v bagpå, et nøgent
+  // tal, eller noget helt andet. De to første er vores.
+  function nummerFra(tekst){
+    if(!tekst) return null;
+    var t = String(tekst).trim();
+    var m = t.match(/#v(\d+)\s*$/);
+    if(m) return Number(m[1]);
+    if(/^#?0*\d{1,9}$/.test(t)) return Number(t.replace(/^#/, ''));
+    return null;
+  }
+
+  function aabnNummer(nr, sig){
+    if(!nr){ if(sig) sig('Det er ikke en etiket herfra.'); return; }
+    // Kartoteket først: er varen allerede hentet, skal der ikke ventes på
+    // netværket for at vise den.
+    var kendt = Object.keys(rows).map(function(k){ return rows[k]; })
+      .filter(function(d){ return Number(d.nr) === Number(nr); })[0];
+    if(kendt){ openDetail(kendt.id); return; }
+    if(sig) sig('Slår ' + fmtNr(nr) + ' op …');
+    sb.from('drafts').select('*').eq('nr', nr).maybeSingle().then(function(res){
+      if(res.error || !res.data){
+        if(sig) sig('Der er ingen vare med nummer ' + fmtNr(nr) + '.');
+        return;
+      }
+      rows[res.data.id] = res.data;
+      openDetail(res.data.id);
+    });
+  }
+
+  /* ---- Scanner ----------------------------------------------------------- */
+
+  var scanStream = null, scanTimer = null;
+
+  function stopScan(){
+    if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+    if(scanStream){
+      scanStream.getTracks().forEach(function(t){ t.stop(); });
+      scanStream = null;
+    }
+    var v = $('scan-video');
+    if(v) v.srcObject = null;
+  }
+
+  function scanBesked(t){ var el = $('scan-note'); if(el) el.textContent = t; }
+
+  function startScan(){
+    var video = $('scan-video');
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      scanBesked('Denne browser giver ikke adgang til kameraet. Tast løbenummeret herunder i stedet.');
+      return;
+    }
+    scanBesked('Beder om kameraet …');
+    scannerKlar().then(function(){
+      return navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }, audio: false
+      });
+    }).then(function(stream){
+      // Nåede du at gå tilbage imens, skal kameraet ikke tændes bagefter.
+      if(screenEl('scan').hidden){ stream.getTracks().forEach(function(t){ t.stop(); }); return; }
+      scanStream = stream;
+      video.srcObject = stream;
+      video.play();
+      scanBesked('Hold kameraet hen over QR-koden på etiketten.');
+      var lae = document.createElement('canvas');
+      var ctx = lae.getContext('2d', { willReadFrequently: true });
+      scanTimer = setInterval(function(){
+        if(!video.videoWidth) return;
+        // Halv opløsning: en QR-kode fylder rigeligt, og det halverer arbejdet
+        // på en telefon, der samtidig skal vise billedet.
+        lae.width = Math.round(video.videoWidth / 2);
+        lae.height = Math.round(video.videoHeight / 2);
+        ctx.drawImage(video, 0, 0, lae.width, lae.height);
+        var d;
+        try{ d = ctx.getImageData(0, 0, lae.width, lae.height); }catch(e){ return; }
+        var fund = window.jsQR(d.data, d.width, d.height, { inversionAttempts: 'dontInvert' });
+        if(!fund) return;
+        var nr = nummerFra(fund.data);
+        if(!nr){ scanBesked('Den kode hører ikke til en vare her.'); return; }
+        stopScan();
+        if(navigator.vibrate) try{ navigator.vibrate(30); }catch(e){}
+        aabnNummer(nr, scanBesked);
+      }, 180);
+    }).catch(function(err){
+      scanBesked(err && err.name === 'NotAllowedError'
+        ? 'Kameraet fik ikke lov. Giv Safari adgang, eller tast løbenummeret herunder.'
+        : 'Kameraet kunne ikke startes. Tast løbenummeret herunder i stedet.');
+    });
+  }
+
+  $('scan-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    aabnNummer(nummerFra($('scan-nr').value), scanBesked);
+  });
+  $('m-scan').addEventListener('click', function(){
+    show('scan'); $('scan-nr').value = ''; startScan();
+  });
+
+  /* ---- Etiketter --------------------------------------------------------- */
+
+  var LBL = [];          // varerne på skærmen
+  var LBL_VALGT = {};    // dem der skal med på arket
+
+  function hentEtiketter(){
+    var krop = $('lbl-body');
+    krop.innerHTML = '<div class="skel" id="lbl-skel"></div>';
+    visSkelet($('lbl-skel'), 4);
+    $('lbl-footer').hidden = true;
+    qrKlar().then(function(){
+      return sb.from('drafts').select('id, nr, title, price, status, image_url')
+        .neq('status', 'kasseret').order('nr', { ascending: false }).limit(200);
+    }).then(function(res){
+      if(res.error){
+        krop.innerHTML = '<div class="empty" id="lbl-fejl"></div>';
+        visFejl($('lbl-fejl'), 'Listen kunne ikke hentes',
+          res.error.message || 'Forbindelsen svarede ikke.', hentEtiketter);
+        return;
+      }
+      LBL = res.data || [];
+      LBL_VALGT = {};
+      LBL.forEach(function(d){ LBL_VALGT[d.id] = true; });
+      tegnEtiketter();
+    }).catch(function(){
+      krop.innerHTML = '<div class="empty" id="lbl-fejl"></div>';
+      visFejl($('lbl-fejl'), 'QR-koderne kunne ikke hentes',
+        'Biblioteket til QR-koder kunne ikke hentes. Prøv igen, når du er online.',
+        hentEtiketter);
+    });
+  }
+
+  function tegnEtiketter(){
+    var krop = $('lbl-body');
+    if(!LBL.length){
+      krop.innerHTML = '<div class="empty"><h3>Ingen varer endnu</h3>' +
+        '<p>Hver vare får sit løbenummer, så snart billedserien er taget.</p></div>';
+      $('lbl-footer').hidden = true;
+      return;
+    }
+    var h = '<p class="note lbl-intro">Hver vare har sit eget løbenummer, og QR-koden ' +
+      'er det samme nummer. Scanner du den med telefonens kamera, åbner varen her i appen. ' +
+      'Arket er sat op til 21 etiketter pr. A4 (63,5 × 38,1 mm) — print på almindeligt papir ' +
+      'og klip, eller på etiketark med samme inddeling. Tjek det første ark, før du printer mange.</p>' +
+      '<label class="lbl-start">Start på plads nr.' +
+      '<input type="number" id="lbl-start" min="1" max="' + PR_ARK + '" value="1"></label>' +
+      '<p class="note">Er det første ark halvt brugt, så begynd, hvor der er tomt. ' +
+      'Pladserne tælles fra øverste venstre hjørne, række for række.</p>';
+    h += '<div class="sect">' + LBL.map(function(d){
+      return '<label class="lbl-row">' +
+        '<input type="checkbox" data-id="' + esc(d.id) + '"' +
+          (LBL_VALGT[d.id] ? ' checked' : '') + '>' +
+        '<span class="lbl-qr">' + qrSvg(qrTekst(d.nr)) + '</span>' +
+        '<span class="lbl-tekst"><span class="nr mono">' + esc(fmtNr(d.nr)) + '</span>' +
+        '<span class="t">' + esc(d.title || 'Uden titel') + '</span>' +
+        '<span class="s">' + esc([d.price, d.status].filter(Boolean).join(' · ')) + '</span></span>' +
+      '</label>';
+    }).join('') + '</div>';
+    krop.innerHTML = h;
+
+    Array.prototype.forEach.call(krop.querySelectorAll('input[type=checkbox]'), function(c){
+      c.addEventListener('change', function(){
+        LBL_VALGT[c.getAttribute('data-id')] = c.checked;
+        opdaterEtiketFod();
+      });
+    });
+    opdaterEtiketFod();
+  }
+
+  function valgteEtiketter(){
+    return LBL.filter(function(d){ return LBL_VALGT[d.id]; });
+  }
+
+  function opdaterEtiketFod(){
+    var n = valgteEtiketter().length;
+    var fod = $('lbl-footer');
+    fod.innerHTML = '<button type="button" class="btn btn-primary" id="lbl-print"' +
+      (n ? '' : ' disabled') + '>Udskriv ' + n +
+      (n === 1 ? ' etiket' : ' etiketter') + '</button>';
+    fod.hidden = false;
+    if(n) $('lbl-print').addEventListener('click', udskrivEtiketter);
+    $('lbl-alle').textContent = n === LBL.length ? 'Fravælg alle' : 'Vælg alle';
+  }
+
+  $('lbl-alle').addEventListener('click', function(){
+    var alle = valgteEtiketter().length === LBL.length;
+    LBL.forEach(function(d){ LBL_VALGT[d.id] = !alle; });
+    Array.prototype.forEach.call($('lbl-body').querySelectorAll('input[type=checkbox]'),
+      function(c){ c.checked = !alle; });
+    opdaterEtiketFod();
+  });
+
+  var PR_ARK = 21;
+
+  function udskrivEtiketter(){
+    var valgte = valgteEtiketter();
+    if(!valgte.length) return;
+
+    // Et brugt etiketark har huller i toppen. Uden et startpunkt ville de
+    // resterende etiketter blive printet oven i de tomme pladser — altsaa paa
+    // bagpapiret — og arket var spildt.
+    var start = Math.max(0, Math.min(PR_ARK - 1, (parseInt($('lbl-start').value, 10) || 1) - 1));
+    var felter = [];
+    for(var t = 0; t < start; t++) felter.push('<div class="etiket etiket-tom"></div>');
+    valgte.forEach(function(d){
+      felter.push('<div class="etiket">' +
+        '<div class="etiket-qr">' + qrSvg(qrTekst(d.nr)) + '</div>' +
+        '<div class="etiket-tekst">' +
+          '<div class="etiket-nr">' + esc(fmtNr(d.nr)) + '</div>' +
+          '<div class="etiket-titel">' + esc(d.title || '') + '</div>' +
+          '<div class="etiket-pris">' + esc(d.price || '') + '</div>' +
+        '</div></div>');
+    });
+
+    // Arkene deles op her, ikke af browseren. En grid, der selv skal finde ud
+    // af hvor siden slutter, sætter før eller siden en række hen over
+    // sideskiftet — og saa er de etiketter ubrugelige.
+    var ark = [];
+    for(var i = 0; i < felter.length; i += PR_ARK){
+      ark.push('<div class="ark-side">' + felter.slice(i, i + PR_ARK).join('') + '</div>');
+    }
+    $('print-sheet').innerHTML = ark.join('');
+    // Safari i en installeret PWA aabner ikke altid et printpanel. Sker der
+    // ingenting, er det dét, der er sket — og saa skal arket printes fra en
+    // computer i stedet. Derfor staar det i beskeden og ikke kun i hovedet.
+    setTimeout(function(){
+      try{ window.print(); }
+      catch(e){ toast('Print kunne ikke åbnes — prøv fra en computer'); }
+    }, 60);
+  }
+
+  $('m-labels').addEventListener('click', function(){ show('labels'); hentEtiketter(); });
+
+  // Telefonens indbyggede kamera aabner bare adressen fra QR-koden. Den
+  // ender her, som #v42 bagest i adressen — og skal foere hen til varen.
+  // Maerket ryddes med det samme, saa en genindlaesning ikke haevder, at du
+  // lige har scannet noget.
+  function aabnFraAdresse(){
+    var nr = nummerFra(location.hash || '');
+    if(!nr) return;
+    try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
+    aabnNummer(nr);
+  }
+  window.addEventListener('hashchange', function(){ if(started) aabnFraAdresse(); });
+
   /* ---- Prisvagt -----------------------------------------------------------
      En vare, der ikke bliver solgt, er ikke faerdig — den er bare stille. Her
      staar alt det, der ligger ude: hvor laenge, hvor mange der har hjertet
@@ -1419,6 +1724,7 @@
 
     hentKoe();
     opdaterVagtTal();
+    aabnFraAdresse();
 
     sb.channel('drafts-live').on('postgres_changes',
       { event:'*', schema:'public', table:'drafts' }, function(p){

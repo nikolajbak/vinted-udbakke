@@ -82,6 +82,7 @@ midlertidig funktion og slet den bagefter.
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Prisvagtens skema og ur | `sql/001-prisvagt.sql`, `sql/002-prisvagt-puls.sql` |
+| Løbenumre | `sql/003-loebenummer.sql` |
 
 `runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
 `/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
@@ -295,6 +296,27 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   `localStorage` udløber efter to timer; beslutningen står i databasen, til den
   er gennemført. Uden `mode:'pending'` kunne en pris kun sættes i direkte
   forlængelse af det tilsyn, der besluttede den.
+- **Løbenummeret kommer fra en sekvens, ikke fra `max(nr)+1`.** Nummeret står
+  på en etiket, der er klistret på en pakke — det skal betyde det samme om et
+  år, også når udkastet er kasseret. To udkast oprettet samtidig ville med
+  `max+1` få det samme nummer og dermed to pakker med samme etiket.
+- **QR-koden peger på appens egen adresse (`…/#v<nr>`), ikke på et nummer.**
+  Så virker iPhonens indbyggede kamera som scanner uden at der skal åbnes
+  noget først. Adressen er hardkodet til produktionen: en etiket printet fra
+  en Mac skal pege samme sted hen som en printet fra telefonen.
+- **`qrcode-generator`s `margin` regnes i samme enhed som `cellSize`, ikke i
+  moduler.** `margin: 4` med `cellSize: 4` gav én modulbredde hvid kant, hvor
+  standarden beder om fire — og en kode uden ordentlig kant er den slags fejl,
+  der først viser sig som en etiket, telefonen ikke vil læse. Det skal være
+  `margin: cellSize * 4`. Målt på den færdige SVG, og koden er afprøvet hele
+  vejen: tegnet i 25 mm ved 300 dpi og læst igen med `jsQR`.
+- **Etiketarket deles op i sider i koden, ikke af browseren.** 21 pr. A4
+  (3 × 7 af 63,5 × 38,1 mm, som passer i 194 × 271 mm). En grid, der selv skal
+  finde sideskiftet, sætter før eller siden en række hen over kanten, og så er
+  de etiketter spildt.
+- **`.label` er appens versal-overskrift.** Printetiketterne hedder `.etiket`.
+  Kaldte de sig `.label`, arvede hver eneste etikettitel `text-transform:
+  uppercase` og 11 px — det så man først på et printark.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

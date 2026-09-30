@@ -419,6 +419,66 @@
   .hist-row .t{ font-weight: 600; font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hist-row .s{ font-size: var(--t-small); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
+  /* ---- Scanner og etiketter ---------------------------------------------- */
+  .link-btn{
+    background: none; border: 0; padding: var(--s2);
+    color: var(--accent); font: inherit; font-size: var(--t-small); font-weight: 600;
+    cursor: pointer;
+  }
+
+  .scan-stage{
+    position: relative; aspect-ratio: 3 / 4; width: 100%;
+    background: var(--ink); border-radius: 12px; overflow: hidden;
+  }
+  .scan-stage video{ width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* Rammen er ikke pynt: uden den ved man ikke, hvor taet paa koden skal vaere,
+     og saa holder man telefonen for langt vaek. */
+  .scan-ramme{
+    position: absolute; inset: 18%;
+    border: 2px solid rgba(255,255,255,.9); border-radius: 10px;
+    box-shadow: 0 0 0 100vmax rgba(0,0,0,.35);
+  }
+  #scan-note{ margin-top: var(--s3); }
+  .scan-form{ display: flex; gap: var(--s2); margin-top: var(--s2); }
+  .scan-form input{
+    flex: 1 1 auto; min-width: 0;
+    padding: 0 var(--s3); height: var(--tap);
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--raised); color: var(--ink);
+    font-family: 'Space Mono', ui-monospace, monospace; font-size: var(--t-body);
+  }
+  .scan-form .btn{ width: auto; margin: 0; flex: 0 0 auto; padding: 0 var(--s4); }
+
+  .lbl-intro{ margin-bottom: var(--s3); }
+  .lbl-start{
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--s3); font-size: var(--t-small); margin-bottom: var(--s1);
+  }
+  .lbl-start input{
+    width: 5em; text-align: right; font-variant-numeric: tabular-nums;
+    padding: var(--s2); border: 1px solid var(--line); border-radius: 8px;
+    background: var(--raised); color: var(--ink); font-size: var(--t-body);
+  }
+  .lbl-row{
+    display: flex; align-items: center; gap: var(--s3);
+    padding: var(--s3) 0; border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .lbl-row input{ width: 22px; height: 22px; flex: 0 0 auto; accent-color: var(--accent); }
+  /* QR-koden er sort paa hvidt uanset appens tema. En kode i omvendte farver
+     kan de faerreste scannere laese, og etiketten bliver printet hvid alligevel. */
+  .lbl-qr{
+    width: 44px; height: 44px; flex: 0 0 auto;
+    background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px;
+  }
+  .lbl-qr svg{ width: 100%; height: 100%; display: block; }
+  .lbl-tekst{ min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
+  .lbl-tekst .nr{ font-size: var(--t-small); font-weight: 700; }
+  .lbl-tekst .t{ font-size: var(--t-small); overflow: hidden;
+                 text-overflow: ellipsis; white-space: nowrap; }
+  .lbl-tekst .s{ font-size: var(--t-label); color: var(--ink-soft);
+                 text-transform: uppercase; letter-spacing: .04em; }
+
   /* ---- Prisvagt ----------------------------------------------------------
      Raekken skal kunne skimmes: prisen til hoejre, hvor laenge og hvor varmt
      under. Forslaget er det eneste, der maa raabe - det er dét, der kraever
@@ -634,3 +694,51 @@
   opacity: .8;
 }
 .empty-mark .ramme{ stroke: var(--accent); stroke-dasharray: 5 4; }
+
+
+/* ---- Etiketarket ---------------------------------------------------------
+   21 etiketter paa et A4: 3 x 7 af 63,5 x 38,1 mm. Maalene staar i mm, fordi
+   det er papir - en etiket i px ville skifte stoerrelse med printerens
+   opfattelse af en skaerm.
+
+   Arket ligger uden for #app og er skjult paa skaermen. Ved print byttes de
+   to om: appen forsvinder, arket traeder frem. Saa er der ingen skaerm-layout
+   at kaempe med, og ingen risiko for at noget af appen sniger sig med. */
+#print-sheet{ display: none; }
+
+@media print{
+  #app{ display: none !important; }
+  #print-sheet{ display: block !important; }
+  .ark-side{
+    display: grid;
+    grid-template-columns: repeat(3, 63.5mm);
+    grid-auto-rows: 38.1mm;
+    justify-content: center;
+    break-after: page; page-break-after: always;
+  }
+  .ark-side:last-child{ break-after: auto; page-break-after: auto; }
+  @page{ size: A4 portrait; margin: 13mm 8mm; }
+  html, body{ background: #fff; color: #000; }
+
+  .etiket{
+    display: flex; align-items: center; gap: 2.5mm;
+    padding: 2.5mm 3mm;
+    overflow: hidden;
+    break-inside: avoid;
+  }
+  .etiket-qr{ width: 25mm; height: 25mm; flex: 0 0 auto; }
+  .etiket-qr svg{ width: 100%; height: 100%; display: block; }
+  .etiket-tekst{ min-width: 0; flex: 1 1 auto; }
+  .etiket-nr{
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: 13pt; font-weight: 700; line-height: 1.1; color: #000;
+  }
+  /* To linjer titel, og saa er der ikke mere plads. Klippet tekst er bedre end
+     en etiket, hvor nummeret bliver skubbet ud. */
+  .etiket-titel{
+    font-size: 7pt; line-height: 1.25; color: #000; margin-top: 1mm;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .etiket-pris{ font-size: 7pt; color: #444; margin-top: .8mm; }
+}
