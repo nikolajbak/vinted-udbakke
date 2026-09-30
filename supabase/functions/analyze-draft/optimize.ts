@@ -651,7 +651,23 @@ export async function optimizePhoto(
   // rod, men sammenhaeng, saa dér naas formatet ved at beskaere - der er
   // billede at tage af. En hvid bjaelke ved siden af en stoerrelseslap er
   // hverken oplysning eller pynt; den er et hul i annoncen.
-  const isoler = vilIsolere || !kanRumme;
+  // Men isolering er en gevinst, ikke en pligt. Den koster det, den fylder op,
+  // og prisen afhaenger af varens facon: en hoej parka i et kvadrat koster 6 %,
+  // en bred bomberjakke i det SAMME kvadrat koster 38-41 % af hoejden i rent
+  // hvidt. Maalt paa produkt 7 og 8, samme ramme, samme regel.
+  //
+  // Og det hvide holder ikke, hvad isoleringen lover. Den stramme kasse tager
+  // sengetoejet med helt ud til kanten, saa man faar baade braemmen OG
+  // bjaelken - praecis det, isoleringen skulle skaane hovedbilledet for.
+  //
+  // Derfor: er baggrunden rolig, og koster isoleringen mere end en sjettedel
+  // af rammen, vokser rammen i stedet ud i baggrunden. Er der rod taet paa,
+  // isoleres der uanset prisen - dér er bjaelken det mindste onde.
+  const spild = cw / ch > target2
+    ? 1 - (ch * target2) / cw
+    : 1 - cw / (ch * target2);
+  const vaerdIsolering = guidance.backgroundClutter || spild <= 0.15;
+  const isoler = (vilIsolere && vaerdIsolering) || !kanRumme;
 
   if (!isoler) {
     // Helst den mindste ramme, der rummer luften med. Kan den ikke vaere i
