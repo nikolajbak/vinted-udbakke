@@ -44,6 +44,21 @@ export interface PhotoGuidance {
 // praecist i stedet for at blive vist med sorte kanter i gitteret.
 const RATIO_MAX = 1.2;     // let liggende, til brede varer
 const RATIO_MIN = 3 / 4;   // Vinteds eget portrætformat
+
+// SERIENS format maa aldrig blive liggende. Maalt paa to rigtige annoncer:
+// et hovedbillede af en bomberjakke gav 1,2, og saa fik hvert eneste
+// naerbillede i serien - maerkat, stoerrelseslap, detalje - 30-45 % af rammen
+// som hvide bjaelker i siden, fordi et staaende naerbillede ikke kan fylde en
+// liggende ramme. Toej fotograferes staaende; rammen skal foelge med.
+const RATIO_SERIE_MAX = 1.0;
+// Rigtige formater frem for 1,018. Et skaevt tal er ikke et format, det er en
+// maaling der slap ud.
+const FORMATER = [3 / 4, 4 / 5, 1];
+function snapFormat(r: number): number {
+  return FORMATER.reduce(function (a, b) {
+    return Math.abs(b - r) < Math.abs(a - r) ? b : a;
+  });
+}
 // Vinteds loft. Mere kasserer de selv ved upload; mindre koster zoom-detalje,
 // og zoom er dér, en koeber bedoemmer stoffet.
 const MAX_EDGE = 1600;
@@ -558,7 +573,7 @@ export async function optimizePhoto(
   // Svaret er at maale formatet paa hovedbilledet og give resten DET. Saa er
   // annoncen ens, og maalestokken er varen selv frem for et tal, vi har valgt.
   // Samme greb som fremkaldelsen, der ogsaa maales paa foto 0 og genbruges.
-  const egen = Math.max(RATIO_MIN, Math.min(RATIO_MAX, cw / ch));
+  const egen = snapFormat(Math.max(RATIO_MIN, Math.min(RATIO_SERIE_MAX, cw / ch)));
   const target = guidance.seriesRatio && guidance.seriesRatio > 0 ? guidance.seriesRatio : egen;
   if (guidance.ratioOut && !guidance.seriesRatio) guidance.ratioOut.ratio = egen;
   // For at ramme formatet skal rammen VOKSE - og den vokser ud i det, der
@@ -572,14 +587,31 @@ export async function optimizePhoto(
   // beskaeres der STRAMT om varen, og resten fyldes ud med hvidt bagefter.
   // Varen staar da isoleret paa hvid bund, som paa et produktfoto, og
   // formatet er alligevel praecist.
-  const voksetW = cw / ch > target ? cw : ch * target;
-  const voksetH = cw / ch > target ? cw / target : ch;
-  const passerIkke = voksetW > W || voksetH > H;
-  const isoler = vilIsolere || passerIkke;
+  // Den MINDSTE ramme i formatet, der rummer hele motivkassen. Mindst, fordi
+  // varen skal fylde mest muligt: en stoerre ramme ville bare lukke mere gulv
+  // ind.
+  const mindsteW = Math.max(cw, ch * target);
+  const mindsteH = mindsteW / target;
+  // Kan den ramme ligge inden for billedet, er der intet at fylde ud med.
+  const kanRumme = mindsteW <= W && mindsteH <= H;
+
+  // To slags motiver, to slags svar.
+  //
+  // En HEL vare beskaeres stramt og faar formatet af en ramme bagefter. Rammen
+  // maa ikke vokse ud i det, varen ligger paa: gulv, sengetaeppe eller bord er
+  // stoej, og det var praecis dét, beskaeringen skulle af med. Maalt paa en
+  // rigtig annonce: jakken fyldte godt halvdelen af rammen, resten var
+  // sengetoej med en weekendtaske paa vej ind i bunden.
+  //
+  // Et NAERBILLEDE gaar den modsatte vej. Stoffet omkring et maerkat er ikke
+  // rod, men sammenhaeng, saa dér naas formatet ved at beskaere - der er
+  // billede at tage af. En hvid bjaelke ved siden af en stoerrelseslap er
+  // hverken oplysning eller pynt; den er et hul i annoncen.
+  const isoler = vilIsolere || !kanRumme;
 
   if (!isoler) {
-    cw = voksetW;
-    ch = voksetH;
+    cw = mindsteW;
+    ch = mindsteH;
   }
 
   // Hold rammen inden for billedet. Ved isolering er den allerede stram om
@@ -603,9 +635,15 @@ export async function optimizePhoto(
     else tw = Math.round(th * target);
     if (tw > image.width || th > image.height) {
       const bund = new Image(tw, th);
-      bund.fill(guidance.padStyle === "kant"
-        ? kantFarve(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number })
-        : Image.rgbaToColor(255, 255, 255, 255));
+      // Baggrundens egen farve, ikke hvidt. En hvid bjaelke op ad et graat
+      // sengetaeppe laeser som en fejl; en stribe i naesten samme farve
+      // laeser som luft. `pad_style` styrede det foer, men stod tom paa alt
+      // andet end det ene udkast, det blev proevet paa - saa hvidt var i
+      // praksis reglen. Nu er kantfarven reglen, og hvid kun et udfald af
+      // maalingen.
+      bund.fill(guidance.padStyle === "hvid"
+        ? Image.rgbaToColor(255, 255, 255, 255)
+        : kantFarve(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number }));
       bund.composite(image, Math.round((tw - image.width) / 2), Math.round((th - image.height) / 2));
       image = bund;
     }

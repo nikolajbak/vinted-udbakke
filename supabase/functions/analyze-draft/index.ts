@@ -382,16 +382,22 @@ Deno.serve(async (req: Request) => {
             "billedet SKAL vise. Det afgoerende er, at INTET vaesentligt gaar tabt: hele varen, " +
             "hele maerkatet, hver linje tekst. Er der to maerkater ved siden af hinanden - fx en " +
             "lille stoerrelseslap og en stor vaskeanvisning - skal kassen rumme dem BEGGE, for " +
-            "begge dele er oplysninger, koeberen skal kunne laese. Hellere en kasse, der er lidt " +
-            "for rummelig, end en der klipper den sidste linje af.\n" +
+            "begge dele er oplysninger, koeberen skal kunne laese.\n" +
+            "Rummelighed gaelder TEKST OG DETALJER, ikke hele varer. Ved et maerkat, et logo " +
+            "eller en detalje: hellere en kasse, der er lidt for rummelig, end en der klipper " +
+            "den sidste linje af. Ved en HEL vare er det modsatte rigtigt: kassen skal foelge " +
+            "varens egen yderkant - aermespids til aermespids, krave til soem - og ikke en " +
+            "haandsbredde af det, varen ligger paa. Luften laegges til bagefter. En kasse, der " +
+            "er rundhaandet her, ender som et billede, hvor varen fylder halvdelen og resten er " +
+            "sengetoej.\n" +
             "En tekst eller et logo skal staa helt inde i rammen med luft omkring sig — klistret " +
             "op ad kanten laeser det som en fejl, ogsaa naar teksten er hel. " +
             "Luften laegges til automatisk bagefter, saa saet kassen taet om motivet selv.\n" +
             "2b-2) backgroundClutter: er der forstyrrende baggrund TAET paa varen, som ikke kan\n" +
             "beskaeres vaek uden at skaere i varen selv - fotografens foedder eller ben, en haand,\n" +
             "en sengekant, en bordkant, et moebel, andet toej? Svar true. Er baggrunden rolig og\n" +
-            "ensartet, svar false. Ved true beskaeres der stramt om varen, og resten fyldes med\n" +
-            "hvidt, saa varen staar isoleret som paa et produktfoto.\n" +
+            "ensartet, svar false. Ved true beskaeres der stramt om varen, og resten fyldes ud i\n" +
+            "baggrundens egen farve, saa varen staar isoleret som paa et produktfoto.\n" +
             "2c) subjectCutOff: er en del af motivet allerede UDEN FOR billedets kant i originalen — " +
             "fx et logo, hvor de sidste bogstaver mangler? Det kan ikke laves om ved beskaering, men " +
             "rammen bliver saa lagt bredere, saa det afskaarne ikke springer i oejnene. " +
