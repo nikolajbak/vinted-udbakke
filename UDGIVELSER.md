@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0027 — 2026-09-30 18:29
+
+Commit `a1ad4ff` — Lad udgiv.sh komme sig over et fejlet Pages-byg  
+App: `app.js?v=db1ee933` · `style.css?v=73b03d41`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v59 | `0d8dc260` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v50 | `51698b03` |
+
 ## udgivelse-0026 — 2026-09-30 18:10
 
 Commit `1bb467e` — Lad en annonce, der ikke er lagt op af appen, blive tilknyttet  
