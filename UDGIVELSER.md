@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0024 — 2026-09-30 17:48
+
+Commit `e09de9e` — Lad kontrollen pege paa kraven i stedet for at gaette grader  
+App: `app.js?v=f9220621` · `style.css?v=1594422e`  
+Udrullet: analyze-draft
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v59 | `0d8dc260` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v50 | `51698b03` |
+
 ## udgivelse-0023 — 2026-09-30 17:45
 
 Commit `5835ef5` — Giv hver bjaelke farven fra den side, den roerer  
