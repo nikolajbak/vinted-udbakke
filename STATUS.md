@@ -18,6 +18,28 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Tilknyt en annonce, der ikke er lagt op af appen — bygget 30. september.**
+   `listings` blev kun fyldt ét sted: af runneren, når den selv havde set
+   varen blive lagt op. Fem udkast er markeret »sendt til Vinted«, og der var
+   nul rækker i `listings` — så hverken annoncens egne ord, prisvagten eller
+   et »solgt« kunne nå tilbage til udkastet. Det var dét, der lå bag
+   »der synkroniseres ikke tilbage til appen«.
+
+   Detaljeskærmen har nu et felt til annoncens adresse. Det står kun, når
+   udkastet er afsendt eller markeret sendt til Vinted, og der ikke allerede
+   er en række. Kun nummeret i adressen bruges. Prisen tages fra udkastet,
+   fordi prisvagten skal have en udbudspris at regne fra; annoncens egen pris
+   læses straks efter med **Opdatér fra Vinted**.
+
+   **Målt:** insert og select på `listings` og `price_events` går igennem som
+   rollen `authenticated` (kørt mod basen og rullet tilbage), og det unikke
+   indeks på `(platform, external_id)` fanger en annonce, der allerede hører
+   til et andet udkast.
+
+   **Ikke kørt på en rigtig annonce.** Tilknyt nr. 7 eller 9–12, tryk
+   **Opdatér fra Vinted**, og læs `window.__UDBAKKE_LOG__`: dét er samtidig
+   den første rigtige måling af `hentVare()`s feltnavne, som stadig er gæt.
+
 0. **Synkronisering UD til markedspladsen — bygget i dag.** Detaljeskærmen har
    nu **Redigér annonce** (titel, pris, beskrivelse). Gemmer du, opdateres
    udkastet, og ændringen lægges i `listings.pending` — den samme postkasse,
