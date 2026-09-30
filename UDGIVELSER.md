@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0015 — 2026-09-30 12:19
+
+Commit `5592a1b` — Synkroniser annoncens egne oplysninger tilbage til appen  
+App: `app.js?v=3c97af90` · `style.css?v=a5a41887`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v51 | `e68ee069` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script ← | v49 | `0d5215b1` |
+
 ## udgivelse-0014 — 2026-09-30 12:04
 
 Commit `04c6e0e` — Lad en vare komme tilbage fra 'afsendt', og lad et maerke tages af igen  
