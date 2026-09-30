@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0017 — 2026-09-30 12:49
+
+Commit `ccf458c` — Ret billedbehandlingen: staaende format, og fyld i baggrundens farve  
+App: `app.js?v=f9220621` · `style.css?v=1594422e`  
+Udrullet: analyze-draft
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v52 | `f90d5c69` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v50 | `51698b03` |
+
 ## udgivelse-0016 — 2026-09-30 12:30
 
 Commit `072e3c8` — Gendan renderDetail, og synkroniser ogsaa den anden vej  
