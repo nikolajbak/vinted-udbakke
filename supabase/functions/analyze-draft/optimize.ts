@@ -507,6 +507,68 @@ function kantFarve(img: { bitmap: Uint8ClampedArray; width: number; height: numb
   return Image.rgbaToColor(Math.round(bedst[0]), Math.round(bedst[1]), Math.round(bedst[2]), 255);
 }
 
+// Hvor uroligt ligger billedet raekke for raekke - og soejle for soejle?
+//
+// Rammen skal vokse ud i baggrunden for at ramme formatet, og hvilken vej den
+// vokser er ikke ligegyldigt. Produkt 8's forfra-billede har et roligt
+// sengetaeppe opad og et knae, et kabel og en gul troeje nedad. Centreret om
+// varen tog rammen troejen med; det er vaerre end den hvide bjaelke, den
+// afloeste.
+//
+// Uro maales som forskellen mellem nabopixels. Folder i et lagen giver et lavt
+// tal, en kant mellem gul og sort et hoejt. Hver 4. pixel er rigeligt, og det
+// holder maalingen inden for CPU-budgettet.
+function uroAkser(
+  img: { bitmap: Uint8ClampedArray; width: number; height: number },
+): { raekke: Float64Array; soejle: Float64Array } {
+  const { bitmap: px, width: W, height: H } = img;
+  const raekke = new Float64Array(H);
+  const soejle = new Float64Array(W);
+  const s = 4;
+  for (let y = 0; y < H; y += s) {
+    for (let x = s; x < W; x += s) {
+      const i = (y * W + x) * 4;
+      const j = (y * W + x - s) * 4;
+      const d = Math.abs(px[i] - px[j]) + Math.abs(px[i + 1] - px[j + 1]) +
+        Math.abs(px[i + 2] - px[j + 2]);
+      raekke[y] += d;
+      soejle[x] += d;
+    }
+  }
+  // Fyld de sprungne raekker og soejler ud, saa en praefixsum bliver rigtig.
+  for (let y = 0; y < H; y++) if (y % s) raekke[y] = raekke[y - (y % s)];
+  for (let x = 0; x < W; x++) if (x % s) soejle[x] = soejle[x - (x % s)];
+  return { raekke, soejle };
+}
+
+// Den position, der lukker mindst uro ind. Rammen skal rumme motivet, saa
+// spillerummet er lille - men netop stort nok til at vaelge den rolige side.
+function roligstePlads(
+  uro: Float64Array,
+  laengde: number,
+  ialt: number,
+  b0: number,
+  b1: number,
+  midte: number,
+): number {
+  const lo = Math.max(0, Math.ceil(b1 - laengde));
+  const hi = Math.min(ialt - laengde, Math.floor(b0));
+  if (!(hi > lo)) return Math.max(0, Math.min(ialt - laengde, midte));
+  const sum = new Float64Array(ialt + 1);
+  for (let i = 0; i < ialt; i++) sum[i + 1] = sum[i] + uro[i];
+  const skridt = Math.max(1, Math.round((hi - lo) / 48));
+  let bedst = Math.max(lo, Math.min(hi, midte));
+  let mindst = Infinity;
+  for (let p = lo; p <= hi; p += skridt) {
+    const v = sum[Math.min(ialt, p + laengde)] - sum[p];
+    // Ved naesten lige uro vinder den, der ligger taettest paa motivets egen
+    // midte - ellers ville et par promille skubbe varen ud i siden.
+    const score = v * (1 + Math.abs(p - midte) / ialt * 0.08);
+    if (score < mindst) { mindst = score; bedst = p; }
+  }
+  return bedst;
+}
+
 export async function optimizePhoto(
   buf: ArrayBuffer,
   guidance: PhotoGuidance,
@@ -693,6 +755,15 @@ export async function optimizePhoto(
   let cy = (box.y0 + box.y1) / 2 * H - ch / 2;
   cx = Math.max(0, Math.min(W - cw, cx));
   cy = Math.max(0, Math.min(H - ch, cy));
+
+  // Voksede rammen ud i baggrunden, saa lad den glide vaek fra rodet. Motivet
+  // skal stadig vaere helt med, saa spillerummet er lille - men det er netop
+  // stort nok til at vaelge sengetaeppet frem for gulvet med fodderne paa.
+  if (!isoler) {
+    const uro = uroAkser(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number });
+    cx = roligstePlads(uro.soejle, Math.round(cw), W, box.x0 * W, box.x1 * W, cx);
+    cy = roligstePlads(uro.raekke, Math.round(ch), H, box.y0 * H, box.y1 * H, cy);
+  }
 
   image = image.crop(Math.round(cx), Math.round(cy), Math.round(cw), Math.round(ch));
 
