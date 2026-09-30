@@ -31,6 +31,15 @@ for (const sti of process.argv.slice(2)) {
   const defineret = new Set();
   for (const d of kode.matchAll(/(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) defineret.add(d[1]);
   for (const d of kode.matchAll(/\bvar\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function/g)) defineret.add(d[1]);
+  // Parametre taeller med. En tilbagekaldsfunktion, der bliver KALDT gennem
+  // sin parameter, er ikke en manglende funktion - og uden det her raabte
+  // tjekket op om hver eneste callback.
+  for (const d of kode.matchAll(/function\s*[A-Za-z_$][\w$]*\s*\(([^)]*)\)|function\s*\(([^)]*)\)/g)) {
+    for (const navn of (d[1] ?? d[2] ?? "").split(",")) {
+      const n = navn.trim();
+      if (/^[A-Za-z_$][\w$]*$/.test(n)) defineret.add(n);
+    }
+  }
 
   const manglende = new Set();
   for (const k of kode.matchAll(/(?:^|[^.\w$])([A-Za-z_$][\w$]*)\s*\(/gm)) {

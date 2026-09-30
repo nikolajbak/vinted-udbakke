@@ -466,11 +466,269 @@ async function markedsanalyse(d){
 // ind til sidst, sammen med prisen.
 var bedre={title:null,description:null};
 
+/* ---- Prisvagt -----------------------------------------------------------
+   Serveren husker, hvad der ligger ude, og beslutter hvad det skal koste. Men
+   den kan hverken se Vinted eller skrive i Vinteds formular — det kan kun din
+   egen session. Så her er telefonens halvdel: mål varen, mål feltet, og sæt
+   den nye pris ind, når du har bedt om det.
+
+   At MÅLE sker stille, når der alligevel er en annonceside åben. At ÆNDRE en
+   pris sker kun, når du selv har trykket på Prisvagt i appen — en pris på et
+   rigtigt marked er ikke noget, et script skal rette i forbifarten. */
+
+var VAGT_KOE='udbakke_prisvagt_koe';
+var VAGT_SIDST='udbakke_prisvagt_sidst';
+
+function koeLaes(){
+ try{
+  var r=JSON.parse(localStorage.getItem(VAGT_KOE)||'null');
+  if(!r||!r.tid||(Date.now()-r.tid)>7200000)return null;
+  return r;
+ }catch(e){return null}
+}
+function koeSkriv(k){
+ try{
+  if(k&&k.poster&&k.poster.length)localStorage.setItem(VAGT_KOE,JSON.stringify(k));
+  else localStorage.removeItem(VAGT_KOE);
+ }catch(e){}
+}
+
+// En lille linje øverst i stedet for en alert. Prisvagten kører uopfordret, og
+// noget uopfordret må ikke spærre siden.
+function baand(tekst,knap,virk){
+ var b=document.createElement('div');
+ b.setAttribute('style','position:fixed;left:0;right:0;top:0;z-index:2147483647;'+
+  'background:#16324a;color:#fff;font:14px/1.4 -apple-system,system-ui,sans-serif;'+
+  'padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:center;'+
+  'box-shadow:0 2px 10px rgba(0,0,0,.25)');
+ var t=document.createElement('span');t.textContent=tekst;b.appendChild(t);
+ if(knap){
+  var k=document.createElement('button');
+  k.type='button';k.textContent=knap;
+  k.setAttribute('style','background:#fff;color:#16324a;border:0;border-radius:6px;'+
+   'padding:6px 12px;font:600 14px -apple-system,system-ui,sans-serif;cursor:pointer');
+  k.addEventListener('click',function(){b.remove();virk()});
+  b.appendChild(k);
+ }
+ var x=document.createElement('button');
+ x.type='button';x.textContent='×';
+ x.setAttribute('style','background:none;border:0;color:#fff;font-size:20px;line-height:1;cursor:pointer');
+ x.addEventListener('click',function(){b.remove()});
+ b.appendChild(x);
+ document.body.appendChild(b);
+ return b;
+}
+
+// Hvad koster varen lige nu, hvor mange har hjertet den, og findes den
+// overhovedet stadig? Vinteds eget API først, annoncens side som reserve.
+// Hvilken af de to der svarede, står i loggen — så er det målt næste gang i
+// stedet for gættet.
+async function hentVare(id){
+ try{
+  var r=await timedFetch('/api/v2/items/'+id,
+   {headers:{'Accept':'application/json'},credentials:'include'},15000);
+  if(r.status===404||r.status===410){log('vagt: '+id+' findes ikke (api)');return {gone:true}}
+  if(r.ok){
+   var j=await r.json(),it=(j&&(j.item||j))||null;
+   if(it&&(it.price!==undefined||it.id!==undefined)){
+    var p=it.price;
+    var beloeb=(p&&typeof p==='object')?parseFloat(p.amount):parseFloat(p);
+    var lukket=!!(it.is_closed||it.is_hidden||it.is_deleted||it.is_sold||
+     (it.status&&/sold|solgt|closed|lukket/i.test(String(it.status))));
+    log('vagt: '+id+' målt via api'+(lukket?' (lukket)':''));
+    return {gone:lukket,price:isFinite(beloeb)?beloeb:null,
+            favourites:+(it.favourite_count||0),views:+(it.view_count||0)};
+   }
+  }
+ }catch(e){}
+ try{
+  var h=await timedFetch('/items/'+id,{credentials:'include'},15000);
+  if(h.status===404||h.status===410){log('vagt: '+id+' findes ikke (side)');return {gone:true}}
+  if(!h.ok)return null;
+  var t=await h.text();
+  var mp=t.match(/"amount":"([0-9]+(?:\.[0-9]+)?)"/);
+  var mf=t.match(/"favourite_count":([0-9]+)/);
+  log('vagt: '+id+' målt via annoncesiden');
+  return {gone:/"is_closed":true|"is_hidden":true|"is_sold":true/.test(t),
+          price:mp?parseFloat(mp[1]):null,favourites:mf?+mf[1]:0,views:0};
+ }catch(e){}
+ log('vagt: '+id+' kunne ikke måles');
+ return null;
+}
+
+// Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.
+async function tilsynsrunde(){
+ var forfaldne=[];
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'due'})},20000);
+  forfaldne=((await r.json())||{}).forfaldne||[];
+ }catch(e){log('vagt: kunne ikke hente forfaldne');return null}
+ if(!forfaldne.length){log('vagt: intet forfaldent');return null}
+ log('vagt: '+forfaldne.length+' vare(r) til tjek');
+
+ var maalinger=[];
+ for(var i=0;i<forfaldne.length;i++){
+  var f=forfaldne[i];
+  var set=await hentVare(f.itemId);
+  if(!set){continue}
+  if(set.gone){maalinger.push({id:f.id,gone:true});continue}
+  // Feltet måles på ny hver gang. En pris fra i går siger intet om, hvad
+  // tilsvarende varer koster i dag — og det er hele grundlaget.
+  var felt=await search(f.query||f.title||'',40);
+  maalinger.push({id:f.id,price:set.price,favourites:set.favourites,
+                  views:set.views,comparables:felt});
+ }
+ if(!maalinger.length)return null;
+
+ try{
+  var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'watch',maalinger:maalinger})},90000);
+  var j=await sv.json();
+  var b=(j&&j.beslutninger)||[];
+  var poster=[];
+  for(var k=0;k<b.length;k++){
+   if(b[k].handling==='saenk'&&b[k].nyPris>0&&b[k].externalId)
+    poster.push({listing:b[k].id,itemId:String(b[k].externalId),pris:b[k].nyPris,fra:b[k].fraPris});
+  }
+  log('vagt: '+b.length+' afgjort, '+poster.length+' prisændring(er)');
+  return {beslutninger:b,poster:poster};
+ }catch(e){log('vagt: tilsynet fejlede');return null}
+}
+
+// Sæt prisen ind på annoncens redigeringsside og gem. Kvitteringen sendes
+// først, når prisen er læst tilbage fra annoncen — ikke når feltet ser rigtigt
+// ud. Det er den samme lære som fra DBA: DOM'en lyver, serveren gør ikke.
+async function saetPris(post){
+ for(var i=0;i<60;i++){ if(q('#price'))break; await sleep(250) }
+ var pe=q('#price');
+ if(!pe){log('vagt: intet prisfelt på redigeringssiden');return false}
+ setv(pe,String(post.pris));
+ await sleep(400);
+ try{localStorage.setItem('udbakke_prisvagt_sat',JSON.stringify(
+  {listing:post.listing,itemId:post.itemId,pris:post.pris,tid:Date.now()}))}catch(e){}
+
+ // Gem-knappen har ikke noget stabilt kendetegn, så den findes på sin tekst.
+ // Findes den ikke, står prisen rigtigt i feltet, og du trykker selv.
+ var knapper=document.querySelectorAll('button,[role=button]');
+ var gem=null;
+ for(var n=0;n<knapper.length;n++){
+  var tx=(knapper[n].textContent||'').trim().toLowerCase();
+  if(/^(gem|upload|opdater|opdatér|save|update)/.test(tx)&&!knapper[n].disabled){gem=knapper[n];break}
+ }
+ if(!gem){
+  baand('Prisvagt: prisen er sat til '+post.pris+' kr. Tryk Gem for at gemme den.',null,null);
+  log('vagt: fandt ingen gem-knap — prisen står i feltet');
+  return false;
+ }
+ gem.click();
+ log('vagt: gemmer '+post.fra+' → '+post.pris+' kr');
+ return true;
+}
+
+// Efter Gem sender Vinted dig tilbage til annoncen. Her læses prisen igen, og
+// først dér er ændringen en kendsgerning.
+async function bekraeftPris(){
+ var raw; try{raw=localStorage.getItem('udbakke_prisvagt_sat')}catch(e){return false}
+ if(!raw)return false;
+ var v; try{v=JSON.parse(raw)}catch(e){v=null}
+ if(!v||(Date.now()-v.tid)>1800000){try{localStorage.removeItem('udbakke_prisvagt_sat')}catch(e){}return false}
+ var num=location.pathname.match(/^\/items\/(\d+)/);
+ if(!num||num[1]!==String(v.itemId)||/\/edit/.test(location.pathname))return false;
+ try{localStorage.removeItem('udbakke_prisvagt_sat')}catch(e){}
+ var set=await hentVare(v.itemId);
+ if(!set||!set.price||Math.round(set.price)!==Math.round(v.pris)){
+  log('vagt: prisen blev ikke gemt ('+(set&&set.price)+' står stadig)');
+  baand('Prisvagt: prisen blev ikke gemt. Prøv igen fra appen.',null,null);
+  return false;
+ }
+ try{
+  await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'repriced',listing:v.listing,price:Math.round(set.price)})},20000);
+ }catch(e){}
+ log('vagt: '+v.pris+' kr bekræftet på annoncen');
+ return true;
+}
+
+// Næste post i køen. Er der ikke flere, er runden slut.
+function naeste(){
+ var k=koeLaes();
+ if(!k||!k.poster.length){koeSkriv(null);return null}
+ return k.poster[0];
+}
+function afslut(itemId){
+ var k=koeLaes();
+ if(!k)return;
+ k.poster=k.poster.filter(function(p){return String(p.itemId)!==String(itemId)});
+ koeSkriv(k);
+}
+
+async function prisvagt(){
+ // Kommer vi fra appens Prisvagt-knap, er der givet lov til at ændre priser.
+ var bedt=/[?&]udbakke=vagt/.test(location.search);
+
+ // 1) Lige gemt en pris? Så skal den bekræftes, før noget andet.
+ if(await bekraeftPris()){
+  var f=naeste();
+  if(f){afslut(f.itemId)}
+  var n=naeste();
+  if(n){location.href='/items/'+n.itemId+'/edit';return true}
+  baand('Prisvagt: priserne er sat.',null,null);
+  return true;
+ }
+
+ // 2) Står vi på en redigeringsside, som køen peger på? Så sæt prisen.
+ var red=location.pathname.match(/^\/items\/(\d+)\/edit/);
+ if(red){
+  var k=koeLaes();
+  var post=k&&k.poster.filter(function(p){return String(p.itemId)===red[1]})[0];
+  // Ligger der ingen kø, så spørg serveren. Du kan være kommet hertil fra
+  // appen dage efter, tilsynet traf beslutningen — og beslutningen står
+  // stadig ved magt, selvom køen i browseren for længst er udløbet.
+  if(!post){
+   try{
+    var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({mode:'pending',item_id:red[1]})},20000);
+    var pj=((await sv.json())||{}).pending;
+    if(pj)post={listing:pj.listing,itemId:red[1],pris:pj.pris,fra:pj.fra};
+   }catch(e){}
+  }
+  if(post){await saetPris(post);return true}
+  return false;
+ }
+
+ // 3) Ellers: er der noget forfaldent? Kun én runde i timen, og kun når vi
+ //    ikke er midt i noget andet — målingen koster data på telefonen.
+ if(!bedt){
+  try{
+   var sidst=+(localStorage.getItem(VAGT_SIDST)||0);
+   if(Date.now()-sidst<3600000)return false;
+  }catch(e){}
+ }
+ try{localStorage.setItem(VAGT_SIDST,String(Date.now()))}catch(e){}
+
+ var res=await tilsynsrunde();
+ if(!res)return false;
+ if(!res.poster.length){
+  if(bedt)baand('Prisvagt: tjekket er kørt — ingen priser skal ned lige nu.',null,null);
+  return false;
+ }
+ koeSkriv({tid:Date.now(),poster:res.poster});
+ var f1=res.poster[0];
+ var tekst='Prisvagt: '+res.poster.length+
+  (res.poster.length===1?' vare skal ned i pris':' varer skal ned i pris')+
+  ' ('+f1.fra+' → '+f1.pris+' kr'+(res.poster.length>1?' først':'')+').';
+ if(bedt){location.href='/items/'+f1.itemId+'/edit';return true}
+ baand(tekst,'Sæt priserne',function(){location.href='/items/'+f1.itemId+'/edit'});
+ return false;
+}
+
 // Er vi havnet på en annonces egen side, og lå der et udkast i formularen for
 // lidt siden, så er det dét, du netop har lagt op. Så flytter appen det selv
 // over i "Afsendte annoncer" — du skal ikke også huske at sige det.
 async function meldPostet(){
- if(!/^\/items\/\d/.test(location.pathname))return false;
+ var num=location.pathname.match(/^\/items\/(\d+)/);
+ if(!num)return false;
  var raw; try{raw=localStorage.getItem('udbakke_afventer')}catch(e){return false}
  if(!raw)return false;
  var v; try{v=JSON.parse(raw)}catch(e){v=null}
@@ -478,10 +736,16 @@ async function meldPostet(){
  // En time. Ligger der noget ældre, er det en rest fra en annonce, du
  // fortrød — den må ikke markeres som solgt-og-lagt-op.
  if(!v||!v.id||(Date.now()-v.tid)>3600000)return false;
+ // Prisen læses på annoncen selv, ikke på det vi troede vi skrev. Du kan have
+ // rettet den i formularen, inden du trykkede Upload — og prisvagten skal
+ // regne fra dét, der faktisk står ude.
+ var set=await hentVare(num[1]);
  try{
   await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({id:v.id,mode:'posted'})},20000);
-  log('annoncen er lagt op — flyttet til afsendte');
+   body:JSON.stringify({id:v.id,mode:'posted',item_id:num[1],
+    url:location.origin+'/items/'+num[1],
+    price:(set&&set.price)||0})},20000);
+  log('annoncen er lagt op — flyttet til afsendte, prisvagten holder øje');
  }catch(e){}
  return true;
 }
@@ -496,7 +760,12 @@ async function waitForm(){
  return false;
 }
 if(await meldPostet())return;
-if(!/\/items\/new/.test(location.pathname))return;
+// Prisvagten kører på alle annoncesider undtagen opret-siden: dér er
+// udfyldningen det eneste, der skal ske, og den må ikke vente på et tilsyn.
+if(!/\/items\/new/.test(location.pathname)){
+ try{await prisvagt()}catch(e){log('vagt: '+e.message)}
+ return;
+}
 if(!await waitForm()){
  if(!AUTO)alert('VintedAuto: du er ikke på opret-siden. Gå til Vinted → Sælg nu, og tryk på bogmærket der.');
  return;

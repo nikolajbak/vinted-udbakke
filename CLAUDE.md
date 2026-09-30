@@ -80,6 +80,8 @@ midlertidig funktion og slet den bagefter.
 | Udfyldning af Vinted-formularen | `supabase/functions/vinted-fill-script/` |
 | Automatikken bogmærket/brugerscriptet kører | `…/vinted-fill-script/runner.ts` |
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
+| Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
+| Prisvagtens skema og ur | `sql/001-prisvagt.sql`, `sql/002-prisvagt-puls.sql` |
 
 `runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
 `/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
@@ -267,6 +269,32 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   Samme `DataTransfer`-greb som på Vinted virker uændret.
 - **DBA's kategorinumre står i deres offentlige søgning.** `sub_category=1.68.3913`
   er det samme `3913`, som kladden gemmer. Ingen af dem skal gættes.
+- **Prisvagten kan ikke køre på serveren alene.** Den kan huske og beslutte,
+  men den kan hverken se markedet eller ændre en pris: Vinted blokerer
+  datacenter-IP'er, og prisen sidder i Vinteds egen formular. Derfor er
+  delingen fast — serveren beslutter, telefonen måler og skriver. En
+  Render-tjeneste eller et andet ur ændrer ikke på det; det er døren, ikke
+  klokken, der er problemet. `pg_cron` er uret, og det er nok.
+- **En prisvagt skal kunne holde OP.** Uden den spærre ender enhver automatisk
+  nedsættelse på bunden: hver runde finder en grund til at gå lidt længere ned.
+  Derfor er historikken en del af grundlaget — en nedsættelse, der ikke rykkede
+  hjerterne, er et argument MOD at sænke igen. `prisvagt.ts` har både en
+  mindstepris, et loft over springet (18 %), en mindste afstand mellem to
+  ændringer (5 dage) og en nedre grænse for, hvor lille en nedsættelse må være,
+  før den bare brænder en runde af.
+- **Målingen af en annonce sker mod Vinted, ikke mod appens hukommelse.** Både
+  pris og hjerter læses af annoncen selv ved hvert tilsyn, og en prisændring
+  kvitteres først, når den nye pris er læst TILBAGE fra annoncen. Samme lære
+  som fra DBA: DOM'en lyver, kilden gør ikke.
+- **En prisændring kræver et tryk.** Tilsynet måler stille, når der alligevel
+  er en Vinted-side åben, men det navigerer kun til en redigeringsside, når
+  adressen bærer `?udbakke=vagt` — altså når trykket kom fra appen. Et script,
+  der retter priser på et rigtigt marked i forbifarten, er ikke automatik, det
+  er et uheld der venter.
+- **Redigeringssiden spørger serveren, ikke browserens kø.** Køen i
+  `localStorage` udløber efter to timer; beslutningen står i databasen, til den
+  er gennemført. Uden `mode:'pending'` kunne en pris kun sættes i direkte
+  forlængelse af det tilsyn, der besluttede den.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

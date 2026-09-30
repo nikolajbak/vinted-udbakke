@@ -18,6 +18,36 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Prisvagten — bygget i dag, intet af den er kørt på en rigtig annonce.**
+   Hele kæden er ude: tabellerne `listings` og `price_events`, beslutningen i
+   `prisvagt.ts`, fire nye tilstande i `vinted-fill-script`
+   (`due`, `watch`, `pending`, `repriced`), tilsynet og prisændringen i
+   runneren, Prisvagt-skærmen i appen, og et dagligt `pg_cron`-job, der sender
+   en push, når noget er forfaldent.
+
+   **Tre ting er gættet og skal måles på første kørsel** — alle tre står i
+   `window.__UDBAKKE_LOG__`, så én rigtig runde afgør dem:
+   - **Hvordan en annonce læses.** `hentVare()` prøver `/api/v2/items/{id}`
+     først og annoncens egen side bagefter. Loggen siger hvilken der svarede
+     (»målt via api« eller »målt via annoncesiden«). Svarer ingen af dem,
+     virker intet andet.
+   - **Hvordan en solgt vare ser ud.** Koden dømmer på `is_closed`,
+     `is_hidden`, `is_sold` og 404. Hvilken af dem Vinted faktisk sætter, ved
+     jeg ikke — sælg en vare og se, om den flytter sig til »solgt«.
+   - **Gem-knappen på `/items/{id}/edit`.** Den findes på sin tekst
+     (gem/upload/opdater/save/update). Findes den ikke, sætter scriptet prisen
+     i feltet og beder dig trykke selv — det er den sikre fejl, ikke en stille.
+
+   **Sådan kører du den første gang:** læg en annonce op med automatikken (så
+   registreres den), sæt derefter `next_check_at` tilbage i tiden på den række
+   i `listings`, åbn appen → Indstillinger → Prisvagt → »Tjek … mod markedet«.
+
+   **DBA og Reshopper er ikke med endnu.** Tabellen kan rumme dem, men DBA's
+   annoncenummer efter offentliggørelse og DBA's redigeringsside er ikke målt,
+   og Reshopper har ingen webformular overhovedet. Vinted først, hvor hele
+   kæden allerede er kendt.
+
+
 0. **Web-push — bygget, mangler test på en rigtig iPhone.** Hele kæden er ude:
    `sw.js` + `manifest.webmanifest`, opt-in i Indstillinger, `push-subscribe`
    (gemmer abonnementet, RLS-låst tabel `push_subs`), `push-send` (fanout via

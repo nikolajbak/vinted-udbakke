@@ -1127,6 +1127,214 @@
         }).join('') : '<div class="empty"><p>Ingen postede annoncer endnu.</p></div>';
       });
   }
+  /* ---- Prisvagt -----------------------------------------------------------
+     En vare, der ikke bliver solgt, er ikke faerdig — den er bare stille. Her
+     staar alt det, der ligger ude: hvor laenge, hvor mange der har hjertet
+     det, og hvad prisen har vaeret undervejs.
+
+     Beslutningen om en ny pris ligger paa serveren, men den kan hverken se
+     Vinted eller skrive i Vinteds formular. Derfor ender hver aendring som ét
+     tryk her, der aabner annoncen — resten goer automatikken selv. */
+
+  var VAGT_EVENTS = {};   // listing-id -> prishistorik
+
+  function dageSiden(iso){
+    if(!iso) return 0;
+    var t = new Date(iso).getTime();
+    if(isNaN(t)) return 0;
+    return Math.max(0, Math.round((Date.now() - t) / 86400000));
+  }
+  function omDage(iso){
+    if(!iso) return '';
+    var d = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
+    if(isNaN(d)) return '';
+    if(d <= 0) return 'tjekkes ved næste besøg på Vinted';
+    return 'tjekkes igen om ' + d + (d === 1 ? ' dag' : ' dage');
+  }
+  function prisKaede(l){
+    var e = (VAGT_EVENTS[l.id] || []).filter(function(x){ return x.kind === 'aendret'; });
+    if(!e.length) return l.start_price + ' kr';
+    var k = [e[0].from_price];
+    e.forEach(function(x){ k.push(x.price); });
+    return k.join(' → ') + ' kr';
+  }
+
+  function vagtRaekke(l){
+    var dage = dageSiden(l.listed_at);
+    var h = '<div class="vagt-row" data-l="' + esc(l.id) + '">';
+    h += '<div class="vagt-top"><span class="t">' + esc(l.title || 'Uden titel') + '</span>' +
+         '<span class="pris">' + esc(String(l.price)) + ' kr</span></div>';
+    h += '<div class="s">' + esc(l.platform) + ' · ' + dage + (dage === 1 ? ' dag' : ' dage') +
+         ' · ' + (l.favourites || 0) + ' hjerter · ' + esc(prisKaede(l)) + '</div>';
+
+    if(l.pending_price){
+      h += '<div class="vagt-forslag"><b>Ny pris: ' + esc(String(l.pending_price)) + ' kr</b>' +
+           (l.pending_note ? '<span>' + esc(l.pending_note) + '</span>' : '') +
+           '<button type="button" class="btn btn-primary" data-v="saet">Sæt prisen på Vinted</button></div>';
+    } else if(l.status === 'aktiv' && !l.auto){
+      h += '<div class="vagt-stop">Prisvagten er holdt op med at sætte ned' +
+           (l.note ? ': ' + esc(l.note) : '.') + '</div>';
+    } else if(l.status === 'aktiv'){
+      h += '<div class="s dim">' + esc(omDage(l.next_check_at)) + '</div>';
+    }
+
+    h += '<details class="vagt-mere"><summary>Indstillinger</summary>' +
+         '<label class="vagt-bund">Mindstepris' +
+         '<input type="number" inputmode="numeric" min="15" step="5" value="' +
+         esc(String(l.floor_price == null ? '' : l.floor_price)) + '" ' +
+         'placeholder="' + esc(String(Math.max(15, Math.round(l.start_price * 0.4)))) + '" data-v="bund"></label>' +
+         '<p class="note">Prisvagten går aldrig under den. Står feltet tomt, bruges 40 % af udbudsprisen.</p>' +
+         '<div class="vagt-knapper">' +
+         '<button type="button" class="btn btn-quiet" data-v="pause">' +
+           (l.status === 'pause' ? 'Genoptag' : 'Sæt på pause') + '</button>' +
+         '<button type="button" class="btn btn-quiet" data-v="solgt">Markér som solgt</button>' +
+         '</div></details></div>';
+    return h;
+  }
+
+  function hentVagt(){
+    var krop = $('vagt-body');
+    krop.innerHTML = '<div class="skel" id="vagt-skel"></div>';
+    visSkelet($('vagt-skel'), 3);
+    $('vagt-footer').hidden = true;
+
+    sb.from('listings').select('*').order('next_check_at', { ascending:true }).limit(100)
+      .then(function(res){
+        if(res.error){
+          krop.innerHTML = '<div class="empty" id="vagt-fejl"></div>';
+          visFejl($('vagt-fejl'), 'Prisvagten kunne ikke hentes',
+            res.error.message || 'Forbindelsen svarede ikke.', hentVagt);
+          return;
+        }
+        var alle = res.data || [];
+        var ids = alle.map(function(l){ return l.id; });
+        if(!ids.length){ tegnVagt(alle); return; }
+        sb.from('price_events').select('*').in('listing_id', ids)
+          .order('at', { ascending:true }).limit(500)
+          .then(function(ev){
+            VAGT_EVENTS = {};
+            (ev.data || []).forEach(function(e){
+              (VAGT_EVENTS[e.listing_id] = VAGT_EVENTS[e.listing_id] || []).push(e);
+            });
+            tegnVagt(alle);
+          });
+      });
+  }
+
+  function tegnVagt(alle){
+    var krop = $('vagt-body');
+    var aktive = alle.filter(function(l){ return l.status === 'aktiv' || l.status === 'pause'; });
+    var solgte = alle.filter(function(l){ return l.status === 'solgt' || l.status === 'afsluttet'; });
+
+    if(!alle.length){
+      krop.innerHTML = '<div class="empty"><h3>Ingen annoncer at holde øje med</h3>' +
+        '<p>Når du lægger en annonce op på Vinted med automatikken, kommer den her af sig selv. ' +
+        'Så holder prisvagten øje med den, indtil den er solgt.</p></div>';
+      $('vagt-footer').hidden = true;
+      return;
+    }
+
+    var h = '';
+    var venter = aktive.filter(function(l){ return l.pending_price; }).length;
+    var forfaldne = aktive.filter(function(l){
+      return l.status === 'aktiv' && l.auto && new Date(l.next_check_at) <= new Date();
+    }).length;
+
+    h += '<p class="note vagt-intro">Prisvagten måler markedet fra din egen Vinted-session — ' +
+         'Vinted svarer ikke på serverkald. Derfor sker både tjekket og prisændringen, ' +
+         'når du åbner Vinted herfra.</p>';
+
+    h += '<div class="sect">' + aktive.map(vagtRaekke).join('') + '</div>';
+    if(solgte.length){
+      h += '<details class="sect"><summary class="label">Solgt eller taget hjem (' + solgte.length + ')</summary>' +
+        solgte.map(function(l){
+          return '<div class="hist-row"><div><div class="t">' + esc(l.title || '') + '</div>' +
+            '<div class="s">' + esc(String(l.price)) + ' kr · lå ' +
+            (dageSiden(l.listed_at) - dageSiden(l.sold_at)) + ' dage · ' +
+            esc(prisKaede(l)) + '</div></div></div>';
+        }).join('') + '</details>';
+    }
+    krop.innerHTML = h;
+
+    Array.prototype.forEach.call(krop.querySelectorAll('[data-v]'), function(el){
+      var raekke = el.closest('.vagt-row');
+      var l = alle.filter(function(x){ return x.id === raekke.getAttribute('data-l'); })[0];
+      if(!l) return;
+      var v = el.getAttribute('data-v');
+      if(v === 'bund'){
+        el.addEventListener('change', function(){
+          var n = parseInt(el.value, 10);
+          sb.from('listings').update({ floor_price: isFinite(n) && n > 0 ? n : null })
+            .eq('id', l.id).then(function(){ toast('Mindsteprisen er gemt'); });
+        });
+        return;
+      }
+      el.addEventListener('click', function(){ vagtHandling(v, l, el); });
+    });
+
+    // Foden: ét tryk, der aabner Vinted og lader automatikken goere resten.
+    var fod = $('vagt-footer');
+    if(venter){
+      fod.innerHTML = '<button type="button" class="btn btn-primary" id="vagt-go">Sæt ' +
+        venter + (venter === 1 ? ' ny pris' : ' nye priser') + ' på Vinted</button>';
+      fod.hidden = false;
+      $('vagt-go').addEventListener('click', function(){
+        var f = aktive.filter(function(l){ return l.pending_price; })[0];
+        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '/edit');
+      });
+    } else if(forfaldne){
+      fod.innerHTML = '<button type="button" class="btn btn-primary" id="vagt-go">Tjek ' +
+        forfaldne + (forfaldne === 1 ? ' vare' : ' varer') + ' mod markedet</button>';
+      fod.hidden = false;
+      $('vagt-go').addEventListener('click', function(){
+        var f = aktive.filter(function(l){
+          return l.status === 'aktiv' && l.auto && new Date(l.next_check_at) <= new Date();
+        })[0];
+        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '?udbakke=vagt');
+      });
+    } else {
+      fod.hidden = true;
+    }
+  }
+
+  function vagtHandling(v, l, btn){
+    if(v === 'saet'){
+      aabnUdad('https://www.vinted.dk/items/' + l.external_id + '/edit');
+      return;
+    }
+    if(v === 'pause'){
+      var ny = l.status === 'pause' ? 'aktiv' : 'pause';
+      sb.from('listings').update({ status: ny }).eq('id', l.id).then(function(){
+        toast(ny === 'pause' ? 'Sat på pause' : 'Prisvagten er i gang igen');
+        hentVagt();
+      });
+      return;
+    }
+    if(v === 'solgt'){
+      btn.disabled = true;
+      sb.from('listings').update({ status:'solgt', sold_at:new Date().toISOString(),
+        pending_price:null, pending_note:null }).eq('id', l.id).then(function(){
+        toast('Flyttet til solgt'); hentVagt();
+      });
+    }
+  }
+
+  // Tallet i menuen: hvor mange varer venter paa dig lige nu.
+  function opdaterVagtTal(){
+    sb.from('listings').select('id, pending_price, next_check_at, status, auto')
+      .eq('status','aktiv').then(function(res){
+        var n = (res.data || []).filter(function(l){
+          return l.pending_price || (l.auto && new Date(l.next_check_at) <= new Date());
+        }).length;
+        var el = $('vagt-tal');
+        if(!el) return;
+        el.textContent = String(n);
+        el.hidden = !n;
+      });
+  }
+
+  $('m-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
+
   $('m-hist').addEventListener('click', function(){ show('hist'); hentHistorik(); });
 
   function hentKoe(){
@@ -1165,6 +1373,7 @@
     started = true;
 
     hentKoe();
+    opdaterVagtTal();
 
     sb.channel('drafts-live').on('postgres_changes',
       { event:'*', schema:'public', table:'drafts' }, function(p){

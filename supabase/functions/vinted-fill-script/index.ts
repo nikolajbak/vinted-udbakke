@@ -16,6 +16,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
+import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -661,6 +662,194 @@ async function negotiate(
   };
 }
 
+// ---- Prisvagt -------------------------------------------------------------
+// Serveren husker og beslutter; telefonen maaler og skriver ind. Den deling er
+// ikke et valg: Vinted blokerer datacenter-IP'er, saa markedet kan kun ses fra
+// din egen session — og prisen kan kun aendres i Vinteds egen formular.
+
+async function puf(title: string, body: string) {
+  const hemmelighed = Deno.env.get("WEBHOOK_SECRET");
+  if (!hemmelighed) return;
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/push-send`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-webhook-secret": hemmelighed },
+      body: JSON.stringify({ title, body, url: "/vinted-udbakke/" }),
+    });
+  } catch { /* en manglende notifikation maa aldrig vaelte en prisjustering */ }
+}
+
+// Annoncen er landet. Herfra er den prisvagtens.
+async function registrer(
+  draftId: string,
+  platform: string,
+  externalId: string,
+  url: string,
+  pris: number,
+) {
+  if (!externalId) return null;
+  const { data: findes } = await supabase.from("listings")
+    .select("id").eq("platform", platform).eq("external_id", externalId).maybeSingle();
+  if (findes) return findes.id as string;
+
+  const { data: d } = await supabase.from("drafts")
+    .select("title, search_query, price").eq("id", draftId).maybeSingle();
+  const p = Math.round(pris > 0 ? pris : Number(plainPrice(String(d?.price ?? ""))) || 0);
+  if (!(p > 0)) return null;
+
+  const { data: ny, error } = await supabase.from("listings").insert({
+    draft_id: draftId,
+    platform,
+    external_id: externalId,
+    url,
+    title: cleanText(d?.title ?? ""),
+    search_query: d?.search_query || cleanText(d?.title ?? ""),
+    price: p,
+    start_price: p,
+    // Foerste tjek efter en uge. Foer da ved ingen noget: en vare kan ligge
+    // fem dage og saa blive solgt paa den sjette, og en nedsaettelse dagen
+    // foer havde bare vaeret foraeret vaek.
+    next_check_at: new Date(Date.now() + 7 * 86400000).toISOString(),
+  }).select("id").single();
+  if (error) { console.error("registrer failed", error); return null; }
+
+  await supabase.from("price_events").insert({
+    listing_id: ny.id, kind: "oprettet", price: p,
+    note: "lagt op på " + platform,
+  });
+  return ny.id as string;
+}
+
+async function hentForfaldne(maks = 3) {
+  const { data } = await supabase.from("listings")
+    .select("id, external_id, url, title, search_query, price, platform, next_check_at")
+    .eq("status", "aktiv").eq("auto", true).eq("platform", "vinted")
+    .not("external_id", "is", null)
+    .lte("next_check_at", new Date().toISOString())
+    .order("next_check_at", { ascending: true })
+    .limit(maks);
+  return data ?? [];
+}
+
+// Telefonens maalinger ind, beslutninger ud.
+async function tilsyn(maalinger: Maaling[]) {
+  const ids = maalinger.map((m) => String(m.id)).filter(Boolean);
+  if (!ids.length) return { beslutninger: [] as unknown[] };
+
+  const { data: raekker } = await supabase.from("listings").select("*").in("id", ids);
+  const { data: hist } = await supabase.from("price_events")
+    .select("listing_id, at, kind, price, from_price, favourites")
+    .in("listing_id", ids).order("at", { ascending: false }).limit(200);
+
+  const ud: unknown[] = [];
+  let solgte = 0, aendringer = 0;
+
+  for (const m of maalinger) {
+    const r = (raekker ?? []).find((x) => x.id === m.id);
+    if (!r) continue;
+
+    // Er varen vaek fra Vinted, er den solgt eller taget hjem. Uanset hvad er
+    // der ikke mere for prisvagten at lave.
+    if (m.gone) {
+      await supabase.from("listings").update({
+        status: "solgt", sold_at: new Date().toISOString(),
+        last_check_at: new Date().toISOString(), pending_price: null, pending_note: null,
+      }).eq("id", r.id);
+      await supabase.from("price_events").insert({
+        listing_id: r.id, kind: "solgt", price: r.price,
+        note: "annoncen findes ikke længere på Vinted",
+      });
+      solgte++;
+      ud.push({ id: r.id, handling: "solgt" });
+      continue;
+    }
+
+    const v: Vagt = {
+      id: r.id, title: r.title ?? "", platform: r.platform,
+      price: Number(r.price), start_price: Number(r.start_price),
+      floor_price: r.floor_price === null ? null : Number(r.floor_price),
+      listed_at: r.listed_at, last_change_at: r.last_change_at,
+      checks: Number(r.checks ?? 0),
+      favourites: Number(r.favourites ?? 0), favourites_prev: Number(r.favourites_prev ?? 0),
+      historik: (hist ?? []).filter((h) => h.listing_id === r.id),
+    };
+
+    let b;
+    try {
+      b = await beslutPris(v, m, callTool);
+    } catch (err) {
+      console.error("beslutPris failed", err);
+      // En fejl her maa ikke sende varen i en tjek-loekke hvert minut.
+      await supabase.from("listings").update({
+        last_check_at: new Date().toISOString(),
+        next_check_at: new Date(Date.now() + 3 * 86400000).toISOString(),
+      }).eq("id", r.id);
+      continue;
+    }
+
+    const nuPris = m.price && m.price > 0 ? Math.round(m.price) : Number(r.price);
+    const hjerter = Number.isFinite(m.favourites as number) ? Number(m.favourites) : Number(r.favourites ?? 0);
+    const opd: Record<string, unknown> = {
+      last_check_at: new Date().toISOString(),
+      next_check_at: new Date(Date.now() + b.naesteTjekDage * 86400000).toISOString(),
+      checks: Number(r.checks ?? 0) + 1,
+      favourites: hjerter,
+      favourites_prev: Number(r.favourites ?? 0),
+      views: Number(m.views ?? r.views ?? 0),
+      // Er prisen paa Vinted en anden end den, vi tror, er det Vinted der har
+      // ret. Du kan have rettet den selv.
+      price: nuPris,
+    };
+
+    await supabase.from("price_events").insert({
+      listing_id: r.id, kind: "maalt", price: nuPris, favourites: hjerter,
+      comparables: b.sammenlignelige, median: b.median,
+      note: b.handling + (b.spaerret ? " · " + b.spaerret : ""),
+    });
+
+    if (b.handling === "saenk" && b.nyPris > 0 && b.nyPris < nuPris) {
+      opd.pending_price = b.nyPris;
+      opd.pending_note = b.begrundelse;
+      opd.pending_since = new Date().toISOString();
+      await supabase.from("price_events").insert({
+        listing_id: r.id, kind: "forslag", price: b.nyPris, from_price: nuPris,
+        favourites: hjerter, median: b.median, comparables: b.sammenlignelige,
+        note: b.begrundelse,
+      });
+      aendringer++;
+    } else {
+      opd.pending_price = null;
+      opd.pending_note = null;
+      opd.pending_since = null;
+      opd.note = b.begrundelse;
+      if (b.handling === "stop") {
+        // Prisen er ikke laengere haandtaget. Vagten holder op med at saenke,
+        // men varen bliver staaende i listen — det er en besked, ikke en
+        // oprydning.
+        opd.auto = false;
+        await supabase.from("price_events").insert({
+          listing_id: r.id, kind: "bund", price: nuPris, note: b.begrundelse,
+        });
+      }
+    }
+
+    await supabase.from("listings").update(opd).eq("id", r.id);
+    ud.push({
+      id: r.id, externalId: r.external_id, handling: b.handling,
+      nyPris: b.nyPris, fraPris: nuPris, begrundelse: b.begrundelse,
+    });
+  }
+
+  if (solgte) await puf("Solgt!", solgte + (solgte === 1 ? " vare er væk fra Vinted" : " varer er væk fra Vinted"));
+  if (aendringer) {
+    await puf("Prisvagt", aendringer === 1
+      ? "1 vare er klar til en ny pris"
+      : aendringer + " varer er klar til en ny pris");
+  }
+  return { beslutninger: ud };
+}
+
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
@@ -797,13 +986,17 @@ Deno.serve(async (req: Request) => {
       samples?: unknown[];
       hint?: unknown;
       avoid?: unknown[];
-      kind?: string;
       value?: unknown;
       options?: unknown[];
       item?: Record<string, unknown>;
       buyerMessage?: string;
       offer?: number;
       platform?: string;
+      item_id?: string;
+      url?: string;
+      price?: number;
+      maalinger?: Maaling[];
+      listing?: string;
     };
     try {
       body = await req.json();
@@ -824,6 +1017,67 @@ Deno.serve(async (req: Request) => {
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
       }
+    }
+
+    // Prisvagtens tre kald staar ogsaa foer id-vaernet: de handler om en
+    // annonce, ikke om et udkast, og et udkast kan vaere kasseret laenge foer
+    // varen er solgt.
+    if (body.mode === "due") {
+      const raekker = await hentForfaldne(3);
+      return json({
+        forfaldne: raekker.map((r) => ({
+          id: r.id,
+          itemId: r.external_id,
+          title: r.title,
+          query: r.search_query || r.title || "",
+          price: Number(r.price),
+        })),
+      });
+    }
+
+    // Redigeringssiden spoerger selv: skal DENNE annonce have en ny pris?
+    // Uden det ville en prisaendring kun kunne gennemfoeres i forlaengelse af
+    // det tilsyn, der besluttede den — og saa var den vaek dagen efter.
+    if (body.mode === "pending") {
+      const it = String(body.item_id ?? "");
+      if (!it) return json({ error: "mangler" }, 400);
+      const { data: r } = await supabase.from("listings")
+        .select("id, price, pending_price, pending_note")
+        .eq("platform", "vinted").eq("external_id", it).maybeSingle();
+      if (!r || !r.pending_price) return json({ pending: null });
+      return json({ pending: { listing: r.id, pris: Number(r.pending_price),
+        fra: Number(r.price), note: r.pending_note } });
+    }
+
+    if (body.mode === "watch") {
+      const m = Array.isArray(body.maalinger) ? body.maalinger : [];
+      try {
+        return json(await tilsyn(m));
+      } catch (err) {
+        console.error("tilsyn failed", err);
+        return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
+    }
+
+    // Prisen er faktisk aendret paa Vinted — bekraeftet ved at laese den
+    // tilbage fra annoncen, ikke ved at have skrevet i et felt.
+    if (body.mode === "repriced") {
+      const id = String(body.listing ?? "");
+      const ny = Math.round(Number(body.price) || 0);
+      if (!id || !(ny > 0)) return json({ error: "mangler" }, 400);
+      const { data: r } = await supabase.from("listings")
+        .select("price, floor_price, start_price").eq("id", id).maybeSingle();
+      if (!r) return json({ error: "ukendt annonce" }, 404);
+      await supabase.from("listings").update({
+        price: ny,
+        last_change_at: new Date().toISOString(),
+        pending_price: null, pending_note: null, pending_since: null,
+      }).eq("id", id);
+      await supabase.from("price_events").insert({
+        listing_id: id, kind: "aendret", price: ny, from_price: Number(r.price),
+        note: "sat på Vinted",
+      });
+      return json({ ok: true });
     }
 
     if (!body.id) return json({ error: "missing_id" }, 400);
@@ -848,7 +1102,18 @@ Deno.serve(async (req: Request) => {
         selected_at: null,
         ...(alle ? { status: "afsendt", posted_at: new Date().toISOString() } : {}),
       }).eq("id", body.id);
-      return json({ ok: true });
+      // Herfra overtager prisvagten. Uden annoncens eget nummer kan den ikke
+      // se varen igen, saa den registreres KUN naar telefonen kender det —
+      // og det goer den, fordi den staar paa annoncens egen side.
+      let vagt: string | null = null;
+      if (body.item_id) {
+        vagt = await registrer(
+          String(body.id), "vinted", String(body.item_id),
+          String(body.url ?? `https://www.vinted.dk/items/${body.item_id}`),
+          Math.round(Number(body.price) || 0),
+        );
+      }
+      return json({ ok: true, listing: vagt });
     }
 
     if (body.mode === "clear") {
