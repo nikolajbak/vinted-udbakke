@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0021 — 2026-09-30 17:32
+
+Commit `9ace926` — Lad rod i baggrunden ikke fritage fra prisen paa isolering  
+App: `app.js?v=f9220621` · `style.css?v=1594422e`  
+Udrullet: analyze-draft
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v56 | `ca799876` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script | v50 | `51698b03` |
+
 ## udgivelse-0020 — 2026-09-30 17:29
 
 Commit `01923a5` — Isoler kun en hel vare, naar det koster lidt  
