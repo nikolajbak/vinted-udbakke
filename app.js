@@ -460,7 +460,8 @@
     if(d.status === 'afsendt'){
       rest += '<div id="d-links"></div>' +
               '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
-              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>';
+              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
+              '<button type="button" class="btn btn-secondary" data-a="requeue">Flyt tilbage til køen</button>';
     }
     if(d.status === 'ny'){
       // "Gem billeder i Fotos" er en hjaelpehandling og hoerer til her, ikke
@@ -469,6 +470,17 @@
       rest += '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
               '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
               '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
+    }
+    // Hvad er varen markeret som sendt til — og vejen ud af en fejlmarkering.
+    var maerker = MARKEDER.filter(function(m){ return sendtTil(d)[m.k]; });
+    if(maerker.length && d.status !== 'kladde'){
+      rest += '<span class="label">Markeret som sendt til</span>' +
+        '<div class="maerke-rad">' + maerker.map(function(m){
+          return '<button type="button" class="maerke" data-a="fjern-' + m.k + '" ' +
+            'aria-label="Fjern markeringen for ' + esc(m.navn) + '">' + esc(m.navn) +
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+            '</button>';
+        }).join('') + '</div>';
     }
     rest += '<button type="button" class="btn btn-danger" data-a="discard">' +
             (d.status === 'afsendt' ? 'Fjern fra listen' : 'Kasser udkast') + '</button></div>';
@@ -501,13 +513,27 @@
   // Et tryk paa en markedsplads noterer, at varen er sendt DERHEN. Det er ikke
   // det samme som at den ER lagt op — kun Vinted-scriptet kan bekraefte det —
   // men det er dét, der skal til for at kunne se, hvad man mangler. Du kan
-  // altid trykke igen; maerket forsvinder foerst med "Nulstil" paa udkastet.
+  // altid trykke igen — og fjerne maerket igen under "Markeret som sendt til".
   function markerSendt(d, key){
     var sendt = sendtTil(d);
     if(sendt[key]) return;
     sendt[key] = new Date().toISOString();
     d.posted_to = sendt;
     sb.from('drafts').update({ posted_to: sendt }).eq('id', d.id).then(function(){});
+  }
+
+  // Et maerke sat ved en fejl skal kunne tages af igen. Knappen paa
+  // markedspladsen kan ikke selv vaere fortrydelsen: et tryk dér AABNER
+  // markedspladsen og armerer automatikken, saa "tryk igen for at fjerne"
+  // ville fylde en formular ud, hver gang man ville rette en afkrydsning.
+  function fjernMaerke(d, key){
+    var sendt = sendtTil(d);
+    if(!sendt[key]) return;
+    delete sendt[key];
+    d.posted_to = sendt;
+    sb.from('drafts').update({ posted_to: sendt }).eq('id', d.id).then(function(){
+      renderDetail(); renderQueue();
+    });
   }
 
   // Paa iOS tvinger x-safari- adressen ud i RIGTIG Safari. Uden det aabner
@@ -558,6 +584,23 @@
     else if(a === 'posted'){
       sb.from('drafts').update({ status: 'afsendt', posted_at: new Date().toISOString() }).eq('id', d.id);
       back(); toast('Flyttet til afsendte annoncer');
+    }
+    else if(a === 'requeue'){
+      // Varen stod som afsendt ved en fejl. Maerkerne bliver staaende — hvilke
+      // markedspladser den FAKTISK er sendt til, er et andet spoergsmaal end
+      // om den er faerdig, og dem kan du rette hver for sig herunder.
+      btn.disabled = true;
+      d.status = 'ny'; d.posted_at = null;
+      sb.from('drafts').update({ status: 'ny', posted_at: null }).eq('id', d.id)
+        .then(function(){
+          rows[d.id] = d;
+          renderQueue(); hentHistorik();
+          back(); toast('Flyttet tilbage til køen');
+        });
+    }
+    else if(a.indexOf('fjern-') === 0){
+      fjernMaerke(d, a.slice(6));
+      toast('Markeringen er fjernet');
     }
     else if(a === 'discard'){
       var vAfsendt = d.status === 'afsendt';

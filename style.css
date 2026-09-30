@@ -419,6 +419,28 @@
   .hist-row .t{ font-weight: 600; font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hist-row .s{ font-size: var(--t-small); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
+  /* Maerkerne: hvad varen er markeret som sendt til, og vejen ud igen.
+     Krydset er en del af selve chippen - en raekke med et separat kryds ved
+     siden af ville laese som to ting, og man ville ikke vide hvad man ramte. */
+  /* Overskriften skal have luft over sig, naar den foelger en knap - ellers
+     laeser den som knappens undertekst frem for som sin egen gruppe. */
+  .sect > .btn + .label{ display: block; margin-top: var(--s5); }
+  .maerke-rad{ display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .maerke{
+    display: inline-flex; align-items: center; gap: var(--s2);
+    min-height: 36px; padding: 0 var(--s2) 0 var(--s3);
+    border: 1px solid var(--line); border-radius: 18px;
+    background: var(--moss-soft); color: var(--ink);
+    font: inherit; font-size: var(--t-small); font-weight: 600;
+    cursor: pointer;
+  }
+  .maerke svg{
+    width: 16px; height: 16px; fill: none; stroke: currentColor;
+    stroke-width: 2; stroke-linecap: round; opacity: .65;
+  }
+  .maerke:hover svg, .maerke:focus-visible svg{ opacity: 1; }
+  .sect > .maerke-rad{ margin-top: var(--s2); margin-bottom: var(--s3); }
+
   /* ---- Scanner og etiketter ---------------------------------------------- */
   .link-btn{
     background: none; border: 0; padding: var(--s2);
