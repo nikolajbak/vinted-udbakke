@@ -660,14 +660,18 @@ export async function optimizePhoto(
   // sengetoejet med helt ud til kanten, saa man faar baade braemmen OG
   // bjaelken - praecis det, isoleringen skulle skaane hovedbilledet for.
   //
-  // Derfor: er baggrunden rolig, og koster isoleringen mere end en sjettedel
-  // af rammen, vokser rammen i stedet ud i baggrunden. Er der rod taet paa,
-  // isoleres der uanset prisen - dér er bjaelken det mindste onde.
+  // Derfor: koster isoleringen mere end en sjettedel af rammen, vokser rammen
+  // i stedet ud i baggrunden.
+  //
+  // Rod i baggrunden fritager ikke. Foerste forsoeg lod `backgroundClutter`
+  // isolere uanset prisen, og saa stod produkt 8 med 37 % hvidt igen: modellen
+  // melder rod paa et sengetaeppe med folder, og dermed var reglen sat ud
+  // netop dér, hvor den skulle virke. En sengekant i rammen er en skoenhedsfejl
+  // - en hvid bjaelke over en tredjedel af hoejden er en fejl i annoncen.
   const spild = cw / ch > target2
     ? 1 - (ch * target2) / cw
     : 1 - cw / (ch * target2);
-  const vaerdIsolering = guidance.backgroundClutter || spild <= 0.15;
-  const isoler = (vilIsolere && vaerdIsolering) || !kanRumme;
+  const isoler = (vilIsolere && spild <= 0.15) || !kanRumme;
 
   if (!isoler) {
     // Helst den mindste ramme, der rummer luften med. Kan den ikke vaere i
