@@ -569,6 +569,37 @@ function roligstePlads(
   return bedst;
 }
 
+// Farven paa den YDERSTE raekke eller soejle. Kantfarven fra hjoernerne er ét
+// tal for hele rammen, og den efterlader en synlig soem: paa produkt 8 laa en
+// helt hvid bjaelke op ad et lagen, der er cremet og skygget. Maalt paa den
+// side, bjaelken faktisk roerer, forsvinder soemmen - og i isoleringen ER den
+// yderste raekke baggrund, for beskaeringen laegger luft omkring varen.
+function sideFarve(
+  img: { bitmap: Uint8ClampedArray; width: number; height: number },
+  side: "top" | "bund" | "venstre" | "hoejre",
+): number {
+  const { bitmap: px, width: W, height: H } = img;
+  const tyk = Math.max(2, Math.round(Math.min(W, H) * 0.01));
+  let r = 0, g = 0, b = 0, c = 0;
+  const laes = (x: number, y: number) => {
+    const i = (y * W + x) * 4;
+    r += px[i]; g += px[i + 1]; b += px[i + 2]; c++;
+  };
+  if (side === "top" || side === "bund") {
+    for (let k = 0; k < tyk; k++) {
+      const y = side === "top" ? k : H - 1 - k;
+      for (let x = 0; x < W; x += 2) laes(x, y);
+    }
+  } else {
+    for (let k = 0; k < tyk; k++) {
+      const x = side === "venstre" ? k : W - 1 - k;
+      for (let y = 0; y < H; y += 2) laes(x, y);
+    }
+  }
+  if (!c) return Image.rgbaToColor(255, 255, 255, 255);
+  return Image.rgbaToColor(Math.round(r / c), Math.round(g / c), Math.round(b / c), 255);
+}
+
 export async function optimizePhoto(
   buf: ArrayBuffer,
   guidance: PhotoGuidance,
@@ -725,15 +756,17 @@ export async function optimizePhoto(
   // Derfor: koster isoleringen mere end en sjettedel af rammen, vokser rammen
   // i stedet ud i baggrunden.
   //
-  // Rod i baggrunden fritager ikke. Foerste forsoeg lod `backgroundClutter`
-  // isolere uanset prisen, og saa stod produkt 8 med 37 % hvidt igen: modellen
-  // melder rod paa et sengetaeppe med folder, og dermed var reglen sat ud
-  // netop dér, hvor den skulle virke. En sengekant i rammen er en skoenhedsfejl
-  // - en hvid bjaelke over en tredjedel af hoejden er en fejl i annoncen.
+  // Er der rod, isoleres der uanset prisen. Proevet at lade prisen vinde ogsaa
+  // dér: produkt 8's forfra-billede voksede saa ned i gulvet og fik et knae,
+  // et kabel og en gul troeje med i den nederste femtedel. Rammen kunne ikke
+  // glide fri - der er 120 px roligt lagen over jakken og 1315 px ramme at
+  // fylde. Saa bjaelken er ikke til at komme uden om dér; den skal bare ikke
+  // ligne en fejl, og det klarer kantfarverne herunder.
   const spild = cw / ch > target2
     ? 1 - (ch * target2) / cw
     : 1 - cw / (ch * target2);
-  const isoler = (vilIsolere && spild <= 0.15) || !kanRumme;
+  const isoler = (vilIsolere && (guidance.backgroundClutter || spild <= 0.15)) ||
+    !kanRumme;
 
   if (!isoler) {
     // Helst den mindste ramme, der rummer luften med. Kan den ikke vaere i
@@ -775,6 +808,8 @@ export async function optimizePhoto(
     if (tw / th > target2) th = Math.round(tw / target2);
     else tw = Math.round(th * target2);
     if (tw > image.width || th > image.height) {
+      const raa = image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number };
+      const hvid = guidance.padStyle === "hvid";
       const bund = new Image(tw, th);
       // Baggrundens egen farve, ikke hvidt. En hvid bjaelke op ad et graat
       // sengetaeppe laeser som en fejl; en stribe i naesten samme farve
@@ -782,10 +817,25 @@ export async function optimizePhoto(
       // andet end det ene udkast, det blev proevet paa - saa hvidt var i
       // praksis reglen. Nu er kantfarven reglen, og hvid kun et udfald af
       // maalingen.
-      bund.fill(guidance.padStyle === "hvid"
-        ? Image.rgbaToColor(255, 255, 255, 255)
-        : kantFarve(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number }));
-      bund.composite(image, Math.round((tw - image.width) / 2), Math.round((th - image.height) / 2));
+      bund.fill(hvid ? Image.rgbaToColor(255, 255, 255, 255) : kantFarve(raa));
+      const dx = Math.round((tw - image.width) / 2);
+      const dy = Math.round((th - image.height) / 2);
+      // Og hver bjaelke faar farven fra den side, den roerer. Ét tal for hele
+      // rammen gav en synlig soem paa produkt 8: bjaelken var hvid, lagenet
+      // cremet og skygget.
+      if (!hvid) {
+        const stribe = (w: number, h: number, farve: number, x: number, y: number) => {
+          if (w <= 0 || h <= 0) return;
+          const s2 = new Image(w, h);
+          s2.fill(farve);
+          bund.composite(s2, x, y);
+        };
+        stribe(tw, dy, sideFarve(raa, "top"), 0, 0);
+        stribe(tw, th - dy - image.height, sideFarve(raa, "bund"), 0, dy + image.height);
+        stribe(dx, image.height, sideFarve(raa, "venstre"), 0, dy);
+        stribe(tw - dx - image.width, image.height, sideFarve(raa, "hoejre"), dx + image.width, dy);
+      }
+      bund.composite(image, dx, dy);
       image = bund;
     }
   }
