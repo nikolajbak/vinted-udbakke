@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0010 — 2026-09-30 06:58
+
+Commit `4d5a630` — Byg prisvagten: hold oeje med det der ikke saelges, og saet prisen ned  
+App: `app.js?v=3d930e41` · `style.css?v=b43c799f`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v51 | `e68ee069` |
+| dba-fill-script | v10 | `dca7af78` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft | v3 | `cdb3cb0a` |
+| vinted-fill-script ← | v47 | `2edc4b1e` |
+
 ## udgivelse-0009 — 2026-09-28 09:45
 
 Commit `91ef356` — Faa opdaterings-banneret til at virke: sammenlign stempler, ikke ETag  
