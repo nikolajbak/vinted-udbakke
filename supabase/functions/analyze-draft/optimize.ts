@@ -592,8 +592,22 @@ export async function optimizePhoto(
   // ind.
   const mindsteW = Math.max(cw, ch * target);
   const mindsteH = mindsteW / target;
-  // Kan den ramme ligge inden for billedet, er der intet at fylde ud med.
-  const kanRumme = mindsteW <= W && mindsteH <= H;
+
+  // Men "rummer motivkassen" er for strengt. Kassen herover er motivet PLUS
+  // den luft, der laegges til omkring det - og luften er til at forhandle om.
+  // Selve motivet er det, der ikke maa roeres.
+  //
+  // Det var praecis dét, der gik galt: et staaende naerbillede af et maerkat
+  // med 18 % luft omkring blev hoejere, end billedet er bredt, saa en
+  // kvadratisk ramme kunne ikke rumme det - og der blev lagt bjaelker paa
+  // 41-46 % af bredden. Maalt paa de faerdige filer. Med lidt mindre luft
+  // passer den samme ramme uden en eneste bjaelke.
+  const kerneW = (box.x1 - box.x0) * W;
+  const kerneH = (box.y1 - box.y0) * H;
+  // Den stoerste ramme i formatet, der overhovedet kan ligge i billedet.
+  const rammeW = Math.min(W, H * target);
+  const rammeH = rammeW / target;
+  const kanRumme = rammeW >= kerneW && rammeH >= kerneH;
 
   // To slags motiver, to slags svar.
   //
@@ -610,8 +624,10 @@ export async function optimizePhoto(
   const isoler = vilIsolere || !kanRumme;
 
   if (!isoler) {
-    cw = mindsteW;
-    ch = mindsteH;
+    // Helst den mindste ramme, der rummer luften med. Kan den ikke vaere i
+    // billedet, tages der af luften - aldrig af motivet.
+    cw = Math.min(mindsteW, rammeW);
+    ch = cw / target;
   }
 
   // Hold rammen inden for billedet. Ved isolering er den allerede stram om
@@ -619,8 +635,11 @@ export async function optimizePhoto(
   if (cw > W) { ch = ch * (W / cw); cw = W; }
   if (ch > H) { cw = cw * (H / ch); ch = H; }
 
-  let cx = (x0 + x1) / 2 - cw / 2;
-  let cy = (y0 + y1) / 2 - ch / 2;
+  // Centrér om motivet selv. Er der taget af luften, skal det tages ligeligt
+  // hele vejen rundt; centrerer man om den luftede kasse, skaevvrider et
+  // ensidigt beskaaret hjoerne hele rammen.
+  let cx = (box.x0 + box.x1) / 2 * W - cw / 2;
+  let cy = (box.y0 + box.y1) / 2 * H - ch / 2;
   cx = Math.max(0, Math.min(W - cw, cx));
   cy = Math.max(0, Math.min(H - ch, cy));
 
