@@ -361,6 +361,14 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
 - **Dømm ikke en bjælke på en nedskaleret kopi.** `sips -Z` + fremvisning
   skjulte en hvid bræmme på 42 %, som lå der. Mål pixels, eller se den fulde
   fil.
+- **Et fejlet Pages-byg er som regel ikke en fejl i koden.** 30. september
+  fejlede fem byg i træk på under et sekund med »Page build failed« og ingen
+  forklaring — også et commit, der kun tilføjede tekst til `CLAUDE.md`.
+  `.nojekyll` ændrede intet. Efter elleve minutters ro byggede det samme
+  commit på 26 sekunder. Pages vil ikke bygge så tæt, når der har været mange
+  udgivelser lige efter hinanden. `vent-paa-pages.sh` venter derfor og beder
+  om ét byg til, i stedet for at melde udgivelsen død — og et byg, der
+  fejler, skal ikke få nogen til at lede efter fejlen i det, der blev skrevet.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

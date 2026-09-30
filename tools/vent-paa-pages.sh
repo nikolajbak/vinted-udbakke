@@ -24,6 +24,10 @@ PAUSE=${PAGES_PAUSE:-10}
 SKUB_EFTER=${PAGES_SKUB_EFTER:-9}
 KANT_RUNDER=${PAGES_KANT_RUNDER:-12}
 KANT_PAUSE=${PAGES_KANT_PAUSE:-5}
+# Et fejlet byg er ikke noedvendigvis en fejl i det, vi har skrevet — se
+# forklaringen ved FEJL_PAUSE nedenfor.
+FEJL_FORSOEG=${PAGES_FEJL_FORSOEG:-1}
+FEJL_PAUSE=${PAGES_FEJL_PAUSE:-660}
 
 sha=$(git rev-parse HEAD)
 kort=$(git rev-parse --short HEAD)
@@ -43,24 +47,54 @@ fi
 
 seneste() {
   gh api "repos/$slug/pages/builds" \
-    --jq '.[0] | "\(.status)|\(.commit)|\(.error.message // "")"' 2>/dev/null || echo "ukendt||"
+    --jq '.[0] | "\(.status)|\(.commit)|\(.created_at)|\(.error.message // "")"' \
+    2>/dev/null || echo "ukendt|||"
 }
 
 echo "Venter paa at Pages udgiver $kort …"
 skubbet=nej
 bygget=nej
+opgivet=nej
+# Hvilket fejlet byg har vi allerede reageret paa. Uden det ville det samme
+# byg udloese en ny pause hver gang loekken laeste listen.
+set_fejl=""
+forsoeg=0
 i=0
 while [ "$i" -lt "$RUNDER" ]; do
   linje=$(seneste)
   status=${linje%%|*}
   rest=${linje#*|}
   commit=${rest%%|*}
+  rest=${rest#*|}
+  stempel=${rest%%|*}
   fejl=${rest#*|}
 
   if [ "$commit" = "$sha" ]; then
     case "$status" in
-      built)   bygget=ja; break ;;
-      errored) echo "  Pages-bygget FEJLEDE: ${fejl:-ingen besked}"; exit 1 ;;
+      built) bygget=ja; break ;;
+      errored)
+        if [ "$stempel" != "$set_fejl" ]; then
+          set_fejl=$stempel
+          echo "  Pages-bygget FEJLEDE: ${fejl:-ingen besked}"
+          forsoeg=$((forsoeg + 1))
+          if [ "$forsoeg" -gt "$FEJL_FORSOEG" ]; then
+            opgivet=ja
+            break
+          fi
+          # 30. september fejlede fem byg i traek paa under et sekund, ogsaa et
+          # commit der kun rettede en kommentar. Den sjette — efter elleve
+          # minutters ro — byggede paa 26 sekunder. Det er altsaa ikke det, vi
+          # har skrevet, der er galt; Pages vil bare ikke bygge saa taet. Saa
+          # det rigtige svar paa et fejlet byg er at vente og bede om et til,
+          # ikke at melde udgivelsen doed.
+          echo "  Venter $FEJL_PAUSE s og beder om et byg til ($forsoeg af $FEJL_FORSOEG) …"
+          sleep "$FEJL_PAUSE"
+          gh api -X POST "repos/$slug/pages/builds" >/dev/null 2>&1 || true
+          skubbet=ja
+          i=0
+          continue
+        fi
+        ;;
     esac
   fi
 
@@ -77,6 +111,11 @@ while [ "$i" -lt "$RUNDER" ]; do
   sleep "$PAUSE"
 done
 
+if [ "$opgivet" = ja ]; then
+  echo "  Pages ville ikke bygge $kort — $forsoeg forsoeg fejlede."
+  echo "         Proev igen om en halv time:  gh api -X POST repos/$slug/pages/builds"
+  exit 1
+fi
 if [ "$bygget" != ja ]; then
   echo "  Pages byggede ikke $kort inden for $((RUNDER * PAUSE)) s."
   echo "         Foelg med:  gh api repos/$slug/pages/builds --jq '.[0]|\"\(.status) \(.commit[0:7])\"'"
