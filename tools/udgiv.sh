@@ -39,8 +39,8 @@ for f in style.css app.js; do
     exit 1; }
 done
 
-echo "Tjekker runnerne …"
-node tools/check-runner.mjs supabase/functions/*/runner.ts
+echo "Tjekker koden for kald til funktioner, der ikke findes …"
+node tools/check-runner.mjs supabase/functions/*/runner.ts app.js
 
 sidste=$(git tag -l 'udgivelse-*' | sort | tail -1)
 

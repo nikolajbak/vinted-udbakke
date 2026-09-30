@@ -363,8 +363,139 @@
   // med automatikken, kan man derfor gaa fra udkastet til den rigtige annonce
   // — og se hvad den koster NU, som kan vaere noget andet end det, udkastet
   // siger.
+  function renderDetail(){
+    var d = rows[currentId];
+    if(!d) return;
+    $('d-title').textContent = d.title || 'Udkast';
+    var photos = d.photos || [];
+    var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
+
+    var html = '';
+    var gal = photos.length ? photos : (d.image_url ? [{ url: d.image_url, kind: '' }] : []);
+    if(gal.length){
+      html += '<div class="gallery"><div class="hero-track" id="d-track">' +
+        gal.map(function(p){ return '<img class="hero" src="' + esc(p.url) + '" alt="' + esc(p.kind || '') + '">'; }).join('') +
+        '</div>' +
+        (gal.length > 1 ? '<div class="dots" id="d-dots">' + gal.map(function(_, i){
+          return '<i class="' + (i === 0 ? 'on' : '') + '"></i>';
+        }).join('') + '</div>' : '') +
+      '</div>';
+    }
+    if(photos.length){
+      html += '<div class="strip" id="d-strip">' + photos.map(function(p, i){
+        return '<img src="' + esc(p.url) + '" data-i="' + i + '" alt="' + esc(p.kind || '') + '">';
+      }).join('') + '</div>';
+      html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det.</div>';
+    }
+
+    if(d.status === 'ny' || d.status === 'afsendt'){
+      html += '<div class="price-row" id="d-pris"><span class="price-big mono">' + esc(d.price || '?') + '</span>' +
+              (d.price_grounded === false ? '<span class="chip chip-vent">Foreløbig</span>' : '') + '</div>';
+      if(d.price_grounded === false){
+        html += '<div class="note">Prisen markedstjekkes mod rigtige annoncer, når du udfylder på markedspladsen.</div>';
+      }
+      if(d.price_note) html += '<div class="note">' + esc(d.price_note) + '</div>';
+      var facts = [d.brand, d.size, d.category, d.condition].filter(Boolean);
+      if(facts.length) html += '<div class="note">' + esc(facts.join(' · ')) + '</div>';
+      if(d.description) html += '<div class="desc">' + esc(d.description) + '</div>';
+    } else if(failed){
+      html += '<div class="warn">' + esc(d.price_note) + '</div>';
+    } else {
+      html += '<div class="note note-luft">Claude analyserer billederne og skriver udkastet. Det tager typisk under et minut.</div>';
+    }
+
+    if(d.personal_info){
+      html += '<div class="warn">Der blev fundet personlige oplysninger på et af billederne — fx et påsyet navnemærke — og de er automatisk maskeret. Tjek billederne, før du uploader.</div>';
+    }
+    html += '<div class="note note-luft">' +
+            (d.nr ? '<b class="mono">' + esc(fmtNr(d.nr)) + '</b> · ' : '') +
+            esc(relTime(d.created_at)) + '</div>';
+    $('d-body').innerHTML = html;
+
+    var track = $('d-track'), dots = $('d-dots');
+    if(track && dots){
+      track.addEventListener('scroll', function(){
+        var i = Math.round(track.scrollLeft / track.clientWidth);
+        Array.prototype.forEach.call(dots.children, function(dot, n){
+          dot.classList.toggle('on', n === i);
+        });
+      }, { passive: true });
+    }
+
+    var strip = $('d-strip');
+    if(strip){
+      strip.addEventListener('click', function(e){
+        var i = e.target.getAttribute && e.target.getAttribute('data-i');
+        if(i !== null && i !== undefined) openCrop(d, Number(i));
+      });
+    }
+
+    // Kun de to handlinger, du bruger hver gang, er fastgjort nederst. Resten
+    // ligger i indholdet — så fylder bundlinjen ikke en tredjedel af skærmen,
+    // og "Kasser" ligger ikke lige ved siden af det, du trykker på dagligt.
+    var rest = '<div class="sect">';
+    // En afsendt annonce aabnes for at blive laest — og for at komme videre til
+    // den rigtige annonce ude paa markedspladsen. Den plads staar tom, til
+    // opslaget svarer; ellers ville knapperne hoppe paa plads bagefter.
+    if(d.status === 'ny' || d.status === 'afsendt'){
+      rest += '<div id="d-udgivet"></div>' +
+              '<button type="button" class="btn btn-secondary" data-a="edit">Redigér annonce</button>';
+    }
+    if(d.status === 'afsendt'){
+      rest += '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
+              '<button type="button" class="btn btn-secondary" data-a="requeue">Flyt tilbage til køen</button>';
+    }
+    if(d.status === 'ny'){
+      // "Gem billeder i Fotos" er en hjaelpehandling og hoerer til her, ikke
+      // paa linje med de tre markedspladser. Den fyldte en fjerdedel af foden
+      // og trak opmaerksomhed fra det, skaermen handler om.
+      rest += '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
+    }
+    // Hvad er varen markeret som sendt til — og vejen ud af en fejlmarkering.
+    var maerker = MARKEDER.filter(function(m){ return sendtTil(d)[m.k]; });
+    if(maerker.length && d.status !== 'kladde'){
+      rest += '<span class="label">Markeret som sendt til</span>' +
+        '<div class="maerke-rad">' + maerker.map(function(m){
+          return '<button type="button" class="maerke" data-a="fjern-' + m.k + '" ' +
+            'aria-label="Fjern markeringen for ' + esc(m.navn) + '">' + esc(m.navn) +
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+            '</button>';
+        }).join('') + '</div>';
+    }
+    rest += '<button type="button" class="btn btn-danger" data-a="discard">' +
+            (d.status === 'afsendt' ? 'Fjern fra listen' : 'Kasser udkast') + '</button></div>';
+    $('d-body').insertAdjacentHTML('beforeend', rest);
+
+    var f = '';
+    if(d.status === 'ny'){
+      // Tre markedspladser paa EN linje frem for fire stablede knapper. Stablet
+      // aad foden 200 af 704 px og klemte indholdet ned under to tredjedele af
+      // skaermen — og navnet alene er nok, naar overskriften allerede siger
+      // hvilken vare det er.
+      var sendt = sendtTil(d);
+      f += '<div class="market-row">' + MARKEDER.map(function(m){
+        var ok = !!sendt[m.k];
+        return '<button type="button" class="btn btn-market' + (ok ? ' is-done' : '') +
+          '" data-a="' + m.a + '">' + esc(m.navn) + '</button>';
+      }).join('') + '</div>';
+    } else if(failed){
+      f += '<button type="button" class="btn btn-primary" data-a="retry">Prøv analysen igen</button>';
+    }
+    $('d-footer').innerHTML = f;
+    $('d-footer').hidden = !f;
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#d-footer [data-a], #d-body [data-a]'), function(b){
+        b.addEventListener('click', function(){ detailAction(b.getAttribute('data-a'), d, b); });
+      });
+  }
+
   function hentAnnoncer(id){
-    sb.from('listings').select('platform, url, external_id, price, status, published, synced_at')
+    sb.from('listings').select('platform, url, external_id, price, status, published, ' +
+                               'synced_at, pending, pending_note')
       .eq('draft_id', id).then(function(res){
         if(currentId !== id) return;
         var el = $('d-udgivet');
@@ -404,6 +535,17 @@
     var navn = markedsNavn(x.platform);
     var p = x.published || null;
     var h = '<div class="udgivet"><span class="label">Udgivet på ' + esc(navn) + '</span>';
+
+    // Ventende rettelser staar oeverst: det er det eneste her, der kraever
+    // noget af dig. Resten er til orientering.
+    var venter = venterFelter(x);
+    if(venter.length && x.external_id && x.platform === 'vinted'){
+      h += '<div class="vagt-forslag"><b>Venter på at komme ud: ' + esc(venter.join(', ')) + '</b>' +
+        (x.pending_note ? '<span>' + esc(x.pending_note) + '</span>' : '') +
+        '<button type="button" class="btn btn-primary" data-aabn="' +
+        esc('https://www.vinted.dk/items/' + x.external_id + '/edit') +
+        '">Send til ' + esc(navn) + '</button></div>';
+    }
 
     if(!p){
       h += '<p class="note">Annoncens egne oplysninger er ikke læst endnu. ' +
@@ -534,7 +676,8 @@
   }
 
   function detailAction(a, d, btn){
-    if(a === 'fill'){
+    if(a === 'edit'){ aabnRedigering(d); }
+    else if(a === 'fill'){
       aabnMarked(d, btn, 'vinted', 'Vinted', 'https://www.vinted.dk/items/new');
     }
     else if(a === 'dba'){
@@ -1184,6 +1327,110 @@
         });
       });
   }
+  /* ---- Redigering, og vejen ud til markedspladsen -------------------------
+     Synkroniseringen gaar begge veje. Den ene vej er at LAESE annoncen; den
+     her er at skrive. Men serveren kan ikke skrive i Vinteds formular — det
+     kan kun din egen session. Saa en rettelse her bliver til en besked, der
+     ligger og venter paa annoncen, indtil den er skrevet ind.
+
+     Kun titel, pris og beskrivelse: det er dem, Vinteds redigeringsformular
+     har som almindelige tekstfelter. Kategori, maerke og stoerrelse er
+     vaelgere, og de hoerer til, naar annoncen oprettes. */
+
+  var REDIGERES = null;
+
+  function aabnRedigering(d){
+    REDIGERES = d;
+    $('e-title').value = d.title || '';
+    $('e-desc').value = d.description || '';
+    $('e-price').value = String(d.price || '').replace(/[^0-9]/g, '');
+    $('edit-note').innerHTML = '';
+    show('edit');
+    // Hvor rettelsen ender, skal staa FOER du retter — ikke som en
+    // overraskelse bagefter.
+    sb.from('listings').select('platform, status').eq('draft_id', d.id)
+      .in('status', ['aktiv','pause']).then(function(res){
+        if(REDIGERES !== d || !$('edit-note')) return;
+        var p = (res.data || []).map(function(x){ return markedsNavn(x.platform); });
+        $('edit-note').innerHTML = '<p class="note">' + (p.length
+          ? 'Varen ligger på <b>' + esc(p.join(', ')) + '</b>. Det du retter her, bliver ' +
+            'lagt klar til annoncen — du sender det afsted med ét tryk bagefter.'
+          : 'Varen ligger ikke på nogen markedsplads endnu, så rettelsen bliver kun ' +
+            'i udkastet.') + '</p>';
+      });
+  }
+
+  $('edit-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var d = REDIGERES;
+    if(!d) return;
+    var knap = $('e-save');
+    var nyTitel = $('e-title').value.trim();
+    var nyTekst = $('e-desc').value.trim();
+    var nyPrisTal = parseInt($('e-price').value, 10);
+    if(!nyTitel){ toast('Titlen må ikke være tom'); return; }
+
+    // Kun det, der FAKTISK er lavet om, sendes videre. Ellers ville et besoeg
+    // paa skaermen uden aendringer alligevel sende en runde til Vinted og
+    // skrive de samme ord ind igen.
+    var gammelPris = parseInt(String(d.price || '').replace(/[^0-9]/g, ''), 10);
+    var aendret = {};
+    if(!ensLyd(nyTitel, d.title)) aendret.title = nyTitel;
+    if(!ensLyd(nyTekst, d.description)) aendret.description = nyTekst;
+    if(isFinite(nyPrisTal) && nyPrisTal > 0 && nyPrisTal !== gammelPris) aendret.price = nyPrisTal;
+    if(!Object.keys(aendret).length){ back(); toast('Der var ikke noget at ændre'); return; }
+
+    knap.disabled = true; knap.textContent = 'Gemmer …';
+    var opd = { title: nyTitel, description: nyTekst };
+    if(isFinite(nyPrisTal) && nyPrisTal > 0) opd.price = String(nyPrisTal);
+
+    sb.from('drafts').update(opd).eq('id', d.id).then(function(res){
+      if(res.error) throw new Error(res.error.message);
+      d.title = opd.title; d.description = opd.description;
+      if(opd.price) d.price = opd.price;
+      rows[d.id] = d;
+      return koeTilMarkedsplads(d, aendret);
+    }).then(function(antal){
+      knap.disabled = false; knap.textContent = 'Gem';
+      renderQueue();
+      back();
+      toast(antal ? 'Gemt — og lagt klar til markedspladsen' : 'Gemt');
+      if(currentId === d.id){ renderDetail(); hentAnnoncer(d.id); }
+      opdaterVagtTal();
+    }).catch(function(err){
+      knap.disabled = false; knap.textContent = 'Gem';
+      toast('Kunne ikke gemme: ' + (err && err.message ? err.message : 'ukendt fejl'));
+    });
+  });
+
+  // Rettelsen lægges i annoncens postkasse. Ligger der allerede noget — fx en
+  // prisnedsættelse fra prisvagten — lægges den ovenpå, saa de to ikke
+  // overskriver hinanden paa vej ud.
+  function koeTilMarkedsplads(d, aendret){
+    return sb.from('listings').select('id, pending, price')
+      .eq('draft_id', d.id).in('status', ['aktiv','pause']).then(function(res){
+        var l = res.data || [];
+        if(!l.length) return 0;
+        return Promise.all(l.map(function(x){
+          var nu = x.pending || {};
+          Object.keys(aendret).forEach(function(k){ nu[k] = aendret[k]; });
+          return sb.from('listings').update({
+            pending: nu,
+            pending_note: 'Rettet i appen',
+            pending_since: new Date().toISOString()
+          }).eq('id', x.id).then(function(){
+            return sb.from('price_events').insert({
+              listing_id: x.id, kind: 'rettet',
+              price: aendret.price || null, from_price: x.price,
+              note: 'rettet i appen: ' + Object.keys(aendret).map(function(k){
+                return FELT_NAVNE[k] || k;
+              }).join(', ')
+            });
+          });
+        })).then(function(){ return l.length; });
+      });
+  }
+
   /* ---- Løbenummer, QR og etiketter ----------------------------------------
      Et produkt findes to steder: i appen og i en papkasse. Løbenummeret er
      det, der binder dem sammen — det står på etiketten på pakken, og QR-koden
@@ -1496,6 +1743,17 @@
 
   var VAGT_EVENTS = {};   // listing-id -> prishistorik
 
+  // Hvilke felter venter paa at blive skrevet ind i annoncen? Baade
+  // prisvagtens forslag og dine egne rettelser ligger i den samme postkasse.
+  var FELT_NAVNE = { price:'pris', title:'titel', description:'beskrivelse' };
+  function venterFelter(l){
+    var p = (l && l.pending) || null;
+    if(!p) return [];
+    return Object.keys(FELT_NAVNE).filter(function(k){
+      return p[k] !== undefined && p[k] !== null && p[k] !== '';
+    }).map(function(k){ return FELT_NAVNE[k]; });
+  }
+
   function dageSiden(iso){
     if(!iso) return 0;
     var t = new Date(iso).getTime();
@@ -1525,10 +1783,17 @@
     h += '<div class="s">' + esc(l.platform) + ' · ' + dage + (dage === 1 ? ' dag' : ' dage') +
          ' · ' + (l.favourites || 0) + ' hjerter · ' + esc(prisKaede(l)) + '</div>';
 
-    if(l.pending_price){
-      h += '<div class="vagt-forslag"><b>Ny pris: ' + esc(String(l.pending_price)) + ' kr</b>' +
+    var venter = venterFelter(l);
+    if(venter.length){
+      var prisVenter = l.pending && l.pending.price;
+      h += '<div class="vagt-forslag"><b>' +
+           (prisVenter ? 'Ny pris: ' + esc(String(l.pending.price)) + ' kr'
+                       : 'Rettelser klar: ' + esc(venter.join(', '))) + '</b>' +
+           (prisVenter && venter.length > 1
+             ? '<span>Også: ' + esc(venter.filter(function(n){ return n !== 'pris'; }).join(', ')) + '</span>' : '') +
            (l.pending_note ? '<span>' + esc(l.pending_note) + '</span>' : '') +
-           '<button type="button" class="btn btn-primary" data-v="saet">Sæt prisen på Vinted</button></div>';
+           '<button type="button" class="btn btn-primary" data-v="saet">' +
+           (prisVenter ? 'Sæt prisen på Vinted' : 'Send rettelserne til Vinted') + '</button></div>';
     } else if(l.status === 'aktiv' && !l.auto){
       h += '<div class="vagt-stop">Prisvagten er holdt op med at sætte ned' +
            (l.note ? ': ' + esc(l.note) : '.') + '</div>';
@@ -1593,7 +1858,7 @@
     }
 
     var h = '';
-    var venter = aktive.filter(function(l){ return l.pending_price; }).length;
+    var venter = aktive.filter(function(l){ return venterFelter(l).length; }).length;
     var forfaldne = aktive.filter(function(l){
       return l.status === 'aktiv' && l.auto && new Date(l.next_check_at) <= new Date();
     }).length;
@@ -1633,11 +1898,11 @@
     // Foden: ét tryk, der aabner Vinted og lader automatikken goere resten.
     var fod = $('vagt-footer');
     if(venter){
-      fod.innerHTML = '<button type="button" class="btn btn-primary" id="vagt-go">Sæt ' +
-        venter + (venter === 1 ? ' ny pris' : ' nye priser') + ' på Vinted</button>';
+      fod.innerHTML = '<button type="button" class="btn btn-primary" id="vagt-go">Send ' +
+        venter + (venter === 1 ? ' rettelse' : ' rettelser') + ' til Vinted</button>';
       fod.hidden = false;
       $('vagt-go').addEventListener('click', function(){
-        var f = aktive.filter(function(l){ return l.pending_price; })[0];
+        var f = aktive.filter(function(l){ return venterFelter(l).length; })[0];
         aabnUdad('https://www.vinted.dk/items/' + f.external_id + '/edit');
       });
     } else if(forfaldne){
@@ -1671,7 +1936,7 @@
     if(v === 'solgt'){
       btn.disabled = true;
       sb.from('listings').update({ status:'solgt', sold_at:new Date().toISOString(),
-        pending_price:null, pending_note:null }).eq('id', l.id).then(function(){
+        pending:null, pending_note:null }).eq('id', l.id).then(function(){
         toast('Flyttet til solgt'); hentVagt();
       });
     }
@@ -1679,10 +1944,10 @@
 
   // Tallet i menuen: hvor mange varer venter paa dig lige nu.
   function opdaterVagtTal(){
-    sb.from('listings').select('id, pending_price, next_check_at, status, auto')
+    sb.from('listings').select('id, pending, next_check_at, status, auto')
       .eq('status','aktiv').then(function(res){
         var n = (res.data || []).filter(function(l){
-          return l.pending_price || (l.auto && new Date(l.next_check_at) <= new Date());
+          return venterFelter(l).length || (l.auto && new Date(l.next_check_at) <= new Date());
         }).length;
         var el = $('vagt-tal');
         if(!el) return;

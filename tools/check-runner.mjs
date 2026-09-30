@@ -5,25 +5,42 @@
 // funktion, der ER kaldt og IKKE defineret - og netop dét skete: en
 // tekst-erstatning slettede fire funktioner, scriptet blev udgivet, og fejlen
 // dukkede foerst op paa telefonen som "Can't find variable".
+//
+// Det skete IGEN, og den gang i app.js: en erstatning fra "her" til "der"
+// slugte renderDetail, fordi den laa imellem. `node --check` var gron, og
+// udgivelsen gik igennem - appen kunne bare ikke aabne et udkast. Derfor
+// tjekker den her nu ogsaa almindelige .js-filer: har filen ingen
+// String.raw-runner, laeses hele filen som kode.
 import { readFileSync } from "node:fs";
 
 const GLOBALE = new Set([
   "if","for","while","switch","catch","return","typeof","function","await","new",
   "Promise","Array","Object","String","Number","Math","Date","JSON","parseInt",
-  "parseFloat","setTimeout","clearTimeout","fetch","alert","eval","DataTransfer",
+  "parseFloat","setTimeout","clearTimeout","setInterval","clearInterval",
+  "requestAnimationFrame","cancelAnimationFrame",
+  "fetch","alert","confirm","eval","DataTransfer",
   "File","Event","InputEvent","KeyboardEvent","FocusEvent","DOMParser","AbortController",
   "encodeURIComponent","decodeURIComponent","Boolean","RegExp","Error",
-  "isFinite","isNaN",
+  "isFinite","isNaN","atob","btoa","parse","stringify",
+  // Browseren, som appen bruger den
+  "document","window","navigator","location","history","localStorage",
+  "sessionStorage","console","matchMedia","getComputedStyle","print","open",
+  "Image","Blob","FileReader","FormData","URL","Uint8Array","Set","Map",
+  "IntersectionObserver","MutationObserver","CustomEvent","Notification",
 ]);
 
 let fejl = 0;
 for (const sti of process.argv.slice(2)) {
   const kilde = readFileSync(sti, "utf8");
   const m = kilde.match(/String\.raw`([\s\S]*)`;\s*$/);
-  if (!m) { console.error(`${sti}: fandt ingen RUNNER-tekst`); fejl++; continue; }
+  // En .ts-fil SKAL have sin runner-tekst; en .js-fil er selv koden.
+  if (!m && /\.ts$/.test(sti)) {
+    console.error(`${sti}: fandt ingen RUNNER-tekst`); fejl++; continue;
+  }
+  const raatekst = m ? m[1] : kilde;
   // Kommentarer og tekststrenge ud foerst: dansk prosa som "annoncer (" og
   // farver som "rgba(" ligner ellers funktionskald.
-  const kode = m[1]
+  const kode = raatekst
     .replace(/\/\/[^\n]*/g, " ")
     .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
     .replace(/"(?:[^"\\\n]|\\.)*"/g, '""');

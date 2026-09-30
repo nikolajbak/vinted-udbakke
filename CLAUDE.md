@@ -60,13 +60,20 @@ stempler et indholds-fingeraftryk ind i adresserne (`app.js?v=…`). Uden det
 ville opdaterings-banneret tie — det sammenligner `index.html`s ETag — og
 GitHub Pages kunne servere ny HTML med gammel JS i op til ti minutter.
 
-**Kør `node tools/check-runner.mjs supabase/functions/*/runner.ts` før hver
-deploy af en runner.** Runnerne lever inde i en `String.raw`-tekst, så hverken
-TypeScript eller deploy ser dem som kode. `node --check` fanger syntaksfejl, men
-ikke en funktion, der er KALDT og ikke DEFINERET — og netop dét skete: en
-tekst-erstatning slettede `fillCategory`, `fillSelect`, `choose` og
-`ventPaaFelt` på én gang, scriptet blev udgivet, og fejlen dukkede først op på
-telefonen som "Can't find variable".
+**`node tools/check-runner.mjs supabase/functions/*/runner.ts app.js` kører
+som en del af `udgiv.sh`.** Den fanger en funktion, der er KALDT og ikke
+DEFINERET. `node --check` ser kun syntaks, og runnerne lever oveni købet inde i
+en `String.raw`-tekst, som hverken TypeScript eller deploy læser som kode.
+
+Det er sket to gange, begge gange med en tekst-erstatning, der gik fra ét sted
+til et andet og slugte alt imellem. Første gang forsvandt `fillCategory`,
+`fillSelect`, `choose` og `ventPaaFelt` fra runneren; fejlen dukkede op på
+telefonen som "Can't find variable". Anden gang forsvandt `renderDetail` ud af
+`app.js` — og dén nåede i produktion, hvor appen ikke kunne åbne et udkast.
+
+**Lav derfor ikke en erstatning, der spænder fra "her" til "der" i en fil, uden
+at vide hvad der ligger imellem.** Erstat den tekst, der skal væk, og ikke
+strækningen omkring den.
 
 Deno findes ikke lokalt. Skal noget afprøves i kørselsmiljøet, så deploy en
 midlertidig funktion og slet den bagefter.

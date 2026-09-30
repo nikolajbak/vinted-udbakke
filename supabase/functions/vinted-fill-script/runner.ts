@@ -633,27 +633,47 @@ async function tilsynsrunde(){
   var poster=[];
   for(var k=0;k<b.length;k++){
    if(b[k].handling==='saenk'&&b[k].nyPris>0&&b[k].externalId)
-    poster.push({listing:b[k].id,itemId:String(b[k].externalId),pris:b[k].nyPris,fra:b[k].fraPris});
+    poster.push({listing:b[k].id,itemId:String(b[k].externalId),
+                 felter:{price:b[k].nyPris},pris:b[k].nyPris,fra:b[k].fraPris});
   }
   log('vagt: '+b.length+' afgjort, '+poster.length+' prisændring(er)');
   return {beslutninger:b,poster:poster};
  }catch(e){log('vagt: tilsynet fejlede');return null}
 }
 
-// Sæt prisen ind på annoncens redigeringsside og gem. Kvitteringen sendes
-// først, når prisen er læst tilbage fra annoncen — ikke når feltet ser rigtigt
-// ud. Det er den samme lære som fra DBA: DOM'en lyver, serveren gør ikke.
-async function saetPris(post){
- for(var i=0;i<60;i++){ if(q('#price'))break; await sleep(250) }
- var pe=q('#price');
- if(!pe){log('vagt: intet prisfelt på redigeringssiden');return false}
- setv(pe,String(post.pris));
- await sleep(400);
+// Skriv de ændringer, der venter, ind på annoncens redigeringsside og gem.
+// Kvitteringen sendes først, når ændringerne er læst tilbage fra annoncen —
+// ikke når felterne ser rigtige ud. Det er den samme lære som fra DBA:
+// DOM'en lyver, kilden gør ikke.
+var FELT_TIL_INPUT={price:'#price',title:'#title',description:'#description'};
+
+async function anvend(post){
+ var f=post.felter||{};
+ // Prisfeltet er det eneste, der altid er der. Er det ikke dukket op, er vi
+ // ikke på redigeringssiden endnu.
+ for(var i=0;i<60;i++){ if(q('#price')||q('#title'))break; await sleep(250) }
+
+ var sat=[],manglende=[];
+ for(var navn in FELT_TIL_INPUT){
+  if(!(navn in f)||f[navn]===null||f[navn]==='')continue;
+  var el=q(FELT_TIL_INPUT[navn]);
+  if(!el){manglende.push(navn);continue}
+  setv(el,String(f[navn]));
+  sat.push(navn);
+  await sleep(150);
+ }
+ if(!sat.length){
+  log('anvend: ingen felter kunne sættes ('+manglende.join(',')+')');
+  baand('Felterne kunne ikke findes på redigeringssiden.',null,null);
+  return false;
+ }
+ log('anvend: satte '+sat.join(', ')+(manglende.length?' — manglede '+manglende.join(','):''));
+ await sleep(300);
  try{localStorage.setItem('udbakke_prisvagt_sat',JSON.stringify(
-  {listing:post.listing,itemId:post.itemId,pris:post.pris,tid:Date.now()}))}catch(e){}
+  {listing:post.listing,itemId:post.itemId,felter:f,satte:sat,tid:Date.now()}))}catch(e){}
 
  // Gem-knappen har ikke noget stabilt kendetegn, så den findes på sin tekst.
- // Findes den ikke, står prisen rigtigt i feltet, og du trykker selv.
+ // Findes den ikke, står ændringerne i felterne, og du trykker selv.
  var knapper=document.querySelectorAll('button,[role=button]');
  var gem=null;
  for(var n=0;n<knapper.length;n++){
@@ -661,18 +681,23 @@ async function saetPris(post){
   if(/^(gem|upload|opdater|opdatér|save|update)/.test(tx)&&!knapper[n].disabled){gem=knapper[n];break}
  }
  if(!gem){
-  baand('Prisvagt: prisen er sat til '+post.pris+' kr. Tryk Gem for at gemme den.',null,null);
-  log('vagt: fandt ingen gem-knap — prisen står i feltet');
+  baand('Ændringerne er sat ind ('+sat.join(', ')+'). Tryk Gem for at gemme dem.',null,null);
+  log('anvend: fandt ingen gem-knap');
   return false;
  }
  gem.click();
- log('vagt: gemmer '+post.fra+' → '+post.pris+' kr');
+ log('anvend: gemmer '+sat.join(', '));
  return true;
 }
 
-// Efter Gem sender Vinted dig tilbage til annoncen. Her læses prisen igen, og
+// Efter Gem sender Vinted dig tilbage til annoncen. Her læses den igen, og
 // først dér er ændringen en kendsgerning.
-async function bekraeftPris(){
+function ensLyd(a,b){
+ var n=function(x){return String(x==null?'':x).replace(/\s+/g,' ').trim().toLowerCase()};
+ return n(a)===n(b);
+}
+
+async function bekraeft(){
  var raw; try{raw=localStorage.getItem('udbakke_prisvagt_sat')}catch(e){return false}
  if(!raw)return false;
  var v; try{v=JSON.parse(raw)}catch(e){v=null}
@@ -680,17 +705,34 @@ async function bekraeftPris(){
  var num=location.pathname.match(/^\/items\/(\d+)/);
  if(!num||num[1]!==String(v.itemId)||/\/edit/.test(location.pathname))return false;
  try{localStorage.removeItem('udbakke_prisvagt_sat')}catch(e){}
+
  var set=await hentVare(v.itemId);
- if(!set||!set.price||Math.round(set.price)!==Math.round(v.pris)){
-  log('vagt: prisen blev ikke gemt ('+(set&&set.price)+' står stadig)');
-  baand('Prisvagt: prisen blev ikke gemt. Prøv igen fra appen.',null,null);
+ if(!set||!set.udgivet){
+  baand('Annoncen kunne ikke læses bagefter. Tjek den selv.',null,null);
+  return false;
+ }
+ // Hvert felt for sig: gik prisen igennem og titlen ikke, skal du vide
+ // hvilket af dem der mangler — ikke bare at "noget gik galt".
+ var ok=[],ikke=[];
+ (v.satte||[]).forEach(function(navn){
+  var oenske=v.felter[navn], faktisk=set.udgivet[navn];
+  var passer=(navn==='price')
+   ? (Math.round(Number(faktisk))===Math.round(Number(oenske)))
+   : ensLyd(faktisk,oenske);
+  (passer?ok:ikke).push(navn);
+ });
+ if(!ok.length){
+  log('bekræft: intet blev gemt');
+  baand('Ændringerne blev ikke gemt. Prøv igen fra appen.',null,null);
   return false;
  }
  try{
   await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'repriced',listing:v.listing,price:Math.round(set.price)})},20000);
+   body:JSON.stringify({mode:'anvendt',listing:v.listing,
+    price:set.price,felter:ok,udgivet:set.udgivet})},20000);
  }catch(e){}
- log('vagt: '+v.pris+' kr bekræftet på annoncen');
+ log('bekræft: '+ok.join(', ')+' gemt'+(ikke.length?' — '+ikke.join(',')+' gik ikke igennem':''));
+ if(ikke.length)baand('Gemt: '+ok.join(', ')+'. Gik ikke igennem: '+ikke.join(', ')+'.',null,null);
  return true;
 }
 
@@ -735,7 +777,7 @@ async function prisvagt(){
  var bedt=/[?&]udbakke=vagt/.test(location.search);
 
  // 1) Lige gemt en pris? Så skal den bekræftes, før noget andet.
- if(await bekraeftPris()){
+ if(await bekraeft()){
   var f=naeste();
   if(f){afslut(f.itemId)}
   var n=naeste();
@@ -757,10 +799,10 @@ async function prisvagt(){
     var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
      body:JSON.stringify({mode:'pending',item_id:red[1]})},20000);
     var pj=((await sv.json())||{}).pending;
-    if(pj)post={listing:pj.listing,itemId:red[1],pris:pj.pris,fra:pj.fra};
+    if(pj)post={listing:pj.listing,itemId:red[1],felter:pj.felter,fra:pj.fra};
    }catch(e){}
   }
-  if(post){await saetPris(post);return true}
+  if(post){await anvend(post);return true}
   return false;
  }
 

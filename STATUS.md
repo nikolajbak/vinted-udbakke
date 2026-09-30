@@ -18,6 +18,26 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Synkronisering UD til markedspladsen — bygget i dag.** Detaljeskærmen har
+   nu **Redigér annonce** (titel, pris, beskrivelse). Gemmer du, opdateres
+   udkastet, og ændringen lægges i `listings.pending` — den samme postkasse,
+   prisvagten bruger. Næste gang annoncens redigeringsside åbnes, skrives
+   felterne ind og gemmes, og kvitteringen sendes først, når ændringen er læst
+   TILBAGE fra annoncen. Felt for felt: gik prisen igennem og titlen ikke,
+   siger beskeden hvilket af dem der mangler.
+
+   `pending_price` er afløst af `pending` (jsonb). Tabellen var tom, så der var
+   intet at flytte.
+
+   **Kun titel, pris og beskrivelse.** Det er dem, Vinteds redigeringsformular
+   har som almindelige tekstfelter. Kategori, mærke og størrelse er vælgere og
+   hører til, når annoncen oprettes.
+
+   **Ikke kørt på en rigtig annonce.** Især: at `#title` og `#description`
+   findes på `/items/{id}/edit` og ikke kun på `/items/new`. Gør de ikke det,
+   siger banneret det, og prisen går igennem alene.
+
+
 0. **Synkronisering tilbage fra Vinted — bygget i dag.** `listings.published`
    rummer annoncens egne ord (pris, titel, beskrivelse, mærke, størrelse,
    stand, farve), læst af annoncen selv. Den fyldes tre steder: lige efter

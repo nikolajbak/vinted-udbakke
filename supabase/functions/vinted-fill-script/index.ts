@@ -779,7 +779,7 @@ async function tilsyn(maalinger: Maaling[]) {
     if (m.gone) {
       await supabase.from("listings").update({
         status: "solgt", sold_at: new Date().toISOString(),
-        last_check_at: new Date().toISOString(), pending_price: null, pending_note: null,
+        last_check_at: new Date().toISOString(), pending: null, pending_note: null,
       }).eq("id", r.id);
       await supabase.from("price_events").insert({
         listing_id: r.id, kind: "solgt", price: r.price,
@@ -836,7 +836,9 @@ async function tilsyn(maalinger: Maaling[]) {
     });
 
     if (b.handling === "saenk" && b.nyPris > 0 && b.nyPris < nuPris) {
-      opd.pending_price = b.nyPris;
+      // Samme postkasse som appens egne rettelser: ét sted at kigge, naar
+      // spoergsmaalet er "hvad mangler at blive skrevet ind i annoncen".
+      opd.pending = { price: b.nyPris };
       opd.pending_note = b.begrundelse;
       opd.pending_since = new Date().toISOString();
       await supabase.from("price_events").insert({
@@ -846,7 +848,7 @@ async function tilsyn(maalinger: Maaling[]) {
       });
       aendringer++;
     } else {
-      opd.pending_price = null;
+      opd.pending = null;
       opd.pending_note = null;
       opd.pending_since = null;
       opd.note = b.begrundelse;
@@ -1026,6 +1028,7 @@ Deno.serve(async (req: Request) => {
       maalinger?: Maaling[];
       listing?: string;
       udgivet?: Record<string, unknown> | null;
+      felter?: unknown;
       gone?: boolean;
       favourites?: number;
     };
@@ -1073,10 +1076,11 @@ Deno.serve(async (req: Request) => {
       const it = String(body.item_id ?? "");
       if (!it) return json({ error: "mangler" }, 400);
       const { data: r } = await supabase.from("listings")
-        .select("id, price, pending_price, pending_note")
+        .select("id, price, pending, pending_note")
         .eq("platform", "vinted").eq("external_id", it).maybeSingle();
-      if (!r || !r.pending_price) return json({ pending: null });
-      return json({ pending: { listing: r.id, pris: Number(r.pending_price),
+      const p = r?.pending as Record<string, unknown> | null;
+      if (!r || !p || !Object.keys(p).length) return json({ pending: null });
+      return json({ pending: { listing: r.id, felter: p,
         fra: Number(r.price), note: r.pending_note } });
     }
 
@@ -1093,7 +1097,7 @@ Deno.serve(async (req: Request) => {
       if (body.gone) {
         await supabase.from("listings").update({
           status: "solgt", sold_at: new Date().toISOString(),
-          pending_price: null, pending_note: null, synced_at: new Date().toISOString(),
+          pending: null, pending_note: null, synced_at: new Date().toISOString(),
         }).eq("id", r.id);
         await supabase.from("price_events").insert({
           listing_id: r.id, kind: "solgt", price: Number(r.price),
@@ -1122,23 +1126,36 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Prisen er faktisk aendret paa Vinted — bekraeftet ved at laese den
-    // tilbage fra annoncen, ikke ved at have skrevet i et felt.
-    if (body.mode === "repriced") {
+    // AEndringerne er faktisk skrevet ind i annoncen — bekraeftet ved at laese
+    // annoncen tilbage, ikke ved at have skrevet i et felt.
+    if (body.mode === "anvendt") {
       const id = String(body.listing ?? "");
-      const ny = Math.round(Number(body.price) || 0);
-      if (!id || !(ny > 0)) return json({ error: "mangler" }, 400);
+      if (!id) return json({ error: "mangler" }, 400);
       const { data: r } = await supabase.from("listings")
-        .select("price, floor_price, start_price").eq("id", id).maybeSingle();
+        .select("price, published").eq("id", id).maybeSingle();
       if (!r) return json({ error: "ukendt annonce" }, 404);
-      await supabase.from("listings").update({
-        price: ny,
-        last_change_at: new Date().toISOString(),
-        pending_price: null, pending_note: null, pending_since: null,
-      }).eq("id", id);
+
+      const snap = renUdgivet(body.udgivet);
+      const ny = Math.round(Number(body.price) || Number(snap?.price) || 0);
+      const opd: Record<string, unknown> = {
+        pending: null, pending_note: null, pending_since: null,
+        synced_at: new Date().toISOString(),
+      };
+      if (snap) opd.published = snap;
+      if (ny > 0) opd.price = ny;
+      // last_change_at styrer, hvor laenge prisvagten holder sig i ro. Den maa
+      // kun roeres, naar det var PRISEN, der blev aendret — en rettet titel
+      // skal ikke udsaette naeste prisjustering.
+      if (ny > 0 && ny !== Number(r.price)) opd.last_change_at = new Date().toISOString();
+      await supabase.from("listings").update(opd).eq("id", id);
+
+      const felter = Array.isArray(body.felter) ? body.felter as string[] : [];
       await supabase.from("price_events").insert({
-        listing_id: id, kind: "aendret", price: ny, from_price: Number(r.price),
-        note: "sat på Vinted",
+        listing_id: id,
+        kind: ny > 0 && ny !== Number(r.price) ? "aendret" : "rettet",
+        price: ny > 0 ? ny : null,
+        from_price: Number(r.price),
+        note: "sat på Vinted" + (felter.length ? ": " + felter.join(", ") : ""),
       });
       return json({ ok: true });
     }

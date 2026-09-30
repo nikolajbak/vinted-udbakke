@@ -441,6 +441,29 @@
   .maerke:hover svg, .maerke:focus-visible svg{ opacity: 1; }
   .sect > .maerke-rad{ margin-top: var(--s2); margin-bottom: var(--s3); }
 
+  /* ---- Redigering --------------------------------------------------------
+     Felterne fylder skaermen. Det er den ene skaerm i appen, hvor man skriver
+     frem for at trykke, og et tekstfelt, der er lige saa hoejt som en knap,
+     goer en beskrivelse paa seks linjer til et kighul. */
+  .felter{ display: flex; flex-direction: column; gap: var(--s4); }
+  .felt{ display: flex; flex-direction: column; gap: var(--s2); }
+  .felt > span{
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: var(--t-label); letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .felt input, .felt textarea{
+    width: 100%; padding: var(--s3);
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--raised); color: var(--ink);
+    font: inherit; font-size: var(--t-body); line-height: 1.55;
+  }
+  .felt input{ min-height: var(--tap); }
+  .felt textarea{ resize: vertical; min-height: 9em; }
+  .felt input:focus-visible, .felt textarea:focus-visible{
+    outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus);
+  }
+
   /* ---- Scanner og etiketter ---------------------------------------------- */
   .link-btn{
     background: none; border: 0; padding: var(--s2);
