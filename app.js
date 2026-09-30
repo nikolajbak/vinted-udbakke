@@ -159,7 +159,7 @@
   // Tre prikker paa kortet: hvor har varen vaeret? Med én markedsplads var det
   // ligegyldigt; med tre er det dét, man skal kunne se uden at aabne udkastet.
   function markedsMaerker(d){
-    if(d.status !== 'ny') return '';
+    if(d.status !== 'ny' && d.status !== 'afsendt') return '';
     var sendt = sendtTil(d);
     return '<span class="marks">' + MARKEDER.map(function(m){
       return '<i class="' + (sendt[m.k] ? 'on' : '') + '" title="' + esc(m.navn) + '"></i>';
@@ -355,7 +355,31 @@
   }
 
   /* ---- Detalje ---------------------------------------------------------- */
-  function openDetail(id){ currentId = id; renderDetail(); show('detail'); }
+  function openDetail(id){ currentId = id; renderDetail(); show('detail'); hentAnnoncer(id); }
+
+  // Prisvagten kender annoncens adresse ude paa markedspladsen. Er den lagt op
+  // med automatikken, kan man derfor gaa fra udkastet til den rigtige annonce
+  // — og se hvad den koster NU, som kan vaere noget andet end det, udkastet
+  // siger.
+  function hentAnnoncer(id){
+    sb.from('listings').select('platform, url, external_id, price, status')
+      .eq('draft_id', id).then(function(res){
+        if(currentId !== id) return;
+        var el = $('d-links');
+        if(!el) return;
+        var l = (res.data || []).filter(function(x){ return x.url; });
+        if(!l.length) return;
+        el.innerHTML = l.map(function(x){
+          var navn = (MARKEDER.filter(function(m){ return m.k === x.platform; })[0] || {}).navn || x.platform;
+          var hale = x.status === 'solgt' ? ' · solgt' : ' · ' + x.price + ' kr';
+          return '<button type="button" class="btn btn-secondary" data-aabn="' + esc(x.url) + '">' +
+                 'Åbn på ' + esc(navn) + esc(hale) + '</button>';
+        }).join('');
+        Array.prototype.forEach.call(el.querySelectorAll('[data-aabn]'), function(b){
+          b.addEventListener('click', function(){ aabnUdad(b.getAttribute('data-aabn')); });
+        });
+      });
+  }
 
   function renderDetail(){
     var d = rows[currentId];
@@ -382,7 +406,7 @@
       html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det.</div>';
     }
 
-    if(d.status === 'ny'){
+    if(d.status === 'ny' || d.status === 'afsendt'){
       html += '<div class="price-row"><span class="price-big mono">' + esc(d.price || '?') + '</span>' +
               (d.price_grounded === false ? '<span class="chip chip-vent">Foreløbig</span>' : '') + '</div>';
       if(d.price_grounded === false){
@@ -426,6 +450,14 @@
     // ligger i indholdet — så fylder bundlinjen ikke en tredjedel af skærmen,
     // og "Kasser" ligger ikke lige ved siden af det, du trykker på dagligt.
     var rest = '<div class="sect">';
+    // En afsendt annonce aabnes for at blive laest — og for at komme videre til
+    // den rigtige annonce ude paa markedspladsen. Den plads staar tom, til
+    // opslaget svarer; ellers ville knapperne hoppe paa plads bagefter.
+    if(d.status === 'afsendt'){
+      rest += '<div id="d-links"></div>' +
+              '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>';
+    }
     if(d.status === 'ny'){
       // "Gem billeder i Fotos" er en hjaelpehandling og hoerer til her, ikke
       // paa linje med de tre markedspladser. Den fyldte en fjerdedel af foden
@@ -434,7 +466,8 @@
               '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
               '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
     }
-    rest += '<button type="button" class="btn btn-danger" data-a="discard">Kasser udkast</button></div>';
+    rest += '<button type="button" class="btn btn-danger" data-a="discard">' +
+            (d.status === 'afsendt' ? 'Fjern fra listen' : 'Kasser udkast') + '</button></div>';
     $('d-body').insertAdjacentHTML('beforeend', rest);
 
     var f = '';
@@ -523,8 +556,11 @@
       back(); toast('Flyttet til afsendte annoncer');
     }
     else if(a === 'discard'){
+      var vAfsendt = d.status === 'afsendt';
       sb.from('drafts').update({ status: 'kasseret' }).eq('id', d.id);
-      back(); toast('Udkastet er kasseret');
+      delete rows[d.id];
+      back(); toast(vAfsendt ? 'Fjernet fra listen' : 'Udkastet er kasseret');
+      if(vAfsendt) hentHistorik();
     }
     else if(a === 'retry'){
       btn.disabled = true; btn.textContent = 'Starter …';
@@ -1119,12 +1155,21 @@
           return;
         }
         var data = res.data || [];
+        // De afsendte laegges i samme kartotek som koeen. Uden det kan
+        // detaljeskaermen ikke finde dem — den slaar op paa id, ikke paa
+        // hvilken liste man kom fra.
+        data.forEach(function(d){ rows[d.id] = d; });
         krop.innerHTML = data.length ? data.map(function(d){
-          return '<div class="hist-row">' +
-            (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '') +
+          return '<button type="button" class="hist-row" data-id="' + esc(d.id) + '">' +
+            (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
             '<div><div class="t">' + esc(d.title || '') + '</div>' +
-            '<div class="s">' + esc(d.price || '') + ' · ' + esc(relTime(d.posted_at)) + '</div></div></div>';
+            '<div class="s">' + esc(d.price || '') + ' · ' + esc(relTime(d.posted_at)) +
+            markedsMaerker(d) + '</div></div>' +
+            '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></button>';
         }).join('') : '<div class="empty"><p>Ingen postede annoncer endnu.</p></div>';
+        Array.prototype.forEach.call(krop.querySelectorAll('.hist-row'), function(r){
+          r.addEventListener('click', function(){ openDetail(r.getAttribute('data-id')); });
+        });
       });
   }
   /* ---- Prisvagt -----------------------------------------------------------

@@ -404,10 +404,18 @@
              font-size: var(--t-small); line-height: 1.7; }
   .setup ol b{ color: var(--ink); }
 
+  /* Raekken er en knap nu: de afsendte annoncer kan aabnes som alt andet i
+     appen. Knappens egne arvestykker - ramme, baggrund, centreret tekst -
+     skal vaek, ellers ligner listen pludselig en raekke formularfelter. */
   .hist-row{ display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0;
-             border-bottom: 1px solid var(--line); }
-  .hist-row img{ width: 44px; height: 44px; object-fit: contain; background: var(--surface); border-radius: 6px; border: 1px solid var(--line); }
-  .hist-row div{ min-width: 0; }
+             border-bottom: 1px solid var(--line);
+             width: 100%; background: none; border-top: 0; border-left: 0; border-right: 0;
+             color: inherit; font: inherit; text-align: left; cursor: pointer;
+             min-height: var(--tap); }
+  .hist-row img, .hist-row .ph{ width: 44px; height: 44px; flex: 0 0 auto;
+             object-fit: contain; background: var(--surface); border-radius: 6px;
+             border: 1px solid var(--line); }
+  .hist-row > div{ min-width: 0; flex: 1 1 auto; }
   .hist-row .t{ font-weight: 600; font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hist-row .s{ font-size: var(--t-small); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
@@ -425,6 +433,10 @@
     font-size: var(--t-label); font-weight: 700; line-height: 22px; text-align: center;
     font-variant-numeric: tabular-nums;
   }
+  #d-links{ display: flex; flex-direction: column; gap: var(--s2); }
+  #d-links:not(:empty){ margin-bottom: var(--s3); }
+  #d-links .btn{ margin: 0; }
+
   .vagt-intro{ margin-bottom: var(--s4); }
   .vagt-row{ padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
   .vagt-top{ display: flex; align-items: baseline; gap: var(--s3); }
