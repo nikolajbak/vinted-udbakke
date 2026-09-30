@@ -209,7 +209,11 @@ export async function beslutPris(
   let handling = String(out.handling ?? "behold") as Beslutning["handling"];
   if (handling !== "saenk" && handling !== "behold" && handling !== "stop") handling = "behold";
   let pris = Math.round(Number(out.nyPris) || nu);
+  // Modellens eget tal gemmes: naar en spaerre flytter prisen, staar tallet
+  // stadig i begrundelsen, og saa ville skaermen sige to forskellige ting.
+  const modelPris = pris;
   let spaerret: string | null = null;
+  let bremset = false;
 
   // ---- Spaerrerne. Rekkefoelgen er ikke tilfaeldig: afrundingen skal ske
   // FOER bunden, ellers kan en oprunding skubbe prisen under den igen.
@@ -217,7 +221,10 @@ export async function beslutPris(
     if (pris >= nu) { handling = "behold"; pris = nu; spaerret = "modellen ville ikke sætte ned"; }
     else {
       const loft = Math.floor(nu * (1 - MAKS_SPRING));
-      if (pris < loft) { pris = loft; spaerret = `springet er begrænset til ${Math.round(MAKS_SPRING * 100)}%`; }
+      if (pris < loft) {
+        pris = loft; bremset = true;
+        spaerret = `springet er begrænset til ${Math.round(MAKS_SPRING * 100)}%`;
+      }
       const feltgulv = felt ? Math.floor(felt.p25 * 0.6) : 0;
       if (feltgulv && pris < feltgulv) { pris = feltgulv; spaerret = "prisen ville stikke af nedad fra feltet"; }
       pris = roundPrice(pris);
@@ -250,12 +257,26 @@ export async function beslutPris(
   let naeste = Math.round(Number(out.naesteTjekDage) || 7);
   if (!Number.isFinite(naeste)) naeste = 7;
   naeste = Math.min(30, Math.max(3, naeste));
+  // Bremsede vi springet, er beslutningen kun halvt gennemfoert. Saa skal der
+  // kigges igen snart, ikke om en maaned.
+  if (bremset) naeste = Math.min(naeste, 7);
+
+  // Begrundelsen er skrevet FOER spaerrerne, saa den kan naevne et andet tal
+  // end det, der faktisk bliver sat. Sig det, i stedet for at lade to tal staa
+  // og modsige hinanden paa skaermen.
+  let begrundelse = String(out.begrundelse ?? "").trim().slice(0, 400);
+  if (handling === "saenk" && pris !== modelPris) {
+    begrundelse += ` Prisvagten sætter den til ${pris} kr denne gang — ${spaerret}. ` +
+      "Resten kan komme næste runde.";
+  } else if (handling === "behold" && modelPris < nu) {
+    begrundelse += ` Prisen bliver stående på ${nu} kr: ${spaerret}.`;
+  }
 
   return {
     id: v.id,
     handling,
     nyPris: pris,
-    begrundelse: String(out.begrundelse ?? "").trim().slice(0, 400),
+    begrundelse,
     naesteTjekDage: naeste,
     median: felt ? felt.median : null,
     sammenlignelige: felt ? felt.n : 0,
