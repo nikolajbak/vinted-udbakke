@@ -123,6 +123,19 @@ const CHECK_TOOL = {
         enum: [0, 90, 180, 270],
         description: "Hvor mange grader MED URET billedet mangler at blive drejet. 0 hvis det allerede vender rigtigt.",
       },
+      // Et ja/nej om retning er for nemt at svare 0 paa. Produkt 8's
+      // forfra-billede kom ud paa hovedet, og kontrollen sagde god for det.
+      // Peger den i stedet paa kraven, kan den ikke svare uden at se efter -
+      // og graderne regnes i koden, hvor de ikke kan blive gaettet forkert.
+      varensTop: {
+        type: "string",
+        enum: ["oeverst", "nederst", "venstre", "hoejre", "ikke_toej"],
+        description:
+          "Er varen et toejstykke: hvor i BILLEDET ligger den ende, der baeres oeverst " +
+          "— krave, halsaabning, skulderlinje, linning paa bukser? Aermer og ben siger " +
+          "intet. Er motivet ikke et toejstykke (et maerkat, et logo, en detalje), svar " +
+          "\"ikke_toej\".",
+      },
       tooTight: {
         type: "boolean",
         description:
@@ -132,7 +145,7 @@ const CHECK_TOOL = {
       },
       why: { type: "string", description: "Meget kort, kun hvis true" },
     },
-    required: ["missingDegrees", "tooTight"],
+    required: ["missingDegrees", "tooTight", "varensTop"],
   },
 };
 
@@ -462,8 +475,11 @@ Deno.serve(async (req: Request) => {
         try {
           const check = await callClaudeJson(
             "Du er art director og ser på ét foto, der er gjort klar til en Vinted-annonce.\n" +
-              "1) Vender varen rigtigt? Et tøjstykke vender rigtigt, når halsen/skulderen er opad. " +
-              "Sko, når sålen er nedad. Et mærkat, når teksten kan læses vandret. Svar 0 ved tvivl.\n" +
+              "1) Vender varen rigtigt? Er motivet et tøjstykke, så sig hvor i billedet den ende " +
+              "ligger, der bæres øverst — krave, halsåbning, skulderlinje, eller linningen på " +
+              "bukser. Ærmer og ben siger intet om retningen. Sko vender rigtigt med sålen " +
+              "nedad, et mærkat når teksten kan læses vandret. Svar kun 0 grader, hvis " +
+              "billedet faktisk vender rigtigt — ikke som en måde at slippe uden om.\n" +
               "2) Er motivet klemt op ad en kant uden luft omkring sig, eller er noget væsentligt " +
               "skåret væk af RAMMEN? Et mærkat eller et logo skal have luft hele vejen rundt. " +
               "Var motivet allerede skåret af, da billedet blev taget, er det ikke rammens skyld.",
@@ -474,7 +490,13 @@ Deno.serve(async (req: Request) => {
             CHECK_TOOL,
             250,
           );
-          const missing = Number(check.missingDegrees) || 0;
+          // Kravens plads vejer tungere end et tal, modellen selv skulle regne
+          // ud. Er den kendt, bestemmer den; ellers falder vi tilbage.
+          const TOP_TIL_GRADER: Record<string, number> = {
+            oeverst: 0, nederst: 180, venstre: 90, hoejre: 270,
+          };
+          const fraTop = TOP_TIL_GRADER[String(check.varensTop ?? "")];
+          const missing = fraTop === undefined ? (Number(check.missingDegrees) || 0) : fraTop;
           const spin = (missing === 90 || missing === 180 || missing === 270);
           const tight = check.tooTight === true;
           if (spin || tight) {
