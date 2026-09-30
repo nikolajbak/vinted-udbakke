@@ -314,9 +314,18 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   (3 × 7 af 63,5 × 38,1 mm, som passer i 194 × 271 mm). En grid, der selv skal
   finde sideskiftet, sætter før eller siden en række hen over kanten, og så er
   de etiketter spildt.
-- **`.label` er appens versal-overskrift.** Printetiketterne hedder `.etiket`.
-  Kaldte de sig `.label`, arvede hver eneste etikettitel `text-transform:
-  uppercase` og 11 px — det så man først på et printark.
+- **Korte klassenavne i `style.css` er allerede taget.** `.label` er appens
+  versal-overskrift, og `.h` er beskæringens hjørnehåndtag (`position:
+  absolute` med en hvid firkant). Begge blev genbrugt ved et uheld: hver
+  etikettitel kom ud med store bogstaver, og "ændret" blev tegnet som en hvid
+  firkant oven i nøgleordet. Nye dele får et præfiks — `.etiket-…`, `.ud-…`,
+  `.vagt-…`, `.lbl-…`.
+- **Udkastet og annoncen er to forskellige ting.** Udkastet er det, vi sendte
+  afsted; `listings.published` er annoncens egne ord, læst af annoncen selv.
+  De skilles ad med vilje: retter du en titel i Vinteds formular, eller sætter
+  prisvagten prisen ned, skal appen kunne vise BEGGE dele — ellers ved du ikke,
+  om tallet i appen er det, køberen ser. Udkastet overskrives aldrig af en
+  synkronisering.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

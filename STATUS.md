@@ -18,6 +18,26 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Synkronisering tilbage fra Vinted — bygget i dag.** `listings.published`
+   rummer annoncens egne ord (pris, titel, beskrivelse, mærke, størrelse,
+   stand, farve), læst af annoncen selv. Den fyldes tre steder: lige efter
+   Upload, ved hvert pristilsyn, og på opfordring via **Opdatér fra Vinted**
+   på udkastet (åbner annoncen med `?udbakke=synk`). Detaljeskærmen viser
+   annoncens pris som det store tal og lister de felter, der afviger fra
+   udkastet.
+
+   **Det usikre er feltnavnene.** `hentVare()` prøver flere navne pr. felt
+   (`brand_title`/`brand`/`brand_dto`, `size_title`/`size`, `status`/
+   `condition` …) og skriver i `window.__UDBAKKE_LOG__`, hvilke der IKKE blev
+   fundet. Et felt, der ikke findes, vises bare ikke — der opfindes ingenting.
+   Kør én rigtig synkronisering og læs loggen; så kan listen skæres ind til de
+   navne, Vinted faktisk bruger.
+
+   Særligt `status`: den bruges både som gæt på stand OG i tjekket for, om
+   varen er solgt. Viser loggen, at den betyder det ene, skal det andet
+   bruge et andet felt.
+
+
 0. **Løbenumre, QR og etiketter — bygget i dag.** Hver vare har nu et
    løbenummer fra en sekvens (`drafts.nr`, de fem eksisterende er nummereret
    1–5), og QR-koden er det samme nummer som en adresse ind i appen.

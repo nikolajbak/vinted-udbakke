@@ -515,9 +515,32 @@
     font-size: var(--t-label); font-weight: 700; line-height: 22px; text-align: center;
     font-variant-numeric: tabular-nums;
   }
-  #d-links{ display: flex; flex-direction: column; gap: var(--s2); }
-  #d-links:not(:empty){ margin-bottom: var(--s3); }
-  #d-links .btn{ margin: 0; }
+  /* ---- Annoncen, som den staar ude ---------------------------------------
+     Udkastet er hvad vi sendte; det her er hvad der blev lagt op. De to skal
+     kunne ses ved siden af hinanden - ellers ved man ikke, om prisen i appen
+     er den, koeberen ser. */
+  #d-udgivet:not(:empty){ margin-bottom: var(--s4); }
+  .udgivet + .udgivet{ margin-top: var(--s5); }
+  .udgivet > .btn{ margin-top: var(--s2); }
+
+  .udgivet-liste{ margin-top: var(--s2); }
+  .ud-rk{
+    display: grid; grid-template-columns: 6.5em 1fr; gap: 0 var(--s3);
+    padding: var(--s2) 0; border-bottom: 1px solid var(--line);
+    font-size: var(--t-small);
+  }
+  /* ud- foran hver enkelt: `.h` var i forvejen beskaeringens hjoernehaandtag,
+     saa "aendret" blev tegnet som en hvid firkant oven i noeglen. Et
+     klassenavn paa ét bogstav i et faelles stylesheet er en faelde. */
+  .ud-rk .ud-k{ color: var(--ink-soft); }
+  .ud-rk .ud-v{ min-width: 0; overflow-wrap: anywhere; }
+  /* "aendret" hoerer til vaerdien, ikke til raekken: den skal staa UNDER
+     teksten, ogsaa naar beskrivelsen fylder seks linjer. */
+  .ud-rk .ud-h{
+    grid-column: 2; font-size: var(--t-label); color: var(--amber);
+    text-transform: uppercase; letter-spacing: .06em; margin-top: 2px;
+  }
+  .pris-foer{ font-size: var(--t-small); color: var(--ink-soft); }
 
   .vagt-intro{ margin-bottom: var(--s4); }
   .vagt-row{ padding: var(--s3) 0; border-bottom: 1px solid var(--line); }

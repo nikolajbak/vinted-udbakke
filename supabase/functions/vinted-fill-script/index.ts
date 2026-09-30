@@ -680,12 +680,36 @@ async function puf(title: string, body: string) {
 }
 
 // Annoncen er landet. Herfra er den prisvagtens.
+// Annoncens egne oplysninger, renset. Modellen for hvad vi gemmer er den
+// samme hver gang, saa appen ikke skal gaette paa formen.
+function renUdgivet(u: unknown): Record<string, unknown> | null {
+  if (!u || typeof u !== "object") return null;
+  const o = u as Record<string, unknown>;
+  const tekst = (v: unknown) => {
+    const t = typeof v === "string" ? v.trim() : "";
+    return t ? t.slice(0, 4000) : null;
+  };
+  const pris = Math.round(Number(o.price) || 0);
+  return {
+    price: pris > 0 ? pris : null,
+    title: tekst(o.title),
+    description: tekst(o.description),
+    brand: tekst(o.brand),
+    size: tekst(o.size),
+    condition: tekst(o.condition),
+    color: tekst(o.color),
+    url: tekst(o.url),
+    kilde: tekst(o.kilde),
+  };
+}
+
 async function registrer(
   draftId: string,
   platform: string,
   externalId: string,
   url: string,
   pris: number,
+  udgivet?: unknown,
 ) {
   if (!externalId) return null;
   const { data: findes } = await supabase.from("listings")
@@ -706,6 +730,8 @@ async function registrer(
     search_query: d?.search_query || cleanText(d?.title ?? ""),
     price: p,
     start_price: p,
+    published: renUdgivet(udgivet),
+    synced_at: udgivet ? new Date().toISOString() : null,
     // Foerste tjek efter en uge. Foer da ved ingen noget: en vare kan ligge
     // fem dage og saa blive solgt paa den sjette, og en nedsaettelse dagen
     // foer havde bare vaeret foraeret vaek.
@@ -800,6 +826,8 @@ async function tilsyn(maalinger: Maaling[]) {
       // ret. Du kan have rettet den selv.
       price: nuPris,
     };
+    const snap = renUdgivet((m as unknown as { udgivet?: unknown }).udgivet);
+    if (snap) { opd.published = snap; opd.synced_at = new Date().toISOString(); }
 
     await supabase.from("price_events").insert({
       listing_id: r.id, kind: "maalt", price: nuPris, favourites: hjerter,
@@ -997,6 +1025,9 @@ Deno.serve(async (req: Request) => {
       price?: number;
       maalinger?: Maaling[];
       listing?: string;
+      udgivet?: Record<string, unknown> | null;
+      gone?: boolean;
+      favourites?: number;
     };
     try {
       body = await req.json();
@@ -1047,6 +1078,38 @@ Deno.serve(async (req: Request) => {
       if (!r || !r.pending_price) return json({ pending: null });
       return json({ pending: { listing: r.id, pris: Number(r.pending_price),
         fra: Number(r.price), note: r.pending_note } });
+    }
+
+    // Én annonce, laest paa opfordring. Serveren gemmer annoncens egne ord ved
+    // siden af udkastet - udkastet selv roeres ikke: forskellen mellem dem er
+    // netop dét, appen skal kunne vise.
+    if (body.mode === "synk") {
+      const it = String(body.item_id ?? "");
+      if (!it) return json({ error: "mangler" }, 400);
+      const { data: r } = await supabase.from("listings")
+        .select("id, price").eq("platform", "vinted").eq("external_id", it).maybeSingle();
+      if (!r) return json({ ukendt: true });
+
+      if (body.gone) {
+        await supabase.from("listings").update({
+          status: "solgt", sold_at: new Date().toISOString(),
+          pending_price: null, pending_note: null, synced_at: new Date().toISOString(),
+        }).eq("id", r.id);
+        await supabase.from("price_events").insert({
+          listing_id: r.id, kind: "solgt", price: Number(r.price),
+          note: "annoncen findes ikke længere på Vinted",
+        });
+        return json({ ok: true, gone: true });
+      }
+
+      const snap = renUdgivet(body.udgivet);
+      const nu = Math.round(Number(body.price) || 0);
+      const opd: Record<string, unknown> = { synced_at: new Date().toISOString() };
+      if (snap) opd.published = snap;
+      if (nu > 0) opd.price = nu;
+      if (Number.isFinite(Number(body.favourites))) opd.favourites = Number(body.favourites);
+      await supabase.from("listings").update(opd).eq("id", r.id);
+      return json({ ok: true, published: snap });
     }
 
     if (body.mode === "watch") {
@@ -1111,7 +1174,17 @@ Deno.serve(async (req: Request) => {
           String(body.id), "vinted", String(body.item_id),
           String(body.url ?? `https://www.vinted.dk/items/${body.item_id}`),
           Math.round(Number(body.price) || 0),
+          body.udgivet,
         );
+        // Fandtes annoncen i forvejen, opretter registrer() ingenting - men
+        // teksten kan vaere rettet i formularen lige foer Upload, og saa er
+        // DEN nyere end det, vi har staaende.
+        if (vagt && body.udgivet) {
+          await supabase.from("listings").update({
+            published: renUdgivet(body.udgivet),
+            synced_at: new Date().toISOString(),
+          }).eq("id", vagt);
+        }
       }
       return json({ ok: true, listing: vagt });
     }

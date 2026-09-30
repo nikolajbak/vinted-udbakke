@@ -364,151 +364,116 @@
   // — og se hvad den koster NU, som kan vaere noget andet end det, udkastet
   // siger.
   function hentAnnoncer(id){
-    sb.from('listings').select('platform, url, external_id, price, status')
+    sb.from('listings').select('platform, url, external_id, price, status, published, synced_at')
       .eq('draft_id', id).then(function(res){
         if(currentId !== id) return;
-        var el = $('d-links');
+        var el = $('d-udgivet');
         if(!el) return;
-        var l = (res.data || []).filter(function(x){ return x.url; });
+        var l = (res.data || []).filter(function(x){ return x.url || x.published; });
         if(!l.length) return;
-        el.innerHTML = l.map(function(x){
-          var navn = (MARKEDER.filter(function(m){ return m.k === x.platform; })[0] || {}).navn || x.platform;
-          var hale = x.status === 'solgt' ? ' · solgt' : ' · ' + x.price + ' kr';
-          return '<button type="button" class="btn btn-secondary" data-aabn="' + esc(x.url) + '">' +
-                 'Åbn på ' + esc(navn) + esc(hale) + '</button>';
-        }).join('');
+        var d = rows[id];
+        el.innerHTML = l.map(function(x){ return udgivetBlok(x, d); }).join('');
+        visUdgivetPris(l, d);
         Array.prototype.forEach.call(el.querySelectorAll('[data-aabn]'), function(b){
           b.addEventListener('click', function(){ aabnUdad(b.getAttribute('data-aabn')); });
         });
       });
   }
 
-  function renderDetail(){
-    var d = rows[currentId];
-    if(!d) return;
-    $('d-title').textContent = d.title || 'Udkast';
-    var photos = d.photos || [];
-    var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
-
-    var html = '';
-    var gal = photos.length ? photos : (d.image_url ? [{ url: d.image_url, kind: '' }] : []);
-    if(gal.length){
-      html += '<div class="gallery"><div class="hero-track" id="d-track">' +
-        gal.map(function(p){ return '<img class="hero" src="' + esc(p.url) + '" alt="' + esc(p.kind || '') + '">'; }).join('') +
-        '</div>' +
-        (gal.length > 1 ? '<div class="dots" id="d-dots">' + gal.map(function(_, i){
-          return '<i class="' + (i === 0 ? 'on' : '') + '"></i>';
-        }).join('') + '</div>' : '') +
-      '</div>';
-    }
-    if(photos.length){
-      html += '<div class="strip" id="d-strip">' + photos.map(function(p, i){
-        return '<img src="' + esc(p.url) + '" data-i="' + i + '" alt="' + esc(p.kind || '') + '">';
-      }).join('') + '</div>';
-      html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det.</div>';
-    }
-
-    if(d.status === 'ny' || d.status === 'afsendt'){
-      html += '<div class="price-row"><span class="price-big mono">' + esc(d.price || '?') + '</span>' +
-              (d.price_grounded === false ? '<span class="chip chip-vent">Foreløbig</span>' : '') + '</div>';
-      if(d.price_grounded === false){
-        html += '<div class="note">Prisen markedstjekkes mod rigtige annoncer, når du udfylder på markedspladsen.</div>';
-      }
-      if(d.price_note) html += '<div class="note">' + esc(d.price_note) + '</div>';
-      var facts = [d.brand, d.size, d.category, d.condition].filter(Boolean);
-      if(facts.length) html += '<div class="note">' + esc(facts.join(' · ')) + '</div>';
-      if(d.description) html += '<div class="desc">' + esc(d.description) + '</div>';
-    } else if(failed){
-      html += '<div class="warn">' + esc(d.price_note) + '</div>';
-    } else {
-      html += '<div class="note note-luft">Claude analyserer billederne og skriver udkastet. Det tager typisk under et minut.</div>';
-    }
-
-    if(d.personal_info){
-      html += '<div class="warn">Der blev fundet personlige oplysninger på et af billederne — fx et påsyet navnemærke — og de er automatisk maskeret. Tjek billederne, før du uploader.</div>';
-    }
-    html += '<div class="note note-luft">' +
-            (d.nr ? '<b class="mono">' + esc(fmtNr(d.nr)) + '</b> · ' : '') +
-            esc(relTime(d.created_at)) + '</div>';
-    $('d-body').innerHTML = html;
-
-    var track = $('d-track'), dots = $('d-dots');
-    if(track && dots){
-      track.addEventListener('scroll', function(){
-        var i = Math.round(track.scrollLeft / track.clientWidth);
-        Array.prototype.forEach.call(dots.children, function(dot, n){
-          dot.classList.toggle('on', n === i);
-        });
-      }, { passive: true });
-    }
-
-    var strip = $('d-strip');
-    if(strip){
-      strip.addEventListener('click', function(e){
-        var i = e.target.getAttribute && e.target.getAttribute('data-i');
-        if(i !== null && i !== undefined) openCrop(d, Number(i));
-      });
-    }
-
-    // Kun de to handlinger, du bruger hver gang, er fastgjort nederst. Resten
-    // ligger i indholdet — så fylder bundlinjen ikke en tredjedel af skærmen,
-    // og "Kasser" ligger ikke lige ved siden af det, du trykker på dagligt.
-    var rest = '<div class="sect">';
-    // En afsendt annonce aabnes for at blive laest — og for at komme videre til
-    // den rigtige annonce ude paa markedspladsen. Den plads staar tom, til
-    // opslaget svarer; ellers ville knapperne hoppe paa plads bagefter.
-    if(d.status === 'afsendt'){
-      rest += '<div id="d-links"></div>' +
-              '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
-              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
-              '<button type="button" class="btn btn-secondary" data-a="requeue">Flyt tilbage til køen</button>';
-    }
-    if(d.status === 'ny'){
-      // "Gem billeder i Fotos" er en hjaelpehandling og hoerer til her, ikke
-      // paa linje med de tre markedspladser. Den fyldte en fjerdedel af foden
-      // og trak opmaerksomhed fra det, skaermen handler om.
-      rest += '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
-              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>' +
-              '<button type="button" class="btn btn-quiet" data-a="posted">Markér som postet</button>';
-    }
-    // Hvad er varen markeret som sendt til — og vejen ud af en fejlmarkering.
-    var maerker = MARKEDER.filter(function(m){ return sendtTil(d)[m.k]; });
-    if(maerker.length && d.status !== 'kladde'){
-      rest += '<span class="label">Markeret som sendt til</span>' +
-        '<div class="maerke-rad">' + maerker.map(function(m){
-          return '<button type="button" class="maerke" data-a="fjern-' + m.k + '" ' +
-            'aria-label="Fjern markeringen for ' + esc(m.navn) + '">' + esc(m.navn) +
-            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
-            '</button>';
-        }).join('') + '</div>';
-    }
-    rest += '<button type="button" class="btn btn-danger" data-a="discard">' +
-            (d.status === 'afsendt' ? 'Fjern fra listen' : 'Kasser udkast') + '</button></div>';
-    $('d-body').insertAdjacentHTML('beforeend', rest);
-
-    var f = '';
-    if(d.status === 'ny'){
-      // Tre markedspladser paa EN linje frem for fire stablede knapper. Stablet
-      // aad foden 200 af 704 px og klemte indholdet ned under to tredjedele af
-      // skaermen — og navnet alene er nok, naar overskriften allerede siger
-      // hvilken vare det er.
-      var sendt = sendtTil(d);
-      f += '<div class="market-row">' + MARKEDER.map(function(m){
-        var ok = !!sendt[m.k];
-        return '<button type="button" class="btn btn-market' + (ok ? ' is-done' : '') +
-          '" data-a="' + m.a + '">' + esc(m.navn) + '</button>';
-      }).join('') + '</div>';
-    } else if(failed){
-      f += '<button type="button" class="btn btn-primary" data-a="retry">Prøv analysen igen</button>';
-    }
-    $('d-footer').innerHTML = f;
-    $('d-footer').hidden = !f;
-
-    Array.prototype.forEach.call(
-      document.querySelectorAll('#d-footer [data-a], #d-body [data-a]'), function(b){
-        b.addEventListener('click', function(){ detailAction(b.getAttribute('data-a'), d, b); });
-      });
+  function markedsNavn(k){
+    return (MARKEDER.filter(function(m){ return m.k === k; })[0] || {}).navn || k;
   }
+  // Samme tekst med et ekstra mellemrum eller et stort begyndelsesbogstav er
+  // ikke en aendring. Uden den oprydning ville halvdelen af felterne staa som
+  // "aendret", hver gang Vinted normaliserede noget.
+  function ensLyd(a, b){
+    var n = function(x){ return String(x == null ? '' : x).replace(/\s+/g, ' ').trim().toLowerCase(); };
+    return n(a) === n(b);
+  }
+
+  var UDGIVET_FELTER = [
+    { k:'title',       navn:'Titel',       u:'title' },
+    { k:'description', navn:'Beskrivelse', u:'description' },
+    { k:'brand',       navn:'Mærke',       u:'brand' },
+    { k:'size',        navn:'Størrelse',   u:'size' },
+    { k:'condition',   navn:'Stand',       u:'condition' },
+    { k:'color',       navn:'Farve',       u:'color' }
+  ];
+
+  function udgivetBlok(x, d){
+    var navn = markedsNavn(x.platform);
+    var p = x.published || null;
+    var h = '<div class="udgivet"><span class="label">Udgivet på ' + esc(navn) + '</span>';
+
+    if(!p){
+      h += '<p class="note">Annoncens egne oplysninger er ikke læst endnu. ' +
+           'Tryk <b>Opdatér</b> — så åbner annoncen, og appen læser den.</p>';
+    } else {
+      var raekker = '';
+      // Prisen staar altid: den er det, der oftest bliver rettet, og den er
+      // det, du skal kunne se uden at aabne Vinted.
+      if(p.price){
+        var udkast = parseInt(String(d && d.price || '').replace(/[^0-9]/g, ''), 10);
+        raekker += udgivetRaekke('Pris', p.price + ' kr',
+          (isFinite(udkast) && udkast !== p.price) ? 'udkast: ' + udkast + ' kr' : '');
+      }
+      var aendret = 0;
+      UDGIVET_FELTER.forEach(function(f){
+        var v = p[f.u];
+        if(!v) return;
+        if(ensLyd(v, d && d[f.k])) return;
+        aendret++;
+        raekker += udgivetRaekke(f.navn, v, 'ændret');
+      });
+      h += '<div class="udgivet-liste">' + raekker + '</div>';
+      if(!aendret) h += '<p class="note">Resten står, som det blev sendt afsted.</p>';
+      h += '<p class="note">Aflæst ' + esc(relTime(x.synced_at)) +
+           (p.kilde === 'side' ? ' fra annoncesiden' : '') + '.</p>';
+    }
+
+    if(x.external_id && x.platform === 'vinted'){
+      h += '<button type="button" class="btn btn-quiet" data-aabn="' +
+           esc('https://www.vinted.dk/items/' + x.external_id + '?udbakke=synk') +
+           '">Opdatér fra ' + esc(navn) + '</button>';
+    }
+    if(x.url){
+      h += '<button type="button" class="btn btn-secondary" data-aabn="' + esc(x.url) + '">' +
+           'Åbn på ' + esc(navn) +
+           (x.status === 'solgt' ? ' · solgt' : (x.price ? ' · ' + x.price + ' kr' : '')) +
+           '</button>';
+    }
+    return h + '</div>';
+  }
+
+  function udgivetRaekke(navn, vaerdi, hale){
+    return '<div class="ud-rk"><span class="ud-k">' + esc(navn) + '</span>' +
+           '<span class="ud-v">' + esc(vaerdi) + '</span>' +
+           (hale ? '<span class="ud-h">' + esc(hale) + '</span>' : '') + '</div>';
+  }
+
+  // Det store tal skal vaere annoncens pris, ikke udkastets. Staar der 175 i
+  // appen og 149 paa Vinted, er det 149, varen koster.
+  function visUdgivetPris(l, d){
+    var el = $('d-pris');
+    if(!el) return;
+    var levende = l.filter(function(x){ return x.published && x.published.price; })[0];
+    if(!levende) return;
+    var pris = levende.published.price;
+    var udkast = parseInt(String(d && d.price || '').replace(/[^0-9]/g, ''), 10);
+    el.innerHTML = '<span class="price-big mono">' + esc(pris + ' kr') + '</span>' +
+      '<span class="chip chip-ny">' + esc(markedsNavn(levende.platform)) + '</span>' +
+      (isFinite(udkast) && udkast !== pris
+        ? '<span class="pris-foer">udbudt til ' + esc(udkast + ' kr') + '</span>' : '');
+  }
+
+  // Kom du tilbage fra Vinted, er der sandsynligvis noget nyt at hente. Uden
+  // det her ville skaermen staa med gamle tal, til man selv gik ud og ind
+  // igen — og saa ligner synkroniseringen noget, der ikke virker.
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden || !currentId) return;
+    if(screenEl('detail').hidden) return;
+    hentAnnoncer(currentId);
+  });
 
   // Et tryk paa en markedsplads noterer, at varen er sendt DERHEN. Det er ikke
   // det samme som at den ER lagt op — kun Vinted-scriptet kan bekraefte det —

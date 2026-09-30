@@ -523,6 +523,19 @@ function baand(tekst,knap,virk){
 // overhovedet stadig? Vinteds eget API først, annoncens side som reserve.
 // Hvilken af de to der svarede, står i loggen — så er det målt næste gang i
 // stedet for gættet.
+// Første nøgle, der findes, vinder. Vinted har skiftet navn på felter før, og
+// et opslag, der kun kender ét navn, fejler stille: feltet står bare tomt, og
+// det ligner en vare uden titel.
+function plukk(o,navne){
+ for(var i=0;i<navne.length;i++){
+  var v=o[navne[i]];
+  if(v===undefined||v===null||v==='')continue;
+  if(typeof v==='object')v=v.title||v.name||v.amount||v.code;
+  if(v!==undefined&&v!==null&&v!=='')return v;
+ }
+ return null;
+}
+
 async function hentVare(id){
  try{
   var r=await timedFetch('/api/v2/items/'+id,
@@ -535,9 +548,26 @@ async function hentVare(id){
     var beloeb=(p&&typeof p==='object')?parseFloat(p.amount):parseFloat(p);
     var lukket=!!(it.is_closed||it.is_hidden||it.is_deleted||it.is_sold||
      (it.status&&/sold|solgt|closed|lukket/i.test(String(it.status))));
-    log('vagt: '+id+' målt via api'+(lukket?' (lukket)':''));
-    return {gone:lukket,price:isFinite(beloeb)?beloeb:null,
-            favourites:+(it.favourite_count||0),views:+(it.view_count||0)};
+    // Annoncens egne ord. De kan være rettet i Vinteds formular, efter appen
+    // slap den — og så er DET, der står her, sandheden om varen.
+    var udgivet={
+     price:isFinite(beloeb)?beloeb:null,
+     title:plukk(it,['title']),
+     description:plukk(it,['description']),
+     brand:plukk(it,['brand_title','brand','brand_dto']),
+     size:plukk(it,['size_title','size']),
+     condition:plukk(it,['status','condition']),
+     color:plukk(it,['color1','color','colour']),
+     url:location.origin+'/items/'+id,
+     kilde:'api'
+    };
+    var mangler=[];
+    for(var k in udgivet)if(udgivet[k]===null)mangler.push(k);
+    log('vagt: '+id+' målt via api'+(lukket?' (lukket)':'')+
+        (mangler.length?' — mangler: '+mangler.join(','):''));
+    return {gone:lukket,price:udgivet.price,
+            favourites:+(it.favourite_count||0),views:+(it.view_count||0),
+            udgivet:udgivet};
    }
   }
  }catch(e){}
@@ -546,11 +576,25 @@ async function hentVare(id){
   if(h.status===404||h.status===410){log('vagt: '+id+' findes ikke (side)');return {gone:true}}
   if(!h.ok)return null;
   var t=await h.text();
-  var mp=t.match(/"amount":"([0-9]+(?:\.[0-9]+)?)"/);
-  var mf=t.match(/"favourite_count":([0-9]+)/);
+  var tag=function(navn,m){var x=t.match(m);return x?x[1]:null};
+  var mp=tag('pris',/"amount":"([0-9]+(?:\.[0-9]+)?)"/);
+  var mf=tag('hjerter',/"favourite_count":([0-9]+)/);
+  // Teksten i sidens indlejrede JSON er kodet. Uden oprydningen ville
+  // beskrivelsen komme hjem fuld af \n og æ.
+  var tekst=function(m){
+   var x=t.match(m); if(!x)return null;
+   try{return JSON.parse('"'+x[1]+'"')}catch(e){return x[1]}
+  };
   log('vagt: '+id+' målt via annoncesiden');
   return {gone:/"is_closed":true|"is_hidden":true|"is_sold":true/.test(t),
-          price:mp?parseFloat(mp[1]):null,favourites:mf?+mf[1]:0,views:0};
+          price:mp?parseFloat(mp):0,favourites:mf?+mf:0,views:0,
+          udgivet:{price:mp?parseFloat(mp):null,
+                   title:tekst(/"title":"((?:[^"\\]|\\.){2,200})"/),
+                   description:tekst(/"description":"((?:[^"\\]|\\.){10,3000})"/),
+                   brand:tekst(/"brand(?:_title)?":"((?:[^"\\]|\\.){1,60})"/),
+                   size:tekst(/"size_title":"((?:[^"\\]|\\.){1,40})"/),
+                   condition:null,color:null,
+                   url:location.origin+'/items/'+id,kilde:'side'}};
  }catch(e){}
  log('vagt: '+id+' kunne ikke måles');
  return null;
@@ -577,7 +621,7 @@ async function tilsynsrunde(){
   // tilsvarende varer koster i dag — og det er hele grundlaget.
   var felt=await search(f.query||f.title||'',40);
   maalinger.push({id:f.id,price:set.price,favourites:set.favourites,
-                  views:set.views,comparables:felt});
+                  views:set.views,comparables:felt,udgivet:set.udgivet});
  }
  if(!maalinger.length)return null;
 
@@ -663,6 +707,29 @@ function afslut(itemId){
  koeSkriv(k);
 }
 
+// Appens "Opdatér fra Vinted" lander her: annoncens egen side med et flag i
+// adressen. Så læses annoncen, og appen får at vide, hvad der FAKTISK står i
+// den — pris, titel, beskrivelse, størrelse, mærke.
+async function synkroniser(){
+ if(!/[?&]udbakke=synk/.test(location.search))return false;
+ var num=location.pathname.match(/^\/items\/(\d+)/);
+ if(!num)return false;
+ var b=baand('Læser annoncen …',null,null);
+ var set=await hentVare(num[1]);
+ if(b)b.remove();
+ if(!set){baand('Annoncen kunne ikke læses.',null,null);return true}
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'synk',item_id:num[1],gone:!!set.gone,
+    price:set.price,favourites:set.favourites,udgivet:set.udgivet})},20000);
+  var j=await r.json();
+  if(j&&j.ukendt){baand('Den annonce hører ikke til en vare i appen.',null,null);return true}
+  baand(set.gone?'Annoncen findes ikke længere — noteret som solgt.'
+               :'Appen er opdateret med annoncens egne oplysninger.',null,null);
+ }catch(e){baand('Kunne ikke sende opdateringen videre.',null,null)}
+ return true;
+}
+
 async function prisvagt(){
  // Kommer vi fra appens Prisvagt-knap, er der givet lov til at ændre priser.
  var bedt=/[?&]udbakke=vagt/.test(location.search);
@@ -744,7 +811,8 @@ async function meldPostet(){
   await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({id:v.id,mode:'posted',item_id:num[1],
     url:location.origin+'/items/'+num[1],
-    price:(set&&set.price)||0})},20000);
+    price:(set&&set.price)||0,
+    udgivet:(set&&set.udgivet)||null})},20000);
   log('annoncen er lagt op — flyttet til afsendte, prisvagten holder øje');
  }catch(e){}
  return true;
@@ -763,6 +831,9 @@ if(await meldPostet())return;
 // Prisvagten kører på alle annoncesider undtagen opret-siden: dér er
 // udfyldningen det eneste, der skal ske, og den må ikke vente på et tilsyn.
 if(!/\/items\/new/.test(location.pathname)){
+ // Et udtrykkeligt "hent annoncen" gaar foran tilsynet: du har bedt om DEN
+ // ene vare, og saa skal der ikke foerst maales markedet for tre andre.
+ try{ if(await synkroniser())return; }catch(e){log('synk: '+e.message)}
  try{await prisvagt()}catch(e){log('vagt: '+e.message)}
  return;
 }
