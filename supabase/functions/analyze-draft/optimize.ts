@@ -474,21 +474,37 @@ function rotateBox(
 // Et fladt felt, ikke en udstraekning af kantraekken: en udstraekning ville
 // traekke varens egen oeverste pixelraekke opad i striber, netop fordi den
 // stramme beskaering lader varen roere kanten.
+//
+// Gennemsnittet af de fire var for skroebeligt. Et gennemsnit lader ÉT hjoerne
+// traekke resultatet: paa et naerbillede af en cremefarvet maerkat, der fylder
+// rammen fra hjoerne til hjoerne, blev "baggrunden" hvid - og saa laa der en
+// hvid bjaelke op ad olivengroent stof. Derfor den af de fire, der ligner de
+// tre andre mest: rammer én eller to hjoerner varen, bestemmer flertallet.
 function kantFarve(img: { bitmap: Uint8ClampedArray; width: number; height: number }): number {
   const { bitmap: px, width: W, height: H } = img;
   const n = Math.max(4, Math.round(Math.min(W, H) * 0.06));
-  let r = 0, g = 0, b = 0, c = 0;
   const hjoerner: Array<[number, number]> = [[0, 0], [W - n, 0], [0, H - n], [W - n, H - n]];
+  const felter: Array<[number, number, number]> = [];
   for (const [ox, oy] of hjoerner) {
-    for (let y = oy; y < oy + n; y++) {
-      for (let x = ox; x < ox + n; x++) {
+    let r = 0, g = 0, b = 0, c = 0;
+    for (let y = Math.max(0, oy); y < Math.min(H, oy + n); y++) {
+      for (let x = Math.max(0, ox); x < Math.min(W, ox + n); x++) {
         const i = (y * W + x) * 4;
         r += px[i]; g += px[i + 1]; b += px[i + 2]; c++;
       }
     }
+    if (c) felter.push([r / c, g / c, b / c]);
   }
-  if (!c) return Image.rgbaToColor(255, 255, 255, 255);
-  return Image.rgbaToColor(Math.round(r / c), Math.round(g / c), Math.round(b / c), 255);
+  if (!felter.length) return Image.rgbaToColor(255, 255, 255, 255);
+  let bedst = felter[0], mindst = Infinity;
+  for (const a of felter) {
+    let sum = 0;
+    for (const b of felter) {
+      sum += Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+    }
+    if (sum < mindst) { mindst = sum; bedst = a; }
+  }
+  return Image.rgbaToColor(Math.round(bedst[0]), Math.round(bedst[1]), Math.round(bedst[2]), 255);
 }
 
 export async function optimizePhoto(
@@ -590,8 +606,6 @@ export async function optimizePhoto(
   // Den MINDSTE ramme i formatet, der rummer hele motivkassen. Mindst, fordi
   // varen skal fylde mest muligt: en stoerre ramme ville bare lukke mere gulv
   // ind.
-  const mindsteW = Math.max(cw, ch * target);
-  const mindsteH = mindsteW / target;
 
   // Men "rummer motivkassen" er for strengt. Kassen herover er motivet PLUS
   // den luft, der laegges til omkring det - og luften er til at forhandle om.
@@ -604,10 +618,26 @@ export async function optimizePhoto(
   // passer den samme ramme uden en eneste bjaelke.
   const kerneW = (box.x1 - box.x0) * W;
   const kerneH = (box.y1 - box.y0) * H;
-  // Den stoerste ramme i formatet, der overhovedet kan ligge i billedet.
-  const rammeW = Math.min(W, H * target);
-  const rammeH = rammeW / target;
-  const kanRumme = rammeW >= kerneW && rammeH >= kerneH;
+  // Den stoerste ramme i et givet format, der overhovedet kan ligge i billedet.
+  const rummer = (f: number) => {
+    const w = Math.min(W, H * f);
+    return { w, h: w / f, ok: w >= kerneW && w / f >= kerneH };
+  };
+
+  // Seriens format er en regel, ikke en lov. Et haengemaerke er hoejere, end
+  // billedet er bredt, og kan derfor aldrig ligge i en kvadratisk ramme uden
+  // bjaelker - maalt til 43-46 % af bredden. Saa boejer DET billede formatet
+  // frem for at faa et hul i siderne. Hele varer boejer aldrig: det er dem,
+  // der ses i gitteret, og de skal se ens ud.
+  let target2 = target;
+  if (!vilIsolere && !rummer(target).ok) {
+    const eget = snapFormat(Math.max(RATIO_MIN, Math.min(RATIO_SERIE_MAX, kerneW / kerneH)));
+    if (rummer(eget).ok) target2 = eget;
+  }
+  const r2 = rummer(target2);
+  const rammeW = r2.w;
+  const rammeH = r2.h;
+  const kanRumme = r2.ok;
 
   // To slags motiver, to slags svar.
   //
@@ -626,8 +656,9 @@ export async function optimizePhoto(
   if (!isoler) {
     // Helst den mindste ramme, der rummer luften med. Kan den ikke vaere i
     // billedet, tages der af luften - aldrig af motivet.
+    const mindsteW = Math.max(cw, ch * target2);
     cw = Math.min(mindsteW, rammeW);
-    ch = cw / target;
+    ch = cw / target2;
   }
 
   // Hold rammen inden for billedet. Ved isolering er den allerede stram om
@@ -650,8 +681,8 @@ export async function optimizePhoto(
   if (isoler) {
     let tw = image.width;
     let th = image.height;
-    if (tw / th > target) th = Math.round(tw / target);
-    else tw = Math.round(th * target);
+    if (tw / th > target2) th = Math.round(tw / target2);
+    else tw = Math.round(th * target2);
     if (tw > image.width || th > image.height) {
       const bund = new Image(tw, th);
       // Baggrundens egen farve, ikke hvidt. En hvid bjaelke op ad et graat
