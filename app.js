@@ -500,15 +500,95 @@
         if(currentId !== id) return;
         var el = $('d-udgivet');
         if(!el) return;
-        var l = (res.data || []).filter(function(x){ return x.url || x.published; });
-        if(!l.length) return;
         var d = rows[id];
-        el.innerHTML = l.map(function(x){ return udgivetBlok(x, d); }).join('');
-        visUdgivetPris(l, d);
+        var l = (res.data || []).filter(function(x){ return x.url || x.published; });
+        var harVinted = l.filter(function(x){ return x.platform === 'vinted'; }).length;
+        var h = l.map(function(x){ return udgivetBlok(x, d); }).join('');
+        // Er varen lagt op UDEN appens udfyldning, findes annoncen ikke i
+        // basen — og saa er der ingenting at synkronisere tilbage fra.
+        // Feltet her er vejen ind: annoncens adresse. Det staar kun, hvor der
+        // er grund til at tro, at annoncen FINDES — er udkastet stadig i koen
+        // og aldrig sendt nogen steder hen, er der intet at knytte til.
+        if(!harVinted && d && (d.status === 'afsendt' || sendtTil(d).vinted)) h += knytBlok();
+        if(!h) return;
+        el.innerHTML = h;
+        if(l.length) visUdgivetPris(l, d);
         Array.prototype.forEach.call(el.querySelectorAll('[data-aabn]'), function(b){
           b.addEventListener('click', function(){ aabnUdad(b.getAttribute('data-aabn')); });
         });
+        var felt = el.querySelector('[data-knyt="felt"]');
+        var gem = el.querySelector('[data-knyt="gem"]');
+        if(felt && gem) gem.addEventListener('click', function(){ tilknytAnnonce(d, felt); });
       });
+  }
+
+  // En annonce, der ikke er lagt op gennem appens udfyldning, findes ikke i
+  // `listings` — og saa naar hverken annoncens egne ord, prisvagten eller et
+  // "solgt" nogensinde tilbage til udkastet. Raekken oprettes ét sted, af
+  // runneren, naar den selv saa varen blive lagt op. Alt andet — en annonce
+  // skrevet i haanden, en fra foer appen, en hvor Upload ikke naaede at melde
+  // tilbage — stod uden for. Adressen er det eneste, der mangler.
+  function knytBlok(){
+    return '<div class="udgivet"><span class="label">Ingen annonce tilknyttet</span>' +
+      '<p class="note">Er varen lagt op uden appens udfyldning, kender appen ikke ' +
+      'annoncen. Indsæt dens adresse — så kan appen læse, hvad der står i den, ' +
+      'og prisvagten kan følge den.</p>' +
+      '<input class="ud-knyt" type="url" inputmode="url" autocapitalize="off" ' +
+      'autocorrect="off" spellcheck="false" data-knyt="felt" ' +
+      'aria-label="Annoncens adresse på Vinted" ' +
+      'placeholder="https://www.vinted.dk/items/…">' +
+      '<button type="button" class="btn btn-secondary" data-knyt="gem">Tilknyt annonce</button></div>';
+  }
+
+  // Vinteds adresser hedder /items/6789012345-nike-jakke. Kun nummeret betyder
+  // noget; resten er noget, Vinted selv haenger paa. Et bart nummer maa ogsaa
+  // kunne indsaettes — det er dét, der staar, hvis det er kopieret fra et
+  // andet felt end adresselinjen.
+  function annonceNummer(s){
+    var t = String(s || '').trim();
+    var m = t.match(/\/items\/(\d+)/) || t.match(/^(\d{4,})$/);
+    return m ? m[1] : '';
+  }
+
+  function tilknytAnnonce(d, felt){
+    var nr = annonceNummer(felt.value);
+    if(!nr){
+      toast('Indsæt annoncens adresse fra Vinted — fx https://www.vinted.dk/items/1234567890-…');
+      felt.focus();
+      return;
+    }
+    // Prisvagten regner ud fra udbudsprisen, og `listings` kan ikke oprettes
+    // uden. Annoncens EGEN pris laeses et oejeblik efter, naar "Opdatér"
+    // aabner den — praecis som runneren goer, naar den selv registrerer.
+    var pris = parseInt(String((d && d.price) || '').replace(/[^0-9]/g, ''), 10);
+    if(!(pris > 0)){
+      toast('Udkastet har ingen pris. Sæt den først — prisvagten regner fra den.');
+      return;
+    }
+    var url = 'https://www.vinted.dk/items/' + nr;
+    sb.from('listings').insert({
+      draft_id: d.id, platform: 'vinted', external_id: nr, url: url,
+      title: d.title || '', search_query: d.search_query || d.title || '',
+      price: pris, start_price: pris,
+      next_check_at: new Date(Date.now() + 7 * 86400000).toISOString()
+    }).select('id').single().then(function(res){
+      if(res.error){
+        // Det unikke indeks paa (platform, external_id) er det, der fanger en
+        // annonce, som allerede hoerer til et andet udkast.
+        toast(res.error.code === '23505'
+          ? 'Den annonce er allerede tilknyttet et udkast.'
+          : 'Kunne ikke tilknytte annoncen: ' + (res.error.message || 'ukendt fejl'));
+        return;
+      }
+      sb.from('price_events').insert({
+        listing_id: res.data.id, kind: 'oprettet', price: pris,
+        note: 'tilknyttet i appen'
+      }).then(function(){});
+      markerSendt(d, 'vinted');
+      toast('Annoncen er tilknyttet. Tryk Opdatér, så læser appen den.');
+      renderDetail();
+      hentAnnoncer(d.id);
+    });
   }
 
   function markedsNavn(k){

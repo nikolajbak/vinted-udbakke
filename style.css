@@ -564,6 +564,14 @@
     text-transform: uppercase; letter-spacing: .06em; margin-top: 2px;
   }
   .pris-foer{ font-size: var(--t-small); color: var(--ink-soft); }
+  /* Adressefeltet, der knytter en annonce til et udkast. Bredt, fordi det er
+     en URL der indsaettes - et smalt felt viser kun "https://www.vint…" og
+     saa kan man ikke se, om det er den rigtige annonce. */
+  .ud-knyt{
+    display: block; width: 100%; margin-top: var(--s3); padding: var(--s3);
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--raised); color: var(--ink); font-size: var(--t-body);
+  }
 
   .vagt-intro{ margin-bottom: var(--s4); }
   .vagt-row{ padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
