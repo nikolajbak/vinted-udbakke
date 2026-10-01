@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0032 — 2026-10-01 16:35
+
+Commit `a4c2dac` — Vinteds mails som push, og ingen runde paa et ur  
+App: `app.js?v=9a9e1409` · `style.css?v=992bac91`  
+Udrullet: vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v63 | `d1a050f0` |
+| dba-fill-script | v14 | `f8f22c92` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v7 | `a31c8881` |
+| vinted-fill-script ← | v56 | `20613c95` |
+| vinted-mail ← | v1 | `b2c342ef` |
+
 ## udgivelse-0031 — 2026-10-01 16:30
 
 Commit `e468bd7` — Tilknyt annoncen efter Upload, selv om Vinted ikke genindlaeser siden  
