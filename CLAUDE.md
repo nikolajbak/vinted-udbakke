@@ -264,14 +264,6 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   sekund i op til en time), efter den har fyldt formularen, og kalder
   `meldPostet`, når adressen bliver `/items/{id}`. Det samme gælder alt andet,
   der skal ske »på næste side« — vent ikke på, at scriptet starter forfra.
-- **Efter Upload skifter Vinted adresse UDEN at genindlæse siden (Next.js).**
-  Et brugerscript kører kun ved en rigtig sideindlæsning, så det fyrer aldrig
-  på annoncesiden, man lander på. Fire udkast blev 1. oktober lagt op via
-  appen uden at blive tilknyttet: loggen sluttede med `clear` og intet
-  bagefter. Derfor holder runneren selv øje med `location.pathname` (hvert
-  sekund i op til en time), efter den har fyldt formularen, og kalder
-  `meldPostet`, når adressen bliver `/items/{id}`. Det samme gælder alt andet,
-  der skal ske »på næste side« — vent ikke på, at scriptet starter forfra.
 - **Hele serien fremkaldes ens.** Hvidbalance, sort-/hvidpunkt og gamma måles på
   det FØRSTE billede, gemmes i `drafts.tone` og genbruges på resten. Måler hvert
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget

@@ -17,6 +17,7 @@ Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 ## udgivelse-0031 — 2026-10-01 16:30
 
 Commit `e468bd7` — Tilknyt annoncen efter Upload, selv om Vinted ikke genindlaeser siden  
+Bærer også »Hele kroner overalt: fortolk prisen foer den rundes« (`cdd07a9`, faldt ud af historikken ved et `reset` i en parallel session — indholdet ligger i `98efe3b`)  
 App: `app.js?v=9a9e1409` · `style.css?v=992bac91`  
 Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
 
