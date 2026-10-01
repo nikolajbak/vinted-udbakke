@@ -11,6 +11,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { helKroner } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -134,7 +135,7 @@ Deno.serve(async (req) => {
 
   const o = block.input as Record<string, unknown>;
   // Prisen regnes her. Reshopper regner i oere, og en model regner upaalideligt.
-  const kr = Math.round(Number(String(d.price ?? "").replace(/[^\d]/g, "")) || 0);
+  const kr = helKroner(d.price);
   const out = {
     segment: clean(o.segment), category: clean(o.category), conditionType: clean(o.conditionType),
     brandOrTitle: clean(o.brandOrTitle), age: clean(o.age), size: clean(o.size), gender: clean(o.gender),

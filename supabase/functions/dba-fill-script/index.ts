@@ -9,6 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { helKroner } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -28,9 +29,11 @@ const json = (b: unknown, s = 200) =>
 function clean(v: unknown): string {
   return String(v ?? "").replace(/<[^>]*>/g, "").trim();
 }
+// Hele kroner. At slette alt andet end cifre gjorde "89,50" til 8950 -
+// fortolkningen staar i _shared/pris.ts.
 function plainPrice(p: string): string {
-  const n = String(p ?? "").replace(/[^\d]/g, "");
-  return n || "";
+  const n = helKroner(p);
+  return n > 0 ? String(n) : "";
 }
 
 const CHOICE_TOOL = {

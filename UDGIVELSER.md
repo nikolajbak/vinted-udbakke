@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0031 — 2026-10-01 16:30
+
+Commit `e468bd7` — Tilknyt annoncen efter Upload, selv om Vinted ikke genindlaeser siden  
+App: `app.js?v=9a9e1409` · `style.css?v=992bac91`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v62 | `8e2f7050` |
+| dba-fill-script ← | v13 | `15e4217a` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft ← | v6 | `09be45c1` |
+| vinted-fill-script ← | v54 | `8bbdcc5e` |
+
 ## udgivelse-0030 — 2026-10-01 09:25
 
 Commit `783e7c4` — Synkroniser annoncerne automatisk begge veje  

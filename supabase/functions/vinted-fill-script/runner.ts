@@ -538,6 +538,27 @@ function plukk(o,navne){
 
 // kunApi: den stille runde må ikke hente annoncesiden som reserve. Den vejer
 // ~2 MB, og runden kører uopfordret på telefonens forbindelse.
+// Hele kroner ud af en pristekst. Staar komma og punktum begge, er det sidste
+// decimaltegnet; staar kun det ene foran praecis tre cifre, er det tusinder
+// ("1.200"), ellers decimaler ("12,50"). Kopi af _shared/pris.ts - runneren
+// er en tekst og kan ikke importere.
+function helKroner(v){
+ if(typeof v==='number')return isFinite(v)&&v>0?Math.round(v):0;
+ var m=String(v==null?'':v).replace(/(\d)[\s\u00a0](?=\d{3}(?!\d))/g,'$1').match(/\d[\d.,]*/);
+ if(!m)return 0;
+ var t=m[0].replace(/[.,]+$/,'');
+ var i=Math.max(t.lastIndexOf('.'),t.lastIndexOf(','));
+ if(i>=0){
+  var begge=t.indexOf('.')>-1&&t.indexOf(',')>-1;
+  var flere=t.split(t[i]).length>2;
+  t=(begge||(!flere&&t.length-i-1!==3))
+   ?t.slice(0,i).replace(/[.,]/g,'')+'.'+t.slice(i+1)
+   :t.replace(/[.,]/g,'');
+ }
+ var n=Math.round(Number(t));
+ return isFinite(n)&&n>0?n:0;
+}
+
 async function hentVare(id,kunApi){
  try{
   var r=await timedFetch('/api/v2/items/'+id,
@@ -547,7 +568,7 @@ async function hentVare(id,kunApi){
    var j=await r.json(),it=(j&&(j.item||j))||null;
    if(it&&(it.price!==undefined||it.id!==undefined)){
     var p=it.price;
-    var beloeb=(p&&typeof p==='object')?parseFloat(p.amount):parseFloat(p);
+    var beloeb=helKroner((p&&typeof p==='object')?p.amount:p)||NaN;
     var lukket=!!(it.is_closed||it.is_hidden||it.is_deleted||it.is_sold||
      (it.status&&/sold|solgt|closed|lukket/i.test(String(it.status))));
     // Annoncens egne ord. De kan være rettet i Vinteds formular, efter appen
@@ -590,8 +611,8 @@ async function hentVare(id,kunApi){
   };
   log('vagt: '+id+' målt via annoncesiden');
   return {gone:/"is_closed":true|"is_hidden":true|"is_sold":true/.test(t),
-          price:mp?parseFloat(mp):0,favourites:mf?+mf:0,views:0,
-          udgivet:{price:mp?parseFloat(mp):null,
+          price:mp?helKroner(mp):0,favourites:mf?+mf:0,views:0,
+          udgivet:{price:mp?helKroner(mp)||null:null,
                    title:tekst(/"title":"((?:[^"\\]|\\.){2,200})"/),
                    description:tekst(/"description":"((?:[^"\\]|\\.){10,3000})"/),
                    brand:tekst(/"brand(?:_title)?":"((?:[^"\\]|\\.){1,60})"/),
@@ -959,8 +980,9 @@ try{
  // Derfor staar reglen HER, lige foer feltet, hvor alle tre veje moedes.
  var MIN_PRIS=8;
  function vintedPris(v){
-  // Baade 12.50 og 12,50 kan naa hertil: udkastet gemmer prisen som tekst.
-  var n=parseFloat(String(v==null?'':v).replace(',','.'));
+  // Baade 12.50, 12,50 og 1.200 kan naa hertil: udkastet gemmer prisen som
+  // tekst. Samme fortolkning som helKroner i _shared/pris.ts.
+  var n=helKroner(v);
   // Tom eller ulaeselig pris er ikke en pris med decimaler - dér skal der ikke
   // opfindes et tal, feltet skal staa tomt og falde i oejnene.
   if(!isFinite(n)||n<=0)return v;

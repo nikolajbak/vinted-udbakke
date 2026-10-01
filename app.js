@@ -560,7 +560,7 @@
     // Prisvagten regner ud fra udbudsprisen, og `listings` kan ikke oprettes
     // uden. Annoncens EGEN pris laeses et oejeblik efter, naar "Opdatér"
     // aabner den — praecis som runneren goer, naar den selv registrerer.
-    var pris = parseInt(String((d && d.price) || '').replace(/[^0-9]/g, ''), 10);
+    var pris = prisTal(d && d.price);
     if(!(pris > 0)){
       toast('Udkastet har ingen pris. Sæt den først — prisvagten regner fra den.');
       return;
@@ -635,7 +635,7 @@
       // Prisen staar altid: den er det, der oftest bliver rettet, og den er
       // det, du skal kunne se uden at aabne Vinted.
       if(p.price){
-        var udkast = parseInt(String(d && d.price || '').replace(/[^0-9]/g, ''), 10);
+        var udkast = prisTal(d && d.price);
         raekker += udgivetRaekke('Pris', p.price + ' kr',
           (isFinite(udkast) && udkast !== p.price) ? 'udkast: ' + udkast + ' kr' : '');
       }
@@ -681,7 +681,7 @@
     var levende = l.filter(function(x){ return x.published && x.published.price; })[0];
     if(!levende) return;
     var pris = levende.published.price;
-    var udkast = parseInt(String(d && d.price || '').replace(/[^0-9]/g, ''), 10);
+    var udkast = prisTal(d && d.price);
     el.innerHTML = '<span class="price-big mono">' + esc(pris + ' kr') + '</span>' +
       '<span class="chip chip-ny">' + esc(markedsNavn(levende.platform)) + '</span>' +
       (isFinite(udkast) && udkast !== pris
@@ -1441,7 +1441,27 @@
   // Den Vinted-annonce, rettelsen skal ud i — og det, der står i den lige nu.
   var REDIGERES_ANNONCE = null;
 
-  function prisTal(v){ return parseInt(String(v == null ? '' : v).replace(/[^0-9]/g, ''), 10); }
+  // Hele kroner ud af en pristekst — NaN, naar der ingen pris er. At slette
+  // alt andet end cifre gjorde "89,50 kr" til 8950. Staar komma og punktum
+  // begge, er det sidste decimaltegnet; staar kun det ene foran praecis tre
+  // cifre, er det tusinder ("1.200"), ellers decimaler ("12,50"). Samme regel
+  // som _shared/pris.ts paa serveren.
+  function prisTal(v){
+    if(typeof v === 'number') return isFinite(v) && v > 0 ? Math.round(v) : NaN;
+    var m = String(v == null ? '' : v).replace(/(\d)[\s\u00a0](?=\d{3}(?!\d))/g, '$1').match(/\d[\d.,]*/);
+    if(!m) return NaN;
+    var t = m[0].replace(/[.,]+$/, '');
+    var i = Math.max(t.lastIndexOf('.'), t.lastIndexOf(','));
+    if(i >= 0){
+      var begge = t.indexOf('.') > -1 && t.indexOf(',') > -1;
+      var flere = t.split(t[i]).length > 2;
+      t = (begge || (!flere && t.length - i - 1 !== 3))
+        ? t.slice(0, i).replace(/[.,]/g, '') + '.' + t.slice(i + 1)
+        : t.replace(/[.,]/g, '');
+    }
+    var n = Math.round(Number(t));
+    return isFinite(n) && n > 0 ? n : NaN;
+  }
 
   // Hvad står der LIGE NU, felt for felt? Annoncens egne ord, hvor de er
   // læst; udkastet ellers. Er titlen rettet på Vinted, er det den, du retter
@@ -1460,7 +1480,7 @@
     REDIGERES_ANNONCE = null;
     $('e-title').value = d.title || '';
     $('e-desc').value = d.description || '';
-    $('e-price').value = String(d.price || '').replace(/[^0-9]/g, '');
+    $('e-price').value = String(prisTal(d.price) || '');
     $('e-save').textContent = 'Gem';
     $('edit-note').innerHTML = '';
     show('edit');
@@ -1477,7 +1497,7 @@
           var nu = nuvaerende(d, vinted);
           if($('e-title').value === (d.title || '')) $('e-title').value = nu.title;
           if($('e-desc').value === (d.description || '')) $('e-desc').value = nu.description;
-          if($('e-price').value === String(d.price || '').replace(/[^0-9]/g, '') && nu.price)
+          if($('e-price').value === String(prisTal(d.price) || '') && nu.price)
             $('e-price').value = String(nu.price);
           $('e-save').textContent = 'Gem og send til Vinted';
         }
@@ -1505,7 +1525,7 @@
     var knap = $('e-save');
     var nyTitel = $('e-title').value.trim();
     var nyTekst = $('e-desc').value.trim();
-    var nyPrisTal = parseInt($('e-price').value, 10);
+    var nyPrisTal = prisTal($('e-price').value);
     if(!nyTitel){ toast('Titlen må ikke være tom'); return; }
 
     // Kun det, der FAKTISK er lavet om, sendes videre. Ellers ville et besoeg
@@ -2061,7 +2081,7 @@
       var v = el.getAttribute('data-v');
       if(v === 'bund'){
         el.addEventListener('change', function(){
-          var n = parseInt(el.value, 10);
+          var n = prisTal(el.value);
           sb.from('listings').update({ floor_price: isFinite(n) && n > 0 ? n : null })
             .eq('id', l.id).then(function(){ toast('Mindsteprisen er gemt'); });
         });
@@ -2117,7 +2137,7 @@
       // et bud, du tog imod, ligger under den.
       var svar = window.prompt('Hvad blev den solgt for? (kr)', String(l.price));
       if(svar === null) return;
-      var kr = Math.round(parseFloat(String(svar).replace(',', '.')));
+      var kr = prisTal(svar);
       if(!isFinite(kr) || kr <= 0){ toast('Skriv prisen i hele kroner'); return; }
       btn.disabled = true;
       sb.from('listings').update({ status:'solgt', sold_at:new Date().toISOString(), sold_price: kr,
@@ -2135,7 +2155,7 @@
   function svarKoeber(l, btn){
     var raekke = btn.closest('.vagt-row');
     var besked = raekke.querySelector('.vagt-besked').value.trim();
-    var bud = parseInt(raekke.querySelector('.vagt-bud').value, 10);
+    var bud = prisTal(raekke.querySelector('.vagt-bud').value);
     var ud = raekke.querySelector('.vagt-svar');
     if(!besked && !(bud > 0)){ toast('Indsæt købers besked eller bud'); return; }
     var p = l.published || {};

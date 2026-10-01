@@ -8,6 +8,7 @@ import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { prisTekst } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -718,7 +719,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
         description: cleanText(draft.description),
         category: cleanText(draft.category),
         condition: cleanText(draft.condition),
-        price: cleanText(draft.price),
+        price: prisTekst(cleanText(draft.price)),
         price_note: cleanText(draft.priceNote),
         search_query: searchQuery,
         price_grounded: grounded,

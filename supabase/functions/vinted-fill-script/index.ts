@@ -20,6 +20,7 @@ import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { laer } from "./laering.ts";
+import { helKroner } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -48,8 +49,11 @@ function cleanText(value: unknown): string {
   return t.replace(/<[^>]*>/g, "").trim();
 }
 
+// Hele kroner som tekst, til felterne. Fortolkningen af "1.200" og "89,50"
+// staar i _shared/pris.ts.
 function plainPrice(price: string): string {
-  return (price || "").replace(/[^\d.,]/g, "").replace(",", ".");
+  const n = helKroner(price);
+  return n > 0 ? String(n) : "";
 }
 
 // Prisen paa Vinted er hele kroner. Ingen decimaler, og aldrig under MIN_PRIS.
