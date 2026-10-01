@@ -11,6 +11,16 @@ analysen og udfyldningen kører som Supabase Edge Functions.
 om. `STATUS.md` rummer det, der er i gang — hvad der er afprøvet, hvad der ikke
 er, og hvad der står for tur. Læs den først i en ny session.
 
+## Regler skal stå i denne fil
+
+Denne fil indlæses automatisk i hver ny chat; koden, `STATUS.md` og
+samtalen gør ikke. Derfor: **når du beder om en regel — for appen, teksterne,
+databasen eller arbejdsgangen — skrives den ind HER i samme omgang**, ikke kun
+i koden. Det samme gælder alt, appen bygger på: en ny tabel, kolonne,
+funktion, nøgle eller hemmelighed noteres under "Delene" eller "Databasen",
+før arbejdet kaldes færdigt. En regel, der kun står i en prompt i koden, er
+glemt i næste chat.
+
 ## Kommandoer
 
 **Udgiv med `./tools/udgiv.sh`, ikke med `functions deploy`.** Supabase gemmer
@@ -89,8 +99,48 @@ midlertidig funktion og slet den bagefter.
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
-| Prisvagtens skema og ur | `sql/001-prisvagt.sql`, `sql/002-prisvagt-puls.sql` |
-| Løbenumre | `sql/003-loebenummer.sql` |
+
+## Databasen
+
+Supabase-Postgres. Ændringer køres med `psql -f` (se Kommandoer) og ligger som
+filer, så skemaet kan læses uden at spørge basen. Nye ændringer får næste
+nummer i `sql/` og en linje her.
+
+| Hvad | Fil |
+|---|---|
+| Grundskemaet: `drafts`, Storage, webhook | `supabase/schema.sql`, `supabase/update_webhook.sql` |
+| Tidlige tilføjelser til `drafts` | `supabase/add_*.sql`, `supabase/set_draft_photo.sql` |
+| RLS-låsen og push-abonnementer | `supabase/auth_lockdown.sql`, `supabase/push_subs.sql` |
+| Prisvagten: `listings`, `price_events`, `pg_cron` | `sql/001-prisvagt.sql`, `sql/002-prisvagt-puls.sql` |
+| Løbenumre: `drafts.nr` fra en sekvens | `sql/003-loebenummer.sql` |
+| Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
+| Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
+| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl) | `sql/006-fakta.sql` |
+
+## Regler for annoncetekst
+
+Bestemt af dig 1. oktober. De står i `supabase/functions/_shared/beskrivelse.ts`
+(`BESKRIVELSE_REGLER`), og alle fire tekstskrivere læser dem derfra: analysen,
+Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
+
+- Skriv aldrig noget om bytte.
+- Er varen ny, så sig det tydeligt i første linje ("Helt ny med prismærke").
+- Er varen ny, så brug nyprisen i teksten. Den læses af prismærket eller slås
+  op på nettet. Findes den ikke, nævnes ingen — der opfindes aldrig et tal.
+- Skriv aldrig "uden synlige huller/pletter/slid", "umiddelbart" o.l. Det
+  lyder som skjulte fejl. Sig det positivt: "står flot", "i fin stand".
+- Læg aldrig op til, at du kan tage ekstra billeder eller måle op.
+- Mål tastes automatisk, når de kan findes: fra mærkatet, ellers fra mærkets
+  størrelsesguide — og teksten siger, hvor de kommer fra.
+- Nedton fejl. Modellen har beskrevet mange fejl, der ikke findes. Kun fejl,
+  der er sikre og til at se, i én kort sætning sidst. Skygger, folder, krøl og
+  fnug er ikke fejl og trækker heller ikke standen ned.
+- Positivt sprog og positive superlativer.
+- Slut med et stylingforslag.
+- Spørgsmål fra købere besvares med samme tone (køber-assistenten,
+  `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
+  der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
+  din beslutning, og hånden (scriptet i samtalen) er ikke bygget endnu.
 
 `runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
 `/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
