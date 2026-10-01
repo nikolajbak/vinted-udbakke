@@ -6,6 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
+import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,7 +21,7 @@ const STRATEGY_MODEL = "claude-sonnet-5";
 const SELLER_PERSONA =
   "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
   "Du kender de normer, der faktisk sælger på Vinted.dk: konkurrencedygtige (ikke ambitiøse) priser, " +
-  "tillidsvækkende og præcise beskrivelser, ærlig angivelse af slid/mangler (det booster tillid og reducerer retursager), " +
+  "tillidsvækkende og præcise beskrivelser i et positivt sprog, hvor en fejl kun nævnes, når den er sikker og til at se, " +
   "og titler der rammer det, folk rent faktisk søger efter (mærke + type + evt. størrelse/farve foran, ikke reklamesprog).";
 
 // Modellens egen værktøjssyntaks er observeret lække ind i felterne
@@ -99,7 +100,23 @@ const VISION_TOOL = {
       material: { type: ["string", "null"] },
       size: { type: ["string", "null"] },
       condition: { type: "string" },
-      visibleFlaws: { type: "string" },
+      visibleFlaws: {
+        type: "string",
+        description:
+          "Kun fejl, du er HELT sikker på og som en køber ville se med det samme: et hul, en tydelig plet, " +
+          "en ødelagt lynlås. Skygger, folder, krøl, lysrefleks, fnug fra underlaget og almindeligt " +
+          "vaskepræg er ikke fejl. Skriv \"ingen\", hvis du er i tvivl — en opfundet fejl koster salget.",
+      },
+      priceTag: {
+        type: ["integer", "null"],
+        description: "Prisen i danske kroner, hvis et prismærke med pris kan læses på billederne. null ellers.",
+      },
+      measurements: {
+        type: ["string", "null"],
+        description:
+          "Mål, der står trykt på et mærkat, fx \"W32 L34\", \"brystvidde 92 cm\" eller \"110/116 cm\". " +
+          "Kun det, der faktisk kan læses. null ellers.",
+      },
       category: { type: "string" },
       searchQuery: { type: "string", description: "Korte danske søgeord til at finde lignende varer på Vinted" },
     },
@@ -238,9 +255,10 @@ const DRAFT_TOOL = {
           '"God" = brugt, med synlige tegn på slid.\n' +
           '"Tilfredsstillende" = tydeligt brugt, med pletter, huller, misfarvning eller nullermænd, ' +
           "der kan ses på billederne.\n" +
-          "Kan man SE en plet, et hul eller en misfarvning på et af billederne, så er standen højst " +
-          '"Tilfredsstillende". At sætte den for højt giver en skuffet køber og en dårlig anmeldelse, ' +
-          "og det koster langt mere end de få kroner, en pænere stand ville have givet.",
+          "Er der en plet, et hul eller en misfarvning, du er HELT sikker på, så er standen højst " +
+          '"Tilfredsstillende". Skygger, folder, krøl og lysrefleks er ikke fejl og trækker ikke ned. ' +
+          "Er du i tvivl, så døm efter helhedsindtrykket — en opfundet fejl koster salget lige så sikkert " +
+          "som en skjult.",
       },
       price: { type: "string", description: 'Konkret beløb, fx "89 kr"' },
       priceNote: { type: "string", description: "Kort strategi-begrundelse, 1-2 sætninger" },
@@ -625,12 +643,35 @@ Deno.serve(async (req: Request) => {
     );
     const searchQuery = String(vision.searchQuery || vision.productType || "genbrug");
 
+    // Nypris og maal. Prismaerket og mærkatet er de sikre kilder; nettet bruges
+    // kun til det, billederne ikke selv kan svare paa.
+    const ny = /^ny/i.test(String(vision.condition ?? "").trim());
+    const fakta: Fakta = {};
+    if (ny) fakta.ny = true;
+    const tagPris = Math.round(Number(vision.priceTag));
+    if (ny && tagPris > 0) { fakta.nypris = tagPris; fakta.nyprisKilde = "prismærket"; }
+    if (vision.measurements) { fakta.maal = cleanText(vision.measurements); fakta.maalKilde = "mærkatet"; }
+    const flaws = cleanText(vision.visibleFlaws);
+    if (flaws && !/^(ingen|nej|-|none)\b/i.test(flaws)) fakta.fejl = flaws;
+    // Opslaget tager ~20 s, saa det koerer side om side med markedssoegningen.
+    const opslag = slaaOp(ANTHROPIC_API_KEY, {
+      brand: vision.brand as string | null,
+      productType: String(vision.productType ?? ""),
+      size: fakta.maal ? null : vision.size as string | null,
+      color: String(vision.color ?? ""),
+      ny: ny && !fakta.nypris,
+    }).then((fundet) => {
+      if (fundet.nypris) { fakta.nypris = fundet.nypris; fakta.nyprisKilde = fundet.nyprisKilde; }
+      if (fundet.maal) { fakta.maal = fundet.maal; fakta.maalKilde = "mærkets størrelsesguide"; }
+    }).catch((err) => console.error("opslag af nypris/maal sprunget over", err));
+
     // 2. Try to ground pricing here, but don't lean on it: Vinted blocks
     // datacenter IPs intermittently. When this fails the phone does the
     // lookup instead (same-origin from vinted.dk, never blocked) — see
     // vinted-fill-script. One quick attempt only, so a blocked call doesn't
     // hold the draft up.
     const { items, country, blocked } = await searchWithFallback(searchQuery, "dk", "fr", 12, 1);
+    await opslag;
     const comparables = items.slice(0, 10).map((it) => `${it.title} — ${it.price} ${it.currency}`).join("\n");
 
     // 3. Write the final ad: title, description, price AND a short sell-through strategy,
@@ -648,9 +689,7 @@ Deno.serve(async (req: Request) => {
     const draft = await callClaudeJson(
       SELLER_PERSONA + " Skriv et komplet annonce-udkast PÅ DANSK til Vinted for varen, ud fra produktanalysen og markedsdata nedenfor. " +
         "Titel: mærke/type/størrelse først, det er det folk søger på — ikke sælger-sprog. " +
-        "Beskrivelse: ærlig og konkret (mærke, størrelse, materiale, stand, evt. mangler fra visibleFlaws), gerne 3-6 linjer, " +
-        "og slut med noget der reelt fremmer salget på det danske marked (fx hurtig afsendelse, bytter ved køb af flere, kan sende måltagning ved forespørgsel — " +
-        "vælg kun det der er relevant, opfind ikke konkrete tal du ikke har). " +
+        "Beskrivelse: 4-7 linjer om mærke, størrelse, materiale og stand.\n" + BESKRIVELSE_REGLER + "\n" +
         "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
         "Udfyld desuden Vinteds egne felter — categoryPath, brand, size, sizeScale, color, condition — med Vinteds " +
         "egen danske ordlyd, for de bliver klikket direkte ind i formularen. Er du i tvivl om mærke eller størrelse, " +
@@ -658,11 +697,12 @@ Deno.serve(async (req: Request) => {
       [
         {
           type: "text",
-          text: `Produktanalyse fra billederne: ${JSON.stringify(vision)}\n\n${marketContext}`,
+          text: `Produktanalyse fra billederne: ${JSON.stringify(vision)}\n\n${faktaTekst(fakta)}\n\n${marketContext}`,
         },
       ],
       STRATEGY_MODEL,
       DRAFT_TOOL,
+      1600,
     );
 
 console.log("annonce klar paa", Date.now() - t0, "ms");
@@ -678,6 +718,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
         price_note: cleanText(draft.priceNote),
         search_query: searchQuery,
         price_grounded: grounded,
+        fakta,
         // Vinteds egne felter. Bogmaerket klikker dem igennem, saa de gemmes
         // her praecis som modellen formulerede dem. draft vinder over vision:
         // draft-kaldet kender Vinteds ordlyd, vision-kaldet laeser bare etiketten.

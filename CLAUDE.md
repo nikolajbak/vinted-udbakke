@@ -88,6 +88,7 @@ midlertidig funktion og slet den bagefter.
 | Automatikken bogmærket/brugerscriptet kører | `…/vinted-fill-script/runner.ts` |
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
+| Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Prisvagtens skema og ur | `sql/001-prisvagt.sql`, `sql/002-prisvagt-puls.sql` |
 | Løbenumre | `sql/003-loebenummer.sql` |
 
@@ -369,6 +370,13 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   udgivelser lige efter hinanden. `vent-paa-pages.sh` venter derfor og beder
   om ét byg til, i stedet for at melde udgivelsen død — og et byg, der
   fejler, skal ikke få nogen til at lede efter fejlen i det, der blev skrevet.
+- **Nypris og mål slås op med `web_search_20250305`, ikke `20260209`.** Den nye
+  variant filtrerer resultaterne med kode og brugte 34-140 s på det samme fund,
+  som den simple fandt på 21 s. Og `max_tokens` under ~4000 slap op midt i
+  søgningen og gav et tomt svar. Opslaget kører side om side med
+  markedssøgningen i `analyze-draft`, så det ikke lægger sin tid oveni.
+- **`_shared/` bages ind i hver funktion, der importerer den.** `udgiv.sh` og
+  `tilbage.sh` ved det: ændres `_shared`, udrulles alle, der bruger den.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

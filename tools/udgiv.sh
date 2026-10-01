@@ -57,8 +57,16 @@ elif [ -z "$sidste" ]; then
   echo "Ingen tidligere udgivelse — noterer det nuvaerende som udgangspunkt."
 else
   udrul=""
+  # _shared er ikke en funktion, men bages ind i hver af dem, der importerer
+  # den. Er den aendret, skal de alle ud igen - ellers koerer de den gamle.
+  delt=nej
+  git diff --quiet "$sidste" HEAD -- supabase/functions/_shared || delt=ja
   for f in $FUNKTIONER; do
-    git diff --quiet "$sidste" HEAD -- "supabase/functions/$f" || udrul="$udrul $f"
+    if ! git diff --quiet "$sidste" HEAD -- "supabase/functions/$f"; then
+      udrul="$udrul $f"
+    elif [ $delt = ja ] && grep -rq "_shared/" "supabase/functions/$f"; then
+      udrul="$udrul $f"
+    fi
   done
 fi
 

@@ -7,6 +7,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
+import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -151,8 +152,7 @@ const MARKET_TOOL = {
       description: {
         type: "string",
         description:
-          "Beskrivelsen på dansk, 3-6 linjer. Konkret om stand, pasform og eventuelle fejl. " +
-          "Ingen sælger-sprog, ingen udråbstegn.",
+          "Beskrivelsen på dansk, 4-7 linjer, efter reglerne i systemprompten.",
       },
       captions: {
         type: "array",
@@ -175,11 +175,11 @@ const MARKET_SYSTEM =
   "PÅ eller UNDER medianen af de sammenlignelige. Målet er et hurtigt salg, ikke den højest " +
   "tænkelige pris.\n\n" +
   "Døm varens stand ud fra BILLEDERNE, ikke ud fra den eksisterende tekst, som er skrevet " +
-  "til en anden platform. Er der slid eller pletter at se, skal det stå i beskrivelsen — " +
-  "en køber, der bliver overrasket, sender varen retur.\n\n" +
+  "til en anden platform. Nypris og mål under Fakta er slået op og skal med.\n\n" +
+  BESKRIVELSE_REGLER + "\n\n" +
   "Billedteksterne skal sige noget, billedet faktisk viser: et mærkat, en lynlås, et slidt " +
   "sted. En billedtekst, der gentager overskriften, er spildt plads.\n" +
-  "Skriv dansk, ligefremt og uden udråbstegn.";
+  "Overskrift og billedtekster uden udråbstegn.";
 
 async function analyseMarket(
   draft: Record<string, unknown>,
@@ -215,7 +215,7 @@ async function analyseMarket(
     type: "text",
     text: `Vare: ${draft.title}\nNuværende beskrivelse (skrevet til Vinted): ${draft.description}\n` +
       `Mærke: ${draft.brand ?? ""}\nStørrelse: ${draft.size ?? ""}\nStand: ${draft.condition ?? ""}\n` +
-      `Farve: ${draft.color ?? ""}\nMateriale: ${draft.material ?? ""}\n\n` +
+      `Farve: ${draft.color ?? ""}\nMateriale: ${draft.material ?? ""}\n${faktaTekst(draft.fakta)}\n\n` +
       `Billederne ovenfor er i rækkefølgen: ${billeder}\n\n` +
       grundlag +
       `Annoncer på DBA lige nu:\n${list}`,
@@ -387,7 +387,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "market") {
       const { data } = await supabase
         .from("drafts")
-        .select("title, description, brand, size, condition, color, material, photos")
+        .select("title, description, brand, size, condition, color, material, photos, fakta")
         .eq("id", body.id).single();
       if (!data) return json({ error: "no_draft" }, 404);
       const items = (Array.isArray(body.items) ? body.items : [])

@@ -17,6 +17,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
+import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -135,7 +136,7 @@ async function callTool(
     },
     body: JSON.stringify({
       model: "claude-sonnet-5",
-      max_tokens: 700,
+      max_tokens: 1200,
       system,
       tools: [tool],
       tool_choice: { type: "tool", name: tool.name },
@@ -409,9 +410,8 @@ const LISTING_TOOL = {
       description: {
         type: "string",
         description:
-          "Beskrivelse på dansk, 3-6 linjer. Vær konkret om mærke, størrelse, materiale, stand og " +
-          "eventuelle fejl. Lad de medsendte eksempler inspirere tonen og hvilke oplysninger købere " +
-          "efterspørger — men skriv om DENNE vare, og opfind aldrig noget, billederne ikke viser.",
+          "Beskrivelse på dansk, 4-7 linjer, efter reglerne i systemprompten. Lad de medsendte " +
+          "eksempler inspirere, hvilke oplysninger købere efterspørger — men skriv om DENNE vare.",
       },
       price: { type: "integer", description: "Prisen i hele kroner, uden enhed." },
       priceNote: {
@@ -435,7 +435,8 @@ const MARKET_SYSTEM =
   "eller næsten ny, kan den ligge tæt på. Gå aldrig så lavt, at varen ser defekt ud — en pris, der " +
   "stikker af nedad, skaber mistanke frem for salg.\n\n" +
   "Skriv titel og beskrivelse, så varen bliver fundet og forstået. Døm varens stand og udseende ud " +
-  "fra billedet, ikke ud fra det udkast, der allerede er skrevet — det kan være forkert.";
+  "fra billedet, ikke ud fra det udkast, der allerede er skrevet — det kan være forkert. Nypris og " +
+  "mål under Fakta er slået op og skal med.\n\n" + BESKRIVELSE_REGLER;
 
 async function analyseMarket(
   draft: Record<string, unknown>,
@@ -459,7 +460,8 @@ async function analyseMarket(
   const text =
     `Varen: ${draft.title}\nMærke: ${draft.brand ?? "ukendt"} · str. ${draft.size ?? "?"} · ` +
     `${draft.condition ?? "?"} · ${draft.material ?? "?"} · ${draft.color ?? "?"}\n` +
-    `Nuværende udkast til beskrivelse (kan være forkert): ${draft.description}\n\n` +
+    `Nuværende udkast til beskrivelse (kan være forkert): ${draft.description}\n` +
+    `${faktaTekst(draft.fakta)}\n\n` +
     `${list.length} aktive annoncer på Vinted DK lige nu` +
     (all ? ` (hele feltet: ${all.min}-${all.max} kr, median ${all.median} kr)` : "") + ":\n" +
     lines + sampleText +
@@ -632,7 +634,8 @@ async function negotiate(
     "ikke paa noget. Ved et bud: er buddet paa eller over udbudsprisen, saa 'accept'. Ellers " +
     "'counter' med et modbud mellem buddet og udbudsprisen - aldrig over din egen pris, aldrig " +
     "under buddet, og hele kroner. Begrund modbuddet kort med stand eller maerke. Vaer aldrig " +
-    "presset eller anmassende.";
+    "presset eller anmassende. Skriv positivt og varmt om varen, tilbyd aldrig bytte, og tilbyd " +
+    "ikke at maale op eller tage flere billeder - staar maalet ikke i varens data, saa 'defer'.";
 
   const parts: string[] = [facts];
   if (offer > 0) parts.push(`\nKoeberen har budt ${offer} kr.`);
@@ -1214,7 +1217,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "market") {
       const { data: d, error: e } = await supabase
         .from("drafts")
-        .select("title, description, brand, size, condition, material, color, photos")
+        .select("title, description, brand, size, condition, material, color, photos, fakta")
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);

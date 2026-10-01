@@ -18,6 +18,20 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Nye regler for annoncetekst — bygget 1. oktober.** Alle fire steder, der
+   skriver en beskrivelse (analysen, Vinteds markedsrunde, DBA, Reshopper),
+   læser nu de samme regler i `_shared/beskrivelse.ts`: positivt sprog, »Helt
+   ny« først når varen er ny, aldrig »uden synlige …«, intet om bytte, intet
+   tilbud om mål eller flere billeder, fejl kun når de er sikre og kort til
+   sidst, og et stylingforslag til slut. Nypris og mål slås op på nettet
+   (prismærke og mærkat først) og gemmes i `drafts.fakta`, så de overlever,
+   at teksten skrives om.
+
+   **Afprøvet lokalt** på nr. 8 og 12 — reglerne holder, og målene fra
+   mærkets størrelsesguide kom med. Nyprisen på nr. 8 (Teeshoppen) blev ikke
+   fundet, og så står der ingen — det er meningen. **Ikke kørt gennem hele
+   `analyze-draft` på et nyt udkast endnu.**
+
 0. **Tilknyt en annonce, der ikke er lagt op af appen — bygget 30. september.**
    `listings` blev kun fyldt ét sted: af runneren, når den selv havde set
    varen blive lagt op. Fem udkast er markeret »sendt til Vinted«, og der var

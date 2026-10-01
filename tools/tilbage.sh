@@ -71,6 +71,24 @@ for m in $maal; do
   fi
 done
 
+# Funktionerne deler _shared. En funktion, der rulles tilbage, skal have den
+# _shared, den blev udgivet med - og saa skal alle, der bruger den, ud igen,
+# ellers staar git og live hver sit sted for dem.
+if [ -n "$udrul" ] && git cat-file -e "$tag:supabase/functions/_shared" 2>/dev/null &&
+   ! git diff --quiet "$tag" HEAD -- supabase/functions/_shared; then
+  brug=nej
+  for m in $udrul; do grep -rq "_shared/" "supabase/functions/$m" && brug=ja; done
+  if [ $brug = ja ]; then
+    git checkout "$tag" -- supabase/functions/_shared
+    for f in $FUNKTIONER; do
+      case " $udrul " in
+        *" $f "*) ;;
+        *) grep -rq "_shared/" "supabase/functions/$f" && udrul="$udrul $f" ;;
+      esac
+    done
+  fi
+fi
+
 if [ -z "$(git status --porcelain)" ]; then
   echo "Intet at rulle tilbage — alt er allerede som i $tag."
   exit 0

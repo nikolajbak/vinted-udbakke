@@ -9,6 +9,7 @@
 // (swagger.json), ikke gaettet.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -47,7 +48,7 @@ const TOOL = {
         enum: ["brandNew", "new", "used", "broken"],
         description:
           'brandNew = ny med prismærke. new = ubrugt uden mærke. used = brugt. ' +
-          'broken = defekt. Kan man SE en plet eller et hul på billederne, er det "used", aldrig "new".',
+          'broken = defekt. Er der en plet eller et hul, du er helt sikker på, er det "used", aldrig "new".',
       },
       brandOrTitle: {
         type: "string",
@@ -67,8 +68,8 @@ const TOOL = {
       extendedDescription: {
         type: "string",
         description:
-          "Den fulde beskrivelse på dansk, 3-6 linjer. Reshopper er et forældre-til-forældre-marked: " +
-          "skriv ligefremt og konkret om stand, pasform og eventuelle fejl. Ingen sælger-sprog.",
+          "Den fulde beskrivelse på dansk, 4-7 linjer, efter reglerne i systemprompten. Reshopper er " +
+          "et forældre-til-forældre-marked: varmt og konkret om stand og pasform.",
       },
     },
     required: ["segment", "category", "conditionType", "brandOrTitle", "age", "size",
@@ -87,7 +88,7 @@ Deno.serve(async (req) => {
 
   const { data: d, error } = await supabase
     .from("drafts")
-    .select("title, description, brand, size, condition, color, material, price, reshopper, photos")
+    .select("title, description, brand, size, condition, color, material, price, reshopper, photos, fakta")
     .eq("id", id).single();
   if (error) return json({ error: error.message }, 500);
 
@@ -99,14 +100,14 @@ Deno.serve(async (req) => {
     headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: "claude-sonnet-5",
-      max_tokens: 900,
+      max_tokens: 1300,
       system:
         "Du er en meget erfaren sælger på det danske genbrugsmarked og lægger nu en færdig annonce " +
         "over i Reshoppers felter.\n" +
         "Reshopper er børn, mor og bolig — ikke voksenmode. Er varen til et barn, er segment \"kids\".\n" +
         "Døm varens stand ud fra billedet, ikke ud fra den eksisterende tekst, som kan være skrevet " +
         "for en anden platform.\n" +
-        "Skriv dansk, ligefremt og uden udråbstegn. Reshopper er forældre der handler med forældre.",
+        "Skriv dansk og varmt. Reshopper er forældre der handler med forældre.\n\n" + BESKRIVELSE_REGLER,
       tools: [TOOL],
       tool_choice: { type: "tool", name: TOOL.name },
       messages: [{
@@ -118,7 +119,7 @@ Deno.serve(async (req) => {
           { type: "text", text:
             `Titel: ${d.title}\nBeskrivelse: ${d.description}\nMærke: ${d.brand ?? ""}\n` +
             `Størrelse: ${d.size ?? ""}\nStand: ${d.condition ?? ""}\nFarve: ${d.color ?? ""}\n` +
-            `Materiale: ${d.material ?? ""}\nPris: ${d.price ?? ""}` },
+            `Materiale: ${d.material ?? ""}\nPris: ${d.price ?? ""}\n${faktaTekst(d.fakta)}` },
         ],
       }],
     }),
