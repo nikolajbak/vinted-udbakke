@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0034 — 2026-10-01 17:01
+
+Commit `df1448f` — Billedernes farver er tro mod varen  
+App: `app.js?v=9a9e1409` · `style.css?v=992bac91`  
+Udrullet: analyze-draft
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v64 | `0f683ced` |
+| dba-fill-script | v14 | `f8f22c92` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v7 | `a31c8881` |
+| vinted-fill-script | v57 | `38292428` |
+| vinted-mail | v1 | `b2c342ef` |
+
 ## udgivelse-0033 — 2026-10-01 16:37
 
 Commit `d9bf308` — Markedstjek af prisen: Vinteds soegning er flyttet til api.vinted.dk  
