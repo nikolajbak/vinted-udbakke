@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0029 — 2026-10-01 09:07
+
+Commit `faa7f49` — Laer af salgene: udfald, koeberspoergsmaal og erfaringer i prompterne  
+App: `app.js?v=5c0b3066` · `style.css?v=992bac91`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v61 | `8e2f7050` |
+| dba-fill-script ← | v12 | `15e4217a` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft ← | v5 | `09be45c1` |
+| vinted-fill-script ← | v52 | `ad8af3aa` |
+
 ## udgivelse-0028 — 2026-10-01 08:41
 
 Commit `0d50957` — Skriv annoncetekster efter faelles regler, med nypris og maal  
