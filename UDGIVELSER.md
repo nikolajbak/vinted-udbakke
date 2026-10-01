@@ -14,6 +14,21 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0028 — 2026-10-01 08:41
+
+Commit `0d50957` — Skriv annoncetekster efter faelles regler, med nypris og maal  
+App: `app.js?v=db1ee933` · `style.css?v=73b03d41`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v60 | `8d6761a5` |
+| dba-fill-script ← | v11 | `bf1caef5` |
+| push-send | v3 | `cce82c40` |
+| push-subscribe | v3 | `989f990f` |
+| reshopper-draft ← | v4 | `f5407e75` |
+| vinted-fill-script ← | v51 | `1ea036a7` |
+
 ## udgivelse-0027 — 2026-09-30 18:29
 
 Commit `a1ad4ff` — Lad udgiv.sh komme sig over et fejlet Pages-byg  
