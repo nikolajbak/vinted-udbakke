@@ -97,6 +97,7 @@ midlertidig funktion og slet den bagefter.
 | Udfyldning af Vinted-formularen | `supabase/functions/vinted-fill-script/` |
 | Automatikken bogmærket/brugerscriptet kører | `…/vinted-fill-script/runner.ts` |
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
+| Vinteds mails → solgt, bud, besked som push (nøgle: `MAIL_KEY`) | `supabase/functions/vinted-mail/` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
@@ -120,6 +121,7 @@ nummer i `sql/` og en linje her.
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
 | Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
+| Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 
 ## Regler for annoncetekst
 
@@ -179,13 +181,18 @@ Bestemt af dig 1. oktober: annoncerne synkroniseres automatisk begge veje,
 når der rettes i appen eller på markedspladsen. Kun Vinted — DBA og Reshopper
 har ingen række i `listings` endnu.
 
-- **Vinted → appen sker stille, hver gang Vinted er åben i Safari.**
-  Brugerscriptet læser den annonce, du står på, og derudover op til ti aktive
-  annoncer, der ikke er læst de sidste seks timer (`mode:'uaflaeste'`), højst
-  én runde i timen. Kun via `/api/v2/items/{id}` — annoncesiden (2 MB) hentes
-  aldrig som reserve i den stille runde. Ingen bånd, ingen navigation.
-  Serveren kan ikke gøre det selv: Vinted blokerer datacenter-IP'er. Rettes der
-  i Vinteds egen app, når det hjem næste gang Vinted åbnes i Safari.
+- **Ingen runde på et ur.** Bestemt af dig 1. oktober: der må ikke tjekkes
+  med et fast interval. En baggrundsrunde over alle annoncer blev bygget og
+  fjernet igen samme dag. Synkroniseringen sker på hændelser.
+- **Salg, bud og beskeder når serveren som mail fra Vinted** (`vinted-mail`).
+  Det er den eneste vej, der virker uden telefonen: Vinted blokerer
+  datacenter-IP'er og har ingen webhooks. Se »Vinteds mails« nedenfor.
+- **Pris, titel og beskrivelse rettet på Vinted læses af den annonce, du står
+  på.** Retter du i Vinteds formular i Safari og trykker Gem, lander du på
+  annoncen, og runneren læser den stille — kun via `/api/v2/items/{id}`, aldrig
+  annoncesiden (2 MB). Rettes der i Vinteds egen app, sender Vinted ingen mail;
+  så kommer det hjem, når du åbner annoncen i Safari, trykker **Opdatér fra
+  Vinted**, eller prisvagten måler den.
 - **Appen → Vinted sker ved Gem.** Redigeringen starter fra annoncens egne ord
   (`published`), ikke udkastets, og kun det, der afviger fra ANNONCEN, sendes
   ud — en titel rettet på Vinted skrives ikke tilbage, fordi du bagefter rettede
@@ -203,6 +210,26 @@ har ingen række i `listings` endnu.
 - **Står et ventende felt allerede i annoncen, fjernes det fra `pending`.** Har
   du skrevet det ind på Vinted selv, er der intet at sende.
 - **Historiklisten viser annoncens pris og »solgt«**, ikke udkastets pris.
+
+## Vinteds mails
+
+En mailregel sender Vinteds mails videre til en modtagertjeneste
+(CloudMailin, Postmark eller en Cloudflare Email Worker), som POSTer dem til
+`vinted-mail?key=<MAIL_KEY>`. Funktionen forstår alle tre formater.
+
+- **Hver mail gemmes i `vinted_mails`**, også dem, der ikke blev forstået.
+  Vinteds mailformat er ikke målt — emneord og beløbsmønstre i `vinted-mail`
+  er gæt, og det er de gemte mails, de skal rettes på. Ret aldrig et mønster
+  uden at have set en rigtig mail.
+- **Mailen knyttes til annoncen på nummeret i et link**, ellers på den
+  længste titel (mindst seks tegn), der står i mailen.
+- **Solgt** → annoncen sættes til `solgt`, hændelse, gennemgangen af salgene,
+  og en push. **Bud** og **besked** → kun en push. Alt andet → intet. Dit eget
+  køb (»du har købt«, »dit køb«) er ikke et salg.
+- **Samme mail to gange er én mail** (`message_id` er unik). Tjenesterne
+  sender igen, hvis de ikke fik svar i tide.
+- **En push med en vare åbner varen** (`#v<nr>`), også når appen allerede er
+  åben — `sw.js` navigerer den åbne rude.
 
 `runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
 `/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
@@ -250,12 +277,10 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   selv trykker "Markér som postet", eller når alle tre er sat. Et tryk på en
   markedsplads noterer, at varen er sendt DERHEN — ikke at den er lagt op; kun
   Vinted-scriptet kan bekræfte det sidste.
-- **Brugerscriptet kører på hele vinted.dk, ikke kun `/items/new`.** Efter
+- **Brugerscriptet kører på hele `/items/*`, ikke kun `/items/new`.** Efter
   Upload sender Vinted brugeren videre til annoncens egen side; dér ser scriptet
-  markøren i `localStorage` og melder udkastet afsendt. Og den stille
-  synkronisering skal ske, hver gang Vinted er åben — også på forsiden.
-  Bogmærket kan ikke det — det kører kun, når man trykker på det. (Udvidet fra
-  `/items/*` 1. oktober: scriptet skal installeres forfra for at fyre på resten.)
+  markøren i `localStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
+  det kører kun, når man trykker på det.
 - **Efter Upload skifter Vinted adresse UDEN at genindlæse siden (Next.js).**
   Et brugerscript kører kun ved en rigtig sideindlæsning, så det fyrer aldrig
   på annoncesiden, man lander på. Fire udkast blev 1. oktober lagt op via

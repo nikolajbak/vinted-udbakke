@@ -15,7 +15,16 @@ self.addEventListener('notificationclick', function(e){
   e.notification.close();
   var url = (e.notification.data && e.notification.data.url) || '/vinted-udbakke/';
   e.waitUntil(self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(function(list){
-    for (var i=0;i<list.length;i++){ if (list[i].url.indexOf('/vinted-udbakke') > -1 && 'focus' in list[i]) return list[i].focus(); }
+    for (var i=0;i<list.length;i++){
+      if (list[i].url.indexOf('/vinted-udbakke') > -1 && 'focus' in list[i]){
+        // Peger notifikationen paa en bestemt vare (#v42), skal den aabne,
+        // ogsaa naar appen allerede staar aaben — ellers lander man bare dér,
+        // hvor man slap.
+        var c = list[i];
+        if (url.indexOf('#v') > -1 && 'navigate' in c) return c.navigate(url).then(function(w){ return (w || c).focus(); });
+        return c.focus();
+      }
+    }
     if (self.clients.openWindow) return self.clients.openWindow(url);
   }));
 });

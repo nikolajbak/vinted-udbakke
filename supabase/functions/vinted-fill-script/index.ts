@@ -963,11 +963,8 @@ Deno.serve(async (req: Request) => {
       "// @namespace    udbakke",
       `// @version      1.0.${h % 100000}`,
       "// @description  Udfylder Vinted-annoncen og holder appen synkroniseret",
-      // Hele vinted.dk, ikke kun /items/*: den stille aflaesning af annoncerne
-      // skal ske, hver gang Vinted er aaben — ogsaa paa forsiden og i
-      // indbakken. Udfyldningen kraever stadig /items/new.
-      "// @match        https://www.vinted.dk/*",
-      "// @match        https://vinted.dk/*",
+      "// @match        https://www.vinted.dk/items/*",
+      "// @match        https://vinted.dk/items/*",
       "// @run-at       document-idle",
       "// @grant        none",
       "// @inject-into  page",
@@ -1162,8 +1159,8 @@ Deno.serve(async (req: Request) => {
       if (!r) return json({ ukendt: true });
 
       if (body.gone) {
-        // Den stille runde kommer forbi den samme lukkede annonce igen og
-        // igen. Den er solgt én gang.
+        // En lukket annonce kan blive laest igen — og mailen fra Vinted kan
+        // have meldt den solgt foerst. Den er solgt én gang.
         if (r.status !== "aktiv") return json({ ok: true, gone: true });
         await supabase.from("listings").update({
           status: "solgt", sold_at: new Date().toISOString(),
@@ -1174,8 +1171,6 @@ Deno.serve(async (req: Request) => {
           note: "annoncen findes ikke længere på Vinted",
         });
         laerIBaggrunden();
-        // Du stod ikke selv og kiggede paa annoncen, saa du skal have det at vide.
-        if (body.stille) await puf("Solgt!", "En vare er væk fra Vinted");
         return json({ ok: true, gone: true });
       }
 
@@ -1234,21 +1229,6 @@ Deno.serve(async (req: Request) => {
 
       await supabase.from("listings").update(opd).eq("id", r.id);
       return json({ ok: true, published: snap });
-    }
-
-    // Hvilke annoncer er ikke laest for nylig? Telefonen spoerger, hver gang en
-    // Vinted-side er aaben, og laeser dem stille i baggrunden. Serveren kan
-    // ikke selv: Vinted blokerer datacenter-IP'er.
-    if (body.mode === "uaflaeste") {
-      const graense = new Date(Date.now() - 6 * 3600000).toISOString();
-      const { data } = await supabase.from("listings")
-        .select("external_id, synced_at")
-        .eq("platform", "vinted").eq("status", "aktiv")
-        .not("external_id", "is", null)
-        .or(`synced_at.is.null,synced_at.lt.${graense}`)
-        .order("synced_at", { ascending: true, nullsFirst: true })
-        .limit(10);
-      return json({ itemIds: (data ?? []).map((r) => String(r.external_id)) });
     }
 
     if (body.mode === "watch") {

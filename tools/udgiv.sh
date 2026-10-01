@@ -14,7 +14,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 PROJEKT=gjycsqshkvkcupdnvgvf
-FUNKTIONER="analyze-draft dba-fill-script push-send push-subscribe reshopper-draft vinted-fill-script"
+FUNKTIONER="analyze-draft dba-fill-script push-send push-subscribe reshopper-draft vinted-fill-script vinted-mail"
 
 [ -f .env.secrets ] || { echo "Mangler .env.secrets"; exit 1; }
 set -a; . ./.env.secrets; set +a

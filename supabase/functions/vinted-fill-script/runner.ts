@@ -389,23 +389,42 @@ async function waitReady(){
 // (view_count er altid 0). Mange hjerter på en vare, der STADIG ligger der,
 // betyder "eftertragtet, men for dyr" — det er et loft, ikke et mål.
 
+// Søgesvaret har ikke længere brand_title/size_title/status. Mærket står i
+// item_box.first_line, og second_line er "størrelse · stand" — eller kun
+// standen, når varen ikke har en størrelse.
 function dkkItems(list){
  return (list||[]).filter(function(i){return i.price&&i.price.currency_code==='DKK'&&+i.price.amount>0})
-  .map(function(i){return{
-   id:i.id, path:i.path, title:i.title,
-   price:+i.price.amount, favourites:i.favourite_count||0,
-   brand:i.brand_title||'', size:i.size_title||'', condition:i.status||''
-  }});
+  .map(function(i){
+   var box=i.item_box||{};
+   var linje=String(box.second_line||'').split(' · ');
+   var stand=linje.length>1?linje.pop():(linje[0]||'');
+   return{
+    id:i.id, path:i.path||i.url||'', title:i.title,
+    price:+i.price.amount, favourites:i.favourite_count||0,
+    brand:i.brand_title||box.first_line||'',
+    size:i.size_title||(linje.length&&linje[0]!==stand?linje.join(' · '):''),
+    condition:i.status||stand
+   };
+  });
 }
 
+// Vinted flyttede søgningen: /api/v2/catalog/items svarer 404 (målt 1.
+// oktober), og deres egen katalogside henter fra api.vinted.dk. Den tillader
+// kald fra www.vinted.dk med cookies. Fremhævede annoncer (content_source
+// "…promoted…") er betalt plads, ikke relevans — de kan være en Zara-jakke i
+// en søgning på Ralph Lauren-skjorter — så de sorteres fra. Derfor hentes 96:
+// på side 1 kan 36 af 40 være fremhævede.
 async function search(text,n){
  try{
-  var r=await timedFetch('/api/v2/catalog/items?search_text='+encodeURIComponent(text)+
-   '&order=relevance&page=1&per_page='+(n||40),
+  var r=await timedFetch('https://api.vinted.dk/svc-catalogue/items?search_text='+encodeURIComponent(text)+
+   '&order=relevance&page=1&per_page=96',
    {headers:{'Accept':'application/json'},credentials:'include'},20000);
-  if(!r.ok)return [];
-  return dkkItems((await r.json()).items);
- }catch(e){return []}
+  if(!r.ok){log('søgning: '+r.status);return []}
+  var items=((await r.json()).items||[]).filter(function(i){
+   return !/promoted/.test(String(i.content_source||''));
+  });
+  return dkkItems(items).slice(0,n||40);
+ }catch(e){log('søgning: '+e.message);return []}
 }
 
 // De bedst modtagne annoncers egne ord. Beskrivelsen står ikke i søgesvaret,
@@ -536,8 +555,6 @@ function plukk(o,navne){
  return null;
 }
 
-// kunApi: den stille runde må ikke hente annoncesiden som reserve. Den vejer
-// ~2 MB, og runden kører uopfordret på telefonens forbindelse.
 // Hele kroner ud af en pristekst. Staar komma og punktum begge, er det sidste
 // decimaltegnet; staar kun det ene foran praecis tre cifre, er det tusinder
 // ("1.200"), ellers decimaler ("12,50"). Kopi af _shared/pris.ts - runneren
@@ -559,11 +576,23 @@ function helKroner(v){
  return isFinite(n)&&n>0?n:0;
 }
 
+// Annoncens egne data, til prisvagten og synkroniseringen.
+//
+// /api/v2/items/{id} svarer 404 på ALLE annoncer siden Vinted flyttede deres
+// API (målt 1. oktober, også på en annonce der lå ude). En 404 derfra siger
+// altså intet om annoncen — før blev den læst som "væk", og så ville hver
+// eneste tilknyttede annonce være meldt solgt. Kun annoncesidens egen 404
+// betyder, at annoncen er væk.
+//
+// Kilderne, i rækkefølge: API'et (hvis det kommer igen), den side du står på
+// (koster ingenting), og ellers annoncesiden hentet på ny.
+// kunApi: den stille aflæsning må ikke HENTE annoncesiden. Den vejer ~2 MB, og
+// aflæsningen kører uopfordret på telefonens forbindelse. Den side, der
+// allerede er åben, må gerne læses.
 async function hentVare(id,kunApi){
  try{
   var r=await timedFetch('/api/v2/items/'+id,
    {headers:{'Accept':'application/json'},credentials:'include'},15000);
-  if(r.status===404||r.status===410){log('vagt: '+id+' findes ikke (api)');return {gone:true}}
   if(r.ok){
    var j=await r.json(),it=(j&&(j.item||j))||null;
    if(it&&(it.price!==undefined||it.id!==undefined)){
@@ -594,34 +623,61 @@ async function hentVare(id,kunApi){
    }
   }
  }catch(e){}
+ // Står du på annoncen, er siden her allerede. Vinted skifter adresse uden at
+ // genindlæse, så sidens data skal bære det rigtige nummer, før de bruges.
+ if(new RegExp('^/items/'+id+'(?:\\D|$)').test(location.pathname)){
+  var her=laesAnnonceside(document.documentElement.outerHTML,id);
+  if(her){log('vagt: '+id+' målt på den åbne side');return her}
+ }
  if(kunApi){log('synk: '+id+' svarede ikke via api');return null}
  try{
   var h=await timedFetch('/items/'+id,{credentials:'include'},15000);
   if(h.status===404||h.status===410){log('vagt: '+id+' findes ikke (side)');return {gone:true}}
   if(!h.ok)return null;
-  var t=await h.text();
-  var tag=function(navn,m){var x=t.match(m);return x?x[1]:null};
-  var mp=tag('pris',/"amount":"([0-9]+(?:\.[0-9]+)?)"/);
-  var mf=tag('hjerter',/"favourite_count":([0-9]+)/);
-  // Teksten i sidens indlejrede JSON er kodet. Uden oprydningen ville
-  // beskrivelsen komme hjem fuld af \n og æ.
-  var tekst=function(m){
-   var x=t.match(m); if(!x)return null;
-   try{return JSON.parse('"'+x[1]+'"')}catch(e){return x[1]}
-  };
-  log('vagt: '+id+' målt via annoncesiden');
-  return {gone:/"is_closed":true|"is_hidden":true|"is_sold":true/.test(t),
-          price:mp?helKroner(mp):0,favourites:mf?+mf:0,views:0,
-          udgivet:{price:mp?helKroner(mp)||null:null,
-                   title:tekst(/"title":"((?:[^"\\]|\\.){2,200})"/),
-                   description:tekst(/"description":"((?:[^"\\]|\\.){10,3000})"/),
-                   brand:tekst(/"brand(?:_title)?":"((?:[^"\\]|\\.){1,60})"/),
-                   size:tekst(/"size_title":"((?:[^"\\]|\\.){1,40})"/),
-                   condition:null,color:null,
-                   url:location.origin+'/items/'+id,kilde:'side'}};
+  var set=laesAnnonceside(await h.text(),id);
+  if(set){log('vagt: '+id+' målt via annoncesiden');return set}
  }catch(e){}
  log('vagt: '+id+' kunne ikke måles');
  return null;
+}
+
+// Annoncesiden tegnes på serveren, og varens data står i dens JSON-LD
+// (<script type="application/ld+json">, et Product med offers). Resten af
+// siden er React-data med \" overalt, og "title" eller "amount" dér kan lige
+// så godt høre til en oversættelse eller en anden vare — det skete. Hjerterne
+// står kun dér, så de findes på varens EGET nummer.
+// Størrelse og Vinteds egen standtekst står ikke i JSON-LD; de sendes som null,
+// og null betyder "ikke målt", ikke "tom".
+function laesAnnonceside(t,id){
+ var blokke=t.match(/<script[^>]*application\/ld\+json[^>]*>[\s\S]*?<\/script>/g)||[];
+ var p=null;
+ for(var i=0;i<blokke.length&&!p;i++){
+  try{
+   var o=JSON.parse(blokke[i].replace(/^<script[^>]*>/,'').replace(/<\/script>$/,''));
+   var liste=Array.isArray(o)?o:(o['@graph']||[o]);
+   for(var k=0;k<liste.length;k++){
+    var x=liste[k];
+    if(x&&x['@type']==='Product'&&x.offers&&String(x.offers.url||'').indexOf('/items/'+id)>-1){p=x;break}
+   }
+  }catch(e){}
+ }
+ if(!p)return null;
+ var tilbud=Array.isArray(p.offers)?p.offers[0]:p.offers;
+ var pris=helKroner(tilbud.price)||null;
+ var mf=t.match(new RegExp('favourite_count\\\\?":(\\d+),\\\\?"is_favourite\\\\?":(?:true|false),\\\\?"item_id\\\\?":\\\\?"?'+id+'\\b'));
+ var brand=p.brand&&(p.brand.name||p.brand);
+ return {
+  // Kun et udtrykkeligt "udsolgt" tæller som væk. At melde en annonce solgt,
+  // der ikke er det, er værre end at opdage et salg en runde senere.
+  gone:/SoldOut|OutOfStock|Discontinued/i.test(String(tilbud.availability||'')),
+  price:pris||0,favourites:mf?+mf[1]:0,views:0,
+  udgivet:{price:pris,
+           title:p.name?String(p.name):null,
+           description:p.description?String(p.description):null,
+           brand:brand?String(brand):null,
+           size:null,condition:null,
+           color:p.color?String(p.color):null,
+           url:location.origin+'/items/'+id,kilde:'side'}};
 }
 
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.
@@ -785,7 +841,7 @@ async function synkroniser(){
  if(b)b.remove();
  if(!set){baand('Annoncen kunne ikke læses.',null,null);return true}
  try{
-  var j=await sendSynk(num[1],set,false);
+  var j=await sendSynk(num[1],set);
   if(j&&j.ukendt){baand('Den annonce hører ikke til en vare i appen.',null,null);return true}
   baand(set.gone?'Annoncen findes ikke længere — noteret som solgt.'
                :'Appen er opdateret med annoncens egne oplysninger.',null,null);
@@ -793,55 +849,28 @@ async function synkroniser(){
  return true;
 }
 
-async function sendSynk(itemId,set,stille){
+async function sendSynk(itemId,set){
  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({mode:'synk',item_id:String(itemId),gone:!!set.gone,stille:!!stille,
+  body:JSON.stringify({mode:'synk',item_id:String(itemId),gone:!!set.gone,
    price:set.price,favourites:set.favourites,udgivet:set.udgivet})},20000);
  return await r.json();
 }
 
-// Synkroniseringen tilbage fra Vinted, uden at du beder om den. To ting:
-//  1) Står du på en annonce, læses DEN. Retter du titel eller pris i Vinteds
-//     formular og trykker Gem, sender Vinted dig hertil — så er appen ajour,
-//     før du er færdig med at kigge.
-//  2) Annoncer, der ikke er læst de sidste seks timer, læses i baggrunden —
-//     højst én runde i timen. Så når en rettelse lavet i Vinteds egen app
-//     også hjem, næste gang Vinted er åben i Safari.
-// Ingen bånd og ingen navigation: det her skal ikke kunne mærkes.
-var SYNK_SIDST='udbakke_synk_sidst';
+// Synkroniseringen tilbage fra Vinted, uden at du beder om den: står du på en
+// af dine egne annoncer, læses DEN. Retter du titel eller pris i Vinteds
+// formular og trykker Gem, sender Vinted dig hertil — så er appen ajour, før
+// du er færdig med at kigge. Ingen bånd og ingen navigation.
+//
+// Der er bevidst ingen runde over de andre annoncer. Salg, bud og beskeder
+// når serveren som mail fra Vinted (vinted-mail), og en runde på et ur var
+// netop dét, du ikke ville have.
 async function stilleSynk(){
- var set,j;
  // /items/1234567890-nike-jakke: nummeret, og en sti der ikke fortsætter.
  var num=location.pathname.match(/^\/items\/(\d+)(?:-[^\/]*)?\/?$/);
- var her=num?num[1]:null;
- if(her){
-  set=await hentVare(her,true);
-  if(set){
-   try{j=await sendSynk(her,set,false);if(j&&!j.ukendt)log('synk: '+her+' læst')}catch(e){}
-  }
- }
- try{
-  var sidst=+(localStorage.getItem(SYNK_SIDST)||0);
-  if(Date.now()-sidst<3600000)return;
-  localStorage.setItem(SYNK_SIDST,String(Date.now()));
- }catch(e){return}
- var ids=[];
- try{
-  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'uaflaeste'})},20000);
-  ids=((await r.json())||{}).itemIds||[];
- }catch(e){log('synk: kunne ikke hente listen');return}
- var n=0;
- for(var i=0;i<ids.length;i++){
-  if(ids[i]===her)continue;
-  // Lidt luft mellem opslagene. Ti kald i træk fra samme session er ikke
-  // noget, Vinted skal lægge mærke til.
-  if(n)await sleep(800);
-  set=await hentVare(ids[i],true);
-  if(!set)continue;
-  try{await sendSynk(ids[i],set,true);n++}catch(e){}
- }
- log('synk: '+n+' af '+ids.length+' annonce(r) læst i baggrunden');
+ if(!num)return;
+ var set=await hentVare(num[1],true);
+ if(!set)return;
+ try{var j=await sendSynk(num[1],set);if(j&&!j.ukendt)log('synk: '+num[1]+' læst')}catch(e){}
 }
 
 async function prisvagt(){
