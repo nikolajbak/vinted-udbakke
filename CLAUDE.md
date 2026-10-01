@@ -99,6 +99,7 @@ midlertidig funktion og slet den bagefter.
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
+| Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
 | Erfaringerne lagt ind i prompterne (`hentErfaringer`) | `supabase/functions/_shared/laering.ts` |
 
@@ -255,6 +256,14 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   synkronisering skal ske, hver gang Vinted er åben — også på forsiden.
   Bogmærket kan ikke det — det kører kun, når man trykker på det. (Udvidet fra
   `/items/*` 1. oktober: scriptet skal installeres forfra for at fyre på resten.)
+- **Efter Upload skifter Vinted adresse UDEN at genindlæse siden (Next.js).**
+  Et brugerscript kører kun ved en rigtig sideindlæsning, så det fyrer aldrig
+  på annoncesiden, man lander på. Fire udkast blev 1. oktober lagt op via
+  appen uden at blive tilknyttet: loggen sluttede med `clear` og intet
+  bagefter. Derfor holder runneren selv øje med `location.pathname` (hvert
+  sekund i op til en time), efter den har fyldt formularen, og kalder
+  `meldPostet`, når adressen bliver `/items/{id}`. Det samme gælder alt andet,
+  der skal ske »på næste side« — vent ikke på, at scriptet starter forfra.
 - **Hele serien fremkaldes ens.** Hvidbalance, sort-/hvidpunkt og gamma måles på
   det FØRSTE billede, gemmes i `drafts.tone` og genbruges på resten. Måler hvert
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget
@@ -324,6 +333,16 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   som Vinted får. Afrundingen sker FØR mindsteprisen, så `7,6` bliver til `8`
   ad én vej og ikke to. En tom eller ulæselig pris får lov at stå: den skal
   falde i øjnene, ikke erstattes af et opfundet tal.
+- **En pris er hele kroner overalt — ikke kun på Vinted.** Bestemt af dig
+  1. oktober. Prisen gemmes som tekst (`drafts.price`), og DBA, Reshopper og
+  appen læste den ved at slette alt andet end cifre: »89,50 kr« blev til
+  8950 kr. Vinted-vejen læste »1.200 kr« som 1,2. Nu fortolkes tallet først og
+  rundes bagefter, ét sted: `_shared/pris.ts`. Står komma og punktum begge, er
+  det sidste decimaltegnet; står kun det ene foran præcis tre cifre, er det
+  tusinder (»1.200«), ellers decimaler (»12,50«). Analysen gemmer prisen som
+  »89 kr«. Runneren (`helKroner`) og `app.js` (`prisTal`) har hver en kopi,
+  fordi de ikke kan importere — ret alle tre sammen. Læs aldrig en pris med
+  `replace(/[^0-9]/g, '')` eller `parseFloat` igen.
 - **`favourite_count` er brugbar, `view_count` er altid 0.** Mange hjerter på en
   vare, der stadig ligger der, er et loft, ikke et mål.
 - **En Vinted-vareside vejer ~2 MB.** Tekstprøver til beskrivelsen er derfor

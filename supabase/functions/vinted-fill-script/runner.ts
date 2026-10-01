@@ -1024,6 +1024,15 @@ try{
  // Gem hvilket udkast der ligger i formularen. Trykker du Upload, sender Vinted
  // dig videre til annoncens egen side - og dér kan vi se, at den er landet.
  try{localStorage.setItem('udbakke_afventer',JSON.stringify({id:DRAFT_ID,tid:Date.now()}))}catch(e){}
+ // Men Vinted skifter adresse UDEN at genindlaese siden (Next.js). Saa koerer
+ // brugerscriptet aldrig paa annoncesiden, og markoeren ligger der bare. Derfor
+ // holder vi selv oeje med adressen, saa laenge opret-siden er aaben.
+ var vagtAdr=setInterval(function(){
+  if(!/^\/items\/\d+/.test(location.pathname))return;
+  clearInterval(vagtAdr);
+  meldPostet().catch(function(e){log('postet: '+e.message)});
+ },1000);
+ setTimeout(function(){clearInterval(vagtAdr)},3600000);
 
  // Markeringen ryddes, så et genindlæs ikke fylder den samme annonce ud igen.
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
