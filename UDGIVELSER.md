@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0033 — 2026-10-01 16:37
+
+Commit `d9bf308` — Markedstjek af prisen: Vinteds soegning er flyttet til api.vinted.dk  
+App: `app.js?v=9a9e1409` · `style.css?v=992bac91`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v63 | `d1a050f0` |
+| dba-fill-script | v14 | `f8f22c92` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v7 | `a31c8881` |
+| vinted-fill-script ← | v57 | `38292428` |
+| vinted-mail | v1 | `b2c342ef` |
+
 ## udgivelse-0032 — 2026-10-01 16:35
 
 Commit `a4c2dac` — Vinteds mails som push, og ingen runde paa et ur  
