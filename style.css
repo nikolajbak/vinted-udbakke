@@ -616,6 +616,30 @@
   .vagt-knapper{ display: flex; gap: var(--s2); margin-top: var(--s3); }
   .vagt-knapper .btn{ flex: 1 1 0; width: auto; margin: 0; }
 
+  .vagt-besked{
+    width: 100%; margin-top: var(--s2); padding: var(--s2);
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--raised); color: var(--ink); font: inherit; resize: vertical;
+  }
+  .vagt-svar{
+    margin-top: var(--s3); padding: var(--s3);
+    background: var(--moss-soft); border-radius: 10px;
+    display: flex; flex-direction: column; gap: var(--s2);
+  }
+  .vagt-svar[hidden]{ display: none; }
+  .vagt-svar span{ font-size: var(--t-small); color: var(--ink-soft); }
+  .vagt-svar .btn{ margin: 0; }
+  .vagt-svar-tekst{ margin: 0; white-space: pre-wrap; }
+
+  .laer{ margin-top: var(--s5); }
+  .laer-row{ padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+  .laer-row p{ margin: var(--s1) 0 0; }
+  .laer-row .s{ font-size: var(--t-small); color: var(--ink-soft); margin-top: var(--s1); }
+  .laer-row.fra p{ color: var(--ink-soft); text-decoration: line-through; }
+  .laer-top{ display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+  .laer-omr{ font-size: var(--t-small); font-weight: 600; color: var(--ink-soft); }
+  .laer-til{ font-size: var(--t-small); color: var(--ink-soft); display: flex; align-items: center; gap: var(--s1); }
+
   .toast{
     position: fixed; left: var(--s4); right: var(--s4);
     max-width: var(--maal); margin-inline: auto;

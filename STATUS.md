@@ -18,6 +18,22 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Læring af salgene — bygget 1. oktober. Der er intet at lære af endnu.**
+   Ingen annoncer er tilknyttet (`listings` er tom), intet er solgt, og ingen
+   købersamtaler er gemt. Gennemgangen svarer »for tidligt«, indtil der er
+   3 solgte og 6 varer at bedømme. **Det, der skal til:** tilknyt nr. 5, 7 og
+   9–12 til deres Vinted-annoncer på udkastets side, tast salgsprisen, når
+   noget sælger, og brug **Svar en køber** på prisvagt-skærmen.
+
+   **Afprøvet:** gennemgangen i kørselsmiljøet på syv opdigtede jakker (en
+   midlertidig funktion med en falsk database). Den fandt det plantede mønster
+   (mål i teksten → solgt hurtigt) i tre kørsler ud af tre og foreslog ikke
+   den erfaring, der var slået fra. **Ikke afprøvet:** knapperne i appen,
+   loggen fra køber-assistenten, og det ugentlige job.
+
+   Samtidig rettet: `prisvagt_puls` (det daglige push) fejlede på den fjernede
+   kolonne `pending_price` og ville have været tavs fra i dag.
+
 0. **Nye regler for annoncetekst — bygget 1. oktober.** Alle fire steder, der
    skriver en beskrivelse (analysen, Vinteds markedsrunde, DBA, Reshopper),
    læser nu de samme regler i `_shared/beskrivelse.ts`: positivt sprog, »Helt

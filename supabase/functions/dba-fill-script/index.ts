@@ -8,6 +8,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
+import { hentErfaringer } from "../_shared/laering.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -221,13 +222,18 @@ async function analyseMarket(
       `Annoncer på DBA lige nu:\n${list}`,
   });
 
+  // Erfaringerne er skrevet efter Vinted-salg; prisniveauet paa DBA er et andet,
+  // saa her bruges kun dem om teksten.
+  const erf = await hentErfaringer(["tekst"]);
+  const erfaringer = erf ? "\n\n" + erf : "";
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: "claude-sonnet-5",
       max_tokens: 1600,
-      system: MARKET_SYSTEM,
+      system: MARKET_SYSTEM + erfaringer,
       tools: [MARKET_TOOL],
       tool_choice: { type: "tool", name: MARKET_TOOL.name },
       messages: [{ role: "user", content }],

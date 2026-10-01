@@ -10,6 +10,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
+import { hentErfaringer } from "../_shared/laering.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -95,6 +96,8 @@ Deno.serve(async (req) => {
   // Allerede oversat: udlever den. Oversaettelsen aendrer sig ikke af sig selv.
   if (d.reshopper) return json(d.reshopper);
 
+  const erf = await hentErfaringer(["tekst"]);
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
@@ -107,7 +110,8 @@ Deno.serve(async (req) => {
         "Reshopper er børn, mor og bolig — ikke voksenmode. Er varen til et barn, er segment \"kids\".\n" +
         "Døm varens stand ud fra billedet, ikke ud fra den eksisterende tekst, som kan være skrevet " +
         "for en anden platform.\n" +
-        "Skriv dansk og varmt. Reshopper er forældre der handler med forældre.\n\n" + BESKRIVELSE_REGLER,
+        "Skriv dansk og varmt. Reshopper er forældre der handler med forældre.\n\n" + BESKRIVELSE_REGLER +
+        (erf ? "\n\n" + erf : ""),
       tools: [TOOL],
       tool_choice: { type: "tool", name: TOOL.name },
       messages: [{

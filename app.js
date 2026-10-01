@@ -1889,6 +1889,17 @@
       h += '<div class="s dim">' + esc(omDage(l.next_check_at)) + '</div>';
     }
 
+    if(l.status === 'aktiv' || l.status === 'pause'){
+      h += '<details class="vagt-mere"><summary>Svar en køber</summary>' +
+           '<textarea class="vagt-besked" rows="3" placeholder="Indsæt købers besked"></textarea>' +
+           '<label class="vagt-bund">Bud, hvis der er et' +
+           '<input type="number" inputmode="numeric" min="1" class="vagt-bud" placeholder="kr"></label>' +
+           '<div class="vagt-knapper"><button type="button" class="btn btn-quiet" data-v="svar">Skriv et svar</button></div>' +
+           '<div class="vagt-svar" hidden></div>' +
+           '<p class="note">Svaret sendes ikke — du kopierer det selv over i Vinted. ' +
+           'Hvad køberne spørger om, bruges, når der læres af salgene.</p></details>';
+    }
+
     h += '<details class="vagt-mere"><summary>Indstillinger</summary>' +
          '<label class="vagt-bund">Mindstepris' +
          '<input type="number" inputmode="numeric" min="15" step="5" value="' +
@@ -1940,7 +1951,9 @@
     if(!alle.length){
       krop.innerHTML = '<div class="empty"><h3>Ingen annoncer at holde øje med</h3>' +
         '<p>Når du lægger en annonce op på Vinted med automatikken, kommer den her af sig selv. ' +
-        'Så holder prisvagten øje med den, indtil den er solgt.</p></div>';
+        'Så holder prisvagten øje med den, indtil den er solgt.</p>' +
+        '<p>Er annoncen lagt op uden om appen, så tilknyt den på udkastets side. ' +
+        'Først når annoncerne står her, kan der læres af, hvad der sælger.</p></div>';
       $('vagt-footer').hidden = true;
       return;
     }
@@ -1960,12 +1973,14 @@
       h += '<details class="sect"><summary class="label">Solgt eller taget hjem (' + solgte.length + ')</summary>' +
         solgte.map(function(l){
           return '<div class="hist-row"><div><div class="t">' + esc(l.title || '') + '</div>' +
-            '<div class="s">' + esc(String(l.price)) + ' kr · lå ' +
+            '<div class="s">' + (l.sold_price != null ? 'solgt for ' + esc(String(l.sold_price)) : esc(String(l.price))) + ' kr · lå ' +
             (dageSiden(l.listed_at) - dageSiden(l.sold_at)) + ' dage · ' +
             esc(prisKaede(l)) + '</div></div></div>';
         }).join('') + '</details>';
     }
+    h += '<div class="sect laer" id="laer"></div>';
     krop.innerHTML = h;
+    hentLaerdomme();
 
     Array.prototype.forEach.call(krop.querySelectorAll('[data-v]'), function(el){
       var raekke = el.closest('.vagt-row');
@@ -2021,13 +2036,142 @@
       });
       return;
     }
+    if(v === 'svar'){
+      svarKoeber(l, btn);
+      return;
+    }
     if(v === 'solgt'){
+      // Salgsprisen er dét, der kan laeres af. Udbudsprisen er ikke svaret:
+      // et bud, du tog imod, ligger under den.
+      var svar = window.prompt('Hvad blev den solgt for? (kr)', String(l.price));
+      if(svar === null) return;
+      var kr = Math.round(parseFloat(String(svar).replace(',', '.')));
+      if(!isFinite(kr) || kr <= 0){ toast('Skriv prisen i hele kroner'); return; }
       btn.disabled = true;
-      sb.from('listings').update({ status:'solgt', sold_at:new Date().toISOString(),
-        pending:null, pending_note:null }).eq('id', l.id).then(function(){
+      sb.from('listings').update({ status:'solgt', sold_at:new Date().toISOString(), sold_price: kr,
+        pending:null, pending_note:null }).eq('id', l.id).then(function(res){
+        if(res.error){ btn.disabled = false; toast('Kunne ikke gemme: ' + res.error.message); return; }
+        sb.from('price_events').insert({ listing_id: l.id, kind:'solgt', price: kr,
+          from_price: l.price, favourites: l.favourites, note:'markeret solgt i appen' }).then(function(){});
         toast('Flyttet til solgt'); hentVagt();
+        // Et salg er ny viden; gennemgangen siger selv til, hvis det er for tidligt.
+        laerNu(true);
       });
     }
+  }
+
+  function svarKoeber(l, btn){
+    var raekke = btn.closest('.vagt-row');
+    var besked = raekke.querySelector('.vagt-besked').value.trim();
+    var bud = parseInt(raekke.querySelector('.vagt-bud').value, 10);
+    var ud = raekke.querySelector('.vagt-svar');
+    if(!besked && !(bud > 0)){ toast('Indsæt købers besked eller bud'); return; }
+    var p = l.published || {};
+    btn.disabled = true; btn.textContent = 'Skriver …';
+    fetch(FILL_API, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode:'negotiate', platform: l.platform, listing: l.id,
+        buyerMessage: besked, offer: bud > 0 ? bud : 0,
+        item: { title: p.title || l.title, price: l.price, description: p.description,
+                brand: p.brand, size: p.size, condition: p.condition } })
+    }).then(function(r){ return r.json(); }).then(function(r){
+      btn.disabled = false; btn.textContent = 'Skriv et svar';
+      if(!r || r.error){ toast('Intet svar: ' + ((r && r.error) || 'ukendt fejl')); return; }
+      var h = '';
+      if(r.counterPrice) h += '<b>Modbud: ' + esc(String(r.counterPrice)) + ' kr</b>';
+      if(r.intent === 'accept') h += '<b>Tag imod buddet</b>';
+      if(r.message) h += '<p class="vagt-svar-tekst">' + esc(r.message) + '</p>';
+      if(r.note) h += '<span>' + esc(r.note) + '</span>';
+      if(r.intent === 'defer') h += '<span>Det kan kun du svare på.</span>';
+      if(r.message) h += '<button type="button" class="btn btn-primary vagt-kopier">Kopiér svaret</button>';
+      ud.innerHTML = h; ud.hidden = false;
+      var k = ud.querySelector('.vagt-kopier');
+      if(k) k.addEventListener('click', function(){
+        if(navigator.clipboard) navigator.clipboard.writeText(r.message).then(function(){ toast('Svaret er kopieret'); });
+      });
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Skriv et svar';
+      toast('Kunne ikke nå serveren');
+    });
+  }
+
+  /* ---- Det salgene har laert -------------------------------------------
+     En gennemgang paa serveren sammenligner det solgte med det stille og
+     skriver korte erfaringer, der laegges ind, naar naeste annonce skrives.
+     Her kan du se dem, se hvad de bygger paa, og slaa dem fra. En erfaring,
+     du slaar fra, foreslaas ikke igen. */
+
+  // Billed-erfaringer gaar ikke i nogen prompt: det er dig, der tager billederne.
+  var LAER_NAVN = { tekst:'Tekst', pris:'Pris', billeder:'Billeder — til dig, når du fotograferer', kommunikation:'Svar til købere' };
+  var LAER_SIDST = null;   // seneste svar fra gennemgangen i denne session
+
+  function hentLaerdomme(){
+    var boks = $('laer');
+    if(!boks) return;
+    sb.from('laerdomme').select('*').order('created_at', { ascending:true }).then(function(res){
+      tegnLaerdomme(res.data || []);
+    });
+  }
+
+  function tegnLaerdomme(rk){
+    var boks = $('laer');
+    if(!boks) return;
+    var aktive = rk.filter(function(x){ return x.aktiv; });
+    var fra = rk.filter(function(x){ return !x.aktiv; });
+    var h = '<div class="label">Det salgene har lært</div>';
+    if(LAER_SIDST && LAER_SIDST.forTidligt){
+      h += '<p class="note">' + esc(LAER_SIDST.mangler) + '</p>';
+    } else if(LAER_SIDST && LAER_SIDST.overblik){
+      h += '<p class="note">' + esc(LAER_SIDST.overblik) + '</p>';
+    }
+    if(!aktive.length && !(LAER_SIDST && LAER_SIDST.forTidligt)){
+      h += '<p class="note">Ingen erfaringer endnu. Når nok varer er solgt — eller har stået stille — ' +
+           'finder gennemgangen ud af, hvad de solgte har til fælles, og bruger det i næste annonce.</p>';
+    }
+    h += aktive.concat(fra).map(function(x){
+      return '<div class="laer-row' + (x.aktiv ? '' : ' fra') + '" data-laer="' + esc(x.id) + '">' +
+        '<div class="laer-top"><span class="laer-omr">' + esc(LAER_NAVN[x.omraade] || x.omraade) + '</span>' +
+        '<label class="laer-til"><input type="checkbox"' + (x.aktiv ? ' checked' : '') + '> i brug</label></div>' +
+        '<p>' + esc(x.tekst) + '</p>' +
+        '<div class="s">' + esc(x.grundlag || '') + (x.varer && x.varer.length ? ' · nr. ' + esc(x.varer.join(', ')) : '') + '</div>' +
+        '</div>';
+    }).join('');
+    h += '<div class="vagt-knapper"><button type="button" class="btn btn-quiet" id="laer-nu">Lær af salgene nu</button></div>';
+    boks.innerHTML = h;
+
+    $('laer-nu').addEventListener('click', function(){ laerNu(false); });
+    Array.prototype.forEach.call(boks.querySelectorAll('.laer-row input'), function(cb){
+      cb.addEventListener('change', function(){
+        var id = cb.closest('.laer-row').getAttribute('data-laer');
+        sb.from('laerdomme').update({ aktiv: cb.checked, slaaet_fra: cb.checked ? null : new Date().toISOString() })
+          .eq('id', id).then(function(res){
+            if(res.error){ toast('Kunne ikke gemme'); cb.checked = !cb.checked; return; }
+            toast(cb.checked ? 'Bruges i næste annonce' : 'Slået fra — foreslås ikke igen');
+            hentLaerdomme();
+          });
+      });
+    });
+  }
+
+  function laerNu(stille){
+    var knap = $('laer-nu');
+    if(knap){ knap.disabled = true; knap.textContent = 'Gennemgår salgene …'; }
+    fetch(FILL_API, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode:'laer' })
+    }).then(function(r){ return r.json(); }).then(function(r){
+      if(!r || r.error){ if(!stille) toast('Gennemgangen fejlede: ' + ((r && r.error) || 'ukendt fejl')); }
+      else {
+        LAER_SIDST = r;
+        if(!stille) toast(r.forTidligt ? 'For tidligt at lære noget endnu'
+          : (r.erfaringer.length ? r.erfaringer.length + (r.erfaringer.length === 1 ? ' erfaring' : ' erfaringer') + ' fundet'
+                                 : 'Ingen sikre mønstre endnu'));
+      }
+      hentLaerdomme();
+    }).catch(function(){
+      if(!stille) toast('Kunne ikke nå serveren');
+      hentLaerdomme();
+    });
   }
 
   // Tallet i menuen: hvor mange varer venter paa dig lige nu.

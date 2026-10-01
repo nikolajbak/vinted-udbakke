@@ -99,6 +99,8 @@ midlertidig funktion og slet den bagefter.
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
+| Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
+| Erfaringerne lagt ind i prompterne (`hentErfaringer`) | `supabase/functions/_shared/laering.ts` |
 
 ## Databasen
 
@@ -116,6 +118,7 @@ nummer i `sql/` og en linje her.
 | Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
 | Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl) | `sql/006-fakta.sql` |
+| Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 
 ## Regler for annoncetekst
 
@@ -141,6 +144,33 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
   din beslutning, og hånden (scriptet i samtalen) er ikke bygget endnu.
+
+## Læring af salgene
+
+Bestemt af dig 1. oktober: appen skal lære af, hvad der sælger, og bruge det i
+næste annonce. Sådan hænger det sammen:
+
+- **Udfaldet måles på annoncen** (`listings`): solgt eller ej, dage ude,
+  hjerter, nedsættelser, og `sold_price` — som du taster ved **Markér som
+  solgt**, fordi et bud, du tog imod, ligger under udbudsprisen. Et automatisk
+  fundet salg har ingen salgspris, og gennemgangen ved det.
+- **Købernes spørgsmål gemmes** (`koeber_beskeder`) hver gang køber-assistenten
+  bruges — fra **Svar en køber** på prisvagt-skærmen. Svaret kopieres; appen
+  sender aldrig selv.
+- **Gennemgangen** (`mode:'laer'`) kører mandag kl. 5.30 UTC, efter hvert salg
+  og ved tryk. Den siger »for tidligt«, indtil der er **3 solgte og 6 varer at
+  bedømme** (solgt, eller ude i 14 dage) — eller 5 købersamtaler. En erfaring
+  skal pege på **mindst 3 varer, der kan bedømmes**; serveren smider resten
+  væk. En vare ude i under 14 dage uden salg tæller ikke.
+- **Erfaringerne er ikke regler.** De lægges ind EFTER `BESKRIVELSE_REGLER`
+  med besked om, at reglerne går forud. Tekst og pris går til analysen og
+  Vinteds markedsrunde, tekst til DBA og Reshopper, pris til prisvagten,
+  kommunikation til køber-assistenten. Billed-erfaringer går ingen steder hen
+  — de er til dig, når du fotograferer.
+- **Du kan slå en erfaring fra.** Så foreslås den ikke igen; en ny gennemgang
+  erstatter kun dem, der er slået til.
+- **Pris-erfaringer er relative** (»10 % under medianen«) og må aldrig lægge en
+  pris over medianen — Vinted skjuler solgte varer.
 
 `runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
 `/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
@@ -427,6 +457,20 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   markedssøgningen i `analyze-draft`, så det ikke lægger sin tid oveni.
 - **`_shared/` bages ind i hver funktion, der importerer den.** `udgiv.sh` og
   `tilbage.sh` ved det: ændres `_shared`, udrulles alle, der bruger den.
+- **En erfaring skal skille.** Første prøve på opdigtede varer gav »brug
+  mindst 3 billeder« — men de stille varer HAVDE også tre billeder, og den
+  eneste med ét var tre dage gammel. Derfor tæller kun varer, der kan bedømmes,
+  og prompten siger, at et træk, der findes lige så meget blandt de stille, ikke
+  er en erfaring. Den, der skriver annoncen, kan heller ikke slå noget op: en
+  erfaring om »altid at skrive mål« uden »når de findes« får den til at opfinde
+  dem.
+- **Modellen leverer af og til en indlejret liste som tekst** i et
+  værktøjssvar (`erfaringer: "[{…}]"`). Første kørsel af gennemgangen væltede
+  på `.map`. `laering.ts` parser en tekst, før den bruger den.
+- **En SQL-funktion fejler først, når den kører.** `prisvagt_puls` talte på
+  `pending_price` i ti dage efter, at 005 havde fjernet kolonnen. Fjernes en
+  kolonne, så kør de funktioner, der bruger den, i en transaktion, der rulles
+  tilbage: `begin; select f(); rollback;`.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

@@ -18,6 +18,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
+import { hentErfaringer } from "../_shared/laering.ts";
+import { laer } from "./laering.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -467,8 +469,9 @@ async function analyseMarket(
     lines + sampleText +
     "\n\nVælg de reelt sammenlignelige, skriv annoncen, og sæt prisen.";
 
+  const erfaringer = await hentErfaringer(["tekst", "pris"]);
   const out = await callTool(
-    MARKET_SYSTEM,
+    MARKET_SYSTEM + (erfaringer ? "\n\n" + erfaringer : ""),
     images.length ? [...images, { type: "text", text }] : text,
     LISTING_TOOL,
   );
@@ -592,8 +595,13 @@ const NEGOTIATE_TOOL = {
         type: "string",
         description: "Én kort linje til SAELGEREN om hvorfor - vises, men sendes ikke.",
       },
+      emne: {
+        type: "string",
+        enum: ["maal", "pasform", "stand", "materiale", "pris", "levering", "andet"],
+        description: "Hvad koeberen mest spoerger om. Et rent bud uden spoergsmaal er 'pris'.",
+      },
     },
-    required: ["intent", "message", "note"],
+    required: ["intent", "message", "note", "emne"],
   },
 };
 
@@ -614,6 +622,7 @@ async function negotiate(
   buyerMessage: string,
   offer: number,
   platform: string,
+  listingId: string | null = null,
 ): Promise<Record<string, unknown>> {
   const listed = Number(plainPrice(String(item.price ?? ""))) || 0;
   const facts = [
@@ -642,7 +651,8 @@ async function negotiate(
   if (buyerMessage) parts.push(`\nKoeberens besked: "${buyerMessage.slice(0, 800)}"`);
   parts.push("\nSkriv svaret, eller beregn modbuddet.");
 
-  const out = await callTool(system, parts.join("\n"), NEGOTIATE_TOOL);
+  const erfaringer = await hentErfaringer(["kommunikation"]);
+  const out = await callTool(system + (erfaringer ? "\n\n" + erfaringer : ""), parts.join("\n"), NEGOTIATE_TOOL);
   const intent = String(out.intent || "defer");
 
   // Serveren har det sidste ord om tallet - en model glider. Et modbud skal
@@ -657,12 +667,36 @@ async function negotiate(
     counterPrice = c;
   }
 
+  // Hvad koeberne spoerger om, er en af de faa ting, der fortaeller, hvad
+  // teksten manglede. Gemmes til gennemgangen; en fejl her maa ikke koste svaret.
+  const { error: logFejl } = await supabase.from("koeber_beskeder").insert({
+    listing_id: listingId,
+    platform: platform || null,
+    item_title: item.title ? cleanText(item.title).slice(0, 200) : null,
+    buyer_message: buyerMessage.slice(0, 800) || null,
+    offer: offer || null,
+    intent,
+    emne: out.emne ? String(out.emne) : null,
+    reply: cleanText(out.message || "").slice(0, 2000) || null,
+    counter_price: counterPrice ?? null,
+  });
+  if (logFejl) console.error("koeber_beskeder", logFejl.message);
+
   return {
     intent,
     message: cleanText(out.message || ""),
     note: cleanText(out.note || ""),
     ...(counterPrice ? { counterPrice } : {}),
   };
+}
+
+// Et salg er ny viden. Gennemgangen tager et kald til modellen, saa den koerer
+// efter svaret og ikke i vejen for det.
+function laerIBaggrunden() {
+  const p = laer(supabase, ANTHROPIC_API_KEY).catch((err) => console.error("laer", err));
+  // deno-lint-ignore no-explicit-any
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt?.waitUntil) rt.waitUntil(p);
 }
 
 // ---- Prisvagt -------------------------------------------------------------
@@ -773,6 +807,9 @@ async function tilsyn(maalinger: Maaling[]) {
   const ud: unknown[] = [];
   let solgte = 0, aendringer = 0;
 
+  const erf = await hentErfaringer(["pris"]);
+  const prisErfaringer = erf ? "\n\n" + erf : "";
+
   for (const m of maalinger) {
     const r = (raekker ?? []).find((x) => x.id === m.id);
     if (!r) continue;
@@ -789,6 +826,7 @@ async function tilsyn(maalinger: Maaling[]) {
         note: "annoncen findes ikke længere på Vinted",
       });
       solgte++;
+      laerIBaggrunden();
       ud.push({ id: r.id, handling: "solgt" });
       continue;
     }
@@ -805,7 +843,7 @@ async function tilsyn(maalinger: Maaling[]) {
 
     let b;
     try {
-      b = await beslutPris(v, m, callTool);
+      b = await beslutPris(v, m, (sys, u, t) => callTool(sys + prisErfaringer, u as string, t as Record<string, unknown>));
     } catch (err) {
       console.error("beslutPris failed", err);
       // En fejl her maa ikke sende varen i en tjek-loekke hvert minut.
@@ -1049,8 +1087,19 @@ Deno.serve(async (req: Request) => {
       const offer = Number(body.offer) > 0 ? Number(body.offer) : 0;
       const platform = String(body.platform ?? "").toLowerCase();
       if (!buyerMessage && !offer) return json({ error: "empty_context" }, 400);
+      const listingId = typeof body.listing === "string" && /^[0-9a-f-]{36}$/.test(body.listing) ? body.listing : null;
       try {
-        return json(await negotiate(item, buyerMessage, offer, platform));
+        return json(await negotiate(item, buyerMessage, offer, platform, listingId));
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
+    }
+
+    // Gennemgangen af udfaldene. Kaldes af appen, af det ugentlige job og
+    // efter et salg - den handler om alle annoncer, ikke om ét udkast.
+    if (body.mode === "laer") {
+      try {
+        return json(await laer(supabase, ANTHROPIC_API_KEY));
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
       }
@@ -1106,6 +1155,7 @@ Deno.serve(async (req: Request) => {
           listing_id: r.id, kind: "solgt", price: Number(r.price),
           note: "annoncen findes ikke længere på Vinted",
         });
+        laerIBaggrunden();
         return json({ ok: true, gone: true });
       }
 

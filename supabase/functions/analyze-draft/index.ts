@@ -7,6 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
+import { hentErfaringer } from "../_shared/laering.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -670,8 +671,10 @@ Deno.serve(async (req: Request) => {
     // lookup instead (same-origin from vinted.dk, never blocked) — see
     // vinted-fill-script. One quick attempt only, so a blocked call doesn't
     // hold the draft up.
+    const erfaringerP = hentErfaringer(["tekst", "pris"]);
     const { items, country, blocked } = await searchWithFallback(searchQuery, "dk", "fr", 12, 1);
     await opslag;
+    const erfaringer = await erfaringerP;
     const comparables = items.slice(0, 10).map((it) => `${it.title} — ${it.price} ${it.currency}`).join("\n");
 
     // 3. Write the final ad: title, description, price AND a short sell-through strategy,
@@ -690,6 +693,7 @@ Deno.serve(async (req: Request) => {
       SELLER_PERSONA + " Skriv et komplet annonce-udkast PÅ DANSK til Vinted for varen, ud fra produktanalysen og markedsdata nedenfor. " +
         "Titel: mærke/type/størrelse først, det er det folk søger på — ikke sælger-sprog. " +
         "Beskrivelse: 4-7 linjer om mærke, størrelse, materiale og stand.\n" + BESKRIVELSE_REGLER + "\n" +
+        (erfaringer ? erfaringer + "\n" : "") +
         "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
         "Udfyld desuden Vinteds egne felter — categoryPath, brand, size, sizeScale, color, condition — med Vinteds " +
         "egen danske ordlyd, for de bliver klikket direkte ind i formularen. Er du i tvivl om mærke eller størrelse, " +
