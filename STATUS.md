@@ -1,4 +1,4 @@
-# Status — 21. september 2026
+# Status — 1. oktober 2026
 
 Hvor projektet står lige nu. `CLAUDE.md` rummer det, der er **målt** og ikke må
 laves om; denne fil rummer det, der er **i gang** og går til.
@@ -17,6 +17,21 @@ laves om; denne fil rummer det, der er **i gang** og går til.
   køkortet.
 
 ## Ikke afprøvet — start her
+
+0. **Automatisk synkronisering begge veje — bygget 1. oktober.** Reglerne står
+   i `CLAUDE.md` under »Synkronisering af annoncerne«. Kort: brugerscriptet
+   læser annoncerne stille, hver gang Vinted er åben i Safari, og **Gem** på
+   *Redigér annonce* åbner annoncen og skriver ændringen ind af sig selv.
+
+   **Først: installér brugerscriptet forfra.** `@match` er udvidet fra
+   `/items/*` til hele vinted.dk; indtil det er geninstalleret, fyrer den
+   stille runde kun på annoncesider.
+
+   **Afprøvet:** PostgREST-forespørgslerne (historikkens indlejring og
+   `uaflaeste`-filteret) mod basen, og runner-tjekket. **Ikke afprøvet:** alt
+   på en rigtig annonce — `listings` er stadig tom. Tilknyt en annonce, ret
+   prisen på Vinted, åbn vinted.dk, og se om appen viser den nye pris og en
+   `aendret`-hændelse. Ret så titlen i appen og tryk Gem.
 
 0. **Læring af salgene — bygget 1. oktober. Der er intet at lære af endnu.**
    Ingen annoncer er tilknyttet (`listings` er tom), intet er solgt, og ingen

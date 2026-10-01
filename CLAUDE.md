@@ -172,6 +172,37 @@ næste annonce. Sådan hænger det sammen:
 - **Pris-erfaringer er relative** (»10 % under medianen«) og må aldrig lægge en
   pris over medianen — Vinted skjuler solgte varer.
 
+## Synkronisering af annoncerne
+
+Bestemt af dig 1. oktober: annoncerne synkroniseres automatisk begge veje,
+når der rettes i appen eller på markedspladsen. Kun Vinted — DBA og Reshopper
+har ingen række i `listings` endnu.
+
+- **Vinted → appen sker stille, hver gang Vinted er åben i Safari.**
+  Brugerscriptet læser den annonce, du står på, og derudover op til ti aktive
+  annoncer, der ikke er læst de sidste seks timer (`mode:'uaflaeste'`), højst
+  én runde i timen. Kun via `/api/v2/items/{id}` — annoncesiden (2 MB) hentes
+  aldrig som reserve i den stille runde. Ingen bånd, ingen navigation.
+  Serveren kan ikke gøre det selv: Vinted blokerer datacenter-IP'er. Rettes der
+  i Vinteds egen app, når det hjem næste gang Vinted åbnes i Safari.
+- **Appen → Vinted sker ved Gem.** Redigeringen starter fra annoncens egne ord
+  (`published`), ikke udkastets, og kun det, der afviger fra ANNONCEN, sendes
+  ud — en titel rettet på Vinted skrives ikke tilbage, fordi du bagefter rettede
+  prisen i appen. Gem lægger ændringen i `pending` og åbner straks
+  redigeringssiden, hvor runneren skriver den ind og gemmer. Trykket på Gem ER
+  trykket. Prisvagtens egne nedsættelser kræver stadig et tryk fra
+  Prisvagt-skærmen; ligger der en i forvejen, siger redigeringsskærmen, at den
+  går med ud.
+- **Udkastet overskrives stadig aldrig af en synkronisering** — kun af dit eget
+  Gem. Forskellen mellem udkast og annonce er det, appen viser.
+- **En pris rettet på Vinted noteres som `aendret` (»rettet på Vinted«) og
+  sætter `last_change_at`.** Ellers ville prisvagten ikke holde sin ro efter en
+  håndrettet pris, og gennemgangen af salgene ville ikke se nedsættelsen.
+  Rettet titel/beskrivelse noteres som `rettet`.
+- **Står et ventende felt allerede i annoncen, fjernes det fra `pending`.** Har
+  du skrevet det ind på Vinted selv, er der intet at sende.
+- **Historiklisten viser annoncens pris og »solgt«**, ikke udkastets pris.
+
 `runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
 `/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
 i runner rammer telefonen uden geninstallation.
@@ -218,10 +249,12 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   selv trykker "Markér som postet", eller når alle tre er sat. Et tryk på en
   markedsplads noterer, at varen er sendt DERHEN — ikke at den er lagt op; kun
   Vinted-scriptet kan bekræfte det sidste.
-- **Brugerscriptet kører på hele `/items/*`, ikke kun `/items/new`.** Efter
+- **Brugerscriptet kører på hele vinted.dk, ikke kun `/items/new`.** Efter
   Upload sender Vinted brugeren videre til annoncens egen side; dér ser scriptet
-  markøren i `localStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
-  det kører kun, når man trykker på det.
+  markøren i `localStorage` og melder udkastet afsendt. Og den stille
+  synkronisering skal ske, hver gang Vinted er åben — også på forsiden.
+  Bogmærket kan ikke det — det kører kun, når man trykker på det. (Udvidet fra
+  `/items/*` 1. oktober: scriptet skal installeres forfra for at fyre på resten.)
 - **Hele serien fremkaldes ens.** Hvidbalance, sort-/hvidpunkt og gamma måles på
   det FØRSTE billede, gemmes i `drafts.tone` og genbruges på resten. Måler hvert
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget

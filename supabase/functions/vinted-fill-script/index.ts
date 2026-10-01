@@ -740,6 +740,13 @@ function renUdgivet(u: unknown): Record<string, unknown> | null {
   };
 }
 
+// Samme tekst med et ekstra mellemrum eller et stort begyndelsesbogstav er
+// ikke en aendring. Samme maaling som i appen og runneren.
+function ensLyd(a: unknown, b: unknown): boolean {
+  const n = (x: unknown) => String(x ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  return n(a) === n(b);
+}
+
 async function registrer(
   draftId: string,
   platform: string,
@@ -951,9 +958,12 @@ Deno.serve(async (req: Request) => {
       "// @name         VintedAuto",
       "// @namespace    udbakke",
       `// @version      1.0.${h % 100000}`,
-      "// @description  Udfylder Vinted-annoncen automatisk",
-      "// @match        https://www.vinted.dk/items/*",
-      "// @match        https://vinted.dk/items/*",
+      "// @description  Udfylder Vinted-annoncen og holder appen synkroniseret",
+      // Hele vinted.dk, ikke kun /items/*: den stille aflaesning af annoncerne
+      // skal ske, hver gang Vinted er aaben — ogsaa paa forsiden og i
+      // indbakken. Udfyldningen kraever stadig /items/new.
+      "// @match        https://www.vinted.dk/*",
+      "// @match        https://vinted.dk/*",
       "// @run-at       document-idle",
       "// @grant        none",
       "// @inject-into  page",
@@ -1143,10 +1153,14 @@ Deno.serve(async (req: Request) => {
       const it = String(body.item_id ?? "");
       if (!it) return json({ error: "mangler" }, 400);
       const { data: r } = await supabase.from("listings")
-        .select("id, price").eq("platform", "vinted").eq("external_id", it).maybeSingle();
+        .select("id, price, status, published, pending")
+        .eq("platform", "vinted").eq("external_id", it).maybeSingle();
       if (!r) return json({ ukendt: true });
 
       if (body.gone) {
+        // Den stille runde kommer forbi den samme lukkede annonce igen og
+        // igen. Den er solgt én gang.
+        if (r.status !== "aktiv") return json({ ok: true, gone: true });
         await supabase.from("listings").update({
           status: "solgt", sold_at: new Date().toISOString(),
           pending: null, pending_note: null, synced_at: new Date().toISOString(),
@@ -1156,6 +1170,8 @@ Deno.serve(async (req: Request) => {
           note: "annoncen findes ikke længere på Vinted",
         });
         laerIBaggrunden();
+        // Du stod ikke selv og kiggede paa annoncen, saa du skal have det at vide.
+        if (body.stille) await puf("Solgt!", "En vare er væk fra Vinted");
         return json({ ok: true, gone: true });
       }
 
@@ -1165,8 +1181,70 @@ Deno.serve(async (req: Request) => {
       if (snap) opd.published = snap;
       if (nu > 0) opd.price = nu;
       if (Number.isFinite(Number(body.favourites))) opd.favourites = Number(body.favourites);
+
+      // Rettet paa Vinted, ikke i appen. Det skal staa i historikken som
+      // enhver anden aendring: prisvagten regner sin ro fra last_change_at, og
+      // gennemgangen af salgene taeller nedsaettelser. En pris, der stille
+      // flyttede sig uden at blive noteret, ville se ud som den startpris,
+      // varen aldrig solgte til.
+      const forPris = Number(r.price);
+      if (nu > 0 && nu !== forPris) {
+        opd.last_change_at = new Date().toISOString();
+        await supabase.from("price_events").insert({
+          listing_id: r.id, kind: "aendret", price: nu, from_price: forPris,
+          note: "rettet på Vinted",
+        });
+      }
+      const foer = (r.published ?? {}) as Record<string, unknown>;
+      const tekstRettet = snap && r.published
+        ? (["title", "description"] as const).filter((k) =>
+          snap[k] && !ensLyd(snap[k], foer[k]))
+        : [];
+      if (tekstRettet.length) {
+        await supabase.from("price_events").insert({
+          listing_id: r.id, kind: "rettet",
+          note: "rettet på Vinted: " +
+            tekstRettet.map((k) => k === "title" ? "titel" : "beskrivelse").join(", "),
+        });
+      }
+
+      // Staar det, der ventede paa at komme ud, allerede i annoncen — fordi du
+      // har skrevet det ind paa Vinted selv — er der intet at sende. Ellers
+      // ville naeste tur forbi redigeringssiden skrive det samme ind igen.
+      const p = r.pending as Record<string, unknown> | null;
+      if (snap && p && Object.keys(p).length) {
+        const rest: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(p)) {
+          const ude = snap[k];
+          const passer = k === "price"
+            ? Math.round(Number(ude)) === Math.round(Number(v))
+            : ensLyd(ude, v);
+          if (!passer) rest[k] = v;
+        }
+        if (Object.keys(rest).length !== Object.keys(p).length) {
+          const tom = !Object.keys(rest).length;
+          opd.pending = tom ? null : rest;
+          if (tom) { opd.pending_note = null; opd.pending_since = null; }
+        }
+      }
+
       await supabase.from("listings").update(opd).eq("id", r.id);
       return json({ ok: true, published: snap });
+    }
+
+    // Hvilke annoncer er ikke laest for nylig? Telefonen spoerger, hver gang en
+    // Vinted-side er aaben, og laeser dem stille i baggrunden. Serveren kan
+    // ikke selv: Vinted blokerer datacenter-IP'er.
+    if (body.mode === "uaflaeste") {
+      const graense = new Date(Date.now() - 6 * 3600000).toISOString();
+      const { data } = await supabase.from("listings")
+        .select("external_id, synced_at")
+        .eq("platform", "vinted").eq("status", "aktiv")
+        .not("external_id", "is", null)
+        .or(`synced_at.is.null,synced_at.lt.${graense}`)
+        .order("synced_at", { ascending: true, nullsFirst: true })
+        .limit(10);
+      return json({ itemIds: (data ?? []).map((r) => String(r.external_id)) });
     }
 
     if (body.mode === "watch") {

@@ -731,15 +731,19 @@
   // er appen bare et faneblad, og svaret er et nyt faneblad. Vinduet skal
   // aabnes MENS klikket staar paa - venter vi paa databasen foerst, spaerrer
   // Safari det som et pop op.
+  //
+  // Svarer `foerst` med false, er turen aflyst: det, der skulle derud, blev
+  // aldrig gemt. Saa lukkes det tomme faneblad igen.
   function aabnUdad(url, foerst){
     var vent = foerst || Promise.resolve();
     if(PAA_IOS){
-      var iosGaa = function(){ window.location.href = 'x-safari-' + url; };
+      var iosGaa = function(v){ if(v !== false) window.location.href = 'x-safari-' + url; };
       vent.then(iosGaa, iosGaa);
       return;
     }
     var vindue = window.open('about:blank', '_blank');
-    var gaa = function(){
+    var gaa = function(v){
+      if(v === false){ if(vindue && !vindue.closed) vindue.close(); return; }
       // Blev fanebladet spaerret alligevel, gaar vi selv derhen.
       if(vindue && !vindue.closed) vindue.location = url;
       else window.location.href = url;
@@ -1385,11 +1389,19 @@
       toast('Koden er kopieret — indsæt den som bogmærkets adresse');
     }).catch(function(){ toast('Kunne ikke kopiere'); });
   });
+  function listePris(d){
+    var l = (d.listings || []).filter(function(x){ return x.platform === 'vinted'; })[0];
+    if(!l) return d.price || '';
+    return (l.price ? l.price + ' kr' : (d.price || '')) + (l.status === 'solgt' ? ' · solgt' : '');
+  }
   function hentHistorik(){
     var krop = $('hist-body');
     krop.innerHTML = '<div class="skel" id="hist-skel"></div>';
     visSkelet($('hist-skel'), 3);
-    sb.from('drafts').select('*').eq('status','afsendt').order('posted_at',{ascending:false}).limit(30)
+    // Annoncen hentes med: listen skal vise den pris, varen staar til ude paa
+    // markedspladsen, og om den er solgt — ikke det, udkastet engang sagde.
+    sb.from('drafts').select('*, listings(platform, price, status)').eq('status','afsendt')
+      .order('posted_at',{ascending:false}).limit(30)
       .then(function(res){
         if(res.error){
           krop.innerHTML = '<div class="empty" id="hist-fejl"></div>';
@@ -1406,7 +1418,7 @@
           return '<button type="button" class="hist-row" data-id="' + esc(d.id) + '">' +
             (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
             '<div><div class="t">' + esc(d.title || '') + '</div>' +
-            '<div class="s">' + esc(d.price || '') + ' · ' + esc(relTime(d.posted_at)) +
+            '<div class="s">' + esc(listePris(d)) + ' · ' + esc(relTime(d.posted_at)) +
             markedsMaerker(d) + '</div></div>' +
             '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></button>';
         }).join('') : '<div class="empty"><p>Ingen postede annoncer endnu.</p></div>';
@@ -1426,21 +1438,59 @@
      vaelgere, og de hoerer til, naar annoncen oprettes. */
 
   var REDIGERES = null;
+  // Den Vinted-annonce, rettelsen skal ud i — og det, der står i den lige nu.
+  var REDIGERES_ANNONCE = null;
+
+  function prisTal(v){ return parseInt(String(v == null ? '' : v).replace(/[^0-9]/g, ''), 10); }
+
+  // Hvad står der LIGE NU, felt for felt? Annoncens egne ord, hvor de er
+  // læst; udkastet ellers. Er titlen rettet på Vinted, er det den, du retter
+  // videre i — ikke den, appen sendte afsted for tre uger siden.
+  function nuvaerende(d, l){
+    var p = (l && l.published) || {};
+    return {
+      title: p.title || d.title || '',
+      description: p.description || d.description || '',
+      price: prisTal(p.price) || prisTal(d.price)
+    };
+  }
 
   function aabnRedigering(d){
     REDIGERES = d;
+    REDIGERES_ANNONCE = null;
     $('e-title').value = d.title || '';
     $('e-desc').value = d.description || '';
     $('e-price').value = String(d.price || '').replace(/[^0-9]/g, '');
+    $('e-save').textContent = 'Gem';
     $('edit-note').innerHTML = '';
     show('edit');
     // Hvor rettelsen ender, skal staa FOER du retter — ikke som en
     // overraskelse bagefter.
-    sb.from('listings').select('platform, status').eq('draft_id', d.id)
+    sb.from('listings').select('platform, status, external_id, published, pending').eq('draft_id', d.id)
       .in('status', ['aktiv','pause']).then(function(res){
         if(REDIGERES !== d || !$('edit-note')) return;
-        var p = (res.data || []).map(function(x){ return markedsNavn(x.platform); });
-        $('edit-note').innerHTML = '<p class="note">' + (p.length
+        var l = res.data || [];
+        var vinted = l.filter(function(x){ return x.platform === 'vinted' && x.external_id; })[0];
+        REDIGERES_ANNONCE = vinted || null;
+        if(vinted){
+          // Felterne skiftes kun, hvis du ikke allerede er gået i gang med dem.
+          var nu = nuvaerende(d, vinted);
+          if($('e-title').value === (d.title || '')) $('e-title').value = nu.title;
+          if($('e-desc').value === (d.description || '')) $('e-desc').value = nu.description;
+          if($('e-price').value === String(d.price || '').replace(/[^0-9]/g, '') && nu.price)
+            $('e-price').value = String(nu.price);
+          $('e-save').textContent = 'Gem og send til Vinted';
+        }
+        var p = l.map(function(x){ return markedsNavn(x.platform); });
+        // Det, der i forvejen ligger i postkassen, gaar med ud ved samme tryk.
+        // Det skal du vide, foer du trykker — ikke opdage paa Vinted.
+        var venter = vinted ? venterFelter(vinted) : [];
+        $('edit-note').innerHTML = '<p class="note">' + (vinted
+          ? 'Felterne viser, hvad der står i annoncen på <b>Vinted</b> nu. Gemmer du, ' +
+            'åbner annoncen, og ændringen skrives ind og gemmes af sig selv.' +
+            (venter.length ? ' Der venter allerede: <b>' + esc(venter.join(', ')) +
+              '</b> — det går med ud.' : '')
+          : p.length
           ? 'Varen ligger på <b>' + esc(p.join(', ')) + '</b>. Det du retter her, bliver ' +
             'lagt klar til annoncen — du sender det afsted med ét tryk bagefter.'
           : 'Varen ligger ikke på nogen markedsplads endnu, så rettelsen bliver kun ' +
@@ -1460,33 +1510,55 @@
 
     // Kun det, der FAKTISK er lavet om, sendes videre. Ellers ville et besoeg
     // paa skaermen uden aendringer alligevel sende en runde til Vinted og
-    // skrive de samme ord ind igen.
-    var gammelPris = parseInt(String(d.price || '').replace(/[^0-9]/g, ''), 10);
+    // skrive de samme ord ind igen. "Lavet om" maales mod det, der staar i
+    // annoncen nu — en titel, du har rettet paa Vinted, skal ikke skrives
+    // tilbage til den gamle, fordi du bagefter rettede prisen i appen.
+    var annonce = REDIGERES_ANNONCE;
+    var nu = nuvaerende(d, annonce);
     var aendret = {};
-    if(!ensLyd(nyTitel, d.title)) aendret.title = nyTitel;
-    if(!ensLyd(nyTekst, d.description)) aendret.description = nyTekst;
-    if(isFinite(nyPrisTal) && nyPrisTal > 0 && nyPrisTal !== gammelPris) aendret.price = nyPrisTal;
-    if(!Object.keys(aendret).length){ back(); toast('Der var ikke noget at ændre'); return; }
+    if(!ensLyd(nyTitel, nu.title)) aendret.title = nyTitel;
+    if(!ensLyd(nyTekst, nu.description)) aendret.description = nyTekst;
+    if(isFinite(nyPrisTal) && nyPrisTal > 0 && nyPrisTal !== nu.price) aendret.price = nyPrisTal;
+    var udkastAendret = !ensLyd(nyTitel, d.title) || !ensLyd(nyTekst, d.description) ||
+      (isFinite(nyPrisTal) && nyPrisTal > 0 && nyPrisTal !== prisTal(d.price));
+    if(!Object.keys(aendret).length && !udkastAendret){
+      back(); toast('Der var ikke noget at ændre'); return;
+    }
 
+    var tekst = knap.textContent;
     knap.disabled = true; knap.textContent = 'Gemmer …';
     var opd = { title: nyTitel, description: nyTekst };
     if(isFinite(nyPrisTal) && nyPrisTal > 0) opd.price = String(nyPrisTal);
 
-    sb.from('drafts').update(opd).eq('id', d.id).then(function(res){
+    var gemt = sb.from('drafts').update(opd).eq('id', d.id).then(function(res){
       if(res.error) throw new Error(res.error.message);
       d.title = opd.title; d.description = opd.description;
       if(opd.price) d.price = opd.price;
       rows[d.id] = d;
-      return koeTilMarkedsplads(d, aendret);
-    }).then(function(antal){
-      knap.disabled = false; knap.textContent = 'Gem';
+      return Object.keys(aendret).length ? koeTilMarkedsplads(d, aendret) : 0;
+    });
+
+    // Rettelsen gaar ud med det samme. Trykket paa Gem er dit tryk; der skal
+    // ikke ogsaa et "Send til Vinted" bagefter. Annoncens redigeringsside
+    // aabnes, runneren skriver felterne ind og gemmer, og kvitteringen kommer,
+    // naar aendringen er laest TILBAGE fra annoncen. Vinduet skal aabnes nu,
+    // mens trykket staar paa — gik gemningen galt, lukkes det igen.
+    var sendUd = !!(annonce && Object.keys(aendret).length);
+    if(sendUd){
+      aabnUdad('https://www.vinted.dk/items/' + annonce.external_id + '/edit',
+        gemt.then(function(){ return true; }, function(){ return false; }));
+    }
+
+    gemt.then(function(antal){
+      knap.disabled = false; knap.textContent = tekst;
       renderQueue();
       back();
-      toast(antal ? 'Gemt — og lagt klar til markedspladsen' : 'Gemt');
+      toast(sendUd ? 'Gemt — Vinted åbner og skriver ændringen ind'
+          : antal ? 'Gemt — og lagt klar til markedspladsen' : 'Gemt');
       if(currentId === d.id){ renderDetail(); hentAnnoncer(d.id); }
       opdaterVagtTal();
     }).catch(function(err){
-      knap.disabled = false; knap.textContent = 'Gem';
+      knap.disabled = false; knap.textContent = tekst;
       toast('Kunne ikke gemme: ' + (err && err.message ? err.message : 'ukendt fejl'));
     });
   });

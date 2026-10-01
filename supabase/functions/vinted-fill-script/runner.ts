@@ -536,7 +536,9 @@ function plukk(o,navne){
  return null;
 }
 
-async function hentVare(id){
+// kunApi: den stille runde må ikke hente annoncesiden som reserve. Den vejer
+// ~2 MB, og runden kører uopfordret på telefonens forbindelse.
+async function hentVare(id,kunApi){
  try{
   var r=await timedFetch('/api/v2/items/'+id,
    {headers:{'Accept':'application/json'},credentials:'include'},15000);
@@ -571,6 +573,7 @@ async function hentVare(id){
    }
   }
  }catch(e){}
+ if(kunApi){log('synk: '+id+' svarede ikke via api');return null}
  try{
   var h=await timedFetch('/items/'+id,{credentials:'include'},15000);
   if(h.status===404||h.status===410){log('vagt: '+id+' findes ikke (side)');return {gone:true}}
@@ -761,15 +764,63 @@ async function synkroniser(){
  if(b)b.remove();
  if(!set){baand('Annoncen kunne ikke læses.',null,null);return true}
  try{
-  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'synk',item_id:num[1],gone:!!set.gone,
-    price:set.price,favourites:set.favourites,udgivet:set.udgivet})},20000);
-  var j=await r.json();
+  var j=await sendSynk(num[1],set,false);
   if(j&&j.ukendt){baand('Den annonce hører ikke til en vare i appen.',null,null);return true}
   baand(set.gone?'Annoncen findes ikke længere — noteret som solgt.'
                :'Appen er opdateret med annoncens egne oplysninger.',null,null);
  }catch(e){baand('Kunne ikke sende opdateringen videre.',null,null)}
  return true;
+}
+
+async function sendSynk(itemId,set,stille){
+ var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({mode:'synk',item_id:String(itemId),gone:!!set.gone,stille:!!stille,
+   price:set.price,favourites:set.favourites,udgivet:set.udgivet})},20000);
+ return await r.json();
+}
+
+// Synkroniseringen tilbage fra Vinted, uden at du beder om den. To ting:
+//  1) Står du på en annonce, læses DEN. Retter du titel eller pris i Vinteds
+//     formular og trykker Gem, sender Vinted dig hertil — så er appen ajour,
+//     før du er færdig med at kigge.
+//  2) Annoncer, der ikke er læst de sidste seks timer, læses i baggrunden —
+//     højst én runde i timen. Så når en rettelse lavet i Vinteds egen app
+//     også hjem, næste gang Vinted er åben i Safari.
+// Ingen bånd og ingen navigation: det her skal ikke kunne mærkes.
+var SYNK_SIDST='udbakke_synk_sidst';
+async function stilleSynk(){
+ var set,j;
+ // /items/1234567890-nike-jakke: nummeret, og en sti der ikke fortsætter.
+ var num=location.pathname.match(/^\/items\/(\d+)(?:-[^\/]*)?\/?$/);
+ var her=num?num[1]:null;
+ if(her){
+  set=await hentVare(her,true);
+  if(set){
+   try{j=await sendSynk(her,set,false);if(j&&!j.ukendt)log('synk: '+her+' læst')}catch(e){}
+  }
+ }
+ try{
+  var sidst=+(localStorage.getItem(SYNK_SIDST)||0);
+  if(Date.now()-sidst<3600000)return;
+  localStorage.setItem(SYNK_SIDST,String(Date.now()));
+ }catch(e){return}
+ var ids=[];
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'uaflaeste'})},20000);
+  ids=((await r.json())||{}).itemIds||[];
+ }catch(e){log('synk: kunne ikke hente listen');return}
+ var n=0;
+ for(var i=0;i<ids.length;i++){
+  if(ids[i]===her)continue;
+  // Lidt luft mellem opslagene. Ti kald i træk fra samme session er ikke
+  // noget, Vinted skal lægge mærke til.
+  if(n)await sleep(800);
+  set=await hentVare(ids[i],true);
+  if(!set)continue;
+  try{await sendSynk(ids[i],set,true);n++}catch(e){}
+ }
+ log('synk: '+n+' af '+ids.length+' annonce(r) læst i baggrunden');
 }
 
 async function prisvagt(){
@@ -876,7 +927,14 @@ if(!/\/items\/new/.test(location.pathname)){
  // Et udtrykkeligt "hent annoncen" gaar foran tilsynet: du har bedt om DEN
  // ene vare, og saa skal der ikke foerst maales markedet for tre andre.
  try{ if(await synkroniser())return; }catch(e){log('synk: '+e.message)}
- try{await prisvagt()}catch(e){log('vagt: '+e.message)}
+ var optaget=false;
+ try{optaget=await prisvagt()}catch(e){log('vagt: '+e.message)}
+ // Er prisvagten i gang med at skrive i en annonce, venter den stille
+ // aflæsning. Redigeringssiden læses heller ikke: dér er det, der står i
+ // felterne, ikke gemt endnu.
+ if(!optaget&&!/\/edit/.test(location.pathname)){
+  try{await stilleSynk()}catch(e){log('synk: '+e.message)}
+ }
  return;
 }
 if(!await waitForm()){
