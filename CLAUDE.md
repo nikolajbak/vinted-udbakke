@@ -346,6 +346,27 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   — en side må ikke åbne filvælgeren, men godt fylde feltet.
 - **Vinted blokerer datacenter-IP'er.** Hele markedsopslaget sker derfor fra
   telefonens egen session, ikke fra serveren.
+- **Vinteds søgning ligger på `https://api.vinted.dk/svc-catalogue/items`.**
+  `/api/v2/catalog/items` svarer 404 (målt 1. oktober), og fordi runneren
+  tav om en tom søgning, blev INGEN pris markedstjekket siden mindst 25.
+  september: hvert udkast stod med `price_grounded = false` og modellens
+  skøn. Den nye adresse
+  tillader kald fra www.vinted.dk med cookies. Svaret har ikke `brand_title`,
+  `size_title`, `status` eller `path`: mærket står i `item_box.first_line`,
+  `second_line` er »størrelse · stand«, og adressen er `url`. Fremhævede
+  annoncer (`content_source` med »promoted«) er betalt plads og kan være helt
+  ved siden af søgningen — de sorteres fra, og der hentes 96, fordi op til 36
+  af 40 på side 1 kan være fremhævede. Søgningen logger nu sin statuskode, så
+  den ikke kan tie igen.
+- **`/api/v2/items/{id}` svarer også 404 — på alle annoncer.** En 404 derfra
+  siger derfor intet om annoncen. Den blev læst som »væk«, og så ville hver
+  tilknyttet annonce være meldt solgt ved første tilsyn. Kun annoncesidens
+  egen 404 betyder væk. Varens data læses af sidens JSON-LD (`Product` med
+  `offers`; den åbne side først, da den er gratis) — resten af siden er
+  React-data med `\"` overalt, hvor »title« og »amount« lige så godt kan høre
+  til en oversættelse. JSON-LD har ikke størrelse eller Vinteds standtekst, og
+  prisen står i sælgerens valuta (en svensk annonce: 299 SEK), så kun DKK
+  bruges. Kun `SoldOut`/`OutOfStock` tæller som solgt.
 - **Vinted skjuler solgte varer.** Det, søgningen viser, er dét, der IKKE er
   solgt, så feltet skævvrider opad. Prisen skal derfor lægge sig under medianen
   af de sammenlignelige — spærren i `analyseMarket` håndhæver det.

@@ -663,7 +663,10 @@ function laesAnnonceside(t,id){
  }
  if(!p)return null;
  var tilbud=Array.isArray(p.offers)?p.offers[0]:p.offers;
- var pris=helKroner(tilbud.price)||null;
+ // JSON-LD bærer sælgerens valuta: en svensk annonce stod som 299 SEK, mens
+ // søgningen viste den til 199 kr. Kun kroner er en pris her.
+ var dkk=!tilbud.priceCurrency||tilbud.priceCurrency==='DKK';
+ var pris=dkk?(helKroner(tilbud.price)||null):null;
  var mf=t.match(new RegExp('favourite_count\\\\?":(\\d+),\\\\?"is_favourite\\\\?":(?:true|false),\\\\?"item_id\\\\?":\\\\?"?'+id+'\\b'));
  var brand=p.brand&&(p.brand.name||p.brand);
  return {

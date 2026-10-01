@@ -18,6 +18,20 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Markedstjekket af prisen virker igen — rettet 1. oktober (udgivelse
+   0032 og frem).** Vinted flyttede søgningen til `api.vinted.dk`, og den
+   gamle adresse svarede 404. Runneren tav, så alle udkast fra nr. 4 til 17
+   fik modellens skøn (`price_grounded = false`). Samtidig læste `hentVare`
+   404 som »annoncen er væk«; det er rettet, før en annonce blev meldt solgt
+   ved en fejl.
+
+   **Afprøvet** i en browser på vinted.dk (ikke logget ind): søgningen giver
+   40 almindelige fund med mærke, størrelse og stand, og annoncen læses både
+   af den åbne side og af en hentet side. **Ikke afprøvet:** en hel
+   udfyldning på telefonen. Kig efter `marked: N annoncer` i loggen og
+   `price_grounded = true` på udkastet bagefter. Udkast 9–17 er allerede lagt
+   op med skønnet; prisvagten måler dem mod markedet, når de er tilknyttet.
+
 0. **Synkronisering begge veje + Vinteds mails som push — bygget 1. oktober.**
    Reglerne står i `CLAUDE.md` under »Synkronisering af annoncerne« og
    »Vinteds mails«. Baggrundsrunden over alle annoncer er fjernet igen; der er
