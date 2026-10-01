@@ -175,6 +175,28 @@ næste annonce. Sådan hænger det sammen:
 - **Pris-erfaringer er relative** (»10 % under medianen«) og må aldrig lægge en
   pris over medianen — Vinted skjuler solgte varer.
 
+## Billedernes farver
+
+Bestemt af dig 1. oktober: **billederne skal være tro mod varens rigtige farve.**
+De optimeres stadig — beskæring, rotation, hvidt/sortpunkt, skarphed — men
+farveægtheden går forud. En køber, der får en anden farve end billedet, sender
+varen retur. Det står i `measureTone`/`applyTone` i `analyze-draft/optimize.ts`.
+
+- **Ingen mætning og ingen farvetemperatur fra modellen.** Den bliver ikke spurgt.
+  Modellens skøn tæller kun som et lille nap i eksponering og kontrast (×0,35).
+- **Hvidbalancen læses kun af neutrale lyse flader** (højst 15 % forskel mellem
+  kanalerne, ikke udbrændt), aldrig af varen. Er under 2 % af billedet neutralt,
+  røres farven ikke. Loft ±6 %, og den må ikke flytte lysstyrken.
+- **Kurven lægges på lysstyrken; R, G og B skaleres ens.** Så står nuance og
+  mætning, som hvis kameraet havde fået mere lys. Rammer en kanal 255, tages
+  det af mætningen i den pixel, ikke af nuancen.
+- **Sortpunktet er kun en fod** under 3× sortpunktet. Et lineært sortpunkt
+  trak hele mellemtonen ned — der, hvor varens farve er.
+- **Gamma gør aldrig billedet mørkere**, og løfter kun en mørk scene (median
+  under 118), højst til 0,85.
+- Ret ikke på dette uden at måle ΔE på varen mod originalen — på flere varer,
+  ikke ét billede.
+
 ## Synkronisering af annoncerne
 
 Bestemt af dig 1. oktober: annoncerne synkroniseres automatisk begge veje,
@@ -293,7 +315,14 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   det FØRSTE billede, gemmes i `drafts.tone` og genbruges på resten. Måler hvert
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget
   gulv der er i rammen — forfra blev oliven og udvasket, bagfra næsten sort.
-  Derfor kører foto 0 alene først, resten parallelt bagefter.
+  Derfor kører foto 0 alene først, resten parallelt bagefter. En tone uden
+  `v: 2` er målt efter den gamle opskrift og genbruges ikke — foto 0 måler forfra.
+- **Tonen måles på hele scenen, FØR beskæringen — aldrig på det færdige
+  billede.** Målt på det isolerede billede var de lyseste 10 % den hvide ramme:
+  hvidbalancen blev `[1,1,1]`, medianen skød op, gamma ramte loftet på 1,25, og
+  hver vare kom 7-13 L* for mørk ud (ΔE 7-15 på nr. 10-17). Den kobaltblå
+  sweater blev marineblå. Tonen lægges på lige efter beskæringen og før rammen,
+  så rammen får det fremkaldte billedes farve og hvidt forbliver 255.
 - **KUN hele varer isoleres — aldrig nærbilleder.** Et nærbillede beskåret stramt
   mister den sidste linje tekst: `backgroundClutter` slog isoleringen til på
   vaskemærkatet, og dets højre kant blev klippet af. På et nærbillede er stoffet

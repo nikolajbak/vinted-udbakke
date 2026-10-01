@@ -18,6 +18,18 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Farverne er tro mod varen — rettet 1. oktober.** Tonen blev målt på det
+   hvidt indrammede billede, og hver vare kom 7-13 L* for mørk ud (kobaltblå →
+   marineblå). Nu måles den på hele scenen, lægges på lysstyrken, og modellen
+   rører hverken mætning eller farvetemperatur. Se »Billedernes farver« i
+   `CLAUDE.md`. **Afprøvet** lokalt med den rigtige `optimize.ts` under Node på
+   originalerne til nr. 10-17: ΔE på varen 1-3 mod 7-15 før (den gule
+   regnjakke 6-7, mest lys). **Ikke afprøvet:** et helt gennemløb i Supabase
+   med et nyt udkast — og CPU-tiden, da tonen nu lægges på det beskårne
+   billede før nedskaleringen (op til ~25 % flere pixels, til gengæld én
+   gennemgang i stedet for to). Gamle udkast har en tone uden `v: 2`; den
+   genbruges ikke, så en ny analyse måler forfra.
+
 0. **Markedstjekket af prisen virker igen — rettet 1. oktober (udgivelse
    0032 og frem).** Vinted flyttede søgningen til `api.vinted.dk`, og den
    gamle adresse svarede 404. Runneren tav, så alle udkast fra nr. 4 til 17

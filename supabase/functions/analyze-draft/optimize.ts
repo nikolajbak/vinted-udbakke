@@ -8,6 +8,9 @@ import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 // Fremkaldelsen af en hel serie. Maales én gang og genbruges, saa varen ser
 // ens ud paa alle billeder.
 export interface Tone {
+  // 2 = maalt paa hele scenen og lagt paa lysstyrken. En tone uden er maalt
+  // paa det beskaarne, hvidt indrammede billede og maa ikke genbruges.
+  v?: number;
   gains: [number, number, number];
   black: number;
   white: number;
@@ -25,7 +28,7 @@ export interface PhotoGuidance {
   seriesRatio?: number;
   ratioOut?: { ratio?: number };
   crop: { x0: number; y0: number; x1: number; y1: number };
-  look?: { exposure?: number; contrast?: number; warmth?: number; saturation?: number };
+  look?: { exposure?: number; contrast?: number };
   mask?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
   protect?: Array<{ x0: number; y0: number; x1: number; y1: number }>;
 }
@@ -175,19 +178,13 @@ export const GUIDANCE_TOOL = {
         type: "number",
         description: "Kontrast, -0.4 til 0.4. Positiv giver dybere sort og renere hvid i et fladt billede.",
       },
-      warmth: {
-        type: "number",
-        description:
-          "Farvetemperatur, -0.5 til 0.5. NEGATIV køler et orange/gult farvestik ned (fx trægulv eller gult pærelys). Positiv varmer et blåligt billede op.",
-      },
-      saturation: {
-        type: "number",
-        description: "Farvemætning, -0.3 til 0.3. Let positiv giver mere liv; negativ dæmper overmættede farver.",
-      },
+      // Ingen farvetemperatur og ingen maetning. Farven er varens, og den maa
+      // ikke skønnes om: hvidbalancen maales af billedets neutrale flader, og
+      // maetningen roeres slet ikke.
     },
     required: [
       "rotationDegrees", "subject", "subjectCutOff", "backgroundClutter", "x0", "y0", "x1", "y1",
-      "personalRegions", "protectRegions", "exposure", "contrast", "warmth", "saturation",
+      "personalRegions", "protectRegions", "exposure", "contrast",
     ],
   },
 };
@@ -265,148 +262,142 @@ function maskRegions(
 }
 
 /**
- * Målt grundkorrektion, før modellens skøn overhovedet kommer til.
+ * Maalt grundkorrektion: hvidbalance, hvid- og sortpunkt, og et skyggeloeft
+ * kun naar billedet er undereksponeret.
  *
- * En model kan se, AT et billede er gulligt og mørkt, men ikke hvor meget.
- * Det kan billedet selv svare på: hvidbalancen læses af de lyseste partier,
- * sort- og hvidpunkt af histogrammets haler, og skyggeløftet af medianen.
- * Det er den samme rækkefølge et fremkalderprogram bruger, og den rammer
- * rigtigt hver gang, hvor et skøn rammer nogenlunde.
+ * FARVEN ER VARENS. En koeber, der faar en anden farve, end billedet viste,
+ * sender varen retur, saa alt her er holdt paa varens side:
  *
- * Alt er holdt i stramme tøjler: en annonce skal vise varens rigtige farve.
- * Et billede, der er pænere end virkeligheden, giver en skuffet køber.
+ * - Maales paa HELE scenen, foer beskaering og indramning. Foer blev der maalt
+ *   paa det faerdige billede, og paa en isoleret vare var de lyseste 10 % den
+ *   hvide ramme: hvidbalancen blev [1,1,1], medianen skød op, gamma ramte
+ *   loftet paa 1,25, og hver vare blev 7-13 L* moerkere. Den kobaltblaa
+ *   sweater (nr. 12) kom ud som marineblaa. Maalt paa originalerne til nr.
+ *   10-17: ΔE 7-15 paa varen foer, 1-3 nu (den gule regnjakke 6-7, mest lys).
+ * - Hvidbalancen laeses kun af NEUTRALE lyse flader (lagen, vaeg, papir) - aldrig
+ *   af varen. Et naerbillede af en kobaltblaa trøje har ingen hvide flader, og
+ *   foer blev blaaet saa "rettet" mod graat. Finder vi for lidt neutralt, roeres
+ *   farven ikke.
+ * - Kurven laegges paa lysstyrken, og R, G og B skaleres med samme faktor. Saa
+ *   bevares forholdet mellem kanalerne - nuancen og maetningen - som hvis
+ *   kameraet bare havde faaet mere lys. En kurve pr. kanal udvasker skyggerne.
+ * - Sortpunktet er kun en fod under de dybeste skygger. Et lineaert sortpunkt
+ *   traekker hele mellemtonen ned, og dér ligger varens farve.
+ * - Billedet goeres aldrig moerkere med gamma, kun lysere naar medianen er lav.
  */
-function autoTone(image: { bitmap: Uint8ClampedArray }, given?: Tone): Tone | null {
-  const px = image.bitmap;
-  const pixels = px.length / 4;
-  if (!pixels) return null;
-
-  // Er fremkaldelsen allerede maalt paa seriens foerste billede, bruges den som
-  // den er. Maaler hvert billede sit eget, faar en jakke med meget gulv i
-  // rammen en anden farve end den samme jakke set taettere paa - og det er
-  // praecis dét, der faar en annonce til at se roddet ud.
-  if (given) {
-    applyTone(px, given);
-    return given;
-  }
-
-  // Ét gennemløb, fire histogrammer. Hvidbalancen blev før læst i et ekstra
-  // gennemløb over alle pixels; den kan udledes af kanalernes egne histogrammer
-  // og koster så ingenting.
+function measureTone(image: { bitmap: Uint8ClampedArray; width: number; height: number }): Tone | null {
+  const { bitmap: px, width: w, height: h } = image;
+  // Hver tredje pixel i begge retninger: en niendedel, og tallene flytter sig
+  // ikke af det.
+  const step = 3;
   const lumHist = new Uint32Array(256);
-  const ch = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
-  for (let i = 0; i < px.length; i += 4) {
-    const r = px[i], g = px[i + 1], b = px[i + 2];
-    ch[0][r]++; ch[1][g]++; ch[2][b]++;
-    lumHist[(0.2126 * r + 0.7152 * g + 0.0722 * b) | 0]++;
-  }
-
-  // De lyseste 10 % af hver kanal: dét, der BURDE være neutralt. Et trægulv
-  // eller gult pærelys farver hele billedet, og sort tøj bliver brunligt.
-  const brightWanted = Math.max(1, Math.floor(pixels * 0.10));
-  const brightMean = (h: Uint32Array) => {
-    let n = 0, sum = 0;
-    for (let v = 255; v >= 0 && n < brightWanted; v--) {
-      const take = Math.min(h[v], brightWanted - n);
-      n += take; sum += take * v;
+  const nR = new Float64Array(256), nG = new Float64Array(256), nB = new Float64Array(256);
+  const nN = new Uint32Array(256);
+  let n = 0;
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const i = (y * w + x) * 4;
+      const r = px[i], g = px[i + 1], b = px[i + 2];
+      const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) | 0;
+      lumHist[L]++;
+      n++;
+      // Neutral: hoejst 15 % forskel mellem kanalerne. Udbraendte pixels er
+      // altid neutrale og siger intet om lyset, saa de tæller ikke.
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if (mx < 250 && L >= 120 && mx - mn <= mx * 0.15) {
+        nR[L] += r; nG[L] += g; nB[L] += b; nN[L]++;
+      }
     }
-    return n ? sum / n : 0;
-  };
-  const mr = brightMean(ch[0]), mg = brightMean(ch[1]), mb = brightMean(ch[2]);
-  let gainR = 1, gainG = 1, gainB = 1;
-  if (mr > 1 && mg > 1 && mb > 1) {
+  }
+  if (!n) return null;
+
+  // De lyseste neutrale flader, op til 5 % af billedet. Under 2 % er der ikke
+  // noget, vi tør kalde hvidt, og saa staar farven, som kameraet saa den.
+  let gains: [number, number, number] = [1, 1, 1];
+  const want = Math.max(1, Math.floor(n * 0.05));
+  let k = 0, sr = 0, sg = 0, sb = 0;
+  for (let v = 255; v >= 0 && k < want; v--) {
+    k += nN[v]; sr += nR[v]; sg += nG[v]; sb += nB[v];
+  }
+  if (k >= n * 0.02) {
+    const mr = sr / k, mg = sg / k, mb = sb / k;
     const mean = (mr + mg + mb) / 3;
-    // Stramt loft: en rød kjole fylder også de lyseste partier, og den må ikke
-    // blegnes i jagten på en neutral grå.
-    const cap = (x: number) => Math.max(0.88, Math.min(1.14, x));
-    gainR = cap(mean / mr); gainG = cap(mean / mg); gainB = cap(mean / mb);
+    // Stramt loft: et cremet lagen og en hvid vaeg i gult lys ser ens ud.
+    const cap = (x: number) => Math.max(0.94, Math.min(1.06, x));
+    gains = [cap(mean / mr), cap(mean / mg), cap(mean / mb)];
+    // Hvidbalancen maa ikke flytte lysstyrken - det er kurvens arbejde.
+    const lum = 0.2126 * gains[0] + 0.7152 * gains[1] + 0.0722 * gains[2];
+    gains = [gains[0] / lum, gains[1] / lum, gains[2] / lum];
   }
 
-  // Sort- og hvidpunkt fra histogrammets haler. 0,3 % i hver ende: nok til at
-  // fjerne dis, for lidt til at lukke detaljer i sorte folder.
-  const tail = Math.max(1, Math.floor(pixels * 0.003));
+  // Hvid- og sortpunkt fra histogrammets haler, 0,3 % i hver ende.
+  const tail = Math.max(1, Math.floor(n * 0.003));
   let acc = 0, black = 0, white = 255;
   for (let v = 0; v < 256; v++) { acc += lumHist[v]; if (acc >= tail) { black = v; break; } }
   acc = 0;
   for (let v = 255; v >= 0; v--) { acc += lumHist[v]; if (acc >= tail) { white = v; break; } }
-  black = Math.min(black, 40);
+  black = Math.min(black, 24);
   white = Math.max(white, 205);
   if (white - black < 60) { black = 0; white = 255; }
 
-  // Skyggeløft mod en median omkring 118. Mørkt tøj indendørs lander typisk
-  // langt under, og en kurve løfter skyggerne uden at brænde højlysene af,
-  // sådan som en ren eksponeringsfaktor gør.
+  // Skyggeloeft kun naar scenen er moerk, og kun lidt. Telefonen har allerede
+  // eksponeret; et sort plagg paa et sort taeppe skal forblive sort.
   let half = 0, median = 128;
-  const wanted = pixels / 2;
-  for (let v = 0; v < 256; v++) { half += lumHist[v]; if (half >= wanted) { median = v; break; } }
+  for (let v = 0; v < 256; v++) { half += lumHist[v]; if (half >= n / 2) { median = v; break; } }
   let gamma = 1;
-  if (median > 4 && median < 250) {
-    gamma = Math.log(118 / 255) / Math.log(median / 255);
-    gamma = Math.max(0.62, Math.min(1.25, gamma));
+  if (median > 4 && median < 118) {
+    gamma = Math.max(0.85, Math.log(118 / 255) / Math.log(median / 255));
   }
 
-  const tone: Tone = { gains: [gainR, gainG, gainB], black, white, gamma };
-  applyTone(px, tone);
-  return tone;
-}
-
-function applyTone(px: Uint8ClampedArray, t: Tone): void {
-  const span = Math.max(1, t.white - t.black);
-  const lut = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)];
-  for (let c = 0; c < 3; c++) {
-    for (let v = 0; v < 256; v++) {
-      const balanced = v * t.gains[c];
-      const stretched = Math.max(0, Math.min(1, (balanced - t.black) / span));
-      lut[c][v] = clamp255(255 * Math.pow(stretched, t.gamma));
-    }
-  }
-  for (let i = 0; i < px.length; i += 4) {
-    px[i] = lut[0][px[i]];
-    px[i + 1] = lut[1][px[i + 1]];
-    px[i + 2] = lut[2][px[i + 2]];
-  }
+  return { v: 2, gains, black, white, gamma };
 }
 
 /**
- * Eksponering, hvidbalance, kontrast og mætning i én gennemgang af billedet.
- * Modellen bedømmer HVAD der skal rettes; her udføres det.
+ * Lægger fremkaldelsen og modellens lille nap (eksponering, kontrast) paa i
+ * én gennemgang. Alt sker paa lysstyrken; farven foelger med uden at aendres.
  */
-function applyLook(
-  image: { bitmap: Uint8ClampedArray },
-  look: { exposure?: number; contrast?: number; warmth?: number; saturation?: number },
+function applyTone(
+  px: Uint8ClampedArray,
+  t: Tone,
+  look: { exposure?: number; contrast?: number } = {},
 ): void {
   const ev = Math.max(-0.5, Math.min(0.5, look.exposure ?? 0));
   const ct = Math.max(-0.4, Math.min(0.4, look.contrast ?? 0));
-  const wb = Math.max(-0.5, Math.min(0.5, look.warmth ?? 0));
-  const sa = Math.max(-0.3, Math.min(0.3, look.saturation ?? 0));
-  if (!ev && !ct && !wb && !sa) return;
 
-  const expGain = 1 + ev;
-  const ctGain = 1 + ct;
-  const rGain = 1 + wb * 0.18;   // varmt stik koeles ved at daempe roed
-  const bGain = 1 - wb * 0.18;   // og loefte blaa
-  const satGain = 1 + sa;
-  const px = image.bitmap;
+  // Kurven over lysstyrken, i 1024 trin, saa moerke flader ikke faar trappetrin.
+  const N = 1024;
+  const curve = new Float32Array(N);
+  const toe = (3 * t.black) / 255;
+  for (let j = 0; j < N; j++) {
+    let s = Math.min(1, (j / (N - 1)) * 255 / t.white);
+    // Sortpunktet som en fod: kun under tre gange sortpunktet.
+    if (toe > 0 && s < toe) s -= (t.black / 255) * Math.pow(1 - s / toe, 2);
+    s = Math.pow(Math.max(0, s), t.gamma) * 255;
+    s *= 1 + ev;
+    s = (s - 128) * (1 + ct) + 128;
+    curve[j] = s < 0 ? 0 : s > 255 ? 255 : s;
+  }
 
+  const [gr, gg, gb] = t.gains;
   for (let i = 0; i < px.length; i += 4) {
-    let r = px[i] * expGain * rGain;
-    let g = px[i + 1] * expGain;
-    let b = px[i + 2] * expGain * bGain;
-
-    if (ct) {
-      r = (r - 128) * ctGain + 128;
-      g = (g - 128) * ctGain + 128;
-      b = (b - 128) * ctGain + 128;
+    // Udbraendt hvidt forbliver hvidt, ogsaa efter hvidbalancen.
+    if (px[i] === 255 && px[i + 1] === 255 && px[i + 2] === 255) continue;
+    const r = px[i] * gr, g = px[i + 1] * gg, b = px[i + 2] * gb;
+    const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    if (L < 0.5) { px[i] = 0; px[i + 1] = 0; px[i + 2] = 0; continue; }
+    const L2 = curve[Math.min(N - 1, (L * (N - 1) / 255) | 0)];
+    const f = L2 / L;
+    let R = r * f, G = g * f, B = b * f;
+    // Rammer en kanal loftet, tages det af maetningen i den ene pixel - ikke
+    // af nuancen, som et hårdt klip ville flytte.
+    const mx = Math.max(R, G, B);
+    if (mx > 255) {
+      const q = (255 - L2) / (mx - L2);
+      R = L2 + (R - L2) * q; G = L2 + (G - L2) * q; B = L2 + (B - L2) * q;
     }
-    if (sa) {
-      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      r = lum + (r - lum) * satGain;
-      g = lum + (g - lum) * satGain;
-      b = lum + (b - lum) * satGain;
-    }
-    px[i] = clamp255(r);
-    px[i + 1] = clamp255(g);
-    px[i + 2] = clamp255(b);
+    px[i] = clamp255(R);
+    px[i + 1] = clamp255(G);
+    px[i + 2] = clamp255(B);
   }
 }
 
@@ -798,7 +789,32 @@ export async function optimizePhoto(
     cy = roligstePlads(uro.raekke, Math.round(ch), H, box.y0 * H, box.y1 * H, cy);
   }
 
+  // Fremkaldelsen maales paa hele scenen, FOER beskaeringen: det er her, de
+  // hvide flader er, og her er der endnu ingen hvid ramme til at narre
+  // maalingen. En tone fra foer v2 er maalt paa rammen og genbruges ikke.
+  // Kontrolbilledet springer den over - det skal bare kunne bedoemmes.
+  let tone: Tone | null = null;
+  if (!preview) {
+    tone = guidance.tone && guidance.tone.v === 2
+      ? guidance.tone
+      : measureTone(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number });
+    if (guidance.toneOut && tone) guidance.toneOut.tone = tone;
+  }
+
   image = image.crop(Math.round(cx), Math.round(cy), Math.round(cw), Math.round(ch));
+
+  // ...og laegges paa lige efter beskaeringen, foer rammen. Saa faar rammen
+  // farven fra det fremkaldte billede, og en hvid ramme forbliver hvid.
+  //
+  // Modellens skøn kun som et nap: den saa det URETTEDE billede, saa dens tal
+  // ville rette anden gang for det, maalingen allerede har rettet.
+  if (tone) {
+    const nudge = 0.35;
+    applyTone((image as unknown as { bitmap: Uint8ClampedArray }).bitmap, tone, {
+      exposure: (guidance.look?.exposure ?? 0) * nudge,
+      contrast: (guidance.look?.contrast ?? 0) * nudge,
+    });
+  }
 
   // Rammen, der bringer billedet op i format. Laegges kun naar der blev
   // beskaaret stramt - ellers har billedet allerede formatet.
@@ -851,24 +867,8 @@ export async function optimizePhoto(
     image = image.resize(Math.round(image.width * scale), Math.round(image.height * scale));
   }
 
-  // Målingen først, skønnet bagefter. Modellen så det URETTEDE billede, så
-  // dens tal ville rette anden gang for det, autoTone allerede har rettet -
-  // derfor kun en brøkdel af dem: et nap, ikke en ny fremkaldelse.
   if (preview) return await image.encodeJPEG(60);
 
-  const used = autoTone(image as unknown as { bitmap: Uint8ClampedArray }, guidance.tone);
-  if (guidance.toneOut && used) guidance.toneOut.tone = used;
-  if (guidance.look) {
-    const nudge = 0.35;
-    applyLook(image as unknown as { bitmap: Uint8ClampedArray }, {
-      exposure: (guidance.look.exposure ?? 0) * nudge,
-      contrast: (guidance.look.contrast ?? 0) * nudge,
-      warmth: (guidance.look.warmth ?? 0) * nudge,
-      // Mætningen er det eneste, modellen ser bedre end histogrammet: om varen
-      // ser livløs eller skrigende ud. Den får lov at tælle mere.
-      saturation: (guidance.look.saturation ?? 0) * 0.7,
-    });
-  }
   sharpen(image as unknown as { bitmap: Uint8ClampedArray; width: number; height: number });
 
   // 88, ikke 92: Vinted koder alligevel om til deres egne stoerrelser, saa de

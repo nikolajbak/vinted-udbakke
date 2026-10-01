@@ -317,7 +317,10 @@ Deno.serve(async (req: Request) => {
     // Ellers faar den samme jakke forskellig farve fra billede til billede, alt
     // efter hvor meget gulv der er med i rammen. Erklaeret her, ikke inde i
     // loekken - den skal ogsaa kunne laeses, naar billedet gemmes bagefter.
-    const tone = (row?.tone ?? undefined) as Tone | undefined;
+    // En tone fra foer v2 er maalt paa det hvidt indrammede billede og gjorde
+    // varen moerkere. Den regnes som ingen, saa foto 0 maaler og gemmer på ny.
+    const gemt = (row?.tone ?? undefined) as Tone | undefined;
+    const tone = gemt && gemt.v === 2 ? gemt : undefined;
     const toneOut: { tone?: Tone } = {};
     // Formatet deles som fremkaldelsen: maalt paa foto 0, genbrugt af resten.
     const seriesRatio = Number(row?.ratio) || undefined;
@@ -448,8 +451,8 @@ Deno.serve(async (req: Request) => {
             "delvist under et navnemaerke; de bliver friholdt pixel for pixel.\n" +
             "4) Billedbehandling: bedoem billedet som en fotograf og angiv de rettelser, det faktisk " +
             "har brug for. Moerkt toej fotograferet indendoers er typisk undereksponeret og skal loeftes. " +
-            "Et traegulv eller gult paerelys giver et varmt farvestik, som skal koeles ned (negativ warmth), " +
-            "ellers ser sort toej brunligt ud. Er billedet allerede godt, saa svar 0 - overdriv ikke.",
+            "Farverne roeres ikke: hvidbalancen maales af billedet selv, og varen skal have sin " +
+            "rigtige farve. Er billedet allerede godt, saa svar 0 - overdriv ikke.",
           [
             { type: "image", source: { type: "url", url: l.photo.url } },
             { type: "text", text: `Billedtype: ${l.photo.kind || "ukendt"}. Vurdér dette ene billede.` },
@@ -475,8 +478,6 @@ Deno.serve(async (req: Request) => {
         const look = {
           exposure: Number(g.exposure) || 0,
           contrast: Number(g.contrast) || 0,
-          warmth: Number(g.warmth) || 0,
-          saturation: Number(g.saturation) || 0,
         };
         const box = { x0: Number(g.x0), y0: Number(g.y0), x1: Number(g.x1), y1: Number(g.y1) };
         let rotation = Number(g.rotationDegrees) || 0;
@@ -564,8 +565,6 @@ Deno.serve(async (req: Request) => {
                 look: {
                   exposure: Number(g.exposure) || 0,
                   contrast: Number(g.contrast) || 0,
-                  warmth: Number(g.warmth) || 0,
-                  saturation: Number(g.saturation) || 0,
                 },
               });
             }
