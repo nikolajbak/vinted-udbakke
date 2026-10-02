@@ -368,6 +368,22 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   formularen (`#title`) er væk — hvert 3. sekund i to minutter, siden hvert
   halve minut — og ellers én gang i minuttet. Står fanen på `/items/{id}`,
   bruges det nummer også; serveren afviser det, hvis det ikke er det nye.
+- **Fanen alene er ikke nok — derfor efterløbet (`mode:'efterloeb'`).** Nr. 22
+  lå i garderoben, men fanen, der fyldte den ud, meldte intet efter Upload
+  (den nye runner kørte; om iOS lagde fanen til at sove, kunne loggen ikke
+  sige). Hver gang runneren kører på en Vinted-side, spørger den serveren, om
+  et udkast er udfyldt (`posted_to.vinted` inden for 14 dage) uden at være
+  tilknyttet. Kun da hentes garderoben (10 rækker), og serveren parrer de
+  annoncer, der er nyere end den nyeste tilknyttede, med udkastene **på
+  titlen** (`titelLighed`: fælles ord, mindst 0,5 og klart bedst — Vinteds
+  markedsrunde kan have rettet titlen). Hellere en annonce uden udkast end en
+  på det forkerte. `listed_at` sættes til udfyldningen, ikke til fundet.
+  Hændelsen hedder »fundet i garderoben (efterløb)«, så det kan ses, at
+  fanen ikke klarede det.
+- **Runnerens trin står i funktionens log (`mode:'spor'`, »spor …«).**
+  Garderobe-kald, foer-nummeret, at formularen forsvandt, når fanen skjules
+  og vises igen, og hvad vagten så. Slå op i `function_logs` på »spor«, før
+  der gættes på, hvorfor en annonce ikke blev tilknyttet.
 - **Efter Upload skifter Vinted adresse UDEN at genindlæse siden (Next.js).**
   Et brugerscript kører kun ved en rigtig sideindlæsning, så det fyrer aldrig
   på annoncesiden, man lander på. Fire udkast blev 1. oktober lagt op via

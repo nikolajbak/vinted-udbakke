@@ -781,6 +781,7 @@ async function registrer(
   url: string,
   pris: number,
   udgivet?: unknown,
+  note = "lagt op på " + platform,
 ) {
   if (!externalId) return null;
   const { data: findes } = await supabase.from("listings")
@@ -811,10 +812,93 @@ async function registrer(
   if (error) { console.error("registrer failed", error); return null; }
 
   await supabase.from("price_events").insert({
-    listing_id: ny.id, kind: "oprettet", price: p,
-    note: "lagt op på " + platform,
+    listing_id: ny.id, kind: "oprettet", price: p, note,
   });
   return ny.id as string;
+}
+
+// Hvor ens er to titler? Ord for ord, uden de ord alle titler har. Vinteds
+// markedsrunde kan have rettet titlen inden Upload ("regndragt" blev til
+// "regntoej" paa nr. 22), saa der kraeves ikke samme tekst - kun de fleste ord.
+const FYLDORD = new Set(["str", "og", "i", "med", "til", "ny", "nye", "helt", "kr"]);
+function titelOrd(t: unknown): Set<string> {
+  return new Set(String(t ?? "").toLowerCase().split(/[^a-z0-9æøåäöü]+/)
+    .filter((o) => o.length > 1 && !FYLDORD.has(o)));
+}
+function titelLighed(a: unknown, b: unknown): number {
+  const A = titelOrd(a), B = titelOrd(b);
+  if (!A.size || !B.size) return 0;
+  let faelles = 0;
+  for (const o of A) if (B.has(o)) faelles++;
+  return 2 * faelles / (A.size + B.size);
+}
+
+// Se kommentaren ved mode 'efterloeb'. Uden varer svarer den kun, om der er
+// noget at lede efter - saa telefonen ikke henter garderoben (~60 kB) paa
+// hver eneste annonceside.
+async function efterloeb(varer: unknown) {
+  const graense = new Date(Date.now() - 14 * 86400000).toISOString();
+  const { data: udfyldte } = await supabase.from("drafts")
+    .select("id, nr, title, price, posted_to, status")
+    .not("posted_to->>vinted", "is", null)
+    .gte("posted_to->>vinted", graense)
+    .neq("status", "kasseret");
+  const { data: kendte } = await supabase.from("listings")
+    .select("draft_id, external_id").eq("platform", "vinted");
+  const tilknyttet = new Set((kendte ?? []).map((l) => l.draft_id));
+  const loese = (udfyldte ?? []).filter((d) => !tilknyttet.has(d.id));
+  if (!Array.isArray(varer)) {
+    return { behov: loese.length > 0, bruger: VINTED_BRUGER };
+  }
+
+  // Kun annoncer, der er nyere end den nyeste tilknyttede, og som ingen har.
+  // Vinteds numre stiger - samme vaern som i mode 'posted'.
+  const nyeste = Math.max(0, ...(kendte ?? []).map((l) => Number(l.external_id) || 0));
+  const brugte = new Set((kendte ?? []).map((l) => String(l.external_id)));
+  const nye = (varer as Array<Record<string, unknown>>)
+    .filter((v) => v && !v.is_draft && Number(v.id) > nyeste && !brugte.has(String(v.id)))
+    .sort((a, b) => Number(a.id) - Number(b.id));
+
+  const tilbage = [...loese];
+  const fundet: Array<{ nr: unknown; item_id: string }> = [];
+  for (const v of nye) {
+    const pris = Math.round(Number(v.price) || 0);
+    const point = tilbage.map((d) => ({
+      d,
+      p: titelLighed(d.title, v.title) +
+        (pris > 0 && Number(plainPrice(String(d.price ?? ""))) === pris ? 0.1 : 0),
+    })).sort((a, b) => b.p - a.p);
+    const [a, b] = point;
+    // Halvdelen af ordene, og klart bedre end naestbedste. Hellere en annonce
+    // uden udkast end en annonce paa det forkerte udkast.
+    if (!a || a.p < 0.5 || (b && b.p > a.p - 0.15)) {
+      console.log("efterloeb: ingen sikker parring", v.id, v.title,
+        point.slice(0, 2).map((x) => `${x.d.nr}:${x.p.toFixed(2)}`).join(" "));
+      continue;
+    }
+    const id = String(v.id);
+    const vagt = await registrer(
+      a.d.id, "vinted", id,
+      String(v.url ?? `https://www.vinted.dk/items/${id}`), pris,
+      { title: v.title, price: pris, brand: v.brand, size: v.size,
+        condition: v.status, url: v.url, kilde: "garderobe" },
+      "fundet i garderoben (efterløb)",
+    );
+    if (!vagt) continue;
+    // Lagt ud lige efter udfyldningen - ikke da efterloebet fandt den.
+    // Ellers ville en annonce fundet tre dage senere se tre dage yngre ud
+    // for gennemgangen af salgene.
+    const ud = (a.d.posted_to as Record<string, string> | null)?.vinted;
+    await supabase.from("listings").update({
+      ...(ud ? { listed_at: ud } : {}),
+      synced_at: new Date().toISOString(),
+    }).eq("id", vagt);
+    await supabase.from("drafts").update({ selected_at: null }).eq("id", a.d.id);
+    console.log("efterloeb: nr", a.d.nr, "->", id, a.p.toFixed(2));
+    fundet.push({ nr: a.d.nr, item_id: id });
+    tilbage.splice(tilbage.indexOf(a.d), 1);
+  }
+  return { ok: true, fundet };
 }
 
 async function hentForfaldne(maks = 3) {
@@ -1152,6 +1236,25 @@ Deno.serve(async (req: Request) => {
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
       }
+    }
+
+    // Runnerens egne trin, til loggen. Telefonens konsol kan ikke ses
+    // herfra, og 2. oktober kunne loggen ikke sige, om nr. 22 strandede paa
+    // garderoben eller paa en fane, iOS havde lagt til at sove.
+    if (body.mode === "spor") {
+      console.log("spor", String(body.id ?? "-").slice(0, 8),
+        String((body as { tekst?: unknown }).tekst ?? "").slice(0, 600));
+      return json({ ok: true });
+    }
+
+    // Efterloebet. Fanen, der fyldte formularen, skal selv se den nye
+    // annonce i garderoben - men den kan vaere lukket, eller iOS kan have
+    // lagt den til at sove, foer Upload var faerdig. Saa hver gang runneren
+    // koerer paa en Vinted-side, spoerger den her: ligger der et udkast, der
+    // er udfyldt i Vinted, men ikke tilknyttet? Er svaret ja, sender den
+    // garderobens nyeste, og de parres med udkastene paa titlen.
+    if (body.mode === "efterloeb") {
+      return json(await efterloeb(body.items));
     }
 
     // Prisvagtens tre kald staar ogsaa foer id-vaernet: de handler om en

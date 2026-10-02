@@ -29,6 +29,16 @@ var DRAFT_ID=null;
 // window.__UDBAKKE_LOG__ i stedet for at vaere usynligt.
 var LOG=window.__UDBAKKE_LOG__=[];
 function log(s){LOG.push(Math.round(performance.now()/100)/10+'s '+s)}
+// Et trin til serverens log. Telefonens konsol kan ikke ses fra Mac'en, og
+// uden det kunne ingen sige, hvor nr. 22 strandede. Samme linje to gange i
+// traek sendes kun en gang.
+var SIDST_SPOR='';
+function spor(s,id){
+ log(s);
+ if(s===SIDST_SPOR)return; SIDST_SPOR=s;
+ try{fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({mode:'spor',id:id||null,tekst:location.pathname+' | '+s})}).catch(function(){})}catch(e){}
+}
 
 // Hvert eneste ventetraek herunder er begraenset, saa udfyldningen kan ikke gaa
 // i staa. Et kaplaeb mod en tidsudloeser ville ikke standse det, den gav op
@@ -945,6 +955,28 @@ async function prisvagt(){
 // et gaet, og ingen af nr. 5-20 blev tilknyttet ad den vej. Derfor kigger vi
 // ogsaa i din garderobe: det nyeste nummer dér blev noteret ved udfyldningen
 // (foer), og dukker der et nyere op, er det den annonce, du lagde op.
+// Efterloebet: se mode 'efterloeb' i index.ts. Spoerg foerst, om der er
+// noget at lede efter; garderoben (~60 kB) hentes kun, naar der er.
+async function efterloeb(){
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'efterloeb'})},15000);
+  var j=await r.json();
+  if(!j||!j.behov||!j.bruger)return;
+  var g=await timedFetch('/api/v2/wardrobe/'+j.bruger+'/items?page=1&per_page=10&order=newest_first',
+   {headers:{'Accept':'application/json'},credentials:'include'},15000);
+  if(!g.ok){spor('efterloeb: garderobe '+g.status);return}
+  var gj=await g.json();
+  var varer=(gj.items||[]).map(function(it){return {
+   id:String(it.id),title:it.title||'',is_draft:!!it.is_draft,
+   price:it.price&&it.price.amount,url:it.url||'',brand:it.brand||'',
+   size:it.size||'',status:it.status||''}});
+  var s=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'efterloeb',items:varer})},20000);
+  var sj=await s.json();
+  (sj&&sj.fundet||[]).forEach(function(f){spor('efterloeb: nr '+f.nr+' er '+f.item_id)});
+ }catch(e){spor('efterloeb: '+e.message)}
+}
 var AFVISTE={};
 async function meldPostet(){
  var v=hentAfventer();
@@ -954,7 +986,8 @@ async function meldPostet(){
  if(!itemId&&v.foer){
   var ny=await nyesteIGarderoben(v.bruger);
   if(ny&&ny>v.foer&&!AFVISTE[ny])itemId=String(ny);
- }
+  else spor('venter: nyeste '+(ny||'ukendt')+', foer '+v.foer,v.id);
+ }else if(!itemId)spor('venter: intet foer-nummer',v.id);
  if(!itemId)return false;
  try{sessionStorage.removeItem('udbakke_afventer')}catch(e){}
  // Prisen læses på annoncen selv, ikke på det vi troede vi skrev. Du kan have
@@ -1006,14 +1039,14 @@ async function nyesteIGarderoben(bruger){
  try{
   var r=await timedFetch('/api/v2/wardrobe/'+bruger+'/items?page=1&per_page=5&order=newest_first',
    {headers:{'Accept':'application/json'},credentials:'include'},10000);
-  if(!r.ok){log('garderobe: '+r.status);return null}
+  if(!r.ok){spor('garderobe: '+r.status);return null}
   var j=await r.json(),maks=0;
   (j.items||[]).forEach(function(it){
    var n=+(it&&it.id)||0;
    if(n>maks&&!it.is_draft)maks=n;
   });
   return maks||null;
- }catch(e){log('garderobe: '+e.message);return null}
+ }catch(e){spor('garderobe: '+e.message);return null}
 }
 
 // Automatisk tilstand starter, så snart siden er tegnet — felterne kan sagtens
@@ -1028,6 +1061,9 @@ async function waitForm(){
 // Laa der en markoer fra en udfyldning, der ikke blev meldt, saa kig efter den
 // nu. Paa opret-siden skal en ny udfyldning stadig koere bagefter.
 if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
+// Efterloebet koerer ved siden af, uanset siden - det maa ikke forsinke en
+// udfyldning eller et tilsyn.
+efterloeb();
 // Prisvagten kører på alle annoncesider undtagen opret-siden: dér er
 // udfyldningen det eneste, der skal ske, og den må ikke vente på et tilsyn.
 if(!/\/items\/new/.test(location.pathname)){
@@ -1136,7 +1172,7 @@ try{
  // deles af alle faner, og 2. oktober tog en anden fane med nr. 10's sandaler
  // markoeren for nr. 18.
  var foer=await nyesteIGarderoben(d.vintedBruger);
- log('garderobe foer upload: '+(foer||'ukendt'));
+ spor('garderobe foer upload: '+(foer||'ukendt'),DRAFT_ID);
  saetAfventer({id:DRAFT_ID,tid:Date.now(),bruger:d.vintedBruger||null,foer:foer});
  // Vinted skifter adresse UDEN at genindlaese siden (Next.js), og Safari
  // bliver staaende efter Upload. Saa vi holder selv oeje, saa laenge fanen er
@@ -1151,7 +1187,7 @@ try{
   if(!hentAfventer()){clearInterval(vagtAdr);return}
   var sti=location.pathname,nu=Date.now();
   var nySti=sti!==sidstSti; sidstSti=sti;
-  if(q('#title'))vaekTid=0; else if(!vaekTid)vaekTid=nu;
+  if(q('#title'))vaekTid=0; else if(!vaekTid){vaekTid=nu;spor('formularen er vaek',DRAFT_ID)}
   var hvert=!vaekTid?60000:(nu-vaekTid<120000?3000:30000);
   if(!nySti&&nu-sidstKig<hvert)return;
   sidstKig=nu; travl=true;
@@ -1161,6 +1197,10 @@ try{
   },function(e){travl=false;log('postet: '+e.message)});
  },1000);
  setTimeout(function(){clearInterval(vagtAdr)},3600000);
+ // Saetter iOS fanen til at sove, staar vagten stille. Det skal kunne ses.
+ document.addEventListener('visibilitychange',function(){
+  if(hentAfventer())spor('fanen er '+(document.hidden?'skjult':'synlig'),DRAFT_ID);
+ });
 
  // Markeringen ryddes, så et genindlæs ikke fylder den samme annonce ud igen.
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
