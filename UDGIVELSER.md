@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0044 — 2026-10-03 00:54
+
+Commit `282836e` — Ingen zoom i appen: viewport, touch-action og knib stoppet  
+App: `app.js?v=c41a30fe` · `style.css?v=8ab674d9`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v66 | `cbc5da4f` |
+| dba-fill-script | v17 | `ff35394d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v9 | `a31c8881` |
+| vinted-fill-script | v64 | `b11abdc4` |
+| vinted-mail | v2 | `8bd594cd` |
+
 ## udgivelse-0043 — 2026-10-03 00:49
 
 Commit `8deeee4` — Lageret: én fase pr. vare, opgaver på forsiden, en række pr. markedsplads  
