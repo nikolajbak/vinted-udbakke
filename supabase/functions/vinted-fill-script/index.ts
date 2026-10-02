@@ -334,6 +334,9 @@ const VERIFY_PHOTOS: Record<string, string[]> = {
   "mærke": ["maerke", "brand"],
   "størrelse": ["stoerrelse", "size"],
   "materiale": ["stoerrelse", "maerke"],
+  // Farven med maerket: staar der "Army" paa haengemaerket, er det facit, og
+  // et foto alene saa en armygroen hoerskjorte som beige.
+  "farve": ["forfra", "maerke"],
 };
 
 async function verifyChoice(
@@ -349,7 +352,10 @@ async function verifyChoice(
   const text = `Billederne viser varen — og hvor der er et mærkat med, hvad der står på det.\n` +
     `Feltet "${kind}" er sat til: ${value}\n` +
     `Passer det til det, du kan SE på billederne? Er værdien en hel kategoristi med > imellem, ` +
-    `skal HELE stien passe — også om varen hører til under børn, kvinder eller mænd.`;
+    `skal HELE stien passe — også om varen hører til under børn, kvinder eller mænd.` +
+    (kind === "farve"
+      ? `\nStår der et farvenavn på et mærke (fx "Army"), er det facit — lys og hvidbalance kan snyde på et foto.`
+      : "");
 
   const out = await callTool(
     "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +

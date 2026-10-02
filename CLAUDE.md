@@ -119,7 +119,7 @@ nummer i `sql/` og en linje her.
 | Løbenumre: `drafts.nr` fra en sekvens | `sql/003-loebenummer.sql` |
 | Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
-| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`) | `sql/006-fakta.sql` |
+| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 
@@ -171,6 +171,21 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
   10 s. Mangler en ny vare stadig sin nypris, når Vinteds markedsrunde kører,
   slås den op igen dér, og runneren venter op til 90 s på svaret.
 - `maerker` skrives aldrig i annoncen — det er kun til opslaget.
+
+## Farven står på mærket
+
+Bestemt af dig 2. oktober: **står der et farvenavn på hænge- eller
+prismærket, er det facit** for farven i titel, tekst og Vinteds farvefelt.
+Nr. 19 var en armygrøn hørskjorte (»Color: Army«) og blev kaldt beige.
+
+- **Mærkerne læses i et eget kald** (`laesMaerker` i `analyze-draft`) med den
+  store model og KUN billeder, hvis `kind` indeholder »maerke«. Det giver
+  varenummer, modelnavn, stregkode (`fakta.maerker`), farvenavnet
+  (`fakta.maerkeFarve`, fx »Army (armygrøn)«) og en trykt pris. Det kører
+  side om side med billedanalysen (~3 s).
+- `faktaTekst` skriver farven med, så analysen, Vinteds markedsrunde, DBA og
+  Reshopper alle bruger den. Kontrollen af Vinteds farvefelt ser også
+  mærkebilledet og får at vide, at mærkets farvenavn er facit.
 
 ## Læring af salgene
 
@@ -652,6 +667,11 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   `pending_price` i ti dage efter, at 005 havde fjernet kolonnen. Fjernes en
   kolonne, så kør de funktioner, der bruger den, i en transaktion, der rulles
   tilbage: `begin; select f(); rollback;`.
+- **Haiku kan ikke læse et lille mærke blandt fem billeder.** På nr. 19
+  læste den »TEF35« og »Atrm« to gange ud af tre, og selv da den havde læst
+  »Army«, kaldte den skjorten sandfarvet. Sonnet på mærkebillederne alene
+  læste alt rigtigt tre ud af tre. Læg derfor aldrig afskrift af mærker
+  tilbage i billedanalysen.
 - **Kontrollen af et valg må ikke se titel eller beskrivelse.** Gør den det,
   gentager den deres fejl — den forkastede både "Vindjakker" og "Regnjakker" for
   den samme jakke. Den dømmer på billederne alene.

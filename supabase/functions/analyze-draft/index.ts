@@ -50,6 +50,44 @@ function toBase64(buf: ArrayBuffer): string {
 
 // Forced tool use instead of "please answer in JSON": the model returns a
 // structured object, so a chatty preamble can't break parsing.
+// Maerkerne laeses i et eget kald, med den store model og KUN maerkebillederne.
+// Haiku midt i fem billeder laeste "TEF35" og "Atrm" to gange ud af tre, og
+// kaldte en armygroen skjorte sandfarvet, selv naar den havde laest "Army".
+// Sonnet paa maerkebillederne alene: rigtigt tre ud af tre, ~3 s (2. oktober).
+const MAERKE_TOOL = {
+  name: "maerker",
+  description: "Det, der står på hængemærke, prismærke og nakkemærke.",
+  input_schema: {
+    type: "object",
+    properties: {
+      tagText: {
+        type: ["string", "null"],
+        description:
+          "Det, der kan finde netop denne vare i en butik: varenummer/style no., modelnavn (fx \"Linen Blend\"), " +
+          "farvenavn og stregkode (EAN), afskrevet tegn for tegn. Ikke vaskeanvisning. null hvis intet kan læses.",
+      },
+      tagColor: { type: ["string", "null"], description: "Farvenavnet præcis som det står, fx \"Army\". null hvis der ikke står et." },
+      farveDansk: { type: ["string", "null"], description: "Samme farve på dansk, fx \"armygrøn\". null hvis der ikke står en farve." },
+      priceTag: { type: ["integer", "null"], description: "En trykt pris i danske kroner. null hvis der ikke står en." },
+    },
+    required: ["tagText", "tagColor", "farveDansk", "priceTag"],
+  },
+};
+
+async function laesMaerker(urls: string[]): Promise<Record<string, unknown>> {
+  if (!urls.length) return {};
+  return await callClaudeJson(
+    "Du afskriver mærker på tøj. Skriv kun det, der faktisk står — tegn for tegn. Gæt aldrig et tegn, du ikke kan læse.",
+    [
+      ...urls.map((url) => ({ type: "image", source: { type: "url", url } })),
+      { type: "text", text: "Afskriv hængemærke, prismærke og nakkemærke." },
+    ],
+    STRATEGY_MODEL,
+    MAERKE_TOOL,
+    500,
+  );
+}
+
 async function callClaudeJson(
   system: string,
   userContent: unknown[],
@@ -98,7 +136,13 @@ const VISION_TOOL = {
           "og et mærke, der laver regntøj, betyder regntøj.",
       },
       brand: { type: ["string", "null"] },
-      color: { type: "string" },
+      color: {
+        type: "string",
+        description:
+          "Varens farve på dansk. Står der et farvenavn på hængemærke eller prismærke, er DET facit — " +
+          "oversæt det (\"Army\" = armygrøn, \"Navy\" = marineblå, \"Sand\" = sandfarvet). Et foto kan " +
+          "snyde på lys og hvidbalance; en armygrøn hørskjorte blev kaldt beige.",
+      },
       material: { type: ["string", "null"] },
       size: { type: ["string", "null"] },
       condition: { type: "string" },
@@ -112,13 +156,6 @@ const VISION_TOOL = {
       priceTag: {
         type: ["integer", "null"],
         description: "Prisen i danske kroner, hvis et prismærke med pris kan læses på billederne. null ellers.",
-      },
-      tagText: {
-        type: ["string", "null"],
-        description:
-          "Det, der står på hængemærke, prismærke og nakkemærke, og som kan finde netop denne vare i en " +
-          "butik: varenummer/style no., modelnavn (fx \"Linen Blend\"), farvenavn og stregkode (EAN), " +
-          "afskrevet præcis som det står. Ikke størrelse og vaskeanvisning. null hvis intet kan læses.",
       },
       measurements: {
         type: ["string", "null"],
@@ -636,6 +673,13 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Maerkerne side om side med billedanalysen. Fejler det, gaar analysen
+    // videre uden.
+    const maerkerP = laesMaerker(
+      loaded.map((l) => l.photo).filter((ph) => /maerke/i.test(String(ph.kind || ""))).slice(0, 3)
+        .map((ph) => String(ph.url)),
+    ).catch((err) => { console.error("maerkerne kunne ikke laeses", err); return {} as Record<string, unknown>; });
+
     // 1. Vision: identify the product from the photo, as an expert seller would size it up.
     const vision = await callClaudeJson(
       SELLER_PERSONA + " Du kigger på ALLE fotos af den samme vare, kunden vil sælge, og vurderer den, som du ville gøre " +
@@ -656,10 +700,19 @@ Deno.serve(async (req: Request) => {
     const ny = /^ny/i.test(String(vision.condition ?? "").trim());
     const fakta: Fakta = {};
     if (ny) fakta.ny = true;
-    const tagPris = Math.round(Number(vision.priceTag));
+    const lm = await maerkerP;
+    const tom = (v: unknown) => { const s = cleanText(v); return s && !/^(null|ingen|-)$/i.test(s) ? s : ""; };
+    const tagPris = Math.round(Number(lm.priceTag)) || Math.round(Number(vision.priceTag));
     if (ny && tagPris > 0) { fakta.nypris = tagPris; fakta.nyprisKilde = "prismærket"; }
-    const maerker = cleanText(vision.tagText);
-    if (maerker && !/^(null|ingen|-)$/i.test(maerker)) fakta.maerker = maerker.slice(0, 300);
+    const maerker = tom(lm.tagText);
+    if (maerker) fakta.maerker = maerker.replace(/\s*\n\s*/g, ", ").slice(0, 300);
+    // Farvenavnet paa maerket er facit for farven (bestemt af dig 2. oktober).
+    const tagFarve = tom(lm.tagColor), farveDansk = tom(lm.farveDansk);
+    if (tagFarve) {
+      fakta.maerkeFarve = (farveDansk && farveDansk.toLowerCase() !== tagFarve.toLowerCase()
+        ? `${tagFarve} (${farveDansk})` : tagFarve).slice(0, 60);
+      vision.color = farveDansk || tagFarve;
+    }
     if (vision.measurements) { fakta.maal = cleanText(vision.measurements); fakta.maalKilde = "mærkatet"; }
     const flaws = cleanText(vision.visibleFlaws);
     if (flaws && !/^(ingen|nej|-|none)\b/i.test(flaws)) fakta.fejl = flaws;

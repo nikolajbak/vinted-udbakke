@@ -42,6 +42,9 @@ export type Fakta = {
   // Det, der staar paa haenge-, pris- og nakkemaerket: varenummer, modelnavn,
   // farvenavn, stregkode. Kun til opslaget - det skrives ikke i annoncen.
   maerker?: string;
+  // Farvenavnet paa haenge-/prismaerket ("Army"). Facit for farven i titel,
+  // tekst og Vinteds farvefelt - et foto kan snyde paa lys og hvidbalance.
+  maerkeFarve?: string;
 };
 
 export function faktaTekst(f: unknown): string {
@@ -50,6 +53,7 @@ export function faktaTekst(f: unknown): string {
     k.ny && "Varen er ny.",
     k.nypris && `Nypris: ${k.nypris} kr${k.nyprisKilde ? ` (${k.nyprisKilde})` : ""}`,
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
+    k.maerkeFarve && `Farve ifølge mærket: ${k.maerkeFarve}. Brug den farve (på dansk) i titel og tekst, også hvis billedet ser anderledes ud, og vælg den nærmeste i Vinteds farveliste.`,
     k.fejl && `Fejl set ved billedanalysen: ${k.fejl}`,
   ].filter(Boolean);
   return linjer.length ? "Fakta:\n" + linjer.join("\n") : "Fakta: ingen nypris eller mål slået op.";

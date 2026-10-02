@@ -18,6 +18,12 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Farven tages fra mærket — bygget 2. oktober.** Reglen står i `CLAUDE.md`
+   under »Farven står på mærket«. **Afprøvet:** mærke-kaldet på nr. 19's
+   mærkebilleder, tre gange: »TEE35«, »Army«, stregkoden og »Linen Blend«
+   hver gang. **Ikke afprøvet:** en hel analyse af et nyt udkast — se efter
+   `maerkeFarve` i `drafts.fakta` og den rigtige farve i Vinteds felt.
+
 0. **En ny vare prissættes mod sin nypris — bygget 2. oktober.** Reglen står
    i `CLAUDE.md` under »Prisen på en ny vare«. Udløst af nr. 19: en ny
    Teeshoppen-hørskjorte til 349 kr, lagt op til 35 kr.
