@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0038 — 2026-10-02 10:46
+
+Commit `11765ba` — Ny vare prissaettes mod sin nypris  
+App: `app.js?v=830d0347` · `style.css?v=43fdde2d`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v65 | `c09319c9` |
+| dba-fill-script ← | v15 | `e17424c6` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v8 | `a31c8881` |
+| vinted-fill-script ← | v59 | `ef43a62a` |
+| vinted-mail | v1 | `b2c342ef` |
+
 ## udgivelse-0037 — 2026-10-02 09:53
 
 Commit `0c36f84` — Tre ens linjer på hvert kort, én skrift og størrelse  
