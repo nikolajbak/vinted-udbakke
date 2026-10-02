@@ -84,7 +84,7 @@
 
   /* Et enkelt ord alene paa sidste linje laeser som en fejl. balance fordeler
      overskriften, pretty hindrer den enlige orddel i broedteksten. */
-  h1, h2, h3, .step-title, .row-title, .empty h3{ text-wrap: balance; }
+  h1, h2, h3, .step-title, .empty h3{ text-wrap: balance; }
   p, .note, .desc, .step-hint, .rs-v{ text-wrap: pretty; }
 
   .mono{ font-family: "Space Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
@@ -134,7 +134,8 @@
   .bar .spacer{ flex: 1; }
   /* Løbenummeret er det, der står på pakkens etiket — så det skal kunne
      læses af, uden at man skal ned under billederne efter det. */
-  .bar-nr{ flex: none; font-size: var(--t-small); font-weight: 700; color: var(--ink-soft); }
+  .bar-nr{ flex: none; font-size: var(--t-title); font-weight: 700; color: var(--ink-soft);
+            font-variant-numeric: tabular-nums; }
   .bar-nr:empty{ display: none; }
 
   .icon-btn{
@@ -213,7 +214,6 @@
     transition: transform 90ms ease, background-color 140ms ease;
   }
   .row:active{ transform: scale(0.99); background: var(--raised); }
-  .row.is-muted .row-title{ color: var(--ink-soft); font-weight: 500; }
   /* Kvadratisk. Billedet vises stadig helt (contain), men en kvadratisk kasse
      spilder mindst plads, naar serien kan vaere baade liggende og staaende —
      en hoej kasse lod et liggende billede sidde som en stribe i tomrum. */
@@ -223,16 +223,18 @@
     border: 1px solid var(--line); background: var(--paper);
     display: block;
   }
-  .row-main{ min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .row-title{
-    font-weight: 600; font-size: var(--t-body); line-height: 1.3;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  }
-  .row-sub{ font-size: var(--t-small); color: var(--ink-soft); }
-  .row-nr{ font-weight: 700; color: var(--ink); }
-  /* Tabeltal: ellers danser kronerne fra raekke til raekke. */
-  .row-price{ font-weight: 700; font-size: var(--t-body); color: var(--ink);
-              font-variant-numeric: tabular-nums; }
+  .row-main{ min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  /* Kortet: tre linjer, én skrift, én stoerrelse — se kortLinjer() i app.js.
+     Hver linje er én linje; det, der ikke kan vaere der, faar "…". Tabeltal,
+     saa kroner og numre ikke danser fra kort til kort. */
+  .kort-l{ display: block; font-size: var(--t-body); line-height: 1.35;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+           font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  .kort-l1{ display: flex; gap: var(--s2); color: var(--ink); font-weight: 600; }
+  .kort-navn{ flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .kort-nr{ flex: none; }
+  .kort-pris{ color: var(--ink); font-weight: 600; }
+  .row.is-muted .kort-l1{ color: var(--ink-soft); }
   /* Swipe-til-slet, som i Mail: knappen ligger bag rækken og kommer til syne,
      når rækken trækkes til side. touch-action: pan-y lader browseren beholde
      den lodrette scroll for sig selv, så vi kun får de vandrette træk at
@@ -423,6 +425,8 @@
   .hist-row > div{ min-width: 0; flex: 1 1 auto; }
   .hist-row .t{ font-weight: 600; font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hist-row .s{ font-size: var(--t-small); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .hist-row .row-main{ flex: 1 1 auto; }
+  .hist-row:has(.row-main) img, .hist-row:has(.row-main) .ph{ width: 64px; height: 64px; }
 
   /* Maerkerne: hvad varen er markeret som sendt til, og vejen ud igen.
      Krydset er en del af selve chippen - en raekke med et separat kryds ved

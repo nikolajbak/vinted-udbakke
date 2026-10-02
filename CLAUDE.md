@@ -197,6 +197,21 @@ varen retur. Det står i `measureTone`/`applyTone` i `analyze-draft/optimize.ts`
 - Ret ikke på dette uden at måle ΔE på varen mod originalen — på flere varer,
   ikke ét billede.
 
+## Kortene i listen
+
+Bestemt af dig 2. oktober. Køen og historikken bygger kortet med
+`kortLinjer()` i `app.js`.
+
+- **Altid tre linjer, på alle kort**, så de er lige høje. En tom linje får et
+  hårdt mellemrum. Hver linje er én linje; resten forkortes med »…«.
+  1. Mærke · varetype — og løbenummeret helt til højre. Intet andet.
+  2. Størrelse · farve · stand · materiale.
+  3. Prisen (køen) / pris · tid (historikken). Et udkast uden pris viser,
+     hvor langt det er (»Analyserer …«, »Kladde«).
+- **Én skrift og én størrelse** på kortet (`.kort-l`). Ingen mono, ingen
+  chips — kun vægt og farve skiller linjerne ad.
+- Løbenummeret står også i toppen af udkastet, i titlens skrift og størrelse.
+
 ## Synkronisering af annoncerne
 
 Bestemt af dig 1. oktober: annoncerne synkroniseres automatisk begge veje,

@@ -168,13 +168,37 @@
     }).join('') + '</span>';
   }
 
-  function statusChip(d){
-    if(d.status === 'kladde') return '<span class="chip chip-vent">Kladde</span>';
-    if(d.status === 'afventer'){
-      var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
-      return '<span class="chip chip-vent">' + (failed ? 'Fejl' : 'Analyserer') + '</span>';
+  // Et kort i listen har altid tre linjer, i samme skrift og stoerrelse:
+  //   1  maerke · varetype           loebenummer
+  //   2  stoerrelse · farve · stand · materiale
+  //   3  pris (eller hvor langt udkastet er)
+  // En linje uden indhold faar et haardt mellemrum, saa alle kort er lige hoeje.
+  function kortLinjer(d, linje3){
+    var navn = [d.brand, d.category].filter(Boolean).join(' · ') || d.title ||
+      (d.status === 'kladde' ? 'Ufærdig billedserie' : 'Nyt udkast');
+    var detaljer = [d.size ? 'Str. ' + d.size : '', d.color, d.condition, d.material]
+      .filter(Boolean).join(' · ');
+    if(!detaljer){
+      detaljer = d.status === 'kladde' ? (d.photos || []).length + ' billeder taget'
+               : d.status === 'afventer' ? relTime(d.created_at) : '';
     }
-    return '<span class="chip chip-ny">Ny</span>';
+    return '<span class="kort-l kort-l1"><span class="kort-navn">' + esc(navn) + '</span>' +
+             '<span class="kort-nr">' + esc(fmtNr(d.nr)) + '</span></span>' +
+           '<span class="kort-l kort-l2">' + (esc(detaljer) || '&nbsp;') + '</span>' +
+           '<span class="kort-l kort-l3">' + (linje3 || '&nbsp;') + '</span>';
+  }
+
+  function kortPris(v){
+    var n = prisTal(v);
+    return isFinite(n) ? n + ' kr' : (v || '');
+  }
+
+  function koeStatus(d){
+    if(d.status === 'kladde') return 'Kladde';
+    if(d.status === 'afventer'){
+      return (d.price_note || '').indexOf('Analyse mislykkedes') === 0 ? 'Analysen mislykkedes' : 'Analyserer …';
+    }
+    return '';
   }
 
   /* ---- Swipe-til-slet ---------------------------------------------------
@@ -308,11 +332,9 @@
 
     var el = $('queue-list');
     el.innerHTML = list.map(function(d){
-      var sub = d.status === 'ny'
-        ? '<span class="row-price">' + esc(d.price || '') + '</span>'
-        : (d.status === 'kladde'
-            ? esc((d.photos || []).length + ' billeder taget')
-            : esc(relTime(d.created_at)));
+      var linje3 = d.status === 'ny'
+        ? '<span class="kort-pris">' + esc(kortPris(d.price)) + '</span>' + markedsMaerker(d)
+        : esc(koeStatus(d));
       return '<div class="swipe" data-id="' + esc(d.id) + '">' +
         '<button type="button" class="swipe-del" tabindex="-1" aria-label="Kassér udkastet">' +
           '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M7 7l1 12h8l1-12"/></svg>' +
@@ -321,13 +343,7 @@
         '<button type="button" class="row' + (d.status !== 'ny' ? ' is-muted' : '') +
              '" data-id="' + esc(d.id) + '">' +
         (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
-        '<span class="row-main">' +
-          '<span class="row-title">' + esc(d.title || (d.status === 'kladde' ? 'Ufærdig billedserie' : 'Analyserer billeder …')) + '</span>' +
-          '<span class="row-sub">' +
-            (d.nr ? '<span class="row-nr mono">' + esc(fmtNr(d.nr)) + '</span> · ' : '') +
-            sub + '</span>' +
-          '<span>' + statusChip(d) + markedsMaerker(d) + '</span>' +
-        '</span>' +
+        '<span class="row-main">' + kortLinjer(d, linje3) + '</span>' +
         '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>' +
         '</button>' +
       '</div>';
@@ -1418,10 +1434,9 @@
         krop.innerHTML = data.length ? data.map(function(d){
           return '<button type="button" class="hist-row" data-id="' + esc(d.id) + '">' +
             (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
-            '<div><div class="t">' + esc(d.title || '') + '</div>' +
-            '<div class="s">' + (d.nr ? '<span class="row-nr mono">' + esc(fmtNr(d.nr)) + '</span> · ' : '') +
-            esc(listePris(d)) + ' · ' + esc(relTime(d.posted_at)) +
-            markedsMaerker(d) + '</div></div>' +
+            '<span class="row-main">' + kortLinjer(d,
+              '<span class="kort-pris">' + esc(listePris(d)) + '</span> · ' + esc(relTime(d.posted_at)) +
+              markedsMaerker(d)) + '</span>' +
             '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></button>';
         }).join('') : '<div class="empty"><p>Ingen postede annoncer endnu.</p></div>';
         Array.prototype.forEach.call(krop.querySelectorAll('.hist-row'), function(r){
