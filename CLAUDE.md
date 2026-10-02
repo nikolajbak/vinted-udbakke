@@ -103,6 +103,8 @@ midlertidig funktion og slet den bagefter.
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
 | Erfaringerne lagt ind i prompterne (`hentErfaringer`) | `supabase/functions/_shared/laering.ts` |
+| Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
+| »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
 
 ## Databasen
 
@@ -122,6 +124,7 @@ nummer i `sql/` og en linje her.
 | Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
+| Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
 
 ## Regler for annoncetekst
 
@@ -236,17 +239,54 @@ varen retur. Det står i `measureTone`/`applyTone` i `analyze-draft/optimize.ts`
 - Ret ikke på dette uden at måle ΔE på varen mod originalen — på flere varer,
   ikke ét billede.
 
+## Lageret
+
+Bestemt af dig 3. oktober (gennemgangen af UX, punkt 1-9). Før stod 15 af 16
+varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
+
+- **Én fase pr. vare, regnet ud af det, der er sket** (`fase()` i `app.js`),
+  aldrig en status, du selv flytter: **klar** (kladde, under analyse, eller
+  ikke sendt nogen steder hen), **ude** (en aktiv annonce, eller sendt til en
+  plads), **solgt** (annoncen solgt eller taget ned). Forsiden er lageret med
+  de tre faner. »Markér som postet«, »Flyt tilbage til køen« og skærmen
+  »Afsendte annoncer« er væk. `drafts.status` bruges kun til kladde /
+  afventer / ny / kasseret; `afsendt` sættes stadig af serveren, når alle tre
+  pladser er sat, og tæller som »ude«. Trykkes Vinted eller DBA på et
+  `afsendt` udkast, sættes det tilbage til `ny` — automatikken henter kun `ny`.
+- **Det, der venter på dig, står øverst på forsiden** som opgaver, vigtigst
+  først: solgt på Vinted men stadig ude på DBA/Reshopper → analysen fejlede →
+  rettelse venter → salgspris mangler → ikke tilknyttet (over en time efter
+  udfyldningen) → tjek mod markedet. Scan og Prisvagt ligger i forsidens fod;
+  menuen hedder »Mere«.
+- **Solgt ét sted = tag den ned de andre steder.** DBA og Reshopper kan ikke
+  tages ned af appen, så push-beskeden om salget siger »Slet den også på DBA«,
+  og opgaven står, til du trykker **Taget ned** (`drafts.taget_ned`).
+- **Varens side har én række pr. markedsplads**, med status, hjerter, dage
+  og handlinger. Mærker til at pille af er væk; »Ikke sendt alligevel« retter
+  en fejlmarkering. En vare, der er ude, kan ikke kasseres — den tages ned
+  (»Taget ned uden salg« sætter annoncen til `afsluttet`).
+- **»Det, der udfyldes« viser kilden og det usikre**: farven »fra mærket« eller
+  »skønnet ud fra billedet«, en ny vare uden nypris i rav, målenes kilde.
+  Mærke, størrelse, farve, stand og materiale kan rettes i udkastet, så længe
+  varen er klar; derefter kun på Vinted.
+- **Salgsprisen tastes i et felt på siden**, aldrig i en `window.prompt`.
+- **»Virker det?«** øverst i Mere viser notifikationer, hvornår automatikken
+  til Vinted og DBA sidst blev hentet (`puls`), og den sidste mail fra Vinted.
+- **Optagelsen kan tage flere varer i træk** (»Lav udkast · næste vare«) og
+  flere billeder fra Fotos på én gang; de fordeles på trinene i rækkefølge.
+
 ## Kortene i listen
 
-Bestemt af dig 2. oktober. Køen og historikken bygger kortet med
-`kortLinjer()` i `app.js`.
+Bestemt af dig 2. oktober, tredje linje rettet 3. oktober. Lageret bygger
+kortet med `kortLinjer()` og `linjeTre()` i `app.js`.
 
 - **Altid tre linjer, på alle kort**, så de er lige høje. En tom linje får et
   hårdt mellemrum. Hver linje er én linje; resten forkortes med »…«.
   1. Mærke · varetype — og løbenummeret helt til højre. Intet andet.
   2. Størrelse · farve · stand · materiale.
-  3. Prisen (køen) / pris · tid (historikken). Et udkast uden pris viser,
-     hvor langt det er (»Analyserer …«, »Kladde«).
+  3. Klar: prisen, eller hvor langt udkastet er (»Analyserer …«,
+     »Kladde«). Ude: pris nu · ♥ hjerter · dage ude (· »rettelse venter«).
+     Solgt: »solgt for X kr« eller »tast salgsprisen« · dage den lå.
 - **Én skrift og én størrelse** på kortet (`.kort-l`). Ingen mono, ingen
   chips — kun vægt og farve skiller linjerne ad.
 - Løbenummeret står også i toppen af udkastet, i titlens skrift og størrelse.
@@ -353,8 +393,8 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
 - **Et udkast forlader ikke køen, fordi Vinted er klaret.** Med tre
   markedspladser siger "lagt op på Vinted" intet om DBA og Reshopper.
   `drafts.posted_to` noterer hver plads for sig; `mode:'posted'` fra
-  Vinted-scriptet sætter kun `vinted`. Udkastet flyttes til `afsendt`, når du
-  selv trykker "Markér som postet", eller når alle tre er sat. Et tryk på en
+  Vinted-scriptet sætter kun `vinted`. Hvor varen er, regnes nu ud af
+  `posted_to` og `listings` (se »Lageret«). Et tryk på en
   markedsplads noterer, at varen er sendt DERHEN — ikke at den er lagt op; kun
   Vinted-scriptet kan bekræfte det sidste.
 - **Den nye annonce findes i garderoben, ikke på en adresse.** At Vinted

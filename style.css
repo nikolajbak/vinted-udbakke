@@ -851,3 +851,93 @@
   }
   .etiket-pris{ font-size: 7pt; color: #444; margin-top: .8mm; }
 }
+
+/* ---- Lageret: faner og opgaver -------------------------------------------
+   Forsiden er lageret. Det, der venter paa dig, staar foerst; derunder er
+   varerne delt i klar, ude og solgt. */
+.faner{
+  display: flex; gap: var(--s1); margin-bottom: var(--s3);
+  padding: 3px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line);
+}
+.faner button{
+  flex: 1 1 0; min-height: 40px; border: 0; border-radius: 8px; background: none;
+  color: var(--ink-soft); font: inherit; font-size: var(--t-small); font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.faner button.on{ background: var(--raised); color: var(--ink); box-shadow: 0 1px 2px rgba(33,31,27,.12); }
+.fane-tal{ font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ink-soft); }
+.fane-tal:empty{ display: none; }
+
+#opgaver:not(:empty){ display: flex; flex-direction: column; gap: var(--s1); margin-bottom: var(--s4); }
+/* Kompakt: tekst til venstre, knap til hoejre. Fem kort maa ikke skubbe
+   lageret ud af skaermen. */
+.opgave{
+  padding: var(--s2) var(--s3); border-radius: 10px; background: var(--amber-soft);
+  display: flex; align-items: center; gap: var(--s3);
+}
+.opgave-tekst{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.opgave-tekst b{ font-size: var(--t-small); line-height: 1.35; }
+.opgave-tekst span{ font-size: var(--t-small); color: var(--ink-soft); line-height: 1.35;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opgave-knapper{ flex: 0 0 auto; display: flex; gap: var(--s1); }
+.opgave-knapper .btn{ width: auto; min-height: 40px; padding: 0 var(--s3); font-size: var(--t-small); }
+
+.kort-hjerter{ font-variant-numeric: tabular-nums; }
+.kort-vent{ color: var(--amber); font-weight: 600; }
+
+/* Foden paa forsiden: scan og prisvagt paa hver sin side af det, man goer
+   oftest. Foer laa begge i en menu, der hed Indstillinger. */
+.fod-bund{ flex-direction: row; align-items: center; gap: var(--s2); }
+.fod-bund .btn{ flex: 1 1 auto; }
+.fod-knap{
+  position: relative; flex: 0 0 auto; min-width: 64px; min-height: var(--tap);
+  border: 0; background: none; color: var(--ink-soft); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font: inherit; font-size: var(--t-label); font-weight: 600;
+}
+.fod-knap svg{ width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2;
+               stroke-linecap: round; stroke-linejoin: round; }
+.fod-knap:active{ color: var(--ink); }
+.fod-tal{ position: absolute; top: 0; right: 8px; min-width: 18px; height: 18px; line-height: 18px;
+          padding: 0 5px; border-radius: 9px; }
+
+/* ---- Varens side: én raekke pr. markedsplads ---------------------------- */
+.plads{ padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+.plads:first-of-type{ border-top: 1px solid var(--line); }
+.plads-top{ display: flex; align-items: baseline; gap: var(--s3); }
+.plads-navn{ font-weight: 700; flex: 0 0 auto; }
+.plads-status{ flex: 1 1 auto; min-width: 0; text-align: right; font-size: var(--t-small);
+               color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.plads-tal{ margin-top: var(--s1); font-size: var(--t-small); color: var(--ink-soft);
+            font-variant-numeric: tabular-nums; }
+.plads > .btn, .plads > .udgivet, .plads > .warn, .plads > .vagt-forslag{ margin-top: var(--s2); }
+.plads .udgivet > .label{ display: none; }
+
+.salg-form{ display: flex; gap: var(--s2); margin-top: var(--s2); }
+.salg-form .btn{ width: auto; flex: 0 0 auto; }
+.salg-pris{
+  flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 0 var(--s3);
+  border: 1px solid var(--line); border-radius: 8px; background: var(--raised);
+  color: var(--ink); font-size: var(--t-body);
+}
+
+/* Det, modellen har udfyldt. Kilden staar under vaerdien; det usikre i rav. */
+.fakta{ margin-top: var(--s4); }
+.fakta > summary{ cursor: pointer; list-style: none; }
+.fakta > summary::-webkit-details-marker{ display: none; }
+.fakta > summary::after{ content: ' ›'; }
+.fakta[open] > summary::after{ content: ' ⌄'; }
+.ud-rk .ud-h.ok{ color: var(--moss); }
+.ud-rk .ud-h.adv{ color: var(--amber); }
+
+/* ---- Virker det? --------------------------------------------------------- */
+.tjek{ margin-top: 0; margin-bottom: var(--s5); }
+.tjek-rk{
+  display: grid; grid-template-columns: 10px 9em 1fr; align-items: baseline; gap: 0 var(--s3);
+  padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-size: var(--t-small);
+}
+.tjek-prik{ width: 8px; height: 8px; border-radius: 50%; background: var(--line); align-self: start; margin-top: 7px; }
+.tjek-prik.ok{ background: var(--moss); }
+.tjek-prik.nej{ background: var(--danger-tekst); }
+.tjek-navn{ font-weight: 600; }
+.tjek-tekst{ color: var(--ink-soft); min-width: 0; overflow-wrap: anywhere; }

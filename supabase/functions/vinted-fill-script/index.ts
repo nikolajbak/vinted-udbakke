@@ -725,6 +725,22 @@ function laerIBaggrunden() {
 // ikke et valg: Vinted blokerer datacenter-IP'er, saa markedet kan kun ses fra
 // din egen session — og prisen kan kun aendres i Vinteds egen formular.
 
+// Er varen solgt paa Vinted, skal den ned de andre steder, den er sendt hen.
+// DBA og Reshopper kan appen ikke selv tage ned - saa siger beskeden det.
+async function ogsaaNedePaa(draftIds: unknown[]): Promise<string> {
+  const ids = draftIds.filter((x): x is string => typeof x === "string" && !!x);
+  if (!ids.length) return "";
+  const { data } = await supabase.from("drafts").select("posted_to, taget_ned").in("id", ids);
+  const navne = new Set<string>();
+  for (const d of data ?? []) {
+    const sendt = (d.posted_to ?? {}) as Record<string, string>;
+    const ned = (d.taget_ned ?? {}) as Record<string, string>;
+    if (sendt.dba && !ned.dba) navne.add("DBA");
+    if (sendt.reshopper && !ned.reshopper) navne.add("Reshopper");
+  }
+  return navne.size ? " Slet den også på " + [...navne].join(" og ") + "." : "";
+}
+
 async function puf(title: string, body: string) {
   const hemmelighed = Deno.env.get("WEBHOOK_SECRET");
   if (!hemmelighed) return;
@@ -924,6 +940,7 @@ async function tilsyn(maalinger: Maaling[]) {
 
   const ud: unknown[] = [];
   let solgte = 0, aendringer = 0;
+  const solgteUdkast: unknown[] = [];
 
   const erf = await hentErfaringer(["pris"]);
   const prisErfaringer = erf ? "\n\n" + erf : "";
@@ -944,6 +961,7 @@ async function tilsyn(maalinger: Maaling[]) {
         note: "annoncen findes ikke længere på Vinted",
       });
       solgte++;
+      solgteUdkast.push(r.draft_id);
       laerIBaggrunden();
       ud.push({ id: r.id, handling: "solgt" });
       continue;
@@ -1029,7 +1047,10 @@ async function tilsyn(maalinger: Maaling[]) {
     });
   }
 
-  if (solgte) await puf("Solgt!", solgte + (solgte === 1 ? " vare er væk fra Vinted" : " varer er væk fra Vinted"));
+  if (solgte) {
+    await puf("Solgt!", solgte + (solgte === 1 ? " vare er væk fra Vinted." : " varer er væk fra Vinted.") +
+      await ogsaaNedePaa(solgteUdkast));
+  }
   if (aendringer) {
     await puf("Prisvagt", aendringer === 1
       ? "1 vare er klar til en ny pris"
@@ -1038,6 +1059,14 @@ async function tilsyn(maalinger: Maaling[]) {
   return { beslutninger: ud };
 }
 
+
+// "Safari paa iPhone" er nok til at kende telefonen fra Macen.
+function browserNavn(ua: string): string {
+  const enhed = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad"
+    : /Macintosh/.test(ua) ? "Mac" : /Android/.test(ua) ? "Android" : "computer";
+  const b = /CriOS|Chrome/.test(ua) ? "Chrome" : /FxiOS|Firefox/.test(ua) ? "Firefox" : "Safari";
+  return b + " på " + enhed;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
@@ -1110,6 +1139,12 @@ Deno.serve(async (req: Request) => {
   // Bogmaerket er kun en indlaeser. Selve automatikken hentes her, saa den kan
   // rettes uden at bogmaerket skal installeres forfra paa telefonen.
   if (req.method === "GET" && url.searchParams.get("script") === "1") {
+    // Automatikken hentes ved hver sideindlaesning. Tidspunktet staar i appens
+    // opsaetning, saa det kan ses, om telefonen faktisk koerer den.
+    await supabase.from("puls").upsert({
+      navn: "vinted-runner", sidst: new Date().toISOString(),
+      detalje: browserNavn(req.headers.get("user-agent") || ""),
+    }).then(() => {}, () => {});
     return new Response(RUNNER, {
       headers: { ...CORS, "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
     });
@@ -1295,7 +1330,7 @@ Deno.serve(async (req: Request) => {
       const it = String(body.item_id ?? "");
       if (!it) return json({ error: "mangler" }, 400);
       const { data: r } = await supabase.from("listings")
-        .select("id, price, status, published, pending")
+        .select("id, price, status, published, pending, draft_id, title")
         .eq("platform", "vinted").eq("external_id", it).maybeSingle();
       if (!r) return json({ ukendt: true });
 
@@ -1312,6 +1347,8 @@ Deno.serve(async (req: Request) => {
           note: "annoncen findes ikke længere på Vinted",
         });
         laerIBaggrunden();
+        await puf("Solgt!", (r.title || "En vare") + " er væk fra Vinted." +
+          await ogsaaNedePaa([r.draft_id]));
         return json({ ok: true, gone: true });
       }
 

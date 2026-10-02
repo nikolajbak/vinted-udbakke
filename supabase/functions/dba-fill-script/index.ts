@@ -289,6 +289,14 @@ async function analyseMarket(
   };
 }
 
+// "Safari paa iPhone" er nok til at kende telefonen fra Macen.
+function browserNavn(ua: string): string {
+  const enhed = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad"
+    : /Macintosh/.test(ua) ? "Mac" : /Android/.test(ua) ? "Android" : "computer";
+  const b = /CriOS|Chrome/.test(ua) ? "Chrome" : /FxiOS|Firefox/.test(ua) ? "Firefox" : "Safari";
+  return b + " på " + enhed;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
@@ -331,6 +339,12 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method === "GET" && url.searchParams.get("script") === "1") {
+    // Automatikken hentes ved hver sideindlaesning. Tidspunktet staar i appens
+    // opsaetning, saa det kan ses, om telefonen faktisk koerer den.
+    await supabase.from("puls").upsert({
+      navn: "dba-runner", sidst: new Date().toISOString(),
+      detalje: browserNavn(req.headers.get("user-agent") || ""),
+    }).then(() => {}, () => {});
     return new Response(RUNNER, {
       headers: { ...CORS, "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
     });

@@ -1,4 +1,4 @@
-# Status — 1. oktober 2026
+# Status — 3. oktober 2026
 
 Hvor projektet står lige nu. `CLAUDE.md` rummer det, der er **målt** og ikke må
 laves om; denne fil rummer det, der er **i gang** og går til.
@@ -17,6 +17,19 @@ laves om; denne fil rummer det, der er **i gang** og går til.
   køkortet.
 
 ## Ikke afprøvet — start her
+
+0. **Lageret — bygget 3. oktober (UX-gennemgangen, punkt 1-9).** Forsiden er
+   nu lageret (Klar · Ude · Solgt) med opgaver øverst; varens side har en
+   række pr. markedsplads; »Virker det?« i Mere; salgspush siger »slet den på
+   DBA«; flere varer i træk og flere billeder fra Fotos. Reglerne står i
+   `CLAUDE.md` under »Lageret«.
+
+   **Afprøvet** i browseren på en kopi af basens rigtige udkast og annoncer
+   (attrap af databasen, intet skrevet): faner, tal, opgavernes rækkefølge,
+   varens side for klar/ude/solgt, salgspris og »Taget ned«, der forsvinder
+   fra opgaverne, Mere og Prisvagt. **Ikke afprøvet:** på telefonen; at `puls`
+   skrives ved næste sideindlæsning på Vinted; teksten i salgspushen; at
+   »Vælg fra Fotos« tager flere billeder i iOS' billedvælger.
 
 0. **Farven tages fra mærket — bygget 2. oktober.** Reglen står i `CLAUDE.md`
    under »Farven står på mærket«. **Afprøvet:** mærke-kaldet på nr. 19's

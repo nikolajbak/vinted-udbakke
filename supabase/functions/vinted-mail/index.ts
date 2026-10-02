@@ -239,7 +239,20 @@ Deno.serve(async (req: Request) => {
         note: "mail fra Vinted: " + m.emne.slice(0, 120),
       });
       laerIBaggrunden();
-      await puf("Solgt!", (titel || "En vare") + " er solgt på Vinted. Tast salgsprisen i appen.", appUrl);
+      // Ligger varen ogsaa paa DBA eller Reshopper, skal den ned dér - ellers
+      // kan den saelges to gange. Det kan appen ikke selv, saa beskeden siger det.
+      let ogsaa = "";
+      if (l.draft_id) {
+        const { data: d } = await supabase.from("drafts").select("posted_to, taget_ned")
+          .eq("id", l.draft_id).maybeSingle();
+        const sendt = (d?.posted_to ?? {}) as Record<string, string>;
+        const ned = (d?.taget_ned ?? {}) as Record<string, string>;
+        const navne = [sendt.dba && !ned.dba ? "DBA" : "", sendt.reshopper && !ned.reshopper ? "Reshopper" : ""]
+          .filter(Boolean);
+        if (navne.length) ogsaa = " Slet den også på " + navne.join(" og ") + ".";
+      }
+      await puf("Solgt!", (titel || "En vare") + " er solgt på Vinted." + ogsaa +
+        " Tast salgsprisen i appen.", appUrl);
       handling = "annoncen meldt solgt";
     } else if (l) {
       handling = "annoncen var allerede " + l.status;

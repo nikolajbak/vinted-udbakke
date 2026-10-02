@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=43fdde2d">
+<link rel="stylesheet" href="style.css?v=34e075ba">
 </head>
 <body>
 
@@ -48,11 +48,19 @@
         <h1>VintedAuto</h1>
       </div>
       <div class="spacer"></div>
-      <button type="button" class="icon-btn" id="menu-btn" aria-label="Indstillinger">
+      <button type="button" class="icon-btn" id="menu-btn" aria-label="Mere">
         <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
     </header>
     <div class="body">
+      <!-- Det, der venter paa dig, staar foerst. Listen nedenunder er lageret:
+           klar til at blive lagt op, ude, og solgt. -->
+      <div id="opgaver"></div>
+      <div class="faner" role="tablist" id="faner">
+        <button type="button" role="tab" data-fane="klar">Klar<span class="fane-tal" id="tal-klar"></span></button>
+        <button type="button" role="tab" data-fane="ude">Ude<span class="fane-tal" id="tal-ude"></span></button>
+        <button type="button" role="tab" data-fane="solgt">Solgt<span class="fane-tal" id="tal-solgt"></span></button>
+      </div>
       <div id="queue-list"></div>
       <div class="empty" id="queue-empty" hidden>
         <!-- Samme stregsprog som rammeguiden paa optageskaermen: en stiplet
@@ -73,8 +81,15 @@
         <div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>
       </div>
     </div>
-    <div class="footer">
+    <div class="footer fod-bund">
+      <button type="button" class="fod-knap" id="fod-scan" aria-label="Scan etiket">
+        <svg viewBox="0 0 24 24"><path d="M4 9V5h4M16 5h4v4M20 15v4h-4M8 19H4v-4M8 12h8"/></svg><span>Scan</span>
+      </button>
       <button type="button" class="btn btn-primary" id="new-btn">Nyt produkt</button>
+      <button type="button" class="fod-knap" id="fod-vagt" aria-label="Prisvagt">
+        <svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg><span>Prisvagt</span>
+        <span class="tal fod-tal" id="fod-vagt-tal" hidden></span>
+      </button>
     </div>
   </section>
 
@@ -107,8 +122,14 @@
     </div>
     <div class="footer">
       <button type="button" class="btn btn-primary" id="cap-shoot">Tag billede</button>
-      <button type="button" class="btn btn-secondary" id="cap-finish" hidden>Færdig — lav udkast</button>
-      <button type="button" class="btn btn-quiet" id="cap-skip">Spring dette billede over</button>
+      <div class="market-row" id="cap-faerdig" hidden>
+        <button type="button" class="btn btn-secondary" id="cap-finish">Lav udkast</button>
+        <button type="button" class="btn btn-secondary" id="cap-next">Lav udkast · næste vare</button>
+      </div>
+      <div class="market-row">
+        <button type="button" class="btn btn-quiet" id="cap-pick">Vælg fra Fotos</button>
+        <button type="button" class="btn btn-quiet" id="cap-skip">Spring over</button>
+      </div>
     </div>
   </section>
 
@@ -117,13 +138,12 @@
       <button type="button" class="icon-btn" data-back aria-label="Tilbage">
         <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
       </button>
-      <h2>Indstillinger</h2>
+      <h2>Mere</h2>
     </header>
     <div class="body">
-      <button type="button" class="menu-item" id="m-scan">
-        <span>Scan etiket<small>Find varen ud fra QR-koden eller løbenummeret</small></span>
-        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
-      </button>
+      <!-- Virker opsaetningen? Hver linje siger det med et tidspunkt, ikke med
+           en vejledning. Vejledningerne ligger laengere nede. -->
+      <div class="sect tjek" id="tjek"></div>
       <button type="button" class="menu-item" id="m-labels">
         <span>Etiketter<small>Løbenummer og QR-kode til udprintning</small></span>
         <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
@@ -131,10 +151,6 @@
       <button type="button" class="menu-item" id="m-vagt">
         <span>Prisvagt<small>Holder øje med det, der ikke er solgt</small></span>
         <span class="tal" id="vagt-tal" hidden></span>
-        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
-      </button>
-      <button type="button" class="menu-item" id="m-hist">
-        <span>Afsendte annoncer<small>Det du allerede har lagt op</small></span>
         <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
       </button>
       <div class="sect setup">
@@ -191,6 +207,16 @@
           <input type="number" id="e-price" inputmode="numeric" min="1" step="1"></label>
         <label class="felt"><span>Beskrivelse</span>
           <textarea id="e-desc" rows="8" maxlength="3000"></textarea></label>
+        <!-- Vinteds vaelgere. De bruges, naar annoncen udfyldes; paa en annonce,
+             der allerede er ude, kan de kun rettes paa Vinted. -->
+        <div id="e-vaelgere" class="felter">
+          <span class="label">Til udfyldningen</span>
+          <label class="felt"><span>Mærke</span><input type="text" id="e-brand" autocomplete="off"></label>
+          <label class="felt"><span>Størrelse</span><input type="text" id="e-size" autocomplete="off"></label>
+          <label class="felt"><span>Farve</span><input type="text" id="e-color" autocomplete="off"></label>
+          <label class="felt"><span>Stand</span><input type="text" id="e-condition" autocomplete="off"></label>
+          <label class="felt"><span>Materiale</span><input type="text" id="e-material" autocomplete="off"></label>
+        </div>
       </form>
       <div id="edit-note"></div>
     </div>
@@ -247,16 +273,6 @@
     <div class="footer" id="vagt-footer" hidden></div>
   </section>
 
-  <section class="screen" id="s-hist" hidden>
-    <header class="bar">
-      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
-        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
-      </button>
-      <h2>Afsendte annoncer</h2>
-    </header>
-    <div class="body" id="hist-body"></div>
-  </section>
-
   <div id="crop" hidden>
     <p>Træk i hjørnerne. Billedet gemmes i den udsnitsstørrelse, du vælger.</p>
     <div id="crop-stage">
@@ -275,12 +291,14 @@
 
   <input type="file" id="cam" accept="image/*" capture="environment"
          style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
+  <input type="file" id="cam-fotos" accept="image/*" multiple
+         style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
 </div>
 
 <!-- Arket, printeren faar. Det ligger uden for #app, saa print-CSS kan skjule
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=830d0347"></script>
+<script src="app.js?v=42016a81"></script>
 </body>
 </html>
