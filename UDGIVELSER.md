@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0035 — 2026-10-02 09:23
+
+Commit `532eb78` — Meld kun den nye annonce som lagt op  
+App: `app.js?v=9a9e1409` · `style.css?v=992bac91`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v64 | `0f683ced` |
+| dba-fill-script | v14 | `f8f22c92` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v7 | `a31c8881` |
+| vinted-fill-script ← | v58 | `593f6e03` |
+| vinted-mail | v1 | `b2c342ef` |
+
 ## udgivelse-0034 — 2026-10-01 17:01
 
 Commit `df1448f` — Billedernes farver er tro mod varen  
