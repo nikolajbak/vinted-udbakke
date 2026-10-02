@@ -275,6 +275,17 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
 - **Optagelsen kan tage flere varer i træk** (»Lav udkast · næste vare«) og
   flere billeder fra Fotos på én gang; de fordeles på trinene i rækkefølge.
 
+## Ingen zoom i appen
+
+Bestemt af dig 3. oktober: **appen kan ikke zoomes.** Tre greb, for iOS
+ignorerer `user-scalable=no` alene:
+
+- Viewporten har `maximum-scale=1, user-scalable=no` — det stopper også
+  Safaris egen zoom, når et felt får fokus.
+- `html{ touch-action: manipulation; }` i `style.css` stopper dobbelttrykket.
+- `gesturestart/-change/-end` får `preventDefault()` øverst i `app.js` —
+  det stopper knibet. Beskæringen bruger touch-hændelser og rammes ikke.
+
 ## Kortene i listen
 
 Bestemt af dig 2. oktober, tredje linje rettet 3. oktober. Lageret bygger

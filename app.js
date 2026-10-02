@@ -1,4 +1,9 @@
 (function(){
+  /* Appen må ikke zoome. iOS ignorerer user-scalable=no i viewporten, så
+     knibet stoppes her; dobbelttrykket stoppes af touch-action i style.css. */
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function(t){
+    document.addEventListener(t, function(e){ e.preventDefault(); }, { passive: false });
+  });
   var SUPABASE_URL = 'https://gjycsqshkvkcupdnvgvf.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
   var LOGIN_EMAIL = 'adgang@udbakke.local';
