@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0041 — 2026-10-02 11:19
+
+Commit `d627310` — Brugerscriptet er kun en indlaeser  
+App: `app.js?v=830d0347` · `style.css?v=43fdde2d`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v66 | `cbc5da4f` |
+| dba-fill-script | v16 | `e17424c6` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v9 | `a31c8881` |
+| vinted-fill-script ← | v62 | `8799f55e` |
+| vinted-mail | v1 | `b2c342ef` |
+
 ## udgivelse-0040 — 2026-10-02 11:08
 
 Commit `37d482f` — Farven tages fra maerket  
