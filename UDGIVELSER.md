@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0039 — 2026-10-02 11:01
+
+Commit `d393416` — Find den nye annonce i garderoben, ikke paa en adresse  
+App: `app.js?v=830d0347` · `style.css?v=43fdde2d`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v65 | `c09319c9` |
+| dba-fill-script | v15 | `e17424c6` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v8 | `a31c8881` |
+| vinted-fill-script ← | v60 | `d5b36c31` |
+| vinted-mail | v1 | `b2c342ef` |
+
 ## udgivelse-0038 — 2026-10-02 10:46
 
 Commit `11765ba` — Ny vare prissaettes mod sin nypris  
