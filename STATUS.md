@@ -24,9 +24,12 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
    **Afprøvet:** opslaget med mærkernes tekst fandt 349 kr på teeshoppen.dk
    (uden fandt det en forkert skjorte til 500 kr); rammen i node (35 → 140,
-   180 står, 300 → 261, brugt vare urørt). **Ikke afprøvet:** at analysen
-   faktisk afskriver mærkerne i `tagText` på et nyt udkast, og en hel
-   markedsrunde på telefonen. Nr. 19 ligger stadig ude til 35 kr — ret den
+   180 står, 300 → 261, brugt vare urørt); og markedsrunden mod den live
+   funktion på en kopi af nr. 19 uden nypris (17,5 s): runden slog 349 kr op,
+   modellen foreslog 150 kr, spærren mod de nye annoncers median (100 kr)
+   trak den ned, og gulvet satte 140 kr. **Ikke afprøvet:** at analysen
+   faktisk afskriver mærkerne i `tagText` på et nyt udkast, og runden fra
+   telefonen. Nr. 19 ligger stadig ude til 35 kr — ret den
    på Vinted eller fra appen.
 
 0. **Farverne er tro mod varen — rettet 1. oktober.** Tonen blev målt på det
