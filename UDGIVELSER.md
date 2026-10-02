@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0043 — 2026-10-03 00:49
+
+Commit `8deeee4` — Lageret: én fase pr. vare, opgaver på forsiden, en række pr. markedsplads  
+App: `app.js?v=42016a81` · `style.css?v=34e075ba`  
+Udrullet: dba-fill-script, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v66 | `cbc5da4f` |
+| dba-fill-script ← | v17 | `ff35394d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v9 | `a31c8881` |
+| vinted-fill-script ← | v64 | `b11abdc4` |
+| vinted-mail ← | v2 | `8bd594cd` |
+
 ## udgivelse-0042 — 2026-10-02 12:05
 
 Commit `ba51a80` — Efterloeb: udfyldte udkast parres med garderoben, og runneren sender sine trin hjem  
