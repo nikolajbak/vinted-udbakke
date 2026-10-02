@@ -17,10 +17,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
-import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
+import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { laer } from "./laering.ts";
-import { helKroner } from "../_shared/pris.ts";
+import { erNy, erNyAnnonce, helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -442,7 +442,7 @@ const MARKET_SYSTEM =
   "stikker af nedad, skaber mistanke frem for salg.\n\n" +
   "Skriv titel og beskrivelse, så varen bliver fundet og forstået. Døm varens stand og udseende ud " +
   "fra billedet, ikke ud fra det udkast, der allerede er skrevet — det kan være forkert. Nypris og " +
-  "mål under Fakta er slået op og skal med.\n\n" + BESKRIVELSE_REGLER;
+  "mål under Fakta er slået op og skal med.\n\n" + NYPRIS_REGEL + "\n\n" + BESKRIVELSE_REGLER;
 
 async function analyseMarket(
   draft: Record<string, unknown>,
@@ -490,23 +490,34 @@ async function analyseMarket(
 
   let price = Math.round(Number(out.price) || 0);
   let guarded = false;
+  // En ny vare holdes op mod de NYE annoncer. Brugte skjorter til 20-59 kr er
+  // ikke et loft for en ny til 349 kr - det var dem, der gav 35 kr (2.
+  // oktober). Er der under tre nye at regne paa, saettes intet loft fra
+  // feltet; saa er det nyprisens ramme nedenfor, der holder prisen.
+  const ny = erNy(draft.fakta, draft.condition);
+  const loftRef = ny
+    ? stats(list.filter((i) => erNyAnnonce(i.condition)).map((i) => Number(i.price)).filter((n) => n > 0))
+    : ref;
+  const loftGyldigt = !!loftRef && (!ny || loftRef.n >= 3);
   if (ref && price > 0) {
     // Spaerren: uanset hvad modellen naaede frem til, maa prisen ikke lande paa
     // eller over medianen af de sammenlignelige. Det er hele pointen med at
     // ville saelge hurtigt, og en model glider let opad.
-    const ceiling = Math.floor(ref.median * 0.92);
+    const ceiling = loftGyldigt && loftRef ? Math.floor(loftRef.median * 0.92) : Infinity;
     if (price > ceiling) { price = ceiling; guarded = true; }
     // Og ikke saa lavt at varen ser defekt ud.
     const floor = Math.max(15, Math.floor(ref.p25 * 0.6));
     if (price < floor) { price = floor; guarded = true; }
   }
-  price = vintedPris(roundPrice(price));
+  // Nyprisens ramme til sidst: gulvet vinder over feltets loft.
+  const ramme = iNyprisRamme(price, nyprisRamme(draft.fakta, draft.condition));
+  price = vintedPris(roundPrice(ramme.pris));
 
   return {
     title: cleanText(out.title),
     description: cleanText(out.description),
     price,
-    priceNote: cleanText(out.priceNote) + (guarded ? " (justeret til feltet)" : ""),
+    priceNote: cleanText(out.priceNote) + (ramme.note ? ` (${ramme.note})` : guarded ? " (justeret til feltet)" : ""),
     compared: chosen.length,
     median: ref ? ref.median : null,
   };
@@ -1352,6 +1363,30 @@ Deno.serve(async (req: Request) => {
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);
+      // En ny vare skal prissaettes mod sin nypris. Fandt analysen den ikke,
+      // proeves igen her - med det, der staar paa maerkerne. Fejler det, gaar
+      // runden videre uden.
+      const fakta = { ...((d.fakta ?? {}) as Fakta) };
+      if (erNy(fakta, d.condition) && !(helKroner(fakta.nypris) > 0)) {
+        try {
+          const fundet = await slaaOp(ANTHROPIC_API_KEY, {
+            brand: d.brand as string | null,
+            productType: String(d.title ?? ""),
+            color: String(d.color ?? ""),
+            ny: true,
+            maerker: fakta.maerker,
+          });
+          if (fundet.nypris) {
+            fakta.ny = true;
+            fakta.nypris = fundet.nypris;
+            fakta.nyprisKilde = fundet.nyprisKilde;
+            d.fakta = fakta;
+            await supabase.from("drafts").update({ fakta }).eq("id", body.id);
+          }
+        } catch (err) {
+          console.error("nypris i markedsrunden sprunget over", err);
+        }
+      }
       try {
         const out = await analyseMarket(
           d as Record<string, unknown>,

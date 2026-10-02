@@ -9,7 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
-import { helKroner } from "../_shared/pris.ts";
+import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -180,6 +180,7 @@ const MARKET_SYSTEM =
   "tænkelige pris.\n\n" +
   "Døm varens stand ud fra BILLEDERNE, ikke ud fra den eksisterende tekst, som er skrevet " +
   "til en anden platform. Nypris og mål under Fakta er slået op og skal med.\n\n" +
+  NYPRIS_REGEL + "\n\n" +
   BESKRIVELSE_REGLER + "\n\n" +
   "Billedteksterne skal sige noget, billedet faktisk viser: et mærkat, en lynlås, et slidt " +
   "sted. En billedtekst, der gentager overskriften, er spildt plads.\n" +
@@ -271,6 +272,10 @@ async function analyseMarket(
     price = roundPrice(price);
     note = note || "for få sammenlignelige — skønnet er beholdt";
   }
+  // En ny vare med kendt nypris lægges inden for rammen (_shared/pris.ts).
+  // Gulvet vinder over medianen: DBA's felt kender ikke varens stand.
+  const ramme = iNyprisRamme(price, nyprisRamme(draft.fakta, draft.condition));
+  if (ramme.note) { price = roundPrice(ramme.pris); note = ramme.note; }
 
   const captions = (Array.isArray(out.captions) ? out.captions : [])
     .map((c) => clean(c).slice(0, 80));

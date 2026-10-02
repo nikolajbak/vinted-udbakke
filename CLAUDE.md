@@ -119,7 +119,7 @@ nummer i `sql/` og en linje her.
 | Løbenumre: `drafts.nr` fra en sekvens | `sql/003-loebenummer.sql` |
 | Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
-| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl) | `sql/006-fakta.sql` |
+| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 
@@ -147,6 +147,30 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
   din beslutning, og hånden (scriptet i samtalen) er ikke bygget endnu.
+
+## Prisen på en ny vare
+
+Bestemt af dig 2. oktober: en ny vare prissættes som en **afvejning af
+varens værdi (nyprisen) og hvad markedspladsen kan bære**. En helt ny
+Teeshoppen-skjorte til 349 kr blev sat til 35 kr: nyprisen var ikke fundet,
+feltet var brugte skjorter til 20-59 kr, og spærren mod medianen trak
+modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
+`nyprisRamme`, `iNyprisRamme`) og gælder analysen, Vinteds markedsrunde og DBA.
+
+- **Rammen er 40-75 % af nyprisen** (35 % for »Ny uden prismærker«). Typisk
+  40-60 %. **Gulvet vinder over markedets loft**: hellere en ny vare, der
+  ligger lidt længere, end en, der er givet væk.
+- **Brugte varer er ikke et loft for en ny.** På Vinted regnes spærren mod
+  medianen for en ny vare kun på de NYE annoncer i feltet, og er der under
+  tre, sættes intet loft fra feltet. DBA's felt kender ikke standen, så dér
+  er det rammen alene, der beskytter.
+- **Nyprisen skal findes.** Analysen afskriver det, der står på hænge-, pris-
+  og nakkemærket (varenummer, modelnavn, farvenavn, stregkode) i
+  `fakta.maerker`, og opslaget søger med det. Uden fandt opslaget en anden
+  Teeshoppen-skjorte til 500 kr; med fandt det hørskjorten til 349 kr på
+  10 s. Mangler en ny vare stadig sin nypris, når Vinteds markedsrunde kører,
+  slås den op igen dér, og runneren venter op til 90 s på svaret.
+- `maerker` skrives aldrig i annoncen — det er kun til opslaget.
 
 ## Læring af salgene
 

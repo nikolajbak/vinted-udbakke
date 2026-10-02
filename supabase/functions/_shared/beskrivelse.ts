@@ -39,6 +39,9 @@ export type Fakta = {
   maal?: string;
   maalKilde?: string;
   fejl?: string;
+  // Det, der staar paa haenge-, pris- og nakkemaerket: varenummer, modelnavn,
+  // farvenavn, stregkode. Kun til opslaget - det skrives ikke i annoncen.
+  maerker?: string;
 };
 
 export function faktaTekst(f: unknown): string {
@@ -80,10 +83,14 @@ const OPSLAG_TOOL = {
 // skrives annoncen bare uden, og analysen maa aldrig vaelte paa det.
 export async function slaaOp(
   apiKey: string,
-  vare: { brand?: string | null; productType?: string; size?: string | null; color?: string; ny: boolean },
+  vare: {
+    brand?: string | null; productType?: string; size?: string | null; color?: string; ny: boolean;
+    maerker?: string | null;
+  },
 ): Promise<{ nypris?: number; nyprisKilde?: string; maal?: string }> {
   const brand = String(vare.brand ?? "").trim();
-  if (!brand) return {};
+  const maerker = String(vare.maerker ?? "").trim();
+  if (!brand && !maerker) return {};
   const spoerg = [
     vare.ny && "nyprisen i danske kroner (hos mærket selv eller en dansk forhandler; findes den ikke i Danmark, så omregn en europæisk pris og sig det i kilden)",
     vare.size && `mærkets størrelsesguide: hvilke mål størrelse ${vare.size} svarer til`,
@@ -95,6 +102,10 @@ export async function slaaOp(
     content:
       `Vare: ${brand} ${vare.productType ?? ""}${vare.color ? `, ${vare.color}` : ""}` +
       `${vare.size ? `, str. ${vare.size}` : ""}.\n` +
+      // Varenummer og stregkode rammer den praecise vare. Uden dem fandt
+      // opslaget en strikket Teeshoppen-skjorte til 500 kr i stedet for
+      // hoerskjorten til 349 kr; med dem fandt det den paa 10 s (2. oktober).
+      (maerker ? `På mærkerne står: ${maerker}. Brug varenummer, modelnavn og stregkode i søgningen.\n` : "") +
       `Find ${spoerg.join(", og ")}. Søg højst et par gange, og kald så angiv_fund. ` +
       "Er du ikke sikker på, at det er den samme vare eller det samme mærkes guide, så skriv null.",
   }];
@@ -129,7 +140,9 @@ export async function slaaOp(
       return {
         nypris: vare.ny && nypris > 0 ? nypris : undefined,
         nyprisKilde: vare.ny && nypris > 0 && i.nyprisKilde ? String(i.nyprisKilde) : undefined,
-        maal: i.maal ? String(i.maal) : undefined,
+        // Kun naar der er spurgt om maal. Ellers lagde modellen produktnavnet
+        // i feltet ("Hoerskjorte - Army, varenummer TEE35").
+        maal: vare.size && i.maal ? String(i.maal) : undefined,
       };
     }
     if (data?.stop_reason !== "pause_turn") return {};

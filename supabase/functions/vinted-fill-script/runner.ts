@@ -472,9 +472,10 @@ async function markedsanalyse(d){
  var samples=await sampleTexts(top);
  log('marked: '+alle.length+' annoncer, '+samples.length+' tekstprøver');
 
+ // 90 s: mangler en ny vare sin nypris, slår serveren den op først (~10-20 s).
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({id:DRAFT_ID,mode:'market',items:alle,samples:samples})},60000);
+   body:JSON.stringify({id:DRAFT_ID,mode:'market',items:alle,samples:samples})},90000);
   var j=await r.json();
   if(j&&j.price){log('marked: '+(j.note||'pris sat'));return j}
  }catch(e){log('marked: opslaget fejlede')}

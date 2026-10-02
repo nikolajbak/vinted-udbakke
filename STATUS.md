@@ -18,6 +18,17 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **En ny vare prissættes mod sin nypris — bygget 2. oktober.** Reglen står
+   i `CLAUDE.md` under »Prisen på en ny vare«. Udløst af nr. 19: en ny
+   Teeshoppen-hørskjorte til 349 kr, lagt op til 35 kr.
+
+   **Afprøvet:** opslaget med mærkernes tekst fandt 349 kr på teeshoppen.dk
+   (uden fandt det en forkert skjorte til 500 kr); rammen i node (35 → 140,
+   180 står, 300 → 261, brugt vare urørt). **Ikke afprøvet:** at analysen
+   faktisk afskriver mærkerne i `tagText` på et nyt udkast, og en hel
+   markedsrunde på telefonen. Nr. 19 ligger stadig ude til 35 kr — ret den
+   på Vinted eller fra appen.
+
 0. **Farverne er tro mod varen — rettet 1. oktober.** Tonen blev målt på det
    hvidt indrammede billede, og hver vare kom 7-13 L* for mørk ud (kobaltblå →
    marineblå). Nu måles den på hele scenen, lægges på lysstyrken, og modellen

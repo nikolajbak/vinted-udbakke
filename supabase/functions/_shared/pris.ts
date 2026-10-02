@@ -42,3 +42,60 @@ export function prisTekst(v: unknown): string {
   const n = helKroner(v);
   return n > 0 ? `${n} kr` : String(v ?? "");
 }
+
+// En NY vare prissaettes mod sin nypris, ikke kun mod feltet. Bestemt af dig
+// 2. oktober: en helt ny Teeshoppen-skjorte til 349 kr blev sat til 35 kr,
+// fordi feltet var brugte skjorter til 20-59 kr, og spaerren mod medianen
+// trak modellens 45 kr endnu laengere ned. Prisen er en afvejning af varens
+// vaerdi (nyprisen) og hvad markedspladsen kan baere - og brugte varer er
+// ikke et loft for en ny.
+//
+// Rammen i procent af nyprisen. Gulvet vinder over markedets loft: hellere en
+// ny vare, der ligger lidt laengere, end en, der er givet vaek.
+export const NY_GULV_MED_MAERKE = 0.4;
+export const NY_GULV_UDEN_MAERKE = 0.35;
+export const NY_LOFT = 0.75;
+
+export const NYPRIS_REGEL =
+  "Prisen på en NY vare er en afvejning af to ting: hvad varen er værd — nyprisen under Fakta — og " +
+  "hvad markedspladsen kan bære. Brugte varer i feltet er IKKE et loft for en ny vare; sammenlign den " +
+  "med de nye. Ny med prismærke ligger typisk på 40-60 % af nyprisen, aldrig under " +
+  `${NY_GULV_MED_MAERKE * 100} % (${NY_GULV_UDEN_MAERKE * 100} % uden prismærke) og aldrig over ` +
+  `${NY_LOFT * 100} %. Kendes nyprisen ikke, så lad de nye annoncer i feltet styre prisen, ikke de brugte.`;
+
+type FaktaPris = { ny?: boolean; nypris?: number } | null | undefined;
+
+export function erNy(fakta: unknown, condition?: unknown): boolean {
+  return !!(fakta as FaktaPris)?.ny || /^ny\b/i.test(String(condition ?? "").trim());
+}
+
+// Gulv og loft i hele kroner for en ny vare med kendt nypris. null ellers.
+export function nyprisRamme(fakta: unknown, condition?: unknown): { gulv: number; loft: number; nypris: number } | null {
+  const f = fakta as FaktaPris;
+  const nypris = helKroner(f?.nypris);
+  if (!erNy(fakta, condition) || nypris <= 0) return null;
+  const uden = /uden/i.test(String(condition ?? ""));
+  return {
+    nypris,
+    gulv: Math.ceil(nypris * (uden ? NY_GULV_UDEN_MAERKE : NY_GULV_MED_MAERKE)),
+    loft: Math.floor(nypris * NY_LOFT),
+  };
+}
+
+// Laegger prisen inden for rammen. Note er tom, naar intet blev rettet.
+export function iNyprisRamme(pris: number, ramme: ReturnType<typeof nyprisRamme>): { pris: number; note: string } {
+  if (!ramme || !(pris > 0)) return { pris, note: "" };
+  if (pris < ramme.gulv) {
+    return { pris: ramme.gulv, note: `løftet til ${ramme.gulv} kr — en ny vare sættes ikke under ${Math.round(ramme.gulv / ramme.nypris * 100)} % af nyprisen på ${ramme.nypris} kr` };
+  }
+  if (pris > ramme.loft) {
+    return { pris: ramme.loft, note: `sat ned til ${ramme.loft} kr — højst ${NY_LOFT * 100} % af nyprisen på ${ramme.nypris} kr` };
+  }
+  return { pris, note: "" };
+}
+
+// Annoncer i ny stand, til spaerren mod medianen. Vinteds egne ord paa dansk,
+// og de franske/engelske, saa en anden sprogindstilling ikke skjuler dem.
+export function erNyAnnonce(condition: unknown): boolean {
+  return /^(ny\b|neuf|new\b|nuevo|neu\b)/i.test(String(condition ?? "").trim());
+}

@@ -8,7 +8,7 @@ import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
-import { prisTekst } from "../_shared/pris.ts";
+import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme, prisTekst } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -112,6 +112,13 @@ const VISION_TOOL = {
       priceTag: {
         type: ["integer", "null"],
         description: "Prisen i danske kroner, hvis et prismærke med pris kan læses på billederne. null ellers.",
+      },
+      tagText: {
+        type: ["string", "null"],
+        description:
+          "Det, der står på hængemærke, prismærke og nakkemærke, og som kan finde netop denne vare i en " +
+          "butik: varenummer/style no., modelnavn (fx \"Linen Blend\"), farvenavn og stregkode (EAN), " +
+          "afskrevet præcis som det står. Ikke størrelse og vaskeanvisning. null hvis intet kan læses.",
       },
       measurements: {
         type: ["string", "null"],
@@ -651,6 +658,8 @@ Deno.serve(async (req: Request) => {
     if (ny) fakta.ny = true;
     const tagPris = Math.round(Number(vision.priceTag));
     if (ny && tagPris > 0) { fakta.nypris = tagPris; fakta.nyprisKilde = "prismærket"; }
+    const maerker = cleanText(vision.tagText);
+    if (maerker && !/^(null|ingen|-)$/i.test(maerker)) fakta.maerker = maerker.slice(0, 300);
     if (vision.measurements) { fakta.maal = cleanText(vision.measurements); fakta.maalKilde = "mærkatet"; }
     const flaws = cleanText(vision.visibleFlaws);
     if (flaws && !/^(ingen|nej|-|none)\b/i.test(flaws)) fakta.fejl = flaws;
@@ -661,6 +670,7 @@ Deno.serve(async (req: Request) => {
       size: fakta.maal ? null : vision.size as string | null,
       color: String(vision.color ?? ""),
       ny: ny && !fakta.nypris,
+      maerker: fakta.maerker,
     }).then((fundet) => {
       if (fundet.nypris) { fakta.nypris = fundet.nypris; fakta.nyprisKilde = fundet.nyprisKilde; }
       if (fundet.maal) { fakta.maal = fundet.maal; fakta.maalKilde = "mærkets størrelsesguide"; }
@@ -695,6 +705,7 @@ Deno.serve(async (req: Request) => {
         "Beskrivelse: 4-7 linjer om mærke, størrelse, materiale og stand.\n" + BESKRIVELSE_REGLER + "\n" +
         (erfaringer ? erfaringer + "\n" : "") +
         "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
+        NYPRIS_REGEL + " " +
         "Udfyld desuden Vinteds egne felter — categoryPath, brand, size, sizeScale, color, condition — med Vinteds " +
         "egen danske ordlyd, for de bliver klikket direkte ind i formularen. Er du i tvivl om mærke eller størrelse, " +
         "så skriv null i stedet for at gætte; et forkert mærke er værre end et tomt felt.",
@@ -710,6 +721,12 @@ Deno.serve(async (req: Request) => {
     );
 
 console.log("annonce klar paa", Date.now() - t0, "ms");
+    // En ny vare med kendt nypris lægges inden for rammen (_shared/pris.ts).
+    const ramme = iNyprisRamme(helKroner(cleanText(draft.price)), nyprisRamme(fakta, draft.condition));
+    if (ramme.note) {
+      draft.price = String(ramme.pris);
+      draft.priceNote = cleanText(draft.priceNote) + ` (${ramme.note})`;
+    }
     const { error } = await supabase
       .from("drafts")
       .update({
