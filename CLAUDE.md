@@ -338,18 +338,24 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   selv trykker "Markér som postet", eller når alle tre er sat. Et tryk på en
   markedsplads noterer, at varen er sendt DERHEN — ikke at den er lagt op; kun
   Vinted-scriptet kan bekræfte det sidste.
-- **Brugerscriptet kører på hele `/items/*`, ikke kun `/items/new`.** Efter
-  Upload sender Vinted brugeren videre til annoncens egen side; dér ser scriptet
-  markøren i `sessionStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
-  det kører kun, når man trykker på det.
+- **Den nye annonce findes i garderoben, ikke på en adresse.** At Vinted
+  sender en videre til annoncens side efter Upload, var et gæt, og det holdt
+  aldrig: ingen af nr. 5-20 blev tilknyttet ad den vej, og Safari bliver
+  stående efter Upload. Lige efter udfyldningen noterer runneren det nyeste
+  nummer i garderoben (`/api/v2/wardrobe/{bruger}/items?per_page=5&order=newest_first`,
+  Vinted-kladder `is_draft` tæller ikke), og dukker der et nyere op, er det den
+  nye annonce. Brugeren er `VINTED_BRUGER` i `index.ts` og følger med udkastet
+  som `vintedBruger`. Fem rækker vejer ~60 kB, så der kigges kun tæt, når
+  formularen (`#title`) er væk — hvert 3. sekund i to minutter, siden hvert
+  halve minut — og ellers én gang i minuttet. Står fanen på `/items/{id}`,
+  bruges det nummer også; serveren afviser det, hvis det ikke er det nye.
 - **Efter Upload skifter Vinted adresse UDEN at genindlæse siden (Next.js).**
   Et brugerscript kører kun ved en rigtig sideindlæsning, så det fyrer aldrig
   på annoncesiden, man lander på. Fire udkast blev 1. oktober lagt op via
   appen uden at blive tilknyttet: loggen sluttede med `clear` og intet
-  bagefter. Derfor holder runneren selv øje med `location.pathname` (hvert
-  sekund i op til en time), efter den har fyldt formularen, og kalder
-  `meldPostet`, når adressen bliver `/items/{id}`. Det samme gælder alt andet,
-  der skal ske »på næste side« — vent ikke på, at scriptet starter forfra.
+  bagefter. Derfor holder runneren selv øje i op til en time, efter den har
+  fyldt formularen (se garderoben ovenfor). Det samme gælder alt andet, der
+  skal ske »på næste side« — vent ikke på, at scriptet starter forfra.
 - **Markøren for »lige lagt op« hører til FANEN, ikke til Vinted.** Den lå i
   `localStorage`, som alle faner deler, og `meldPostet` tog den første
   annonceside, der viste sig. 2. oktober blev nr. 18 meldt med nr. 10's

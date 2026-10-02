@@ -762,6 +762,12 @@ function ensLyd(a: unknown, b: unknown): boolean {
   return n(a) === n(b);
 }
 
+// Din profil paa Vinted (vinted.dk/member/3125670782). Garderoben dér er det
+// eneste sted, telefonen kan se, at en ny annonce er landet: Vinted sender dig
+// IKKE videre til annoncens side efter Upload - det var et gaet, og ingen af
+// nr. 5-20 blev nogensinde tilknyttet ad den vej.
+const VINTED_BRUGER = "3125670782";
+
 async function registrer(
   draftId: string,
   platform: string,
@@ -1057,6 +1063,9 @@ Deno.serve(async (req: Request) => {
       price: plainPrice(data.price || ""),
       searchQuery: data.search_query || data.title || "",
       needsPricing: !data.price_grounded,
+      // Din Vinted-profil. Runneren holder oeje med garderoben efter
+      // udfyldningen: den nye annonce er den, der dukker op dér.
+      vintedBruger: VINTED_BRUGER,
       // Vinteds egne felter, i Vinteds egen ordlyd.
       categoryPath: Array.isArray(row.category_path) ? row.category_path : [],
       brand: cleanText(row.brand || ""),

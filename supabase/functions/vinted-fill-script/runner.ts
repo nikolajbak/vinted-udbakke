@@ -940,35 +940,40 @@ async function prisvagt(){
 // Er vi havnet på en annonces egen side, og lå der et udkast i formularen for
 // lidt siden, så er det dét, du netop har lagt op. Så flytter appen det selv
 // over i "Afsendte annoncer" — du skal ikke også huske at sige det.
+//
+// Men Vinted sender dig IKKE videre til annoncens side efter Upload - det var
+// et gaet, og ingen af nr. 5-20 blev tilknyttet ad den vej. Derfor kigger vi
+// ogsaa i din garderobe: det nyeste nummer dér blev noteret ved udfyldningen
+// (foer), og dukker der et nyere op, er det den annonce, du lagde op.
+var AFVISTE={};
 async function meldPostet(){
+ var v=hentAfventer();
+ if(!v)return false;
  var num=location.pathname.match(/^\/items\/(\d+)/);
- if(!num)return false;
- // En markoer fra foer 2. oktober kan ligge i localStorage. Den er ikke til at
- // stole paa - enhver fane kunne tage den - saa den ryddes bare.
- try{localStorage.removeItem('udbakke_afventer')}catch(e){}
- var raw; try{raw=sessionStorage.getItem('udbakke_afventer')}catch(e){return false}
- if(!raw)return false;
- var v; try{v=JSON.parse(raw)}catch(e){v=null}
+ var itemId=(num&&!AFVISTE[num[1]])?num[1]:null;
+ if(!itemId&&v.foer){
+  var ny=await nyesteIGarderoben(v.bruger);
+  if(ny&&ny>v.foer&&!AFVISTE[ny])itemId=String(ny);
+ }
+ if(!itemId)return false;
  try{sessionStorage.removeItem('udbakke_afventer')}catch(e){}
- // En time. Ligger der noget ældre, er det en rest fra en annonce, du
- // fortrød — den må ikke markeres som solgt-og-lagt-op.
- if(!v||!v.id||(Date.now()-v.tid)>3600000)return false;
  // Prisen læses på annoncen selv, ikke på det vi troede vi skrev. Du kan have
  // rettet den i formularen, inden du trykkede Upload — og prisvagten skal
  // regne fra dét, der faktisk står ude.
- var set=await hentVare(num[1]);
+ var set=await hentVare(itemId);
  try{
   var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({id:v.id,mode:'posted',item_id:num[1],
-    url:location.origin+'/items/'+num[1],
+   body:JSON.stringify({id:v.id,mode:'posted',item_id:itemId,
+    url:location.origin+'/items/'+itemId,
     price:(set&&set.price)||0,
     udgivet:(set&&set.udgivet)||null})},20000);
   var svar=null; try{svar=await sv.json()}catch(e){}
   // Ikke den nye annonce (en anden vare, du kiggede paa). Markoeren laegges
-  // tilbage, saa den rigtige annonceside stadig kan melde sig.
+  // tilbage, saa den rigtige annonce stadig kan melde sig.
   if(svar&&svar.afvist){
+   AFVISTE[itemId]=1;
    saetAfventer(v);
-   log('postet: '+num[1]+' er ikke den nye annonce ('+svar.afvist+') - venter videre');
+   log('postet: '+itemId+' er ikke den nye annonce ('+svar.afvist+') - venter videre');
    return 'afvist';
   }
   log('annoncen er lagt op — flyttet til afsendte, prisvagten holder øje');
@@ -977,6 +982,38 @@ async function meldPostet(){
 }
 function saetAfventer(v){
  try{sessionStorage.setItem('udbakke_afventer',JSON.stringify(v))}catch(e){}
+}
+function hentAfventer(){
+ // En markoer fra foer 2. oktober kan ligge i localStorage. Den er ikke til at
+ // stole paa - enhver fane kunne tage den - saa den ryddes bare.
+ try{localStorage.removeItem('udbakke_afventer')}catch(e){}
+ var raw; try{raw=sessionStorage.getItem('udbakke_afventer')}catch(e){return null}
+ if(!raw)return null;
+ var v; try{v=JSON.parse(raw)}catch(e){v=null}
+ // En time. Ligger der noget ældre, er det en rest fra en annonce, du
+ // fortrød — den må ikke markeres som solgt-og-lagt-op.
+ if(!v||!v.id||(Date.now()-v.tid)>3600000){
+  try{sessionStorage.removeItem('udbakke_afventer')}catch(e){}
+  return null;
+ }
+ return v;
+}
+// Det hoejeste annoncenummer i din garderobe. Kun fem raekker, nyeste foerst -
+// det kaldes hvert femte sekund, mens du retter i formularen. En Vinted-kladde
+// taeller ikke: den kan dukke op, foer du har trykket Upload.
+async function nyesteIGarderoben(bruger){
+ if(!bruger)return null;
+ try{
+  var r=await timedFetch('/api/v2/wardrobe/'+bruger+'/items?page=1&per_page=5&order=newest_first',
+   {headers:{'Accept':'application/json'},credentials:'include'},10000);
+  if(!r.ok){log('garderobe: '+r.status);return null}
+  var j=await r.json(),maks=0;
+  (j.items||[]).forEach(function(it){
+   var n=+(it&&it.id)||0;
+   if(n>maks&&!it.is_draft)maks=n;
+  });
+  return maks||null;
+ }catch(e){log('garderobe: '+e.message);return null}
 }
 
 // Automatisk tilstand starter, så snart siden er tegnet — felterne kan sagtens
@@ -988,7 +1025,9 @@ async function waitForm(){
  }
  return false;
 }
-if(await meldPostet()===true)return;
+// Laa der en markoer fra en udfyldning, der ikke blev meldt, saa kig efter den
+// nu. Paa opret-siden skal en ny udfyldning stadig koere bagefter.
+if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
 // Prisvagten kører på alle annoncesider undtagen opret-siden: dér er
 // udfyldningen det eneste, der skal ske, og den må ikke vente på et tilsyn.
 if(!/\/items\/new/.test(location.pathname)){
@@ -1090,24 +1129,35 @@ try{
  if(await fillPhotos(d.photos))mangler.push('billeder');
  log('billeder klar');
 
- // Gem hvilket udkast der ligger i formularen. Trykker du Upload, sender Vinted
- // dig videre til annoncens egen side - og dér kan vi se, at den er landet.
+ // Gem hvilket udkast der ligger i formularen, og det nyeste nummer i din
+ // garderobe lige nu. Trykker du Upload, dukker et nyere op dér - og saa ved
+ // vi, at annoncen er landet, og hvilket nummer den fik.
  // Markoeren ligger i DENNE fanes sessionStorage, ikke i localStorage: den
  // deles af alle faner, og 2. oktober tog en anden fane med nr. 10's sandaler
  // markoeren for nr. 18.
- saetAfventer({id:DRAFT_ID,tid:Date.now()});
- // Men Vinted skifter adresse UDEN at genindlaese siden (Next.js). Saa koerer
- // brugerscriptet aldrig paa annoncesiden, og markoeren ligger der bare. Derfor
- // holder vi selv oeje med adressen, saa laenge opret-siden er aaben. Afviser
- // serveren annoncen (ikke den nye), ventes der videre paa den naeste.
- var sidstSet='',travl=false;
+ var foer=await nyesteIGarderoben(d.vintedBruger);
+ log('garderobe foer upload: '+(foer||'ukendt'));
+ saetAfventer({id:DRAFT_ID,tid:Date.now(),bruger:d.vintedBruger||null,foer:foer});
+ // Vinted skifter adresse UDEN at genindlaese siden (Next.js), og Safari
+ // bliver staaende efter Upload. Saa vi holder selv oeje, saa laenge fanen er
+ // aaben: ved hvert adresseskift, og ellers med garderoben. Fem raekker vejer
+ // ~60 kB, saa der kigges kun tæt, naar formularen er vaek - det er den efter
+ // Upload, hvad adressen saa end siger: hvert 3. sekund i to minutter, siden
+ // hvert halve minut. Mens du retter i formularen, en gang i minuttet. Afviser
+ // serveren annoncen (ikke den nye), ventes der videre.
+ var vaekTid=0,sidstSti=location.pathname,sidstKig=Date.now(),travl=false;
  var vagtAdr=setInterval(function(){
-  var sti=location.pathname;
-  if(travl||sti===sidstSet||!/^\/items\/\d+/.test(sti))return;
-  sidstSet=sti; travl=true;
+  if(travl)return;
+  if(!hentAfventer()){clearInterval(vagtAdr);return}
+  var sti=location.pathname,nu=Date.now();
+  var nySti=sti!==sidstSti; sidstSti=sti;
+  if(q('#title'))vaekTid=0; else if(!vaekTid)vaekTid=nu;
+  var hvert=!vaekTid?60000:(nu-vaekTid<120000?3000:30000);
+  if(!nySti&&nu-sidstKig<hvert)return;
+  sidstKig=nu; travl=true;
   meldPostet().then(function(r){
    travl=false;
-   if(r!=='afvist')clearInterval(vagtAdr);
+   if(r===true)clearInterval(vagtAdr);
   },function(e){travl=false;log('postet: '+e.message)});
  },1000);
  setTimeout(function(){clearInterval(vagtAdr)},3600000);
