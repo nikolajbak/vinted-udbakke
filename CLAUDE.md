@@ -307,9 +307,13 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
 - **En push med en vare åbner varen** (`#v<nr>`), også når appen allerede er
   åben — `sw.js` navigerer den åbne rude.
 
-`runner.ts` serveres fra `?script=1` (bogmærket henter den) og fra stien
-`/udbakke.user.js` (brugerscriptet). Bogmærket er kun en indlæser, så rettelser
-i runner rammer telefonen uden geninstallation.
+`runner.ts` serveres fra `?script=1`. **Både bogmærket og brugerscriptet
+(`/udbakke.user.js`) er kun indlæsere**, der henter den derfra ved hver
+sideindlæsning, så rettelser i runner rammer telefonen uden geninstallation.
+Brugerscriptet bar før runneren indbagt og ventede på, at Userscripts
+opdaterede: 2. oktober blev nr. 19-21 lagt op med en runner to udgivelser
+bagud, og en rettelse så ud til ikke at virke, fordi den aldrig var nået ud.
+Læg aldrig runneren ind i brugerscriptet igen.
 
 ## Ting der er målt, ikke gættet
 

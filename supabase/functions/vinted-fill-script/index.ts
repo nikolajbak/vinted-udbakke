@@ -964,8 +964,8 @@ Deno.serve(async (req: Request) => {
   }
 
   // Samme automatik pakket som et brugerscript, saa Safari kan koere den af sig
-  // selv, naar opret-siden aabnes. Versionsnummeret foelger indholdet, saa
-  // Userscripts selv henter en ny udgave, naar der er rettet noget.
+  // selv, naar opret-siden aabnes. Versionsnummeret foelger indlaeseren, som
+  // kun aendrer sig, hvis selve adressen goer - runneren hentes frisk hver gang.
   // Userscripts tilbyder kun at installere, hvis selve STIEN ender paa
   // .user.js - et forespoergselsparameter er ikke nok. Supabase sender
   // undermapper videre til den samme funktion, saa filnavnet kan bare haenges
@@ -978,8 +978,22 @@ Deno.serve(async (req: Request) => {
     const base = `${SUPABASE_URL}/functions/v1/vinted-fill-script`;
     const api = `${base}?key=${SHORTCUT_KEY}`;
     const install = `${base}/udbakke.user.js?key=${SHORTCUT_KEY}`;
+    // Brugerscriptet er kun en indlaeser, ligesom bogmaerket. Foer bar det
+    // runneren indbagt, og saa ramte en rettelse foerst telefonen, naar
+    // Userscripts gad opdatere: 2. oktober blev nr. 19-21 lagt op med en runner,
+    // der var to udgivelser bagud, og ingen af dem blev tilknyttet.
+    const indlaeser = [
+      `window.__UDBAKKE_API__=${JSON.stringify(api)};`,
+      "window.__UDBAKKE_AUTO__=true;",
+      "(function(){",
+      " var x=new XMLHttpRequest();",
+      " x.open('GET',window.__UDBAKKE_API__+'&script=1');",
+      " x.onload=function(){if(x.status===200)(0,eval)(x.responseText)};",
+      " x.send();",
+      "})();",
+    ].join("\n");
     let h = 0;
-    for (let i = 0; i < RUNNER.length; i++) h = (h * 31 + RUNNER.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < indlaeser.length; i++) h = (h * 31 + indlaeser.charCodeAt(i)) >>> 0;
     const body = [
       "// ==UserScript==",
       "// @name         VintedAuto",
@@ -995,9 +1009,7 @@ Deno.serve(async (req: Request) => {
       `// @updateURL    ${install}`,
       "// ==/UserScript==",
       "",
-      `window.__UDBAKKE_API__=${JSON.stringify(api)};`,
-      "window.__UDBAKKE_AUTO__=true;",
-      RUNNER,
+      indlaeser,
     ].join("\n");
     // text/plain, ikke text/javascript: ellers henter Safari filen ned i stedet
     // for at vise den, og saa har udvidelsen ingen side at tilbyde installation
