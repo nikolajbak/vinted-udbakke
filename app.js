@@ -323,7 +323,9 @@
         (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
         '<span class="row-main">' +
           '<span class="row-title">' + esc(d.title || (d.status === 'kladde' ? 'Ufærdig billedserie' : 'Analyserer billeder …')) + '</span>' +
-          '<span class="row-sub">' + sub + '</span>' +
+          '<span class="row-sub">' +
+            (d.nr ? '<span class="row-nr mono">' + esc(fmtNr(d.nr)) + '</span> · ' : '') +
+            sub + '</span>' +
           '<span>' + statusChip(d) + markedsMaerker(d) + '</span>' +
         '</span>' +
         '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>' +
@@ -367,6 +369,7 @@
     var d = rows[currentId];
     if(!d) return;
     $('d-title').textContent = d.title || 'Udkast';
+    $('d-nr').textContent = fmtNr(d.nr);
     var photos = d.photos || [];
     var failed = (d.price_note || '').indexOf('Analyse mislykkedes') === 0;
 
@@ -407,9 +410,7 @@
     if(d.personal_info){
       html += '<div class="warn">Der blev fundet personlige oplysninger på et af billederne — fx et påsyet navnemærke — og de er automatisk maskeret. Tjek billederne, før du uploader.</div>';
     }
-    html += '<div class="note note-luft">' +
-            (d.nr ? '<b class="mono">' + esc(fmtNr(d.nr)) + '</b> · ' : '') +
-            esc(relTime(d.created_at)) + '</div>';
+    html += '<div class="note note-luft">' + esc(relTime(d.created_at)) + '</div>';
     $('d-body').innerHTML = html;
 
     var track = $('d-track'), dots = $('d-dots');
@@ -1418,7 +1419,8 @@
           return '<button type="button" class="hist-row" data-id="' + esc(d.id) + '">' +
             (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
             '<div><div class="t">' + esc(d.title || '') + '</div>' +
-            '<div class="s">' + esc(listePris(d)) + ' · ' + esc(relTime(d.posted_at)) +
+            '<div class="s">' + (d.nr ? '<span class="row-nr mono">' + esc(fmtNr(d.nr)) + '</span> · ' : '') +
+            esc(listePris(d)) + ' · ' + esc(relTime(d.posted_at)) +
             markedsMaerker(d) + '</div></div>' +
             '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></button>';
         }).join('') : '<div class="empty"><p>Ingen postede annoncer endnu.</p></div>';
