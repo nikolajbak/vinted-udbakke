@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0037 — 2026-10-02 09:53
+
+Commit `0c36f84` — Tre ens linjer på hvert kort, én skrift og størrelse  
+App: `app.js?v=830d0347` · `style.css?v=43fdde2d`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v64 | `0f683ced` |
+| dba-fill-script | v14 | `f8f22c92` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v7 | `a31c8881` |
+| vinted-fill-script | v58 | `593f6e03` |
+| vinted-mail | v1 | `b2c342ef` |
+
 ## udgivelse-0036 — 2026-10-02 09:43
 
 Commit `8444b52` — Vis løbenummeret på kortet og i toppen af udkastet  
