@@ -807,53 +807,6 @@
 .empty-mark .ramme{ stroke: var(--accent); stroke-dasharray: 5 4; }
 
 
-/* ---- Etiketarket ---------------------------------------------------------
-   21 etiketter paa et A4: 3 x 7 af 63,5 x 38,1 mm. Maalene staar i mm, fordi
-   det er papir - en etiket i px ville skifte stoerrelse med printerens
-   opfattelse af en skaerm.
-
-   Arket ligger uden for #app og er skjult paa skaermen. Ved print byttes de
-   to om: appen forsvinder, arket traeder frem. Saa er der ingen skaerm-layout
-   at kaempe med, og ingen risiko for at noget af appen sniger sig med. */
-#print-sheet{ display: none; }
-
-@media print{
-  #app{ display: none !important; }
-  #print-sheet{ display: block !important; }
-  .ark-side{
-    display: grid;
-    grid-template-columns: repeat(3, 63.5mm);
-    grid-auto-rows: 38.1mm;
-    justify-content: center;
-    break-after: page; page-break-after: always;
-  }
-  .ark-side:last-child{ break-after: auto; page-break-after: auto; }
-  @page{ size: A4 portrait; margin: 13mm 8mm; }
-  html, body{ background: #fff; color: #000; }
-
-  .etiket{
-    display: flex; align-items: center; gap: 2.5mm;
-    padding: 2.5mm 3mm;
-    overflow: hidden;
-    break-inside: avoid;
-  }
-  .etiket-qr{ width: 25mm; height: 25mm; flex: 0 0 auto; }
-  .etiket-qr svg{ width: 100%; height: 100%; display: block; }
-  .etiket-tekst{ min-width: 0; flex: 1 1 auto; }
-  .etiket-nr{
-    font-family: 'Space Mono', ui-monospace, monospace;
-    font-size: 13pt; font-weight: 700; line-height: 1.1; color: #000;
-  }
-  /* To linjer titel, og saa er der ikke mere plads. Klippet tekst er bedre end
-     en etiket, hvor nummeret bliver skubbet ud. */
-  .etiket-titel{
-    font-size: 7pt; line-height: 1.25; color: #000; margin-top: 1mm;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .etiket-pris{ font-size: 7pt; color: #444; margin-top: .8mm; }
-}
-
 /* ---- Lageret: faner og opgaver -------------------------------------------
    Forsiden er lageret. Det, der venter paa dig, staar foerst; derunder er
    varerne delt i klar, ude og solgt. */
