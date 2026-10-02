@@ -104,6 +104,7 @@ midlertidig funktion og slet den bagefter.
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
 | Erfaringerne lagt ind i prompterne (`hentErfaringer`) | `supabase/functions/_shared/laering.ts` |
 | Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
+| Etiketarket til print (data i `#d=`, åbnes i rigtig Safari) | `etiketter.html` + `etiketter.css` + `etiketter.js` |
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
 
 ## Databasen
@@ -665,6 +666,13 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   der først viser sig som en etiket, telefonen ikke vil læse. Det skal være
   `margin: cellSize * 4`. Målt på den færdige SVG, og koden er afprøvet hele
   vejen: tegnet i 25 mm ved 300 dpi og læst igen med `jsQR`.
+- **`window.print()` gør INGENTING i den installerede app på iOS** — ingen
+  fejl, intet printpanel, så »Udskriv etiketter« så død ud. Arket ligger derfor
+  på sin egen side, `etiketter.html`, som appen åbner med `aabnUdad` (rigtig
+  Safari på iOS, nyt faneblad på en Mac). Varerne går med i adressens `#d=`
+  som JSON `{s: startplads, v: [[nr, titel, pris], …]}` og når aldrig
+  serveren. `qrSvg` findes både i `app.js` og `etiketter.js` — ret begge.
+  `build.sh` stempler også `etiketter.css`/`.js` ind i `etiketter.html`.
 - **Etiketarket deles op i sider i koden, ikke af browseren.** 21 pr. A4
   (3 × 7 af 63,5 × 38,1 mm, som passer i 194 × 271 mm). En grid, der selv skal
   finde sideskiftet, sætter før eller siden en række hen over kanten, og så er

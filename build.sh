@@ -12,4 +12,9 @@ for f in style.css app.js; do
   h=$(shasum "$f" | cut -c1-8)
   sed -i '' -E "s|($f)(\?v=[0-9a-f]+)?\"|\1?v=$h\"|" index.html
 done
+# Etiketarket er en side for sig (etiketter.html) med sine egne to filer.
+for f in etiketter.css etiketter.js; do
+  h=$(shasum "$f" | cut -c1-8)
+  sed -i '' -E "s|($f)(\?v=[0-9a-f]+)?\"|\1?v=$h\"|" etiketter.html
+done
 grep -o -E '(style\.css|app\.js)\?v=[0-9a-f]+' index.html

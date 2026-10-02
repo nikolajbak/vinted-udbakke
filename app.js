@@ -2275,37 +2275,13 @@
     var valgte = valgteEtiketter();
     if(!valgte.length) return;
 
-    // Et brugt etiketark har huller i toppen. Uden et startpunkt ville de
-    // resterende etiketter blive printet oven i de tomme pladser — altsaa paa
-    // bagpapiret — og arket var spildt.
+    // Udskrivningen sker paa en side for sig (etiketter.html), i rigtig
+    // Safari. window.print() goer INGENTING i den installerede app paa iOS —
+    // ingen fejl og intet panel, saa knappen saa ud til at vaere doed.
+    // Varerne gaar med i adressens #, som aldrig naar serveren.
     var start = Math.max(0, Math.min(PR_ARK - 1, (parseInt($('lbl-start').value, 10) || 1) - 1));
-    var felter = [];
-    for(var t = 0; t < start; t++) felter.push('<div class="etiket etiket-tom"></div>');
-    valgte.forEach(function(d){
-      felter.push('<div class="etiket">' +
-        '<div class="etiket-qr">' + qrSvg(qrTekst(d.nr)) + '</div>' +
-        '<div class="etiket-tekst">' +
-          '<div class="etiket-nr">' + esc(fmtNr(d.nr)) + '</div>' +
-          '<div class="etiket-titel">' + esc(d.title || '') + '</div>' +
-          '<div class="etiket-pris">' + esc(d.price || '') + '</div>' +
-        '</div></div>');
-    });
-
-    // Arkene deles op her, ikke af browseren. En grid, der selv skal finde ud
-    // af hvor siden slutter, sætter før eller siden en række hen over
-    // sideskiftet — og saa er de etiketter ubrugelige.
-    var ark = [];
-    for(var i = 0; i < felter.length; i += PR_ARK){
-      ark.push('<div class="ark-side">' + felter.slice(i, i + PR_ARK).join('') + '</div>');
-    }
-    $('print-sheet').innerHTML = ark.join('');
-    // Safari i en installeret PWA aabner ikke altid et printpanel. Sker der
-    // ingenting, er det dét, der er sket — og saa skal arket printes fra en
-    // computer i stedet. Derfor staar det i beskeden og ikke kun i hovedet.
-    setTimeout(function(){
-      try{ window.print(); }
-      catch(e){ toast('Print kunne ikke åbnes — prøv fra en computer'); }
-    }, 60);
+    var data = { s: start, v: valgte.map(function(d){ return [d.nr, d.title || '', d.price || '']; }) };
+    aabnUdad(APP_URL + 'etiketter.html#d=' + encodeURIComponent(JSON.stringify(data)));
   }
 
   $('m-labels').addEventListener('click', function(){ show('labels'); hentEtiketter(); });
