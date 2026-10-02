@@ -301,7 +301,7 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   Vinted-scriptet kan bekræfte det sidste.
 - **Brugerscriptet kører på hele `/items/*`, ikke kun `/items/new`.** Efter
   Upload sender Vinted brugeren videre til annoncens egen side; dér ser scriptet
-  markøren i `localStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
+  markøren i `sessionStorage` og melder udkastet afsendt. Bogmærket kan ikke det —
   det kører kun, når man trykker på det.
 - **Efter Upload skifter Vinted adresse UDEN at genindlæse siden (Next.js).**
   Et brugerscript kører kun ved en rigtig sideindlæsning, så det fyrer aldrig
@@ -311,6 +311,15 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   sekund i op til en time), efter den har fyldt formularen, og kalder
   `meldPostet`, når adressen bliver `/items/{id}`. Det samme gælder alt andet,
   der skal ske »på næste side« — vent ikke på, at scriptet starter forfra.
+- **Markøren for »lige lagt op« hører til FANEN, ikke til Vinted.** Den lå i
+  `localStorage`, som alle faner deler, og `meldPostet` tog den første
+  annonceside, der viste sig. 2. oktober blev nr. 18 meldt med nr. 10's
+  sandaler, fordi en fane med dem blev indlæst lige efter Upload. Serveren
+  fandt sandalerne allerede tilknyttet og oprettede ingenting, og den rigtige
+  annonceside fandt ingen markør. Nu ligger markøren i `sessionStorage`, og
+  `mode:'posted'` afviser (`afvist`) en annonce, der hører til et andet udkast
+  eller er ÆLDRE end den nyeste tilknyttede — Vinteds numre stiger. Ved en
+  afvisning lægges markøren tilbage, og runneren venter videre.
 - **Hele serien fremkaldes ens.** Hvidbalance, sort-/hvidpunkt og gamma måles på
   det FØRSTE billede, gemmes i `drafts.tone` og genbruges på resten. Måler hvert
   billede sit eget, får den samme jakke forskellig farve alt efter hvor meget

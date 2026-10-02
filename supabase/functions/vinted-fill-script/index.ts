@@ -1288,6 +1288,25 @@ Deno.serve(async (req: Request) => {
       // intet om DBA og Reshopper, og udkastet forsvandt ud af koeen, foer man
       // var faerdig med det. Nu noteres KUN Vinted som klaret; udkastet
       // forlader koeen, naar du selv siger til, eller naar alle tre er sat.
+      //
+      // Men foerst: ER det den annonce, du lige har lagt op? 2. oktober meldte
+      // en anden fane nr. 10's sandaler som nr. 18 - telefonen tror den foerste
+      // annonceside, den ser. En annonce, der hoerer til et andet udkast, eller
+      // som er AELDRE end den nyeste, vi kender (Vinteds numre stiger), kan
+      // ikke vaere den nye. Saa afvises den, og runneren venter paa den rigtige.
+      if (body.item_id) {
+        const nr = String(body.item_id);
+        const { data: kendte } = await supabase.from("listings")
+          .select("draft_id, external_id").eq("platform", "vinted");
+        const sin = (kendte ?? []).find((l) => l.external_id === nr);
+        if (sin && sin.draft_id !== body.id) {
+          return json({ ok: false, afvist: "andet_udkast" });
+        }
+        const nyeste = Math.max(0, ...(kendte ?? []).map((l) => Number(l.external_id) || 0));
+        if (!sin && Number(nr) <= nyeste) {
+          return json({ ok: false, afvist: "aeldre_annonce" });
+        }
+      }
       const { data: nu } = await supabase
         .from("drafts").select("posted_to").eq("id", body.id).single();
       const sendt = { ...(nu?.posted_to ?? {}), vinted: new Date().toISOString() };

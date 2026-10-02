@@ -942,10 +942,13 @@ async function prisvagt(){
 async function meldPostet(){
  var num=location.pathname.match(/^\/items\/(\d+)/);
  if(!num)return false;
- var raw; try{raw=localStorage.getItem('udbakke_afventer')}catch(e){return false}
+ // En markoer fra foer 2. oktober kan ligge i localStorage. Den er ikke til at
+ // stole paa - enhver fane kunne tage den - saa den ryddes bare.
+ try{localStorage.removeItem('udbakke_afventer')}catch(e){}
+ var raw; try{raw=sessionStorage.getItem('udbakke_afventer')}catch(e){return false}
  if(!raw)return false;
  var v; try{v=JSON.parse(raw)}catch(e){v=null}
- try{localStorage.removeItem('udbakke_afventer')}catch(e){}
+ try{sessionStorage.removeItem('udbakke_afventer')}catch(e){}
  // En time. Ligger der noget ældre, er det en rest fra en annonce, du
  // fortrød — den må ikke markeres som solgt-og-lagt-op.
  if(!v||!v.id||(Date.now()-v.tid)>3600000)return false;
@@ -954,14 +957,25 @@ async function meldPostet(){
  // regne fra dét, der faktisk står ude.
  var set=await hentVare(num[1]);
  try{
-  await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+  var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({id:v.id,mode:'posted',item_id:num[1],
     url:location.origin+'/items/'+num[1],
     price:(set&&set.price)||0,
     udgivet:(set&&set.udgivet)||null})},20000);
+  var svar=null; try{svar=await sv.json()}catch(e){}
+  // Ikke den nye annonce (en anden vare, du kiggede paa). Markoeren laegges
+  // tilbage, saa den rigtige annonceside stadig kan melde sig.
+  if(svar&&svar.afvist){
+   saetAfventer(v);
+   log('postet: '+num[1]+' er ikke den nye annonce ('+svar.afvist+') - venter videre');
+   return 'afvist';
+  }
   log('annoncen er lagt op — flyttet til afsendte, prisvagten holder øje');
  }catch(e){}
  return true;
+}
+function saetAfventer(v){
+ try{sessionStorage.setItem('udbakke_afventer',JSON.stringify(v))}catch(e){}
 }
 
 // Automatisk tilstand starter, så snart siden er tegnet — felterne kan sagtens
@@ -973,7 +987,7 @@ async function waitForm(){
  }
  return false;
 }
-if(await meldPostet())return;
+if(await meldPostet()===true)return;
 // Prisvagten kører på alle annoncesider undtagen opret-siden: dér er
 // udfyldningen det eneste, der skal ske, og den må ikke vente på et tilsyn.
 if(!/\/items\/new/.test(location.pathname)){
@@ -1077,14 +1091,23 @@ try{
 
  // Gem hvilket udkast der ligger i formularen. Trykker du Upload, sender Vinted
  // dig videre til annoncens egen side - og dér kan vi se, at den er landet.
- try{localStorage.setItem('udbakke_afventer',JSON.stringify({id:DRAFT_ID,tid:Date.now()}))}catch(e){}
+ // Markoeren ligger i DENNE fanes sessionStorage, ikke i localStorage: den
+ // deles af alle faner, og 2. oktober tog en anden fane med nr. 10's sandaler
+ // markoeren for nr. 18.
+ saetAfventer({id:DRAFT_ID,tid:Date.now()});
  // Men Vinted skifter adresse UDEN at genindlaese siden (Next.js). Saa koerer
  // brugerscriptet aldrig paa annoncesiden, og markoeren ligger der bare. Derfor
- // holder vi selv oeje med adressen, saa laenge opret-siden er aaben.
+ // holder vi selv oeje med adressen, saa laenge opret-siden er aaben. Afviser
+ // serveren annoncen (ikke den nye), ventes der videre paa den naeste.
+ var sidstSet='',travl=false;
  var vagtAdr=setInterval(function(){
-  if(!/^\/items\/\d+/.test(location.pathname))return;
-  clearInterval(vagtAdr);
-  meldPostet().catch(function(e){log('postet: '+e.message)});
+  var sti=location.pathname;
+  if(travl||sti===sidstSet||!/^\/items\/\d+/.test(sti))return;
+  sidstSet=sti; travl=true;
+  meldPostet().then(function(r){
+   travl=false;
+   if(r!=='afvist')clearInterval(vagtAdr);
+  },function(e){travl=false;log('postet: '+e.message)});
  },1000);
  setTimeout(function(){clearInterval(vagtAdr)},3600000);
 
