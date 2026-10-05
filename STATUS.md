@@ -18,6 +18,19 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Rettelser kvitteres med Vinted — rettet 5. oktober (udgivelse 0047).**
+   De 13 nye tekster stod som »klar« i appen, men 12 af dem var gemt på
+   Vinted: efter Gem skifter Vinted adresse uden at genindlæse, så
+   kvitteringen ventede på en side, der aldrig kom. Nu bliver runneren på
+   siden, læser annoncen frisk og sender `anvendt`, som kun rydder det, der
+   står i annoncen. **Afprøvet:** den udrullede `anvendt` på de 12 rigtige
+   annoncer med deres JSON-LD — alle ryddet, mærke m.m. bevaret i
+   `published`. **Ikke afprøvet:** runneren på en rigtig redigeringsside
+   (`findGemKnap`, `efterGem`, runden med `?udbakke=ret`). Prøv med én
+   rettelse og se `spor` i loggen (»anvend: gemmer …«, »bekræft: … kvitteret«).
+   **Nr. 2 (9992950822) svarer 404 på Vinted** — solgt eller slettet; dens
+   rettelse står stadig, og annoncen er ikke meldt solgt.
+
 0. **Nye tekster på alle 13 aktive Vinted-annoncer — lagt i kø 5. oktober.**
    Skrevet efter `BESKRIVELSE_REGLER` med billederne. Manglende nypris og mål
    blev slået op og gemt i `drafts.fakta`. Udkastene har fået teksten, og
