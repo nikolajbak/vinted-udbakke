@@ -747,14 +747,31 @@ async function anvend(post){
  // ikke på redigeringssiden endnu.
  for(var i=0;i<60;i++){ if(q('#price')||q('#title'))break; await sleep(250) }
 
- var sat=[],manglende=[];
+ var sat=[],manglende=[],allerede=[];
  for(var navn in FELT_TIL_INPUT){
   if(!(navn in f)||f[navn]===null||f[navn]==='')continue;
   var el=q(FELT_TIL_INPUT[navn]);
   if(!el){manglende.push(navn);continue}
+  // Redigeringssiden viser det, Vinted har gemt. Står ændringen der allerede
+  // — fordi Gem gik igennem sidst, men kvitteringen aldrig nåede frem — er
+  // der intet at skrive. 5. oktober stod 12 rettelser »klar« i appen, som
+  // alle var gemt på Vinted.
+  if(navn==='price'?helKroner(el.value)===helKroner(f[navn]):ensLyd(el.value,f[navn])){
+   allerede.push(navn);continue;
+  }
   setv(el,String(f[navn]));
   sat.push(navn);
   await sleep(150);
+ }
+ if(!sat.length&&allerede.length){
+  spor('anvend: '+allerede.join(', ')+' stod allerede i annoncen');
+  var fra={kilde:'formular',url:location.origin+'/items/'+post.itemId};
+  for(var fn in FELT_TIL_INPUT){var fe=q(FELT_TIL_INPUT[fn]);if(fe)fra[fn]=fn==='price'?helKroner(fe.value):fe.value}
+  var kv=await kvitter(post,fra);
+  baand(kv&&kv.ok&&!(kv.tilbage||[]).length
+   ?'Ændringen stod allerede i annoncen — kvitteret i appen.'
+   :'Kunne ikke kvittere i appen. Prøv igen fra appen.',null,null);
+  return kv;
  }
  if(!sat.length){
   log('anvend: ingen felter kunne sættes ('+manglende.join(',')+')');
@@ -766,22 +783,55 @@ async function anvend(post){
  try{localStorage.setItem('udbakke_prisvagt_sat',JSON.stringify(
   {listing:post.listing,itemId:post.itemId,felter:f,satte:sat,tid:Date.now()}))}catch(e){}
 
- // Gem-knappen har ikke noget stabilt kendetegn, så den findes på sin tekst.
- // Findes den ikke, står ændringerne i felterne, og du trykker selv.
- var knapper=document.querySelectorAll('button,[role=button]');
- var gem=null;
- for(var n=0;n<knapper.length;n++){
-  var tx=(knapper[n].textContent||'').trim().toLowerCase();
-  if(/^(gem|upload|opdater|opdatér|save|update)/.test(tx)&&!knapper[n].disabled){gem=knapper[n];break}
- }
+ // Findes knappen ikke, står ændringerne i felterne, og du trykker selv —
+ // ventetiden herunder kvitterer alligevel, når formularen forsvinder.
+ var gem=findGemKnap();
  if(!gem){
   baand('Ændringerne er sat ind ('+sat.join(', ')+'). Tryk Gem for at gemme dem.',null,null);
-  log('anvend: fandt ingen gem-knap');
-  return false;
+  spor('anvend: fandt ingen gem-knap');
+ }else{
+  gem.click();
+  spor('anvend: gemmer '+sat.join(', '));
  }
- gem.click();
- log('anvend: gemmer '+sat.join(', '));
- return true;
+ return await efterGem();
+}
+
+// Gem-knappen har ikke noget stabilt kendetegn, så den findes på sin tekst.
+// I et bredt vindue står vælgerpanelerne åbne i siden med hver sin »Gem«
+// (input-dropdown-save-button), og den første knap med den tekst gemmer kun
+// et panel. Formularens egen knap står nederst: den sidste, der passer.
+function findGemKnap(){
+ var knapper=document.querySelectorAll('button,[role=button]'),gem=null;
+ for(var n=0;n<knapper.length;n++){
+  var k=knapper[n];
+  if(k.disabled)continue;
+  var tid=k.getAttribute('data-testid')||'';
+  if(/dropdown|draft/i.test(tid))continue;
+  if(k.closest('.ReactModal__Content,[data-testid$="-content"]'))continue;
+  var tx=(k.textContent||'').trim().toLowerCase();
+  if(/billed|foto|photo|kladde|draft/.test(tx))continue;
+  if(/^(gem|upload|opdater|opdatér|save|update)(\s|$)/.test(tx))gem=k;
+ }
+ return gem;
+}
+
+// Efter Gem skifter Vinted adresse UDEN at genindlæse siden (Next.js), så et
+// script, der venter på »næste side«, venter forgæves — det var derfor, ingen
+// rettelse nogensinde blev kvitteret. Vi bliver her og ser formularen
+// forsvinde. Genindlæses siden alligevel, tager bekraeft() over ved næste
+// indlæsning: markøren ligger i localStorage.
+async function efterGem(){
+ for(var i=0;i<600;i++){
+  await sleep(1000);
+  if(!/\/edit/.test(location.pathname)||!q('#title'))break;
+ }
+ if(/\/edit/.test(location.pathname)&&q('#title')){
+  spor('anvend: formularen står stadig efter 10 min');
+  baand('Vinted har ikke gemt ændringen endnu. Tjek formularen, og tryk Gem.',null,null);
+  return null;
+ }
+ var v=hentMarkoer();
+ return v?await bekraeftNu(v):null;
 }
 
 // Efter Gem sender Vinted dig tilbage til annoncen. Her læses den igen, og
@@ -791,43 +841,114 @@ function ensLyd(a,b){
  return n(a)===n(b);
 }
 
-async function bekraeft(){
- var raw; try{raw=localStorage.getItem('udbakke_prisvagt_sat')}catch(e){return false}
- if(!raw)return false;
+var MARKOER='udbakke_prisvagt_sat';
+function hentMarkoer(){
+ var raw; try{raw=localStorage.getItem(MARKOER)}catch(e){return null}
+ if(!raw)return null;
  var v; try{v=JSON.parse(raw)}catch(e){v=null}
- if(!v||(Date.now()-v.tid)>1800000){try{localStorage.removeItem('udbakke_prisvagt_sat')}catch(e){}return false}
- var num=location.pathname.match(/^\/items\/(\d+)/);
- if(!num||num[1]!==String(v.itemId)||/\/edit/.test(location.pathname))return false;
- try{localStorage.removeItem('udbakke_prisvagt_sat')}catch(e){}
+ if(!v||(Date.now()-v.tid)>1800000){try{localStorage.removeItem(MARKOER)}catch(e){}return null}
+ return v;
+}
 
- var set=await hentVare(v.itemId);
- if(!set||!set.udgivet){
-  baand('Annoncen kunne ikke læses bagefter. Tjek den selv.',null,null);
-  return false;
- }
- // Hvert felt for sig: gik prisen igennem og titlen ikke, skal du vide
- // hvilket af dem der mangler — ikke bare at "noget gik galt".
- var ok=[],ikke=[];
- (v.satte||[]).forEach(function(navn){
-  var oenske=v.felter[navn], faktisk=set.udgivet[navn];
-  var passer=(navn==='price')
-   ? (Math.round(Number(faktisk))===Math.round(Number(oenske)))
-   : ensLyd(faktisk,oenske);
-  (passer?ok:ikke).push(navn);
- });
- if(!ok.length){
-  log('bekræft: intet blev gemt');
-  baand('Ændringerne blev ikke gemt. Prøv igen fra appen.',null,null);
-  return false;
- }
+// Genindlæst efter Gem: står vi på annoncen, markøren peger på?
+async function bekraeft(){
+ var v=hentMarkoer();
+ if(!v)return null;
+ var num=location.pathname.match(/^\/items\/(\d+)/);
+ if(!num||num[1]!==String(v.itemId)||/\/edit/.test(location.pathname))return null;
+ return await bekraeftNu(v);
+}
+
+// Annoncen hentes frisk fra Vinted — ikke den åbne side, som efter et
+// adresseskift uden genindlæsning kan bære den gamle annonces data, og ikke
+// /api/v2/items, som svarer 404 på alt. Sidens JSON-LD har titel, hele
+// beskrivelsen og prisen (målt 5. oktober: længderne passer tegn for tegn).
+async function laesFrisk(id){
  try{
-  await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'anvendt',listing:v.listing,
-    price:set.price,felter:ok,udgivet:set.udgivet})},20000);
+  var h=await timedFetch('/items/'+id,{credentials:'include',cache:'no-store'},20000);
+  if(h.status===404||h.status===410)return {gone:true};
+  if(!h.ok)return null;
+  return laesAnnonceside(await h.text(),id);
+ }catch(e){return null}
+}
+
+async function bekraeftNu(v){
+ try{localStorage.removeItem(MARKOER)}catch(e){}
+ var b=baand('Tjekker, at Vinted har gemt ændringen …',null,null);
+ var set=null,ikke=[];
+ // Vinted kan være et øjeblik om at udlevere den nye tekst.
+ for(var forsoeg=0;forsoeg<4;forsoeg++){
+  if(forsoeg)await sleep(3000);
+  set=await laesFrisk(v.itemId);
+  if(!set||!set.udgivet)continue;
+  ikke=(v.satte||[]).filter(function(navn){
+   var oenske=v.felter[navn], faktisk=set.udgivet[navn];
+   return !((navn==='price')
+    ? (Math.round(Number(faktisk))===Math.round(Number(oenske)))
+    : ensLyd(faktisk,oenske));
+  });
+  if(!ikke.length)break;
+ }
+ if(b)b.remove();
+ if(!set||!set.udgivet){
+  spor('bekræft: '+v.itemId+' kunne ikke læses');
+  baand('Annoncen kunne ikke læses bagefter. Rettelsen står stadig som klar i appen.',null,null);
+  return null;
+ }
+ // Serveren afgør selv, hvad der står i annoncen, og rydder kun dét af
+ // rettelsen. Det, der ikke gik igennem, bliver stående som klar.
+ var kv=await kvitter(v,set.udgivet);
+ spor('bekræft: '+v.itemId+' — '+(kv&&kv.ok?'kvitteret'+((kv.tilbage||[]).length?', mangler '+kv.tilbage.join(','):''):'kunne ikke kvittere'));
+ if(!kv||!kv.ok)baand('Gemt på Vinted, men appen kunne ikke kvittere. Prøv igen fra appen.',null,null);
+ else if((kv.tilbage||[]).length)baand('Gik ikke igennem på Vinted: '+kv.tilbage.join(', ')+'. Den står stadig som klar i appen.',null,null);
+ else baand('Gemt på Vinted og kvitteret i appen.',null,null);
+ return kv;
+}
+
+async function kvitter(v,udgivet){
+ besoegt(v.itemId);
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'anvendt',listing:v.listing,price:udgivet.price,
+    udgivet:udgivet,besoegt:rundeBesoegt()})},20000);
+  return await r.json();
+ }catch(e){return null}
+}
+
+// »Send N rettelser« i appen er ét tryk for dem alle: redigeringssiden får
+// ?udbakke=ret, og runneren går selv videre til den næste, når den forrige er
+// kvitteret. Besøgte annoncer springes over, så en, der ikke vil gemme, ikke
+// sender runden i ring.
+var RUNDE='udbakke_ret_runde';
+function rundeAktiv(){
+ try{
+  if(/[?&]udbakke=ret/.test(location.search)&&!sessionStorage.getItem(RUNDE))
+   sessionStorage.setItem(RUNDE,JSON.stringify({tid:Date.now(),ids:[]}));
+  var r=JSON.parse(sessionStorage.getItem(RUNDE)||'null');
+  return !!(r&&Date.now()-r.tid<3600000);
+ }catch(e){return false}
+}
+function rundeBesoegt(){
+ try{return (JSON.parse(sessionStorage.getItem(RUNDE)||'null')||{}).ids||[]}catch(e){return []}
+}
+function besoegt(id){
+ try{
+  var r=JSON.parse(sessionStorage.getItem(RUNDE)||'null');
+  if(!r)return;
+  if(r.ids.indexOf(String(id))<0)r.ids.push(String(id));
+  sessionStorage.setItem(RUNDE,JSON.stringify(r));
  }catch(e){}
- log('bekræft: '+ok.join(', ')+' gemt'+(ikke.length?' — '+ikke.join(',')+' gik ikke igennem':''));
- if(ikke.length)baand('Gemt: '+ok.join(', ')+'. Gik ikke igennem: '+ikke.join(', ')+'.',null,null);
- return true;
+}
+
+// Efter en kvittering: næste pris i prisvagtens kø, ellers næste rettelse i
+// runden. Er der ingen af dem, er vi færdige.
+function videre(itemId,kv){
+ afslut(itemId);
+ var n=naeste();
+ if(n){location.href='/items/'+n.itemId+'/edit';return true}
+ if(kv&&kv.naeste&&rundeAktiv()){location.href='/items/'+kv.naeste+'/edit?udbakke=ret';return true}
+ try{sessionStorage.removeItem(RUNDE)}catch(e){}
+ return false;
 }
 
 // Næste post i køen. Er der ikke flere, er runden slut.
@@ -891,15 +1012,11 @@ async function prisvagt(){
  // Kommer vi fra appens Prisvagt-knap, er der givet lov til at ændre priser.
  var bedt=/[?&]udbakke=vagt/.test(location.search);
 
+ rundeAktiv();
  // 1) Lige gemt en pris? Så skal den bekræftes, før noget andet.
- if(await bekraeft()){
-  var f=naeste();
-  if(f){afslut(f.itemId)}
-  var n=naeste();
-  if(n){location.href='/items/'+n.itemId+'/edit';return true}
-  baand('Prisvagt: priserne er sat.',null,null);
-  return true;
- }
+ var mk=hentMarkoer();
+ var kv0=await bekraeft();
+ if(kv0){videre(mk.itemId,kv0);return true}
 
  // 2) Står vi på en redigeringsside, som køen peger på? Så sæt prisen.
  var red=location.pathname.match(/^\/items\/(\d+)\/edit/);
@@ -917,7 +1034,11 @@ async function prisvagt(){
     if(pj)post={listing:pj.listing,itemId:red[1],felter:pj.felter,fra:pj.fra};
    }catch(e){}
   }
-  if(post){await anvend(post);return true}
+  if(post){
+   var kv=await anvend(post);
+   if(kv&&kv.ok)videre(red[1],kv);
+   return true;
+  }
   return false;
  }
 

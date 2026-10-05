@@ -1044,6 +1044,9 @@
   document.addEventListener('visibilitychange', function(){
     if(document.hidden || !started) return;
     hentKoe(true);
+    // Kvitteringen fra Vinted rydder rettelsen paa serveren; uden det her
+    // stod den stadig som "klar", til du gik ud af skaermen og ind igen.
+    if(!screenEl('vagt').hidden) hentVagt();
     if(!currentId || screenEl('detail').hidden) return;
     hentAnnoncer(currentId);
   });
@@ -2511,7 +2514,9 @@
       fod.hidden = false;
       $('vagt-go').addEventListener('click', function(){
         var f = aktive.filter(function(l){ return venterFelter(l).length; })[0];
-        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '/edit');
+        // udbakke=ret: én runde over dem alle. Runneren gaar selv videre til
+        // naeste annonce, naar den forrige er kvitteret.
+        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '/edit?udbakke=ret');
       });
     } else if(forfaldne){
       fod.innerHTML = '<button type="button" class="btn btn-primary" id="vagt-go">Tjek ' +

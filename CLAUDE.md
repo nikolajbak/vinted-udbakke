@@ -376,6 +376,18 @@ har ingen række i `listings` endnu.
   Rettet titel/beskrivelse noteres som `rettet`.
 - **Står et ventende felt allerede i annoncen, fjernes det fra `pending`.** Har
   du skrevet det ind på Vinted selv, er der intet at sende.
+- **En rettelse er først sendt, når Vinted har kvitteret** (bestemt af dig
+  5. oktober). Efter Gem læser runneren annoncen frisk (`/items/{id}`,
+  JSON-LD — titel, HELE beskrivelsen og pris), og `mode:'anvendt'` rydder kun
+  de felter af `pending`, der faktisk står i annoncen; resten står stadig som
+  klar. Runneren bliver på siden efter Gem (`efterGem`), for Vinted skifter
+  adresse uden at genindlæse — før ventede kvitteringen på en sideindlæsning,
+  der aldrig kom, og 12 gemte rettelser stod som »klar« i appen. Viser
+  redigeringsformularen allerede ændringen, kvitteres der uden at gemme igen.
+  »Send N rettelser« åbner med `?udbakke=ret`, og runneren går selv videre til
+  den næste (`naeste` i svaret; besøgte annoncer springes over). Gem-knappen
+  er den SIDSTE »Gem« uden for vælgerpanelerne — i et bredt vindue har hvert
+  panel sin egen.
 - **Historiklisten viser annoncens pris og »solgt«**, ikke udkastets pris.
 
 ## Vinteds mails

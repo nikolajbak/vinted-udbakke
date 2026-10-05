@@ -1241,6 +1241,7 @@ Deno.serve(async (req: Request) => {
       felter?: unknown;
       gone?: boolean;
       favourites?: number;
+      besoegt?: unknown[];
     };
     try {
       body = await req.json();
@@ -1436,32 +1437,73 @@ Deno.serve(async (req: Request) => {
       const id = String(body.listing ?? "");
       if (!id) return json({ error: "mangler" }, 400);
       const { data: r } = await supabase.from("listings")
-        .select("price, published").eq("id", id).maybeSingle();
+        .select("price, published, pending").eq("id", id).maybeSingle();
       if (!r) return json({ error: "ukendt annonce" }, 404);
 
+      // Det, telefonen har læst, lægges oven på annoncens kendte ord. En
+      // læsning fra redigeringsformularen har kun titel, beskrivelse og pris
+      // — mærke og størrelse må ikke forsvinde af den grund.
       const snap = renUdgivet(body.udgivet);
-      const ny = Math.round(Number(body.price) || Number(snap?.price) || 0);
+      const udgivet: Record<string, unknown> = { ...((r.published ?? {}) as Record<string, unknown>) };
+      if (snap) for (const [k, v] of Object.entries(snap)) if (v !== null) udgivet[k] = v;
+
+      // Kun det, der faktisk STÅR i annoncen, ryddes af rettelsen. Resten
+      // bliver stående som klar — før ryddede en kvittering det hele, også
+      // et felt, der ikke gik igennem.
+      const p = (r.pending ?? {}) as Record<string, unknown>;
+      const rest: Record<string, unknown> = {};
+      const gemt: string[] = [];
+      for (const [k, v] of Object.entries(p)) {
+        const ude = udgivet[k];
+        const passer = k === "price"
+          ? Math.round(Number(ude)) === Math.round(Number(v))
+          : ensLyd(ude, v);
+        if (passer) gemt.push(k); else rest[k] = v;
+      }
+      const tom = !Object.keys(rest).length;
+      const navne: Record<string, string> = { price: "pris", title: "titel", description: "beskrivelse" };
+
+      const ny = Math.round(Number(snap?.price) || Number(body.price) || 0);
       const opd: Record<string, unknown> = {
-        pending: null, pending_note: null, pending_since: null,
+        pending: tom ? null : rest,
         synced_at: new Date().toISOString(),
+        published: udgivet,
       };
-      if (snap) opd.published = snap;
+      if (tom) { opd.pending_note = null; opd.pending_since = null; }
       if (ny > 0) opd.price = ny;
       // last_change_at styrer, hvor laenge prisvagten holder sig i ro. Den maa
       // kun roeres, naar det var PRISEN, der blev aendret — en rettet titel
       // skal ikke udsaette naeste prisjustering.
-      if (ny > 0 && ny !== Number(r.price)) opd.last_change_at = new Date().toISOString();
+      const prisSat = ny > 0 && ny !== Number(r.price);
+      if (prisSat) opd.last_change_at = new Date().toISOString();
       await supabase.from("listings").update(opd).eq("id", id);
 
-      const felter = Array.isArray(body.felter) ? body.felter as string[] : [];
-      await supabase.from("price_events").insert({
-        listing_id: id,
-        kind: ny > 0 && ny !== Number(r.price) ? "aendret" : "rettet",
-        price: ny > 0 ? ny : null,
-        from_price: Number(r.price),
-        note: "sat på Vinted" + (felter.length ? ": " + felter.join(", ") : ""),
+      if (gemt.length || prisSat) {
+        await supabase.from("price_events").insert({
+          listing_id: id,
+          kind: prisSat ? "aendret" : "rettet",
+          price: ny > 0 ? ny : null,
+          from_price: Number(r.price),
+          note: "sat på Vinted" + (gemt.length ? ": " + gemt.map((k) => navne[k] ?? k).join(", ") : ""),
+        });
+      }
+
+      // Næste annonce med en rettelse, der venter — til runden fra »Send N
+      // rettelser«. De, runden allerede har været forbi, springes over.
+      const besoegt = new Set((Array.isArray(body.besoegt) ? body.besoegt : []).map(String));
+      const { data: andre } = await supabase.from("listings")
+        .select("id, external_id, pending").eq("platform", "vinted").eq("status", "aktiv")
+        .not("pending", "is", null).neq("id", id).order("pending_since");
+      const naeste = (andre ?? []).find((x) =>
+        x.external_id && !besoegt.has(String(x.external_id)) &&
+        x.pending && Object.keys(x.pending as Record<string, unknown>).length);
+
+      return json({
+        ok: true,
+        gemt: gemt.map((k) => navne[k] ?? k),
+        tilbage: Object.keys(rest).map((k) => navne[k] ?? k),
+        naeste: naeste ? String(naeste.external_id) : null,
       });
-      return json({ ok: true });
     }
 
     if (!body.id) return json({ error: "missing_id" }, 400);
