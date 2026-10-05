@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0047 — 2026-10-05 08:18
+
+Commit `31628f4` — Rettelser kvitteres med Vinted: runneren bliver på siden efter Gem, læser annoncen frisk, og serveren rydder kun det, der står i annoncen  
+App: `app.js?v=4362adb2` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v67 | `4055dd2c` |
+| dba-fill-script | v18 | `87bae55d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v10 | `a31c8881` |
+| vinted-fill-script ← | v67 | `83bfd009` |
+| vinted-mail | v2 | `8bd594cd` |
+
 ## udgivelse-0046 — 2026-10-05 08:08
 
 Commit `38265ca` — Titler skrives aldrig kun med store bogstaver: regel i prompten og ingenVersaler() efter modellen  
