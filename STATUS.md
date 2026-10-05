@@ -23,8 +23,8 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    på en kopi af basens rigtige annoncer (16, heraf 9 ubrugte, 3 bedømte) med
    den rigtige model — anbefalingen nævner kun MEINING-regnjakken og
    Teeshoppen-jakkerne og siger, at grundlaget er tyndt; skærmen i browseren
-   med det svar. **Ikke afprøvet:** den udrullede funktion og skærmen på
-   telefonen. Nr. 11 hedder »TeeShoppen regnjakke« men har mærket MEINING i
+   med det svar; den udrullede funktion (udgivelse 0045) giver samme svar.
+   **Ikke afprøvet:** skærmen på telefonen. Nr. 11 hedder »TeeShoppen regnjakke« men har mærket MEINING i
    udkastet — ret det, så produktet lander rigtigt.
 
 0. **Lageret — bygget 3. oktober (UX-gennemgangen, punkt 1-9).** Forsiden er
