@@ -18,6 +18,16 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Nye tekster på alle 13 aktive Vinted-annoncer — lagt i kø 5. oktober.**
+   Skrevet efter `BESKRIVELSE_REGLER` med billederne. Manglende nypris og mål
+   blev slået op og gemt i `drafts.fakta`. Udkastene har fået teksten, og
+   annoncerne har den i `pending` (»Ny tekst efter reglerne«). Nr. 19 fik
+   nypris 349 kr og farven Army sat i hånden; opslaget foreslog 500 kr (den
+   forkerte skjorte). Nr. 2's nypris på 1300 kr blev ikke brugt, fordi den var
+   fundet uden mærkernes tekst. **Ikke gjort:** at sende dem ud — det sker fra
+   Prisvagt-skærmen, »Send rettelserne til Vinted«, én ad gangen. DBA (nr. 5
+   og 7) skal rettes i hånden.
+
 0. **»Hvad skal jeg købe igen?« — bygget 5. oktober.** Reglerne står i
    `CLAUDE.md` under samme overskrift. **Afprøvet:** `indkob.ts` under Node
    på en kopi af basens rigtige annoncer (16, heraf 9 ubrugte, 3 bedømte) med
