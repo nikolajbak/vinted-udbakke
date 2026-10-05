@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0046 — 2026-10-05 08:08
+
+Commit `38265ca` — Titler skrives aldrig kun med store bogstaver: regel i prompten og ingenVersaler() efter modellen  
+App: `app.js?v=896214ba` · `style.css?v=64c0b54a`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v67 | `4055dd2c` |
+| dba-fill-script ← | v18 | `87bae55d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v10 | `a31c8881` |
+| vinted-fill-script ← | v66 | `af909eb1` |
+| vinted-mail | v2 | `8bd594cd` |
+
 ## udgivelse-0045 — 2026-10-05 07:54
 
 Commit `9086af7` — Hvad skal jeg købe igen?: ubrugte varer pr. kategori og produkt ud fra egne salg  
