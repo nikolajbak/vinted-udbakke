@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0045 — 2026-10-05 07:54
+
+Commit `9086af7` — Hvad skal jeg købe igen?: ubrugte varer pr. kategori og produkt ud fra egne salg  
+App: `app.js?v=896214ba` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v66 | `cbc5da4f` |
+| dba-fill-script | v17 | `ff35394d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v9 | `a31c8881` |
+| vinted-fill-script ← | v65 | `32d70879` |
+| vinted-mail | v2 | `8bd594cd` |
+
 ## udgivelse-0044 — 2026-10-03 00:54
 
 Commit `282836e` — Ingen zoom i appen: viewport, touch-action og knib stoppet  
