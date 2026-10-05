@@ -147,6 +147,13 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   fnug er ikke fejl og trækker heller ikke standen ned.
 - Positivt sprog og positive superlativer.
 - Slut med et stylingforslag.
+- **Titlen skrives aldrig udelukkende med store bogstaver** (bestemt af dig
+  5. oktober). Reglen står i prompten, og `ingenVersaler()` i
+  `_shared/beskrivelse.ts` retter titlen efter modellen i analysen, Vinteds
+  markedsrunde og DBA: er der intet lille bogstav, bliver den almindelig
+  skrift med stort begyndelsesbogstav og mærket stavet som i `drafts.brand`.
+  Størrelser (XL, 2XL) og ord med tal eller & (H&M) står urørt. En titel, du
+  selv skriver i appen, røres ikke.
 - Spørgsmål fra købere besvares med samme tone (køber-assistenten,
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det

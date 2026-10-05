@@ -6,7 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
-import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
+import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme, prisTekst } from "../_shared/pris.ts";
 
@@ -784,7 +784,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
       .from("drafts")
       .update({
         status: "ny",
-        title: cleanText(draft.title),
+        title: ingenVersaler(cleanText(draft.title), cleanText(draft.brand || vision.brand)),
         description: cleanText(draft.description),
         category: cleanText(draft.category),
         condition: cleanText(draft.condition),

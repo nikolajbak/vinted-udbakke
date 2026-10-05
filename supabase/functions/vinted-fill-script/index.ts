@@ -17,7 +17,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
-import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
+import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { laer } from "./laering.ts";
 import { indkob } from "./indkob.ts";
@@ -521,7 +521,7 @@ async function analyseMarket(
   price = vintedPris(roundPrice(ramme.pris));
 
   return {
-    title: cleanText(out.title),
+    title: ingenVersaler(cleanText(out.title), draft.brand),
     description: cleanText(out.description),
     price,
     priceNote: cleanText(out.priceNote) + (ramme.note ? ` (${ramme.note})` : guarded ? " (justeret til feltet)" : ""),

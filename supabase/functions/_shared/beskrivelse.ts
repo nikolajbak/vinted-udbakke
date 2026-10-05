@@ -27,7 +27,30 @@ export const BESKRIVELSE_REGLER =
   "(\"Skøn med hvide sneakers og en oversized blazer\"). Til børnetøj må det gerne være legepladsen " +
   "eller fødselsdagen.\n" +
   "- Opfind aldrig egenskaber, billederne og Fakta ikke bærer — heller ikke om pasformen.\n" +
-  "- Del teksten i 3-4 korte afsnit med en tom linje imellem; ét langt afsnit læses ikke på en telefon.";
+  "- Del teksten i 3-4 korte afsnit med en tom linje imellem; ét langt afsnit læses ikke på en telefon.\n" +
+  "- Titlen skrives aldrig udelukkende med store bogstaver — almindelig skrift, stort begyndelsesbogstav " +
+  "og mærket stavet som mærket selv gør (\"Name It vinterjakke str. 110\", ikke \"NAME IT VINTERJAKKE STR. 110\").";
+
+// En titel kun af versaler raabes. Reglen staar i prompten, men en model,
+// der har set et maerke skrevet med versaler, gentager det gerne - saa
+// titlen rettes ogsaa her, efter modellen. Kun naar der INTET lille bogstav
+// er: et maerke som "ONLY" foran almindelige ord er ikke en raabende titel.
+// Stoerrelser (XS, XL, 2XL) og ord med tal eller & (H&M) bliver staaende.
+export function ingenVersaler(titel: string, maerke?: unknown): string {
+  const t = String(titel ?? "");
+  if (!/\p{Lu}/u.test(t) || /\p{Ll}/u.test(t)) return t;
+  const behold = (o: string) => /[\d&]/.test(o) || /^(X{0,3}S|M|X{0,3}L)$/.test(o);
+  let ud = t.split(/(\s+)/).map((o) => behold(o) ? o : o.toLocaleLowerCase("da-DK")).join("");
+  const m = String(maerke ?? "").trim();
+  if (m.length >= 2) {
+    const stavet = /\p{Ll}/u.test(m)
+      ? m
+      : m.split(/(\s+)/).map((o) => behold(o) ? o : o.charAt(0) + o.slice(1).toLocaleLowerCase("da-DK")).join("");
+    const esc = m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    ud = ud.replace(new RegExp(esc, "iu"), stavet);
+  }
+  return ud.replace(/\p{L}/u, (c) => c.toLocaleUpperCase("da-DK"));
+}
 
 // Det, der er slaaet op om varen, gemt i drafts.fakta. Det skal overleve, at
 // beskrivelsen skrives om tre gange mere: lever nyprisen kun i teksten, kan

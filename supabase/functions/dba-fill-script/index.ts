@@ -7,7 +7,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
-import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
+import { BESKRIVELSE_REGLER, faktaTekst, ingenVersaler } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
@@ -282,7 +282,7 @@ async function analyseMarket(
 
   return {
     price: price || null,
-    title: clean(out.title).slice(0, 70),
+    title: ingenVersaler(clean(out.title), draft.brand).slice(0, 70),
     description: clean(out.description),
     captions,
     note,
