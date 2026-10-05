@@ -2685,6 +2685,115 @@
       });
   }
 
+  /* ---- Hvad skal jeg koebe igen? ---------------------------------------
+     Kun dine egne salg, ikke Vinted som helhed. Serveren (mode:'indkob')
+     regner tallene pr. kategori og pr. produkt - maerke + varetype - for de
+     UBRUGTE varer; modellen skriver kun den korte anbefaling ud fra dem. */
+
+  var IND_DOM = {
+    let:     { t:'Sælger let',      k:'ind-let' },
+    saelger: { t:'Sælger',          k:'ind-ok' },
+    lovende: { t:'Lovende',         k:'ind-ok' },
+    tidligt: { t:'For tidligt',     k:'ind-tidligt' },
+    traeg:   { t:'Træg',            k:'ind-traeg' }
+  };
+
+  function hentIndkob(){
+    var krop = $('indkob-body');
+    visSkelet(krop, 4);
+    fetch(FILL_API, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode:'indkob' })
+    }).then(function(r){ return r.json(); }).then(function(r){
+      if(!r || r.error) throw new Error((r && r.error) || 'ukendt fejl');
+      tegnIndkob(r);
+    }).catch(function(e){
+      visFejl(krop, 'Analysen kunne ikke hentes', e.message || 'Kunne ikke nå serveren', hentIndkob);
+    });
+  }
+
+  // Tallene bag en dom, paa én linje. Kun det, der findes, kommer med.
+  function indTal(g){
+    var d = [];
+    d.push(g.solgt + ' solgt af ' + g.vurderbare + ' bedømte' + (g.varer > g.vurderbare ? ' (' + g.varer + ' i alt)' : ''));
+    if(g.medianDageTilSalg != null) d.push(String(g.medianDageTilSalg).replace('.', ',') + (g.medianDageTilSalg === 1 ? ' dag' : ' dage') + ' til salg');
+    if(g.medianSalgspris != null) d.push(Math.round(g.medianSalgspris) + ' kr');
+    if(g.medianAfNypris != null) d.push(Math.round(g.medianAfNypris) + ' % af nypris');
+    if(g.hjerterPrDag) d.push(String(g.hjerterPrDag).replace('.', ',') + ' ♥/dag');
+    return d.join(' · ');
+  }
+
+  function indDomChip(g){
+    var dm = IND_DOM[g.dom] || IND_DOM.tidligt;
+    return '<span class="ind-dom ' + dm.k + '">' + esc(dm.t) + '</span>';
+  }
+
+  function tegnIndkob(r){
+    var krop = $('indkob-body');
+    krop.className = 'body';
+    krop.removeAttribute('aria-hidden');
+    var hel = r.helhed, h = '';
+
+    if(!hel.varer){
+      krop.innerHTML = '<div class="empty"><h3>Ingen ubrugte varer at lære af endnu</h3>' +
+        '<p>Når du har lagt nye varer op på Vinted — med eller uden prismærke — og nogle af dem er solgt, ' +
+        'står det her, hvilke kategorier og produkter der går let.</p></div>';
+      return;
+    }
+
+    h += '<p class="note">Bygger kun på dine egne annoncer på Vinted. En vare kan bedømmes, når den er solgt ' +
+         'eller har været ude i ' + r.regler.stilleDage + ' dage; solgt inden for ' + r.regler.hurtigDage +
+         ' dage tæller som let.</p>';
+
+    h += '<div class="sect"><span class="label">Ubrugte varer i alt</span>' +
+         '<div class="ind-row"><div class="ind-top"><b>' + hel.varer + ' varer</b>' + indDomChip(hel) + '</div>' +
+         '<div class="s">' + esc(indTal(hel)) + '</div>' +
+         (r.sammenligning.varer ? '<div class="s">Brugte til sammenligning: ' + esc(indTal(r.sammenligning)) + '</div>' : '') +
+         '<div class="s">' + esc(hel.sikkerhed) + '</div></div></div>';
+
+    var a = r.anbefaling;
+    if(a && (a.overblik || a.koebIgen.length || a.ladVaere.length)){
+      h += '<div class="sect"><span class="label">Anbefaling</span>';
+      if(a.overblik) h += '<p class="ind-overblik">' + esc(a.overblik) + '</p>';
+      if(a.koebIgen.length) h += '<div class="ind-anb"><b>Køb igen</b>' + a.koebIgen.map(function(x){
+        return '<p><span class="ind-navn">' + esc(x.navn) + '</span> — ' + esc(x.hvorfor) + '</p>';
+      }).join('') + '</div>';
+      if(a.ladVaere.length) h += '<div class="ind-anb"><b>Lad være</b>' + a.ladVaere.map(function(x){
+        return '<p><span class="ind-navn">' + esc(x.navn) + '</span> — ' + esc(x.hvorfor) + '</p>';
+      }).join('') + '</div>';
+      h += '</div>';
+    } else if(!hel.vurderbare){
+      h += '<p class="note">Ingen af de ubrugte varer kan bedømmes endnu, så der er ingen anbefaling. ' +
+           'Tallene nedenfor viser, hvor de står lige nu.</p>';
+    }
+
+    h += '<div class="sect"><span class="label">Kategorier</span>' + r.kategorier.map(function(g){
+      return '<div class="ind-row"><div class="ind-top"><b>' + esc(g.navn) + '</b>' + indDomChip(g) + '</div>' +
+        '<div class="s">' + esc(indTal(g)) + '</div>' +
+        '<div class="s">' + esc(g.sikkerhed) + ' · nr. ' + esc(g.nr.join(', ')) + '</div></div>';
+    }).join('') + '</div>';
+
+    h += '<div class="sect"><span class="label">Produkter</span>' + r.produkter.map(function(g){
+      return '<details class="ind-row"><summary><div class="ind-top"><b>' + esc(g.navn) + '</b>' + indDomChip(g) + '</div>' +
+        '<div class="s">' + esc(indTal(g)) + '</div></summary>' +
+        g.enkelte.map(function(v){
+          var ekstra = [];
+          ekstra.push(v.hjerter + ' ♥');
+          if(v.nypris) ekstra.push('nypris ' + v.nypris + ' kr' + (v.andelAfNypris != null ? ' (' + v.andelAfNypris + ' %)' : ''));
+          if(v.nedsaettelser) ekstra.push(v.nedsaettelser + (v.nedsaettelser === 1 ? ' nedsættelse' : ' nedsættelser'));
+          var tag = v.nr != null ? 'a class="ind-vare" href="#v' + esc(String(v.nr)) + '"' : 'div class="ind-vare"';
+          return '<' + tag + '>' +
+            '<span class="t">' + (v.nr != null ? 'Nr. ' + esc(String(v.nr)) + ' · ' : '') + esc(v.titel) + '</span>' +
+            '<span class="s">' + esc(v.udfald) + ' · ' + esc(ekstra.join(' · ')) + '</span>' +
+            '</' + (v.nr != null ? 'a' : 'div') + '>';
+        }).join('') + '</details>';
+    }).join('') + '</div>';
+
+    krop.innerHTML = h;
+  }
+
+  $('m-indkob').addEventListener('click', function(){ show('indkob'); hentIndkob(); });
+
   $('m-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
   $('fod-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
 

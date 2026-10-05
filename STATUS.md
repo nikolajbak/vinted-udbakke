@@ -18,6 +18,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **»Hvad skal jeg købe igen?« — bygget 5. oktober.** Reglerne står i
+   `CLAUDE.md` under samme overskrift. **Afprøvet:** `indkob.ts` under Node
+   på en kopi af basens rigtige annoncer (16, heraf 9 ubrugte, 3 bedømte) med
+   den rigtige model — anbefalingen nævner kun MEINING-regnjakken og
+   Teeshoppen-jakkerne og siger, at grundlaget er tyndt; skærmen i browseren
+   med det svar. **Ikke afprøvet:** den udrullede funktion og skærmen på
+   telefonen. Nr. 11 hedder »TeeShoppen regnjakke« men har mærket MEINING i
+   udkastet — ret det, så produktet lander rigtigt.
+
 0. **Lageret — bygget 3. oktober (UX-gennemgangen, punkt 1-9).** Forsiden er
    nu lageret (Klar · Ude · Solgt) med opgaver øverst; varens side har en
    række pr. markedsplads; »Virker det?« i Mere; salgspush siger »slet den på

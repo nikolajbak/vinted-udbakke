@@ -651,6 +651,27 @@
   .laer-omr{ font-size: var(--t-small); font-weight: 600; color: var(--ink-soft); }
   .laer-til{ font-size: var(--t-small); color: var(--ink-soft); display: flex; align-items: center; gap: var(--s1); }
 
+  /* Koeb igen: dommen er en lille tekstmarkering, ikke en farvet knap. */
+  .ind-row{ display: block; padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+  .ind-row > summary{ list-style: none; cursor: pointer; }
+  .ind-row > summary::-webkit-details-marker{ display: none; }
+  .ind-row .s{ font-size: var(--t-small); color: var(--ink-soft); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .ind-top{ display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+  .ind-top b{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ind-dom{ flex: 0 0 auto; font-size: var(--t-small); font-weight: 600; }
+  .ind-let{ color: var(--moss); }
+  .ind-ok{ color: var(--ink); }
+  .ind-tidligt{ color: var(--ink-soft); font-weight: 400; }
+  .ind-traeg{ color: var(--danger-tekst); }
+  .ind-overblik{ margin: 0; line-height: 1.55; }
+  .ind-anb{ margin-top: var(--s3); }
+  .ind-anb p{ margin: var(--s1) 0 0; font-size: var(--t-small); line-height: 1.5; }
+  .ind-navn{ font-weight: 600; }
+  .ind-vare{ display: block; padding: var(--s2) 0 0 var(--s3); color: inherit; text-decoration: none; }
+  .ind-vare .t, .ind-vare .s{ display: block; font-size: var(--t-small); }
+  .ind-vare .t{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ind-vare .s{ color: var(--ink-soft); }
+
   .toast{
     position: fixed; left: var(--s4); right: var(--s4);
     max-width: var(--maal); margin-inline: auto;

@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=8ab674d9">
+<link rel="stylesheet" href="style.css?v=64c0b54a">
 </head>
 <body>
 
@@ -153,6 +153,10 @@
         <span class="tal" id="vagt-tal" hidden></span>
         <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
       </button>
+      <button type="button" class="menu-item" id="m-indkob">
+        <span>Hvad skal jeg købe igen?<small>De ubrugte varer, dine salg viser er lette at sælge</small></span>
+        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+      </button>
       <div class="sect setup">
         <span class="label">Notifikationer</span>
         <p class="note" id="notif-note">Få besked på telefonen, når et udkast er klar til at blive lagt op. Virker kun i appen på hjemmeskærmen — ikke i et browser-faneblad.</p>
@@ -273,6 +277,16 @@
     <div class="footer" id="vagt-footer" hidden></div>
   </section>
 
+  <section class="screen" id="s-indkob" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>Køb igen</h2>
+    </header>
+    <div class="body" id="indkob-body"></div>
+  </section>
+
   <div id="crop" hidden>
     <p>Træk i hjørnerne. Billedet gemmes i den udsnitsstørrelse, du vælger.</p>
     <div id="crop-stage">
@@ -299,6 +313,6 @@
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=c41a30fe"></script>
+<script src="app.js?v=896214ba"></script>
 </body>
 </html>

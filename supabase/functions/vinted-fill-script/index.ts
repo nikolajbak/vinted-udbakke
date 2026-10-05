@@ -20,6 +20,7 @@ import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, slaaOp } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { laer } from "./laering.ts";
+import { indkob } from "./indkob.ts";
 import { erNy, erNyAnnonce, helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1268,6 +1269,16 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "laer") {
       try {
         return json(await laer(supabase, ANTHROPIC_API_KEY));
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
+    }
+
+    // Indkoebet: hvilke ubrugte varer dine egne salg siger, det er let at
+    // saelge igen - pr. kategori og pr. produkt. Kun laesning; intet gemmes.
+    if (body.mode === "indkob") {
+      try {
+        return json(await indkob(supabase, ANTHROPIC_API_KEY));
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
       }

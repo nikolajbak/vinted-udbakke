@@ -105,6 +105,7 @@ midlertidig funktion og slet den bagefter.
 | Erfaringerne lagt ind i prompterne (`hentErfaringer`) | `supabase/functions/_shared/laering.ts` |
 | Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
+| »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 
 ## Databasen
 
@@ -216,6 +217,38 @@ næste annonce. Sådan hænger det sammen:
   erstatter kun dem, der er slået til.
 - **Pris-erfaringer er relative** (»10 % under medianen«) og må aldrig lægge en
   pris over medianen — Vinted skjuler solgte varer.
+
+## Hvad skal jeg købe igen?
+
+Bestemt af dig 5. oktober: en analyse af, hvilke **ubrugte** varer (stand
+»Ny …« eller `fakta.ny`) der er lette at sælge igen — som indkøbsliste. Den
+ligger i Mere og regnes af `indkob.ts` (`mode:'indkob'`), hver gang skærmen
+åbnes. Intet gemmes.
+
+- **Kun dine egne salg**, ikke Vinted som helhed. Grundlaget er `listings`
+  (Vinted) med udkastets mærke, varetype og nypris. Annoncer `afsluttet`
+  (taget ned uden salg) tæller ikke.
+- **To niveauer**: kategori = `drafts.category` (varetypen), produkt =
+  mærke + varetype (»Teeshoppen · Jakker«, mærket uden hensyn til store og
+  små bogstaver), med de enkelte varer under hvert produkt. Brugte varer
+  vises kun som sammenligning.
+- **En vare bedømmes, når den er solgt eller har været ude i 14 dage** — som
+  i gennemgangen af salgene. Dommene: **sælger let** (solgt, median højst 7
+  dage til salg, mindst halvdelen af de bedømte solgt), **sælger**,
+  **lovende** (intet solgt, men ≥ 0,5 hjerter/dag), **træg** (bedømt, intet
+  solgt), **for tidligt** (intet bedømt). Hver gruppe siger, hvor mange varer
+  den bygger på; én vare er »et fingerpeg, ikke et mønster«.
+- **Tallene er kode; modellen skriver kun anbefalingen.** Serveren smider
+  ethvert navn væk, der ikke står i tabellen, og tillader kun »Køb igen« for
+  sælger let/sælger/lovende og »Lad være« for træg — på første prøve lagde
+  modellen fire dage gamle varer under »lad være«. Uden en eneste bedømt ny
+  vare kaldes modellen slet ikke.
+- **Indkøbsprisen kendes ikke**, så der regnes ikke på fortjeneste —
+  kun salgspris og % af nyprisen, når nyprisen er fundet.
+- Vinteds søgning (til en eventuel markedsanalyse senere) filtrerer kun med
+  `attribute_ids[catalog]=…&attribute_ids[status]=6`; `catalog_ids`/
+  `status_ids` ignoreres stille (målt 5. oktober). Annoncens status kan ikke
+  læses billigt: `/api/v2/items/{id}` og `/details` svarer 404/403.
 
 ## Billedernes farver
 
