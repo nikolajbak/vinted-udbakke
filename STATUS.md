@@ -12,7 +12,8 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 - **Reshopper** — afskrift. Kun overskrift og beskrivelse på klippebordet,
   resten læses og tastes.
 - **Billedbehandlingen** — rotation efter varen (ikke tyngdekraften), hele varer
-  isoleres, kantfyldning i baggrundens farve, ét format pr. serie.
+  isoleres ved rodet baggrund eller højst 15 % spild (aldrig nærbilleder),
+  kantfyldning i baggrundens farve, ét format pr. serie.
 - **Appen** — tre markedspladser på én linje, `posted_to` pr. plads, prikker på
   køkortet.
 
