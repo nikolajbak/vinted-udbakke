@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0050 — 2026-10-08 16:55
+
+Commit `b24666b` — Prisfeltet faar fokus, foer prisen skrives: Vinteds valutafelt gav en tom pris paa redigeringssiden  
+App: `app.js?v=238554cd` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v68 | `4055dd2c` |
+| dba-fill-script | v19 | `87bae55d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v11 | `a31c8881` |
+| vinted-fill-script ← | v70 | `0b8241b8` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0049 — 2026-10-08 16:35
 
 Commit `04aab96` — Brugerscriptet kører på hele vinted.dk, så annoncen meldes efter Upload  
