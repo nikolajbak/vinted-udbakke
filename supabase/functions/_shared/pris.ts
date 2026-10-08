@@ -35,12 +35,18 @@ export function helKroner(v: unknown): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-// Prisen som den staar i udkastet: "89 kr". En tom eller ulaeselig pris faar
+// En pris skrives som hele kroner med komma og to nuller: "89,00 kr" (bestemt
+// af dig 8. oktober). Samme form som kr() i app.js.
+export function kr(n: unknown): string {
+  return `${Math.round(Number(n))},00 kr`;
+}
+
+// Prisen som den staar i udkastet: "89,00 kr". En tom eller ulaeselig pris faar
 // lov at staa, som den er: den skal falde i oejnene, ikke erstattes af et
 // opfundet tal.
 export function prisTekst(v: unknown): string {
   const n = helKroner(v);
-  return n > 0 ? `${n} kr` : String(v ?? "");
+  return n > 0 ? kr(n) : String(v ?? "");
 }
 
 // En NY vare prissaettes mod sin nypris, ikke kun mod feltet. Bestemt af dig
@@ -86,10 +92,10 @@ export function nyprisRamme(fakta: unknown, condition?: unknown): { gulv: number
 export function iNyprisRamme(pris: number, ramme: ReturnType<typeof nyprisRamme>): { pris: number; note: string } {
   if (!ramme || !(pris > 0)) return { pris, note: "" };
   if (pris < ramme.gulv) {
-    return { pris: ramme.gulv, note: `løftet til ${ramme.gulv} kr — en ny vare sættes ikke under ${Math.round(ramme.gulv / ramme.nypris * 100)} % af nyprisen på ${ramme.nypris} kr` };
+    return { pris: ramme.gulv, note: `løftet til ${kr(ramme.gulv)} — en ny vare sættes ikke under ${Math.round(ramme.gulv / ramme.nypris * 100)} % af nyprisen på ${kr(ramme.nypris)}` };
   }
   if (pris > ramme.loft) {
-    return { pris: ramme.loft, note: `sat ned til ${ramme.loft} kr — højst ${NY_LOFT * 100} % af nyprisen på ${ramme.nypris} kr` };
+    return { pris: ramme.loft, note: `sat ned til ${kr(ramme.loft)} — højst ${NY_LOFT * 100} % af nyprisen på ${kr(ramme.nypris)}` };
   }
   return { pris, note: "" };
 }

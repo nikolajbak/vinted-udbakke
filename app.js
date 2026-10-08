@@ -195,7 +195,13 @@
 
   function kortPris(v){
     var n = prisTal(v);
-    return isFinite(n) ? n + ' kr' : (v || '');
+    return isFinite(n) ? kr(n) : (v || '');
+  }
+
+  // En pris skrives som hele kroner med komma og to nuller: "89,00 kr".
+  // Samme form som kr() i _shared/pris.ts.
+  function kr(n){
+    return Math.round(Number(n)) + ',00 kr';
   }
 
   function koeStatus(d){
@@ -391,14 +397,14 @@
     if(f === 'ude'){
       var dele = [];
       if(l){
-        if(isFinite(n)) dele.push('<span class="kort-pris">' + esc(n + ' kr') + '</span>');
+        if(isFinite(n)) dele.push('<span class="kort-pris">' + esc(kr(n)) + '</span>');
         dele.push('<span class="kort-hjerter">♥ ' + esc(String(l.favourites || 0)) + '</span>');
         var dg = dageUde(l);
         if(dg !== null) dele.push(esc(dg + (dg === 1 ? ' dag' : ' dage')));
         if(venterFelter(l).length) dele.push('<span class="kort-vent">rettelse venter</span>');
         return dele.join(' · ') + markedsMaerker(d);
       }
-      return (isFinite(n) ? '<span class="kort-pris">' + esc(n + ' kr') + '</span> · ' : '') +
+      return (isFinite(n) ? '<span class="kort-pris">' + esc(kr(n)) + '</span> · ' : '') +
         'ikke bekræftet' + markedsMaerker(d);
     }
     // solgt
@@ -406,7 +412,7 @@
     if(!sl) return 'taget ned';
     var dg2 = dageUde(sl);
     return (sl.sold_price != null
-        ? '<span class="kort-pris">solgt for ' + esc(sl.sold_price + ' kr') + '</span>'
+        ? '<span class="kort-pris">solgt for ' + esc(kr(sl.sold_price)) + '</span>'
         : '<span class="kort-vent">solgt · tast salgsprisen</span>') +
       (dg2 !== null ? ' · lå ' + esc(dg2 + (dg2 === 1 ? ' dag' : ' dage')) : '');
   }
@@ -657,10 +663,10 @@
       var live = l && ((l.published && l.published.price) || l.price);
       var n = nuPris(d), udkast = prisTal(d.price);
       html += '<div class="price-row"><span class="price-big mono">' +
-        esc(isFinite(n) ? n + ' kr' : (d.price || '?')) + '</span>' +
+        esc(isFinite(n) ? kr(n) : (d.price || '?')) + '</span>' +
         (live ? '<span class="chip chip-ny">Vinted</span>' : '') +
         (!live && f === 'klar' && d.price_grounded === false ? '<span class="chip chip-vent">Foreløbig</span>' : '') +
-        (live && isFinite(udkast) && udkast !== n ? '<span class="pris-foer">udkast: ' + esc(udkast + ' kr') + '</span>' : '') +
+        (live && isFinite(udkast) && udkast !== n ? '<span class="pris-foer">udkast: ' + esc(kr(udkast)) + '</span>' : '') +
         '</div>';
       if(!live && f === 'klar' && d.price_grounded === false){
         html += '<div class="note">Prisen er et skøn. Den tjekkes mod rigtige annoncer, når du udfylder på Vinted.</div>';
@@ -779,7 +785,7 @@
     rk('Kategori', d.category);
     if(ny){
       var np = prisTal(fk.nypris);
-      rk('Nypris', isFinite(np) ? np + ' kr' : '', isFinite(np) ? (fk.nyprisKilde || '') : 'ikke fundet — prisen er ikke målt mod nyprisen', !isFinite(np));
+      rk('Nypris', isFinite(np) ? kr(np) : '', isFinite(np) ? (fk.nyprisKilde || '') : 'ikke fundet — prisen er ikke målt mod nyprisen', !isFinite(np));
     }
     if(fk.maal) rk('Mål', fk.maal, fk.maalKilde || '');
     if(!r) return '';
@@ -797,7 +803,7 @@
     if(l){
       var dg = dageUde(l);
       if(l.status === 'solgt'){
-        status = l.sold_price != null ? 'Solgt for ' + l.sold_price + ' kr' : 'Solgt';
+        status = l.sold_price != null ? 'Solgt for ' + kr(l.sold_price) : 'Solgt';
         if(l.sold_price == null){
           krop += '<div class="vagt-forslag"><b>Hvad gik den for?</b>' +
             '<span>Tast prisen, også hvis du tog imod et bud — det er den, appen lærer af.</span>' +
@@ -1000,8 +1006,8 @@
       // det, du skal kunne se uden at aabne Vinted.
       if(p.price){
         var udkast = prisTal(d && d.price);
-        raekker += udgivetRaekke('Pris', p.price + ' kr',
-          (isFinite(udkast) && udkast !== p.price) ? 'udkast: ' + udkast + ' kr' : '');
+        raekker += udgivetRaekke('Pris', kr(p.price),
+          (isFinite(udkast) && udkast !== p.price) ? 'udkast: ' + kr(udkast) : '');
       }
       var aendret = 0;
       UDGIVET_FELTER.forEach(function(f){
@@ -1026,7 +1032,7 @@
     if(x.url){
       h += '<button type="button" class="btn btn-secondary" data-aabn="' + esc(x.url) + '">' +
            'Åbn på ' + esc(navn) +
-           (x.status === 'solgt' ? ' · solgt' : (x.price ? ' · ' + x.price + ' kr' : '')) +
+           (x.status === 'solgt' ? ' · solgt' : (x.price ? ' · ' + kr(x.price) : '')) +
            '</button>';
     }
     return h + '</div>';
@@ -1129,7 +1135,7 @@
     else if(a === 'copy'){
       // Prisen er den, varen staar til nu — ikke den, udkastet engang sagde.
       var n = nuPris(d);
-      var text = [d.title, d.description, isFinite(n) ? 'Pris: ' + n + ' kr' : ''].filter(Boolean).join('\n\n');
+      var text = [d.title, d.description, isFinite(n) ? 'Pris: ' + kr(n) : ''].filter(Boolean).join('\n\n');
       if(navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ toast('Teksten er kopieret'); });
     }
     else if(a === 'save') savePhotos(d, btn);
@@ -1255,7 +1261,7 @@
       ['Alder', r.age],
       ['Køn', KOEN[r.gender] || ''],
       ['Stand', STAND[r.conditionType] || r.conditionType],
-      ['Pris', r.priceInKroner ? r.priceInKroner + ' kr' : '']
+      ['Pris', r.priceInKroner ? kr(r.priceInKroner) : '']
     ].filter(function(f){ return f[1]; });
 
     var tekst = [
@@ -2362,17 +2368,17 @@
   }
   function prisKaede(l){
     var e = (VAGT_EVENTS[l.id] || []).filter(function(x){ return x.kind === 'aendret'; });
-    if(!e.length) return l.start_price + ' kr';
+    if(!e.length) return kr(l.start_price);
     var k = [e[0].from_price];
     e.forEach(function(x){ k.push(x.price); });
-    return k.join(' → ') + ' kr';
+    return k.map(function(x){ return Math.round(Number(x)) + ',00'; }).join(' → ') + ' kr';
   }
 
   function vagtRaekke(l){
     var dage = dageSiden(l.listed_at);
     var h = '<div class="vagt-row" data-l="' + esc(l.id) + '">';
     h += '<div class="vagt-top"><span class="t">' + esc(l.title || 'Uden titel') + '</span>' +
-         '<span class="pris">' + esc(String(l.price)) + ' kr</span></div>';
+         '<span class="pris">' + esc(kr(l.price)) + '</span></div>';
     h += '<div class="s">' + esc(l.platform) + ' · ' + dage + (dage === 1 ? ' dag' : ' dage') +
          ' · ' + (l.favourites || 0) + ' hjerter · ' + esc(prisKaede(l)) + '</div>';
 
@@ -2380,7 +2386,7 @@
     if(venter.length){
       var prisVenter = l.pending && l.pending.price;
       h += '<div class="vagt-forslag"><b>' +
-           (prisVenter ? 'Ny pris: ' + esc(String(l.pending.price)) + ' kr'
+           (prisVenter ? 'Ny pris: ' + esc(kr(l.pending.price))
                        : 'Rettelser klar: ' + esc(venter.join(', '))) + '</b>' +
            (prisVenter && venter.length > 1
              ? '<span>Også: ' + esc(venter.filter(function(n){ return n !== 'pris'; }).join(', ')) + '</span>' : '') +
@@ -2481,7 +2487,7 @@
       h += '<details class="sect"><summary class="label">Solgt eller taget hjem (' + solgte.length + ')</summary>' +
         solgte.map(function(l){
           return '<div class="hist-row"><div><div class="t">' + esc(l.title || '') + '</div>' +
-            '<div class="s">' + (l.sold_price != null ? 'solgt for ' + esc(String(l.sold_price)) : esc(String(l.price))) + ' kr · lå ' +
+            '<div class="s">' + (l.sold_price != null ? 'solgt for ' + esc(kr(l.sold_price)) : esc(kr(l.price))) + ' · lå ' +
             (dageSiden(l.listed_at) - dageSiden(l.sold_at)) + ' dage · ' +
             esc(prisKaede(l)) + '</div></div></div>';
         }).join('') + '</details>';
@@ -2578,7 +2584,7 @@
       btn.disabled = false; btn.textContent = 'Skriv et svar';
       if(!r || r.error){ toast('Intet svar: ' + ((r && r.error) || 'ukendt fejl')); return; }
       var h = '';
-      if(r.counterPrice) h += '<b>Modbud: ' + esc(String(r.counterPrice)) + ' kr</b>';
+      if(r.counterPrice) h += '<b>Modbud: ' + esc(kr(r.counterPrice)) + '</b>';
       if(r.intent === 'accept') h += '<b>Tag imod buddet</b>';
       if(r.message) h += '<p class="vagt-svar-tekst">' + esc(r.message) + '</p>';
       if(r.note) h += '<span>' + esc(r.note) + '</span>';
@@ -2722,7 +2728,7 @@
     var d = [];
     d.push(g.solgt + ' solgt af ' + g.vurderbare + ' bedømte' + (g.varer > g.vurderbare ? ' (' + g.varer + ' i alt)' : ''));
     if(g.medianDageTilSalg != null) d.push(String(g.medianDageTilSalg).replace('.', ',') + (g.medianDageTilSalg === 1 ? ' dag' : ' dage') + ' til salg');
-    if(g.medianSalgspris != null) d.push(Math.round(g.medianSalgspris) + ' kr');
+    if(g.medianSalgspris != null) d.push(kr(g.medianSalgspris));
     if(g.medianAfNypris != null) d.push(Math.round(g.medianAfNypris) + ' % af nypris');
     if(g.hjerterPrDag) d.push(String(g.hjerterPrDag).replace('.', ',') + ' ♥/dag');
     return d.join(' · ');
@@ -2784,7 +2790,7 @@
         g.enkelte.map(function(v){
           var ekstra = [];
           ekstra.push(v.hjerter + ' ♥');
-          if(v.nypris) ekstra.push('nypris ' + v.nypris + ' kr' + (v.andelAfNypris != null ? ' (' + v.andelAfNypris + ' %)' : ''));
+          if(v.nypris) ekstra.push('nypris ' + kr(v.nypris) + (v.andelAfNypris != null ? ' (' + v.andelAfNypris + ' %)' : ''));
           if(v.nedsaettelser) ekstra.push(v.nedsaettelser + (v.nedsaettelser === 1 ? ' nedsættelse' : ' nedsættelser'));
           var tag = v.nr != null ? 'a class="ind-vare" href="#v' + esc(String(v.nr)) + '"' : 'div class="ind-vare"';
           return '<' + tag + '>' +

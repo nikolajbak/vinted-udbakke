@@ -10,7 +10,7 @@ export const BESKRIVELSE_REGLER =
   "\"skøn\", \"super lækker kvalitet\", \"perfekt til\". Stadig konkret om mærke, størrelse, " +
   "materiale og pasform — det positive skal hvile på noget, køberen kan se. Højst ét udråbstegn.\n" +
   "- Er varen ny, så sig det tydeligt i første linje: \"Helt ny med prismærke\" eller " +
-  "\"Helt ny og aldrig brugt\". Er nyprisen oplyst under Fakta, så skriv den med: \"Nypris 599 kr.\" " +
+  "\"Helt ny og aldrig brugt\". Er nyprisen oplyst under Fakta, så skriv den med: \"Nypris 599,00 kr.\" " +
   "Står den der ikke, så nævn ingen nypris — opfind aldrig et tal.\n" +
   "- Er der mål under Fakta, så skriv dem med, og sig hvor de kommer fra, hvis det er mærkets " +
   "størrelsesguide (\"Ifølge mærkets størrelsesguide passer den til brystvidde 88-92 cm\"). " +
@@ -23,6 +23,7 @@ export const BESKRIVELSE_REGLER =
   "Skriv ALDRIG \"uden synlige huller\", \"ingen synlige pletter\", \"umiddelbart\" eller \"så vidt " +
   "jeg kan se\": det lyder, som om der er fejl, man bare ikke kan se.\n" +
   "- Skriv aldrig noget om bytte.\n" +
+  "- En pris skrives altid som hele kroner med komma og to nuller: \"599,00 kr\", aldrig \"599 kr\" eller \"599,-\".\n" +
   "- Slut med ét kort stylingforslag: hvad varen er skøn sammen med, eller hvor den passer ind " +
   "(\"Skøn med hvide sneakers og en oversized blazer\"). Til børnetøj må det gerne være legepladsen " +
   "eller fødselsdagen.\n" +
@@ -74,7 +75,7 @@ export function faktaTekst(f: unknown): string {
   const k = (f && typeof f === "object" ? f : {}) as Fakta;
   const linjer = [
     k.ny && "Varen er ny.",
-    k.nypris && `Nypris: ${k.nypris} kr${k.nyprisKilde ? ` (${k.nyprisKilde})` : ""}`,
+    k.nypris && `Nypris: ${Math.round(Number(k.nypris))},00 kr${k.nyprisKilde ? ` (${k.nyprisKilde})` : ""}`,
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
     k.maerkeFarve && `Farve ifølge mærket: ${k.maerkeFarve}. Brug den farve (på dansk) i titel og tekst, også hvis billedet ser anderledes ud, og vælg den nærmeste i Vinteds farveliste.`,
     k.fejl && `Fejl set ved billedanalysen: ${k.fejl}`,

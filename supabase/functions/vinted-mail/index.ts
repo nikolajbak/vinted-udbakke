@@ -262,7 +262,7 @@ Deno.serve(async (req: Request) => {
     }
   } else if (kind === "bud") {
     await puf(titel ? "Bud på " + titel : "Nyt bud på Vinted",
-      bud ? bud + " kr" + (l ? " — du har sat den til " + Number(l.price) + " kr" : "") : (m.emne || "Se buddet på Vinted"),
+      bud ? Math.round(Number(bud)) + ",00 kr" + (l ? " — du har sat den til " + Math.round(Number(l.price)) + ",00 kr" : "") : (m.emne || "Se buddet på Vinted"),
       appUrl);
     handling = "bud meldt";
   } else if (kind === "besked") {

@@ -263,6 +263,14 @@ Nr. 19 var en armygrøn hørskjorte (»Color: Army«) og blev kaldt beige.
 
 Bestemt af dig 1. oktober. Teknikken står under »Målt, ikke gættet → Priser«.
 
+**En pris skrives som hele kroner med komma og to nuller: »89,00 kr«**
+(bestemt af dig 8. oktober). Det gælder alt, du læser: appen (`kr()` i
+`app.js`), udkastets gemte pris og noterne (`kr()`/`prisTekst` i
+`_shared/pris.ts`), push-beskederne og annonceteksten (reglen står i
+`BESKRIVELSE_REGLER`). Felter, der tastes i, og tallet, der skrives i Vinteds
+og DBA's prisfelt, er stadig rene heltal — `helKroner`/`prisTal` læser
+»89,00« som 89. Tal i prompterne til modellerne er ikke rettet.
+
 ### En ny vare
 
 Bestemt af dig 2. oktober: en ny vare prissættes som en **afvejning af

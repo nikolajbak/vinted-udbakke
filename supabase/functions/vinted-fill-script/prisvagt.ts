@@ -266,10 +266,10 @@ export async function beslutPris(
   // og modsige hinanden paa skaermen.
   let begrundelse = String(out.begrundelse ?? "").trim().slice(0, 400);
   if (handling === "saenk" && pris !== modelPris) {
-    begrundelse += ` Prisvagten sætter den til ${pris} kr denne gang — ${spaerret}. ` +
+    begrundelse += ` Prisvagten sætter den til ${pris},00 kr denne gang — ${spaerret}. ` +
       "Resten kan komme næste runde.";
   } else if (handling === "behold" && modelPris < nu) {
-    begrundelse += ` Prisen bliver stående på ${nu} kr: ${spaerret}.`;
+    begrundelse += ` Prisen bliver stående på ${nu},00 kr: ${spaerret}.`;
   }
 
   return {
