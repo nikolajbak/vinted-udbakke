@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0049 — 2026-10-08 16:35
+
+Commit `04aab96` — Brugerscriptet kører på hele vinted.dk, så annoncen meldes efter Upload  
+App: `app.js?v=238554cd` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v68 | `4055dd2c` |
+| dba-fill-script | v19 | `87bae55d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v11 | `a31c8881` |
+| vinted-fill-script ← | v69 | `f7058022` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0048 — 2026-10-08 16:26
 
 Commit `f396d9a` — Priser skrives som hele kroner med komma og to nuller (89,00 kr)  
