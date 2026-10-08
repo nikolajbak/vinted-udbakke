@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0056 — 2026-10-08 19:18
+
+Commit `3126fe1` — Runnerens spor gemmes i tabellen spor; prisens udfald spores  
+App: `app.js?v=99598778` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v70 | `4055dd2c` |
+| dba-fill-script | v22 | `e86e8c45` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v13 | `a31c8881` |
+| vinted-fill-script ← | v77 | `4c683497` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0055 — 2026-10-08 18:56
 
 Commit `0976c48` — Markedsrunden melder, naar Vinteds soegning fejler paa telefonen, og proever igen  
