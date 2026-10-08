@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0053 — 2026-10-08 18:00
+
+Commit `6be3e4d` — Fanen lukker sig selv, naar runneren er faerdig og intet venter (Udbakke luk)  
+App: `app.js?v=99598778` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v70 | `4055dd2c` |
+| dba-fill-script | v21 | `c449af3b` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v13 | `a31c8881` |
+| vinted-fill-script ← | v74 | `32ca2e29` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0052 — 2026-10-08 17:31
 
 Commit `c78f33e` — Tjek mod markedet: appens flag efter # - Vinted smider ?udbakke=vagt vaek ved omdirigeringen  
