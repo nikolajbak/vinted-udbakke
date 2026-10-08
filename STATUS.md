@@ -19,6 +19,13 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+000. **Fanen lukker sig selv — bygget 8. oktober (udgivelse 0053).** Regler i
+   CLAUDE.md under »Fanen lukker sig selv«. Kræver, at »Udbakke luk«
+   installeres én gang fra Mere. **Ikke afprøvet på telefonen:** at
+   `GM.closeTab` lukker fanen, og at `data-udbakke-luk` overlever Vinteds
+   hydrering. Se `spor` »luk: …« i loggen — »(uden Udbakke luk)« betyder, at
+   markøren ikke blev set.
+
 00. **Tilknytning efter Upload — rettet 8. oktober (udgivelse 0049).**
    Nr. 24 og 44 lå på Vinted uden at være tilknyttet; de er tilknyttet nu
    (efterløbet, kørt i hånden). Nr. 32 og 33 blev aldrig lagt op og står
