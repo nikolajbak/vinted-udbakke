@@ -19,6 +19,11 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0000. **Skærmen holdes tændt, mens runneren arbejder — bygget 8. oktober.**
+   Regler i CLAUDE.md under »Skærmen holdes tændt«. **Ikke afprøvet:** om
+   Safari på iOS giver Wake Lock uden et tryk i siden. Se `spor` »vaagen: …«
+   i loggen efter næste udfyldning.
+
 000. **Fanen lukker sig selv — bygget 8. oktober (udgivelse 0053).** Regler i
    CLAUDE.md under »Fanen lukker sig selv«. Kræver, at »Udbakke luk«
    installeres én gang fra Mere. **Ikke afprøvet på telefonen:** at

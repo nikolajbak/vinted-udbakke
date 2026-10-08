@@ -25,6 +25,36 @@ var DRAFT_ID=null;
 var LOG=window.__UDBAKKE_DBA_LOG__=[];
 function log(s){LOG.push(Math.round(performance.now()/100)/10+'s '+s)}
 
+// Skaermen maa ikke slukke, mens runneren arbejder. Slukker iOS skaermen, saetter
+// den fanen til at sove, og saa staar udfyldningen eller vagten efter Upload
+// stille. Holdes kun i et begraenset tidsrum (vaagen(min)) og slippes, naar
+// arbejdet er gjort. Laasen forsvinder, naar fanen skjules, og tages igen, naar
+// den vises. Vil Safari ikke give den uden et tryk, tages den ved det foerste.
+var LAAS=null,VAAGEN_TIL=0,VAAGEN_SIDST='',VAAGEN_UR=null;
+function vaagenMeld(s){if(s!==VAAGEN_SIDST){VAAGEN_SIDST=s;log('vaagen: '+s)}}
+function tagLaas(){
+ if(LAAS||document.hidden||Date.now()>=VAAGEN_TIL)return;
+ if(!navigator.wakeLock){vaagenMeld('findes ikke i denne browser');return}
+ navigator.wakeLock.request('screen').then(function(l){
+  if(Date.now()>=VAAGEN_TIL){l.release().catch(function(){});return}
+  LAAS=l;vaagenMeld('skaermen holdes taendt');
+  l.addEventListener('release',function(){if(LAAS===l)LAAS=null});
+ },function(e){
+  vaagenMeld('afvist ('+(e&&e.name)+'), venter paa et tryk');
+  document.addEventListener('touchend',tagLaas,{once:true,capture:true});
+ });
+}
+function vaagen(min){
+ VAAGEN_TIL=Math.max(VAAGEN_TIL,Date.now()+min*60000);
+ clearTimeout(VAAGEN_UR);VAAGEN_UR=setTimeout(slip,VAAGEN_TIL-Date.now());
+ tagLaas();
+}
+function slip(){
+ VAAGEN_TIL=0;clearTimeout(VAAGEN_UR);
+ if(LAAS){var l=LAAS;LAAS=null;l.release().catch(function(){})}
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)tagLaas()});
+
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function norm(s){return (s||'').replace(/\s+/g,' ').trim().toLowerCase()}
 
@@ -521,6 +551,7 @@ if(/\/create-item\//.test(location.pathname)){
   if(!AUTO)alert('VintedAuto: ingen klar udkast i køen. Tryk "Udfyld i DBA" i appen først.');
   return;
  }
+ vaagen(2);
  if(!await startNyAnnonce()&&!AUTO){
   alert('VintedAuto: kunne ikke vælge Markedspladsen. Tryk selv på den, så fortsætter automatikken.');
  }
@@ -553,6 +584,7 @@ try{
  var d=await(await timedFetch(API+(AUTO?'&auto=1':''),{},25000)).json();
  if(d.empty){if(!AUTO)alert('VintedAuto: ingen klar udkast i køen.');return}
  DRAFT_ID=d.id;
+ vaagen(10);
  var mangler=[];
 
  // Kategorien foerst. DBA's oevrige felter afhaenger af den — maerkefeltet
@@ -622,9 +654,10 @@ try{
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({id:DRAFT_ID,mode:'clear'})},15000)}catch(e){}}
 
+ slip();
  say('Udfyldt på DBA: '+d.title+'\n'+
   (mangler.length?'Sæt selv: '+mangler.join(', ')+'.':'Alle felter og billeder er sat.')+
   '\nTjek annoncen igennem og tryk Fortsaet — saa melder kontrollen, hvad DBA gemte.');
-}catch(e){say('VintedAuto-fejl: '+e.message)}
+}catch(e){slip();say('VintedAuto-fejl: '+e.message)}
 })();
 `;

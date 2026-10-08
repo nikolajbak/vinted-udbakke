@@ -389,6 +389,23 @@ intet på dig, lukkes den, når runneren er færdig.**
   via `shortcuts://` kan heller ikke gøre det. iPhone-skærmdublering findes
   ikke i EU. Byg det ikke uden at måle forfra på en ny iOS.
 
+## Skærmen holdes tændt
+
+Bestemt af dig 8. oktober: **telefonens skærm må ikke slukke, mens runneren
+arbejder.** Slukker skærmen, lægger iOS fanen til at sove, og arbejdet går i
+stå. `vaagen(min)`/`slip()` i begge runnere (Screen Wake Lock API).
+
+- Holdes kun med en tidsgrænse og slippes, når arbejdet er gjort:
+  udfyldning (10 min, sluppet ved »Udfyldt« — så er det dig, der trykker),
+  en fane åbnet fra appen (5 min, sluppet af `lukFanen`), formularen væk
+  efter Upload (3 min, sluppet ved tilknytningen), landet efter Upload uden
+  for `/items/` (2 min). DBA: valget af Markedspladsen (2 min) og
+  udfyldningen (10 min).
+- Låsen forsvinder, når fanen skjules, og tages igen, når den vises. Afviser
+  Safari den uden et tryk, tages den ved første tryk.
+- `spor` »vaagen: …« siger, om den blev holdt, afvist eller ikke findes.
+  **Ikke målt på telefonen endnu.**
+
 ## Kortene i listen
 
 Bestemt af dig 2. oktober, tredje linje rettet 3. oktober. Lageret bygger

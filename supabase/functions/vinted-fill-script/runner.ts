@@ -40,6 +40,36 @@ function spor(s,id){
   body:JSON.stringify({mode:'spor',id:id||null,tekst:location.pathname+' | '+s})}).catch(function(){})}catch(e){}
 }
 
+// Skaermen maa ikke slukke, mens runneren arbejder. Slukker iOS skaermen, saetter
+// den fanen til at sove, og saa staar udfyldningen eller vagten efter Upload
+// stille. Holdes kun i et begraenset tidsrum (vaagen(min)) og slippes, naar
+// arbejdet er gjort. Laasen forsvinder, naar fanen skjules, og tages igen, naar
+// den vises. Vil Safari ikke give den uden et tryk, tages den ved det foerste.
+var LAAS=null,VAAGEN_TIL=0,VAAGEN_SIDST='',VAAGEN_UR=null;
+function vaagenMeld(s){if(s!==VAAGEN_SIDST){VAAGEN_SIDST=s;spor('vaagen: '+s)}}
+function tagLaas(){
+ if(LAAS||document.hidden||Date.now()>=VAAGEN_TIL)return;
+ if(!navigator.wakeLock){vaagenMeld('findes ikke i denne browser');return}
+ navigator.wakeLock.request('screen').then(function(l){
+  if(Date.now()>=VAAGEN_TIL){l.release().catch(function(){});return}
+  LAAS=l;vaagenMeld('skaermen holdes taendt');
+  l.addEventListener('release',function(){if(LAAS===l)LAAS=null});
+ },function(e){
+  vaagenMeld('afvist ('+(e&&e.name)+'), venter paa et tryk');
+  document.addEventListener('touchend',tagLaas,{once:true,capture:true});
+ });
+}
+function vaagen(min){
+ VAAGEN_TIL=Math.max(VAAGEN_TIL,Date.now()+min*60000);
+ clearTimeout(VAAGEN_UR);VAAGEN_UR=setTimeout(slip,VAAGEN_TIL-Date.now());
+ tagLaas();
+}
+function slip(){
+ VAAGEN_TIL=0;clearTimeout(VAAGEN_UR);
+ if(LAAS){var l=LAAS;LAAS=null;l.release().catch(function(){})}
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)tagLaas()});
+
 // Hvert eneste ventetraek herunder er begraenset, saa udfyldningen kan ikke gaa
 // i staa. Et kaplaeb mod en tidsudloeser ville ikke standse det, den gav op
 // paa - to vaelgere ville saa arbejde oven i hinanden og lukke hinandens
@@ -553,6 +583,7 @@ function fraApp(){
 // installere det. Tilbage til appen kan en side ikke sende dig: iOS' »◀«
 // øverst til venstre gør det.
 function lukFanen(tekst){
+ slip();
  if(!fraApp()){baand(tekst,null,null);return}
  try{sessionStorage.removeItem(FRA_APP)}catch(e){}
  var kan=function(){return document.documentElement.hasAttribute('data-udbakke-luk')};
@@ -1251,14 +1282,15 @@ if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
 // Efterloebet koerer ved siden af, uanset siden - det maa ikke forsinke en
 // udfyldning eller et tilsyn.
 efterloeb();
-// Kom fanen fra appen? Noteres nu, mens flaget stadig staar i adressen.
-fraApp();
+// Kom fanen fra appen? Noteres nu, mens flaget stadig staar i adressen. Saa
+// er der arbejde, du venter paa, og skaermen holdes taendt imens.
+if(fraApp())vaagen(5);
 // Uden for /items/ er der kun det ovenfor at goere. Brugerscriptet koerer paa
 // hele vinted.dk, fordi Upload sender dig videre med en rigtig sideindlaesning
 // til en side uden for /items/ - og dér skal markoeren kunne melde annoncen.
 // Annoncen kan staa i garderoben et par sekunder efter, at siden er landet.
 if(!/^\/items\//.test(location.pathname)){
- if(hentAfventer())spor('landet efter upload',hentAfventer().id);
+ if(hentAfventer()){spor('landet efter upload',hentAfventer().id);vaagen(2)}
  for(var forsoeg=0;forsoeg<24&&hentAfventer();forsoeg++){
   await sleep(5000);
   if(await meldPostet()===true)break;
@@ -1292,6 +1324,8 @@ try{
  // så skal siden være helt i fred.
  if(d.empty){if(!AUTO)alert('VintedAuto: ingen klar udkast i køen.');return}
  DRAFT_ID=d.id;
+ // Markedsrunden kan vente op til 90 s paa en nypris; resten tager et minut.
+ vaagen(10);
  log('siden klar: '+(await waitReady()));
 
  // Markedsopslaget sker HERFRA, fra din egen session: Vinted blokerer
@@ -1388,13 +1422,13 @@ try{
   if(!hentAfventer()){clearInterval(vagtAdr);return}
   var sti=location.pathname,nu=Date.now();
   var nySti=sti!==sidstSti; sidstSti=sti;
-  if(q('#title'))vaekTid=0; else if(!vaekTid){vaekTid=nu;spor('formularen er vaek',DRAFT_ID)}
+  if(q('#title'))vaekTid=0; else if(!vaekTid){vaekTid=nu;spor('formularen er vaek',DRAFT_ID);vaagen(3)}
   var hvert=!vaekTid?60000:(nu-vaekTid<120000?3000:30000);
   if(!nySti&&nu-sidstKig<hvert)return;
   sidstKig=nu; travl=true;
   meldPostet().then(function(r){
    travl=false;
-   if(r===true)clearInterval(vagtAdr);
+   if(r===true){clearInterval(vagtAdr);slip()}
   },function(e){travl=false;log('postet: '+e.message)});
  },1000);
  setTimeout(function(){clearInterval(vagtAdr)},3600000);
@@ -1407,9 +1441,11 @@ try{
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({id:DRAFT_ID,mode:'clear'})},15000)}catch(e){}}
 
+ // Nu er det dig, der trykker; skaermen slukker ikke, mens du roerer ved den.
+ slip();
  say('Udfyldt: '+d.title+'\n'+note+'.\n'+
   (mangler.length?'Sæt selv: '+mangler.join(', ')+'.':'Alle felter og billeder er sat.')+
   '\nTjek annoncen igennem og tryk Upload.');
-}catch(e){say('VintedAuto-fejl: '+e.message)}
+}catch(e){slip();say('VintedAuto-fejl: '+e.message)}
 })();
 `;
