@@ -781,13 +781,18 @@
     rk('Størrelse', d.size);
     rk('Farve', d.color, fk.maerkeFarve ? 'fra mærket: ' + fk.maerkeFarve : (d.color ? 'skønnet ud fra billedet' : ''), !fk.maerkeFarve);
     rk('Stand', d.condition);
-    rk('Materiale', d.material);
+    rk('Materiale', d.material, fk.materialer ? 'vaskemærket: ' + fk.materialer : '');
     rk('Kategori', d.category);
+    if(fk.dele && fk.dele.length) rk('Dele', fk.dele.join(' + '));
     if(ny){
       var np = prisTal(fk.nypris);
       rk('Nypris', isFinite(np) ? kr(np) : '', isFinite(np) ? (fk.nyprisKilde || '') : 'ikke fundet — prisen er ikke målt mod nyprisen', !isFinite(np));
     }
     if(fk.maal) rk('Mål', fk.maal, fk.maalKilde || '');
+    // Vinteds felter »Længde« og »Skulderbredde«: plaggets egne mål i cm.
+    if(fk.laengde || fk.skulderbredde) rk('Til Vinteds mål',
+      [fk.laengde ? 'længde ' + fk.laengde + ' cm' : '', fk.skulderbredde ? 'skulderbredde ' + fk.skulderbredde + ' cm' : '']
+        .filter(Boolean).join(' · '), fk.plagMaalKilde || '');
     if(!r) return '';
     return '<details class="fakta"' + (f === 'klar' ? ' open' : '') + '><summary class="label">Det, der udfyldes</summary>' +
       '<div class="udgivet-liste">' + r + '</div></details>';
@@ -1854,6 +1859,12 @@
   // Den Vinted-annonce, rettelsen skal ud i — og det, der står i den lige nu.
   var REDIGERES_ANNONCE = null;
 
+  // Et mål i hele cm, eller null. Under 10 eller over 250 cm er en tastefejl.
+  function cmTal(v){
+    var n = Math.round(Number(String(v || '').replace(',', '.').replace(/[^0-9.]/g, '')));
+    return n >= 10 && n <= 250 ? n : null;
+  }
+
   // Hele kroner ud af en pristekst — NaN, naar der ingen pris er. At slette
   // alt andet end cifre gjorde "89,50 kr" til 8950. Staar komma og punktum
   // begge, er det sidste decimaltegnet; staar kun det ene foran praecis tre
@@ -1895,6 +1906,8 @@
     $('e-desc').value = d.description || '';
     $('e-price').value = String(prisTal(d.price) || '');
     VAELGERE.forEach(function(k){ $('e-' + k).value = d[k] || ''; });
+    $('e-laengde').value = (d.fakta || {}).laengde || '';
+    $('e-skulder').value = (d.fakta || {}).skulderbredde || '';
     // Vinteds vaelgere kan kun saettes, naar annoncen oprettes. Er varen
     // ude, rettes de paa Vinted — her ville det kun aendre udkastet.
     $('e-vaelgere').hidden = fase(d) !== 'klar';
@@ -1962,6 +1975,17 @@
         var v = $('e-' + k).value.trim();
         if(!ensLyd(v, d[k])) vaelg[k] = v || null;
       });
+      // Plaggets mål, du selv har målt, er de sikreste. De ligger i fakta,
+      // og Vinted-runneren skriver dem i »Længde« og »Skulderbredde«.
+      var fk = d.fakta || {};
+      var lg = cmTal($('e-laengde').value), sk = cmTal($('e-skulder').value);
+      if(lg !== (fk.laengde || null) || sk !== (fk.skulderbredde || null)){
+        var nyF = Object.assign({}, fk);
+        if(lg) nyF.laengde = lg; else delete nyF.laengde;
+        if(sk) nyF.skulderbredde = sk; else delete nyF.skulderbredde;
+        if(lg || sk) nyF.plagMaalKilde = 'målt af dig'; else delete nyF.plagMaalKilde;
+        vaelg.fakta = nyF;
+      }
     }
     var udkastAendret = !ensLyd(nyTitel, d.title) || !ensLyd(nyTekst, d.description) ||
       (isFinite(nyPrisTal) && nyPrisTal > 0 && nyPrisTal !== prisTal(d.price)) ||

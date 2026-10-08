@@ -7,7 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp } from "../_shared/beskrivelse.ts";
-import { hentErfaringer } from "../_shared/laering.ts";
+import { hentErfaringer, hentRettelser } from "../_shared/laering.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme, prisTekst } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -54,9 +54,13 @@ function toBase64(buf: ArrayBuffer): string {
 // Haiku midt i fem billeder laeste "TEF35" og "Atrm" to gange ud af tre, og
 // kaldte en armygroen skjorte sandfarvet, selv naar den havde laest "Army".
 // Sonnet paa maerkebillederne alene: rigtigt tre ud af tre, ~3 s (2. oktober).
+// Fra 8. oktober ser kaldet ALLE billederne, ogsaa vaskemaerket: billeder fra
+// Fotos fordeles paa trinene i raekkefoelge, saa et trin siger intet om, hvad
+// billedet viser. Paa nr. 47 laa leggings under »Mærket«, og H&M-maerkatet
+// under »Detalje« - kaldet fik kun leggingsbilledet at se.
 const MAERKE_TOOL = {
   name: "maerker",
-  description: "Det, der står på hængemærke, prismærke og nakkemærke.",
+  description: "Det, der står på hængemærke, prismærke, nakkemærke og vaskemærke.",
   input_schema: {
     type: "object",
     properties: {
@@ -69,22 +73,44 @@ const MAERKE_TOOL = {
       tagColor: { type: ["string", "null"], description: "Farvenavnet præcis som det står, fx \"Army\". null hvis der ikke står et." },
       farveDansk: { type: ["string", "null"], description: "Samme farve på dansk, fx \"armygrøn\". null hvis der ikke står en farve." },
       priceTag: { type: ["integer", "null"], description: "En trykt pris i danske kroner. null hvis der ikke står en." },
+      materialer: {
+        type: ["string", "null"],
+        description:
+          "Materialesammensætningen på dansk, præcis som vaskemærket angiver den, fx \"95% bomuld, 5% elastan\" " +
+          "eller \"Yderstof: 100% polyester. For: 100% bomuld\". Står der flere dele (sæt), så skriv hvilken del. " +
+          "null hvis intet vaskemærke kan læses.",
+      },
+      stoerrelse: {
+        type: ["string", "null"],
+        description: "Størrelsen som den står på mærkatet, fx \"EUR 128\" eller \"M\". null hvis den ikke kan læses.",
+      },
+      egenskaber: {
+        type: ["string", "null"],
+        description:
+          "Andet, der står TYDELIGT på mærkerne og siger noget om varen: økologisk bomuld, GOTS, genanvendt, " +
+          "vandsøjle, dun/fjer-fordeling, Gore-Tex o.l. Kort, på dansk. Ikke vaskeanvisning, ikke produktionsland. null ellers.",
+      },
     },
-    required: ["tagText", "tagColor", "farveDansk", "priceTag"],
+    required: ["tagText", "tagColor", "farveDansk", "priceTag", "materialer", "stoerrelse", "egenskaber"],
   },
 };
 
 async function laesMaerker(urls: string[]): Promise<Record<string, unknown>> {
   if (!urls.length) return {};
   return await callClaudeJson(
-    "Du afskriver mærker på tøj. Skriv kun det, der faktisk står — tegn for tegn. Gæt aldrig et tegn, du ikke kan læse.",
+    "Du afskriver mærker på tøj. Skriv kun det, der faktisk står — tegn for tegn. Gæt aldrig et tegn, du ikke kan læse. " +
+      "Kun det, der står tydeligt og uomtvisteligt; et halvt læst ord er ikke læst.",
     [
       ...urls.map((url) => ({ type: "image", source: { type: "url", url } })),
-      { type: "text", text: "Afskriv hængemærke, prismærke og nakkemærke." },
+      {
+        type: "text",
+        text: "Find alle mærker på billederne — hængemærke, prismærke, nakkemærke, størrelses- og vaskemærke — " +
+          "og afskriv dem. Nogle billeder viser slet ikke et mærke; spring dem over.",
+      },
     ],
     STRATEGY_MODEL,
     MAERKE_TOOL,
-    500,
+    800,
   );
 }
 
@@ -133,7 +159,16 @@ const VISION_TOOL = {
           "\"flyverdragt\" eller \"softshelljakke\" frem for bare \"jakke\" — det er varetypen, der afgør, " +
           "hvilken kategori varen havner i på Vinted, og en forkert kategori koster salget. " +
           "Lad mærket og konstruktionen vejlede dig: forsvejsede sømme, gummieret eller blank belægning " +
-          "og et mærke, der laver regntøj, betyder regntøj.",
+          "og et mærke, der laver regntøj, betyder regntøj. Er det en lang trøje, der når ned over numsen, " +
+          "er det en sweatkjole/tunika. Viser billederne flere ting, så skriv dem alle, fx \"sweatkjole og leggings (sæt)\".",
+      },
+      dele: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "HVER ting, billederne viser, som en del af det, der sælges — én linje pr. del med type, farve, mønster/tryk " +
+          "og materiale, fx [\"mørkegrå sweatkjole med sort kat i plys\", \"leggings med leopardprint i camel og sort\"]. " +
+          "Kig på ALLE billederne: ligger der to ting ved siden af hinanden, er det to dele. Underlaget (lagen, gulv) er ikke en del.",
       },
       brand: { type: ["string", "null"] },
       color: {
@@ -141,9 +176,16 @@ const VISION_TOOL = {
         description:
           "Varens farve på dansk. Står der et farvenavn på hængemærke eller prismærke, er DET facit — " +
           "oversæt det (\"Army\" = armygrøn, \"Navy\" = marineblå, \"Sand\" = sandfarvet). Et foto kan " +
-          "snyde på lys og hvidbalance; en armygrøn hørskjorte blev kaldt beige.",
+          "snyde på lys og hvidbalance; en armygrøn hørskjorte blev kaldt beige. Uden mærke: døm farven på " +
+          "stoffet i jævnt lys, ikke i skygger eller refleks, og vær præcis (\"koksgrå\", \"camel\", \"støvet rosa\") — " +
+          "ikke \"mørk\". Har varen et mønster, så nævn bundfarven og mønstrets farve.",
       },
-      material: { type: ["string", "null"] },
+      material: {
+        type: ["string", "null"],
+        description:
+          "Materialet, som vaskemærket angiver det (\"95% bomuld, 5% elastan\"). Kan vaskemærket ikke læses, så " +
+          "skriv kun et materiale, der er helt tydeligt (denim, strik, læder) — ellers null. Gæt ikke mellem bomuld og polyester.",
+      },
       size: { type: ["string", "null"] },
       condition: { type: "string" },
       visibleFlaws: {
@@ -166,9 +208,64 @@ const VISION_TOOL = {
       category: { type: "string" },
       searchQuery: { type: "string", description: "Korte danske søgeord til at finde lignende varer på Vinted" },
     },
-    required: ["productType", "color", "condition", "visibleFlaws", "category", "searchQuery"],
+    required: ["productType", "dele", "color", "condition", "visibleFlaws", "category", "searchQuery"],
   },
 };
+
+// Vinteds farveliste har ingen nuancer. Analysen skriver »mørkegrå«, og
+// faldt skrive-kaldet tilbage paa den, stod nr. 47 med en farve, Vinteds
+// vaelger ikke kender. Saa lander farven altid paa listen - eller paa intet.
+function vintedFarve(v: unknown): string | null {
+  const t = String(v ?? "").trim().toLowerCase();
+  if (!t) return null;
+  const direkte = VINTED_COLORS.find((c) => c.toLowerCase() === t);
+  if (direkte) return direkte;
+  const regler: Array<[RegExp, string]> = [
+    [/flerfarve|multi|stribe|ternet|print|mønst/, "Flerfarvet"],
+    [/marine|navy|mørkeblå/, "Marineblå"],
+    [/lyseblå|isblå|babyblå|himmelblå/, "Lyseblå"],
+    [/turkis|petrol|aqua/, "Turkis"],
+    [/mint/, "Mintgrøn"],
+    [/army|oliven|khaki/, "Khaki"],
+    [/mørkegrøn|flaskegrøn|skovgrøn/, "Mørkegrøn"],
+    [/grøn/, "Grøn"],
+    [/bordeaux|bourgogne|vinrød/, "Bourgogne"],
+    [/koral/, "Koral"],
+    [/abrikos|fersken/, "Abrikos"],
+    [/sennep|okker/, "Sennepsgul"],
+    [/gul/, "Gul"],
+    [/orange/, "Orange"],
+    [/lyserød|pink/, "Lyserød"],
+    [/rosa|støvet rosa|gammelrosa/, "Rosa"],
+    [/lyslilla|lavendel/, "Lyslilla"],
+    [/lilla|violet|aubergine/, "Lilla"],
+    [/rød/, "Rød"],
+    [/creme|fløde|offwhite|off-white|ecru|elfenben/, "Flødefarvet"],
+    [/beige|sand|camel|nougat|taupe/, "Beige"],
+    [/brun|cognac|chokolade|kaffe/, "Brun"],
+    [/sølv/, "Sølv"],
+    [/guld/, "Guld"],
+    [/grå|koks|antracit|grafit|melange/, "Grå"],
+    [/sort/, "Sort"],
+    [/hvid/, "Hvid"],
+    [/blå|denim|kobolt/, "Blå"],
+  ];
+  for (const [re, c] of regler) if (re.test(t)) return c;
+  return null;
+}
+
+// Vinteds materialefelt tager ét ord. Vaskemaerkets »95% bomuld, 5% elastan«
+// bliver til det, der er mest af: »Bomuld«.
+function hovedMateriale(v: unknown): string | null {
+  const t = cleanText(v);
+  if (!t) return null;
+  let bedst = "", maks = -1;
+  for (const m of t.matchAll(/(\d{1,3})\s*%\s*([\p{L}-]+)/gu)) {
+    if (Number(m[1]) > maks) { maks = Number(m[1]); bedst = m[2]; }
+  }
+  const ord = bedst || (t.match(/^[\p{L}-]+/u)?.[0] ?? "");
+  return ord ? ord.charAt(0).toLocaleUpperCase("da-DK") + ord.slice(1).toLocaleLowerCase("da-DK") : null;
+}
 
 // En instruktion om at give luft er ikke det samme som luft. Modellen ser
 // derfor sit eget resultat: er motivet klemt op ad kanten, eller er der skaaret
@@ -663,7 +760,9 @@ Deno.serve(async (req: Request) => {
     for (const l of loaded.slice(0, 5)) {
       // Naming the shot lets the model read a blurry label photo for what it
       // is instead of guessing at a mystery close-up.
-      imageBlocks.push({ type: "text", text: `Billede (${l.photo.kind || "ukendt vinkel"}):` });
+      // Trinnet er kun en hensigt: billeder fra Fotos fordeles paa trinene i
+      // raekkefoelge (nr. 47: leggings under »Mærket«).
+      imageBlocks.push({ type: "text", text: `Billede ${imageBlocks.length / 2 + 1} (taget som »${l.photo.kind || "ukendt"}« — se selv efter, hvad det viser):` });
       imageBlocks.push({
         type: "image",
         // URL frem for base64: billedet ligger i forvejen offentligt, og at
@@ -675,23 +774,29 @@ Deno.serve(async (req: Request) => {
 
     // Maerkerne side om side med billedanalysen. Fejler det, gaar analysen
     // videre uden.
-    const maerkerP = laesMaerker(
-      loaded.map((l) => l.photo).filter((ph) => /maerke/i.test(String(ph.kind || ""))).slice(0, 3)
-        .map((ph) => String(ph.url)),
-    ).catch((err) => { console.error("maerkerne kunne ikke laeses", err); return {} as Record<string, unknown>; });
+    const maerkerP = laesMaerker(loaded.slice(0, 6).map((l) => String(l.photo.url))).catch((err) => { console.error("maerkerne kunne ikke laeses", err); return {} as Record<string, unknown>; });
+
+    // Det, analysen tidligere har taget fejl af (dine rettelser, Vinteds afvisninger).
+    const rettelser = await hentRettelser();
 
     // 1. Vision: identify the product from the photo, as an expert seller would size it up.
+    // Den store model fra 8. oktober: Haiku beskrev kun trøjen paa nr. 47, hvor
+    // billedet viste en sweatkjole OG et par leggings, og kaldte farven »mørkegrå«.
     const vision = await callClaudeJson(
-      SELLER_PERSONA + " Du kigger på ALLE fotos af den samme vare, kunden vil sælge, og vurderer den, som du ville gøre " +
-        "før du selv lagde den til salg. Mærke- og størrelsesmærkat-billederne er dine primære kilder til mærke, " +
-        "størrelse og materiale — læs dem, i stedet for at gætte ud fra formen. Er noget ikke læsbart, så lad feltet " +
-        "være tomt frem for at finde på det. condition skal være en af: ny med mærke, ny uden mærke, god, brugt, slidt.",
+      SELLER_PERSONA + " Du kigger på ALLE fotos af det, kunden vil sælge, og vurderer det, som du ville gøre " +
+        "før du selv lagde det til salg. Gennemgå hvert billede for sig, og registrér ALT, der sælges: viser billederne " +
+        "to eller flere ting (fx en kjole og et par bukser), er det et sæt, og hver del skal med. " +
+        "Mærke-, størrelses- og vaskemærkerne er dine primære kilder til mærke, størrelse og materiale — læs dem, i stedet " +
+        "for at gætte ud fra formen. Udled alt, der TYDELIGT og uomtvisteligt står på mærkerne. Er noget ikke læsbart, så " +
+        "lad feltet være tomt frem for at finde på det. condition skal være en af: ny med mærke, ny uden mærke, god, brugt, slidt." +
+        (rettelser ? "\n\n" + rettelser : ""),
       [
         ...imageBlocks,
-        { type: "text", text: "Analysér alle billederne af varen." },
+        { type: "text", text: "Analysér alle billederne. Hvad sælges — alle dele?" },
       ],
-      VISION_MODEL,
+      STRATEGY_MODEL,
       VISION_TOOL,
+      1600,
     );
     const searchQuery = String(vision.searchQuery || vision.productType || "genbrug");
 
@@ -714,6 +819,15 @@ Deno.serve(async (req: Request) => {
       vision.color = farveDansk || tagFarve;
     }
     if (vision.measurements) { fakta.maal = cleanText(vision.measurements); fakta.maalKilde = "mærkatet"; }
+    // Vaskemaerket er facit for materialet; et foto kan ikke se forskel paa
+    // bomuld og viskose.
+    const materialer = tom(lm.materialer);
+    if (materialer) { fakta.materialer = materialer.slice(0, 200); vision.material = materialer; }
+    const egenskaber = tom(lm.egenskaber);
+    if (egenskaber) fakta.egenskaber = egenskaber.slice(0, 200);
+    if (!tom(vision.size) && tom(lm.stoerrelse)) vision.size = tom(lm.stoerrelse);
+    const dele = (Array.isArray(vision.dele) ? vision.dele : []).map((x) => cleanText(x)).filter(Boolean);
+    if (dele.length > 1) fakta.dele = dele.slice(0, 6);
     const flaws = cleanText(vision.visibleFlaws);
     if (flaws && !/^(ingen|nej|-|none)\b/i.test(flaws)) fakta.fejl = flaws;
     // Opslaget tager ~20 s, saa det koerer side om side med markedssoegningen.
@@ -727,6 +841,13 @@ Deno.serve(async (req: Request) => {
     }).then((fundet) => {
       if (fundet.nypris) { fakta.nypris = fundet.nypris; fakta.nyprisKilde = fundet.nyprisKilde; }
       if (fundet.maal) { fakta.maal = fundet.maal; fakta.maalKilde = "mærkets størrelsesguide"; }
+      // Plaggets egne maal til Vinteds felter - kun naar varens produktside
+      // opgiver dem. Et saet har ingen samlet laengde.
+      if (!fakta.dele && (fundet.laengde || fundet.skulderbredde)) {
+        if (fundet.laengde) fakta.laengde = fundet.laengde;
+        if (fundet.skulderbredde) fakta.skulderbredde = fundet.skulderbredde;
+        fakta.plagMaalKilde = "mærkets produktside";
+      }
     }).catch((err) => console.error("opslag af nypris/maal sprunget over", err));
 
     // 2. Try to ground pricing here, but don't lean on it: Vinted blocks
@@ -757,6 +878,10 @@ Deno.serve(async (req: Request) => {
         "Titel: mærke/type/størrelse først, det er det folk søger på — ikke sælger-sprog. " +
         "Beskrivelse: 4-7 linjer om mærke, størrelse, materiale og stand.\n" + BESKRIVELSE_REGLER + "\n" +
         (erfaringer ? erfaringer + "\n" : "") +
+        (rettelser ? rettelser + "\n" : "") +
+        "Sælges flere dele samlet (se Fakta), så nævn dem alle i titlen (\"H&M sweatkjole og leggings str. 128\"), " +
+        "og vælg en kategori for sæt, hvis Vinted har en — ellers hoveddelens. color er den farve, der fylder mest; " +
+        "material er det, vaskemærket angiver mest af, med Vinteds ord.\n" +
         "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
         NYPRIS_REGEL + " " +
         "Udfyld desuden Vinteds egne felter — categoryPath, brand, size, sizeScale, color, condition — med Vinteds " +
@@ -799,8 +924,8 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
         brand: cleanText(draft.brand || vision.brand) || null,
         size: cleanText(draft.size || vision.size) || null,
         size_scale: cleanText(draft.sizeScale) || null,
-        color: cleanText(draft.color || vision.color) || null,
-        material: cleanText(draft.material || vision.material) || null,
+        color: vintedFarve(draft.color) || vintedFarve(vision.color),
+        material: cleanText(draft.material) || hovedMateriale(vision.material),
         category_path: Array.isArray(draft.categoryPath) && draft.categoryPath.length
           ? draft.categoryPath.map((c: unknown) => cleanText(c)).filter(Boolean)
           : null,

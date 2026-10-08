@@ -397,6 +397,42 @@ async function fillPick(id,label,name){
  return await verify(name,q('#'+id).value)?null:name+' (tjek det)';
 }
 
+// Vinteds »Mål (anbefales)«: plaggets Længde og Skulderbredde i cm. Felterne
+// findes kun for nogle kategorier, og deres DOM er ikke maalt (8. oktober):
+// de findes paa pladsholderen (»Længde (f.eks. 20)«) eller etiketten. Pakkens
+// maal (»parcel«) er noget andet og roeres ikke. Kun et maal, der er slaaet op
+// eller tastet - aldrig et skoen.
+function maalFelt(ord){
+ var ins=document.querySelectorAll('input');
+ for(var i=0;i<ins.length;i++){
+  var el=ins[i];
+  if(el.type==='hidden'||el.type==='file'||el.type==='checkbox'||el.type==='radio')continue;
+  if(/parcel|package|pakke/i.test((el.id||'')+(el.name||'')+(el.getAttribute('data-testid')||''))||el.closest('[data-testid*="parcel"]'))continue;
+  var t=(el.getAttribute('placeholder')||'')+' '+(el.getAttribute('aria-label')||'')+' '+(el.id||'')+' '+(el.name||'');
+  var lab=el.id?document.querySelector('label[for="'+el.id+'"]'):null;
+  if(lab)t+=' '+lab.textContent;
+  if(ord.test(t))return el;
+ }
+ return null;
+}
+async function fillMaal(d){
+ var par=[['længde',/^\s*l(æ|ae)ngde|measurement[_-]?length|\blength\b/i,d.laengde],
+  ['skulderbredde',/skulderbredde|shoulder/i,d.skulderbredde]];
+ var sat=[],mangler=[];
+ for(var i=0;i<par.length;i++){
+  var v=Math.round(+par[i][2]||0);
+  if(!v)continue;
+  var el=maalFelt(par[i][1]);
+  if(!el){mangler.push(par[i][0]);continue}
+  setv(el,String(v));
+  await sleep(150);
+  if(String(el.value).replace(/[^0-9]/g,'')===String(v))sat.push(par[i][0]+' '+v+' cm');
+  else mangler.push(par[i][0]);
+ }
+ log('mål: '+(sat.length?sat.join(', '):'intet sat')+(mangler.length?' (felt ikke fundet: '+mangler.join(', ')+')':''));
+ return mangler.length?'mål ('+mangler.join(', ')+')':null;
+}
+
 // Vinted laeser filerne af selve input-feltet. En side maa ikke AABNE
 // filvaelgeren, men den maa godt lagge filer i feltet og sige til - saa
 // billederne kan faktisk komme med hele vejen.
@@ -1314,6 +1350,59 @@ async function waitForm(){
  }
  return false;
 }
+// Vinteds bedoemmelse med smileyer (»Hvor tilfreds er du …«) kommer en gang
+// imellem og ligger oven paa det hele. Den lukkes, saa snart den viser sig, paa
+// alle Vinted-sider. Vinted viser sine beskeder via Braze, tegnet som deres egen
+// dialog ([data-testid=in-app-message-modal] med close-modal-button). Hvordan
+// netop bedoemmelsen ser ud, er ikke maalt - derfor genkendes den paa ordene og
+// smileyerne, og en anden besked, der IKKE ligner, lukkes ikke, men noteres i
+// spor (»popup set …«), saa den kan laeres af. Vaelgerne i formularen rammes
+// ikke: »Tilfredsstillende« er ikke »hvor tilfreds«.
+var BEDOEM=/hvor tilfreds|bed(ø|oe)m\s(din|os|vinted|oplevelsen|appen)|din oplevelse|hvor sandsynligt|anbefale vinted|hvordan\s(var|er|synes|vil du)|giv os\s(din )?(feedback|mening)|hvad synes du om|rate your|how\s(satisfied|likely|was your)/i;
+var SMIL=/[\u{1F600}-\u{1F64F}\u{1F910}-\u{1F92F}\u2639\u263A]/gu;
+var POPUP_SET={};
+function popupTekst(el){
+ var t=el.innerText||el.textContent||'';
+ Array.prototype.forEach.call(el.querySelectorAll('img[alt],[aria-label]'),function(x){
+  t+=' '+(x.getAttribute('alt')||'')+' '+(x.getAttribute('aria-label')||'');
+ });
+ Array.prototype.forEach.call(el.querySelectorAll('iframe'),function(f){
+  try{t+=' '+f.contentDocument.body.innerText}catch(e){}
+ });
+ return t;
+}
+function lukPopup(el){
+ var knap=el.querySelector('[data-testid="close-modal-button"],.ab-close-button,[aria-label*="Luk" i],[aria-label*="close" i],[aria-label*="dismiss" i]');
+ if(!knap){
+  var bs=el.querySelectorAll('button,[role=button]');
+  for(var i=0;i<bs.length;i++)if(/^(ikke nu|spring over|luk|nej tak|senere|not now|skip|close)$/i.test(norm(bs[i].textContent))){knap=bs[i];break}
+ }
+ if(knap){knap.click();return 'knap'}
+ document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',keyCode:27,bubbles:true}));
+ // Brazes egen rod er ikke React - den kan fjernes uden at braekke siden.
+ var rod=el.closest('.ab-iam-root');
+ if(rod){rod.innerHTML='';return 'fjernet'}
+ return 'escape';
+}
+function vagtPopup(){
+ var cs=document.querySelectorAll('[data-testid="in-app-message-modal"],.ab-iam-root .ab-in-app-message,[role="dialog"],[aria-modal="true"]');
+ for(var i=0;i<cs.length;i++){
+  var el=cs[i];
+  if(!el.isConnected||!el.getClientRects().length)continue;
+  // Formularens egne vaelgere har kategorier og maerker, ikke smileyer.
+  var t=popupTekst(el),smil=(t.match(SMIL)||[]).length;
+  var noegle=norm(t).slice(0,90);
+  var braze=el.matches('[data-testid="in-app-message-modal"],.ab-in-app-message');
+  if(BEDOEM.test(t)||smil>=3){
+   var hvordan=lukPopup(el);
+   if(!POPUP_SET[noegle]){POPUP_SET[noegle]=1;spor('popup lukket ('+hvordan+'): '+noegle)}
+  }else if(braze&&!POPUP_SET[noegle]){
+   POPUP_SET[noegle]=1;spor('popup set, ikke lukket: '+noegle);
+  }
+ }
+}
+setInterval(function(){try{vagtPopup()}catch(e){}},1500);
+
 // Et gammelt brugerscript koerer ogsaa. Serveren afviser det, men det skal
 // slettes - ellers koerer det sin gamle prisvagt og synkronisering paa hver side.
 if(ANDEN_RUNNER){
@@ -1406,13 +1495,14 @@ try{
  // Felterne først, billederne til sidst. Fotouploaden tegner formularen om,
  // mens den kører, og en vælger, der bliver skiftet ud midt i et klik, åbner
  // ikke — så de to ting må ikke overlappe.
- var mangler=[];
+ var mangler=[],AFVIST=[];
 
  // Kategorien først: resten af felterne findes ikke uden den.
  var catFail=await fillCategory(d.categoryPath);
  log('kategori: '+(catFail||'ok'));
  if(catFail){
   mangler.push('kategori','mærke','størrelse','stand','farve');
+  if(d.categoryPath&&d.categoryPath.length)AFVIST.push({felt:'category_path',vaerdi:d.categoryPath.join(' > ')});
  }else{
   var steps=[
    ['mærke',fillBrand,[d.brand]],
@@ -1421,11 +1511,20 @@ try{
    ['farve',fillPick,['color',d.color,'farve']],
    ['materiale',fillPick,['material',d.material,'materiale']]
   ];
+  var feltNavn={'mærke':['brand',d.brand],'størrelse':['size',d.size],'stand':['condition',d.condition],
+   'farve':['color',d.color],'materiale':['material',d.material]};
   for(var si=0;si<steps.length;si++){
    var miss=await steps[si][1].apply(null,steps[si][2]);
    log(steps[si][0]+': '+(miss||'ok'));
-   if(miss)mangler.push(miss);
+   if(miss){
+    mangler.push(miss);
+    // Vinted kunne ikke tage vaerdien: den gaar til naeste analyse.
+    var fn=feltNavn[steps[si][0]];
+    if(fn&&fn[1])AFVIST.push({felt:fn[0],vaerdi:String(fn[1])});
+   }
   }
+  var mm=await fillMaal(d);
+  if(mm)mangler.push(mm);
  }
 
  // Teksten til sidst, så ingen dialog kan nå at rydde den. Felterne slås op
@@ -1487,7 +1586,7 @@ try{
 
  // Markeringen ryddes, så et genindlæs ikke fylder den samme annonce ud igen.
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({id:DRAFT_ID,mode:'clear',log:LOG.slice(-150)})},15000)}catch(e){}}
+  body:JSON.stringify({id:DRAFT_ID,mode:'clear',log:LOG.slice(-150),afvist:AFVIST})},15000)}catch(e){}}
 
  // Nu er det dig, der trykker; skaermen slukker ikke, mens du roerer ved den.
  slip();

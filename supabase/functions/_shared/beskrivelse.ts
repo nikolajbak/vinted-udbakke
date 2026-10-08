@@ -22,6 +22,9 @@ export const BESKRIVELSE_REGLER =
   "- Uden fejl: sig det positivt — \"står flot\", \"i rigtig fin stand\", \"pæn og velholdt\". " +
   "Skriv ALDRIG \"uden synlige huller\", \"ingen synlige pletter\", \"umiddelbart\" eller \"så vidt " +
   "jeg kan se\": det lyder, som om der er fejl, man bare ikke kan se.\n" +
+  "- Viser billederne flere ting, der sælges samlet (fx en kjole og et par leggings), så nævn " +
+  "HVER del i titlen og beskriv hver af dem i teksten — en del, der ikke nævnes, er ikke solgt.\n" +
+  "- Står materialet på vaskemærket (fx \"95% bomuld, 5% elastan\"), så skriv det præcis sådan.\n" +
   "- Skriv aldrig noget om bytte.\n" +
   "- En pris skrives altid som hele kroner med komma og to nuller: \"599,00 kr\", aldrig \"599 kr\" eller \"599,-\".\n" +
   "- Slut med ét kort stylingforslag: hvad varen er skøn sammen med, eller hvor den passer ind " +
@@ -69,6 +72,20 @@ export type Fakta = {
   // Farvenavnet paa haenge-/prismaerket ("Army"). Facit for farven i titel,
   // tekst og Vinteds farvefelt - et foto kan snyde paa lys og hvidbalance.
   maerkeFarve?: string;
+  // Materialet som det staar paa vaskemaerket ("95% bomuld, 5% elastan").
+  // Facit for materialet - et foto kan ikke se forskel paa bomuld og viskose.
+  materialer?: string;
+  // Hver del, naar billederne viser flere ting, der saelges samlet (nr. 47:
+  // en sweatkjole og et par leggings - kun kjolen blev beskrevet).
+  dele?: string[];
+  // Andet, der staar tydeligt paa maerkerne: oekologisk, GOTS, vandsoejle ...
+  egenskaber?: string;
+  // Plaggets egne maal i cm til Vinteds felter »Længde« og »Skulderbredde«.
+  // Kun trykt paa et maerkat, slaaet op paa varens egen produktside, eller
+  // tastet af dig - aldrig skoennet ud fra et foto.
+  laengde?: number;
+  skulderbredde?: number;
+  plagMaalKilde?: string;
 };
 
 export function faktaTekst(f: unknown): string {
@@ -78,6 +95,10 @@ export function faktaTekst(f: unknown): string {
     k.nypris && `Nypris: ${Math.round(Number(k.nypris))},00 kr${k.nyprisKilde ? ` (${k.nyprisKilde})` : ""}`,
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
     k.maerkeFarve && `Farve ifølge mærket: ${k.maerkeFarve}. Brug den farve (på dansk) i titel og tekst, også hvis billedet ser anderledes ud, og vælg den nærmeste i Vinteds farveliste.`,
+    k.dele?.length && `Sælges samlet: ${k.dele.join(" + ")}. Nævn hver del i titel og tekst.`,
+    k.materialer && `Materiale ifølge vaskemærket: ${k.materialer}`,
+    k.egenskaber && `Står på mærkerne: ${k.egenskaber}`,
+    (k.laengde || k.skulderbredde) && `Plaggets mål: ${[k.laengde && `længde ${k.laengde} cm`, k.skulderbredde && `skulderbredde ${k.skulderbredde} cm`].filter(Boolean).join(", ")}${k.plagMaalKilde ? ` (${k.plagMaalKilde})` : ""}`,
     k.fejl && `Fejl set ved billedanalysen: ${k.fejl}`,
   ].filter(Boolean);
   return linjer.length ? "Fakta:\n" + linjer.join("\n") : "Fakta: ingen nypris eller mål slået op.";
@@ -102,7 +123,18 @@ const OPSLAG_TOOL = {
           "null hvis mærkets størrelsesguide ikke blev fundet.",
       },
     },
-    required: ["nypris", "nyprisKilde", "maal"],
+      laengde: {
+        type: ["integer", "null"],
+        description:
+          "Plaggets EGEN længde i cm i netop denne størrelse (fra skulder/linning til bund), som den står " +
+          "på varens produktside eller i mærkets mål for selve plagget. Ikke kropsmål. null hvis den ikke står der.",
+      },
+      skulderbredde: {
+        type: ["integer", "null"],
+        description: "Plaggets skulderbredde i cm i netop denne størrelse, som den står hos mærket. Ikke kropsmål. null ellers.",
+      },
+    },
+    required: ["nypris", "nyprisKilde", "maal", "laengde", "skulderbredde"],
   },
 };
 
@@ -115,13 +147,14 @@ export async function slaaOp(
     brand?: string | null; productType?: string; size?: string | null; color?: string; ny: boolean;
     maerker?: string | null;
   },
-): Promise<{ nypris?: number; nyprisKilde?: string; maal?: string }> {
+): Promise<{ nypris?: number; nyprisKilde?: string; maal?: string; laengde?: number; skulderbredde?: number }> {
   const brand = String(vare.brand ?? "").trim();
   const maerker = String(vare.maerker ?? "").trim();
   if (!brand && !maerker) return {};
   const spoerg = [
     vare.ny && "nyprisen i danske kroner (hos mærket selv eller en dansk forhandler; findes den ikke i Danmark, så omregn en europæisk pris og sig det i kilden)",
-    vare.size && `mærkets størrelsesguide: hvilke mål størrelse ${vare.size} svarer til`,
+    vare.size && `mærkets størrelsesguide: hvilke mål størrelse ${vare.size} svarer til, og — kun hvis ` +
+      "varens produktside eller mærket opgiver det — plaggets egen længde og skulderbredde i cm i den størrelse",
   ].filter(Boolean);
   if (!spoerg.length) return {};
 
@@ -171,10 +204,19 @@ export async function slaaOp(
         // Kun naar der er spurgt om maal. Ellers lagde modellen produktnavnet
         // i feltet ("Hoerskjorte - Army, varenummer TEE35").
         maal: vare.size && i.maal ? String(i.maal) : undefined,
+        laengde: vare.size ? cm(i.laengde) : undefined,
+        skulderbredde: vare.size ? cm(i.skulderbredde) : undefined,
       };
     }
     if (data?.stop_reason !== "pause_turn") return {};
     messages.push({ role: "assistant", content: data.content });
   }
   return {};
+}
+
+// Et maal i hele cm, eller intet. Et plag under 10 eller over 250 cm er en
+// fejllaesning, ikke et maal.
+export function cm(v: unknown): number | undefined {
+  const n = Math.round(Number(String(v ?? "").replace(",", ".").replace(/[^0-9.]/g, "")));
+  return n >= 10 && n <= 250 ? n : undefined;
 }

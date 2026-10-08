@@ -178,7 +178,8 @@ i `function_logs`, beviser intet.
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
-| Erfaringerne lagt ind i prompterne (`hentErfaringer`) | `supabase/functions/_shared/laering.ts` |
+| Erfaringerne lagt ind i prompterne (`hentErfaringer`); rettelserne (`hentRettelser`) | `supabase/functions/_shared/laering.ts` |
+| Vinteds bedømmelses-popup lukkes (`vagtPopup`); plaggets mål i Vinteds felter (`fillMaal`) | `…/vinted-fill-script/runner.ts` |
 | Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
@@ -206,6 +207,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
+| Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
 sendte afsted; `listings.published` er annoncens egne ord, læst af annoncen
@@ -245,6 +247,12 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   skrift med stort begyndelsesbogstav og mærket stavet som i `drafts.brand`.
   Størrelser (XL, 2XL) og ord med tal eller & (H&M) står urørt. En titel, du
   selv skriver i appen, røres ikke.
+- **Sælges flere ting samlet, nævnes hver del** i titel og tekst (bestemt
+  af dig 8. oktober). Nr. 47 var en sweatkjole og et par leggings på samme
+  billede; kun »trøjen« blev beskrevet. Analysen registrerer hver del
+  (`dele`, gemt i `fakta.dele`).
+- **Står materialet på vaskemærket, skrives det præcis sådan** (»95% bomuld,
+  5% elastan«), og Vinteds materialefelt får det, der er mest af.
 - Spørgsmål fra købere besvares med samme tone (køber-assistenten,
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
@@ -264,6 +272,67 @@ Nr. 19 var en armygrøn hørskjorte (»Color: Army«) og blev kaldt beige.
 - `faktaTekst` skriver farven med, så analysen, Vinteds markedsrunde, DBA og
   Reshopper alle bruger den. Kontrollen af Vinteds farvefelt ser også
   mærkebilledet og får at vide, at mærkets farvenavn er facit.
+
+## Mærkerne er facit — alle mærker
+
+Bestemt af dig 8. oktober: **udled alt, der tydeligt og uomtvisteligt står
+på vaskemærket og de andre mærker**, og vær præcis om farve og materiale.
+
+- `laesMaerker` (store model) får **alle** billeder, ikke kun trinnet
+  »Mærket«: billeder fra Fotos fordeles på trinene i rækkefølge, så trinnet
+  siger intet om, hvad billedet viser (nr. 47: leggings under »Mærket«,
+  H&M-mærkatet under »Detalje«). Den afskriver også materialesammensætning
+  (`fakta.materialer`, facit for materialet), størrelse og tydelige
+  egenskaber som økologisk/GOTS/vandsøjle (`fakta.egenskaber`).
+- Billedanalysen kører på den store model (før Haiku) og får at vide, at
+  trinnavnet kun er en hensigt.
+- **Farven lander altid på Vinteds liste** (`vintedFarve`) — »mørkegrå«
+  bliver »Grå«, ellers intet. Titel og tekst må gerne bruge den præcise nuance.
+
+## Mål i Vinteds felter
+
+Bestemt af dig 8. oktober: **skriv mål på, hvor Vinted har felterne.**
+Vinted har »Mål (anbefales)« med **Længde** og **Skulderbredde** i cm for
+nogle kategorier (fundet i Vinteds oversættelser, `item_upload.measurements.*`).
+
+- Kun plaggets EGNE mål, aldrig kropsmål fra en størrelsesguide og aldrig et
+  skøn ud fra et foto. Kilder: dig (Længde/Skulderbredde i udkastets
+  redigering, »målt af dig«), eller varens egen produktside via opslaget
+  (`slaaOp` → `fakta.laengde`/`skulderbredde`/`plagMaalKilde`). Et sæt får
+  ingen.
+- Runneren finder felterne på pladsholderen (»Længde (f.eks. 20)«) og rører
+  aldrig pakkens mål (`parcel`). **Feltets DOM er ikke målt på en rigtig
+  opret-side** — loggen siger »mål: …« og »felt ikke fundet«.
+
+## Vinteds bedømmelses-popup lukkes
+
+Bestemt af dig 8. oktober: popuppen med smileyer, der kommer en gang
+imellem, lukkes automatisk på alle Vinted-sider (`vagtPopup`, hvert 1,5 s).
+
+- Vinted viser sine beskeder via **Braze**, tegnet som
+  `[data-testid=in-app-message-modal]` med `close-modal-button` (læst i
+  Vinteds kode). Netop bedømmelsen er **ikke set** — den genkendes på ordene
+  (»hvor tilfreds«, »din oplevelse« …) eller mindst tre smileyer.
+- Formularens vælgere rammes ikke: »Tilfredsstillende« er ikke »hvor
+  tilfreds«. En Braze-besked, der ikke ligner, lukkes IKKE, men står i
+  `spor` som »popup set, ikke lukket: …« — ret mønsteret efter den.
+
+## Systemet lærer af fejl
+
+Bestemt af dig 8. oktober: **lær af fejl og udfordringer — egne og
+markedspladsernes — og brug læringen fremover.**
+
+- **Dine rettelser er facit.** Retter du mærke, størrelse, farve, stand,
+  materiale eller kategori i et analyseret udkast, noterer triggeren det i
+  `rettelser`. De 25 nyeste lægges ind i billedanalysen og skrive-kaldet
+  (`hentRettelser`), uden en model imellem.
+- **Vinteds afvisninger tæller med.** Et felt, Vinteds formular ikke kunne
+  tage, sendes med »clear« (`afvist`) og lægges ind som »brug Vinteds ord«.
+- **Ukendte forhindringer noteres i `spor`** (fx »popup set, ikke lukket«),
+  så næste rettelse bygger på det, der faktisk skete.
+- **For Claude:** hver fejlsøgning slutter med et fund i »Målt, ikke gættet«
+  og hver beslutning her — i samme omgang. Læs `rettelser` og `spor` før der
+  gættes på, hvorfor analysen eller udfyldningen tog fejl.
 
 ## Prisen
 

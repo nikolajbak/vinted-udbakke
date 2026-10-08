@@ -1,4 +1,4 @@
-# Status — 3. oktober 2026
+# Status — 8. oktober 2026
 
 Hvor projektet står lige nu. `CLAUDE.md` rummer det, der er **målt** og ikke må
 laves om; denne fil rummer det, der er **i gang** og går til.
@@ -18,6 +18,13 @@ laves om; denne fil rummer det, der er **i gang** og går til.
   køkortet.
 
 ## Ikke afprøvet — start her
+
+000000. **Analyse, mål, popup og læring af fejl — bygget 8. oktober.** Regler
+   i CLAUDE.md (»Mærkerne er facit«, »Mål i Vinteds felter«, »Vinteds
+   bedømmelses-popup lukkes«, »Systemet lærer af fejl«). **Afprøvet:**
+   triggeren på `rettelser` (i en transaktion), popup-lukkeren og målfelterne
+   på en testside. **Ikke afprøvet:** popuppen og målfelterne på Vinted selv —
+   se `spor` »popup …« og loggens »mål: …«.
 
 00000. **Årsag fundet: et gammelt brugerscript kørte en gammel runner** (se
    CLAUDE.md). Runneren har nu egen vagt og `&r=2`; serveren afviser den

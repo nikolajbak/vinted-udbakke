@@ -1191,7 +1191,7 @@ Deno.serve(async (req: Request) => {
       .from("drafts")
       .select(
         "id, title, description, price, search_query, price_grounded, " +
-          "condition, brand, size, size_scale, color, material, category_path, category, photos",
+          "condition, brand, size, size_scale, color, material, category_path, category, photos, fakta, nr",
       )
       .eq("status", "ny")
       .gte(auto ? "selected_at" : "created_at", auto ? freshSince : "1970-01-01")
@@ -1239,6 +1239,9 @@ Deno.serve(async (req: Request) => {
       color: cleanText(row.color || ""),
       material: cleanText(row.material || ""),
       condition: cleanText(row.condition || ""),
+      // Plaggets egne maal til Vinteds felter »Længde« og »Skulderbredde« (cm).
+      laengde: Number((data.fakta as Fakta | null)?.laengde) || null,
+      skulderbredde: Number((data.fakta as Fakta | null)?.skulderbredde) || null,
     });
   }
 
@@ -1269,6 +1272,8 @@ Deno.serve(async (req: Request) => {
       gone?: boolean;
       favourites?: number;
       besoegt?: unknown[];
+      log?: unknown[];
+      afvist?: unknown[];
     };
     try {
       body = await req.json();
@@ -1618,6 +1623,17 @@ Deno.serve(async (req: Request) => {
           sti: "udfyldning (log)",
           tekst: body.log.map(String).join("\n").slice(0, 20000),
         });
+      }
+      // Felter, Vinteds formular ikke kunne tage. De laegges ind i naeste
+      // analyse (rettelser, kilde 'vinted'), saa den bruger Vinteds ord.
+      const afvist = (Array.isArray(body.afvist) ? body.afvist as Array<{ felt?: string; vaerdi?: string }> : [])
+        .filter((a) => a?.felt && a?.vaerdi).slice(0, 10);
+      if (afvist.length && /^[0-9a-f-]{36}$/i.test(String(body.id ?? ""))) {
+        const { data: dr } = await supabase.from("drafts").select("nr").eq("id", body.id).maybeSingle();
+        await supabase.from("rettelser").insert(afvist.map((a) => ({
+          draft_id: body.id, nr: dr?.nr ?? null, kilde: "vinted",
+          felt: String(a.felt).slice(0, 40), fra: String(a.vaerdi).slice(0, 200),
+        })));
       }
       return json({ ok: true });
     }
