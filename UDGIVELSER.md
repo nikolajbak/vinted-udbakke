@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0060 — 2026-10-08 21:07
+
+Commit `b88b082` — Stoerrelsesomregning er ikke maal (nr. 47)  
+App: `app.js?v=23578419` · `style.css?v=64c0b54a`  
+Udrullet: analyze-draft
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v72 | `5460c0e8` |
+| dba-fill-script | v23 | `e86e8c45` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v14 | `a31c8881` |
+| vinted-fill-script | v80 | `1ae9ec1a` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0059 — 2026-10-08 21:06
 
 Commit `4857aec` — Ret syntaksfejl i beskrivelse.ts; udgiv.sh tjekker syntaksen med esbuild  
