@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0055 — 2026-10-08 18:56
+
+Commit `0976c48` — Markedsrunden melder, naar Vinteds soegning fejler paa telefonen, og proever igen  
+App: `app.js?v=99598778` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v70 | `4055dd2c` |
+| dba-fill-script | v22 | `e86e8c45` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v13 | `a31c8881` |
+| vinted-fill-script ← | v76 | `dea442ff` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0054 — 2026-10-08 18:14
 
 Commit `0a46380` — Skaermen holdes taendt, mens runneren arbejder (Wake Lock)  
