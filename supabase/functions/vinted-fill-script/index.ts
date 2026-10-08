@@ -18,7 +18,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
-import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp } from "../_shared/beskrivelse.ts";
+import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { laer } from "./laering.ts";
 import { indkob } from "./indkob.ts";
@@ -523,7 +523,7 @@ async function analyseMarket(
 
   return {
     title: ingenVersaler(cleanText(out.title), draft.brand),
-    description: cleanText(out.description),
+    description: await udenForbudte(ANTHROPIC_API_KEY, cleanText(out.description)),
     price,
     priceNote: cleanText(out.priceNote) + (ramme.note ? ` (${ramme.note})` : guarded ? " (justeret til feltet)" : ""),
     compared: chosen.length,

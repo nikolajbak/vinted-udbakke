@@ -220,3 +220,43 @@ export function cm(v: unknown): number | undefined {
   const n = Math.round(Number(String(v ?? "").replace(",", ".").replace(/[^0-9.]/g, "")));
   return n >= 10 && n <= 250 ? n : undefined;
 }
+
+// Vendinger, der lyder som skjulte fejl, eller som reglerne forbyder. Reglen
+// staar i prompten, men nr. 47 fik »almindelige tegn på brug« to gange i
+// traek efter, at prompten sagde fra (8. oktober). Saa haandhaeves den ogsaa
+// her, efter modellen - som ingenVersaler goer det for titlen.
+export const FORBUDTE_VENDINGER =
+  /uden synlige|ingen synlige|umiddelbart|så vidt jeg kan se|springer i øjnene|tegn på (brug|slid)|\bbytte/i;
+
+export async function udenForbudte(apiKey: string, tekst: string): Promise<string> {
+  if (!tekst || !FORBUDTE_VENDINGER.test(tekst)) return tekst;
+  const fjern = (t: string) =>
+    t.split(/\n/).map((l) => l.split(/(?<=[.!?])\s+/).filter((s) => !FORBUDTE_VENDINGER.test(s)).join(" "))
+      .join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 1500,
+        system: "Du retter en dansk annoncetekst. Svar KUN med den rettede tekst — ingen indledning.",
+        messages: [{
+          role: "user",
+          content:
+            "Gentag teksten ordret, med samme afsnit, men omformulér de sætninger, der siger \"tegn på brug\", " +
+            "\"uden synlige …\", \"springer i øjnene\", \"umiddelbart\" eller nævner bytte. Sig standen positivt " +
+            "(\"står pænt\", \"i fin stand\", \"klar til nye eventyr\"), og opfind intet.\n\n" + tekst,
+        }],
+      }),
+    });
+    if (!res.ok) return fjern(tekst);
+    const data = await res.json();
+    const ny = String((data?.content || []).find((b: { type?: string }) => b?.type === "text")?.text ?? "").trim();
+    // Rettelsen maa ikke selv bringe vendingen med, og ikke sluge teksten.
+    if (ny.length < tekst.length * 0.6 || FORBUDTE_VENDINGER.test(ny)) return fjern(ny.length >= tekst.length * 0.6 ? ny : tekst);
+    return ny;
+  } catch {
+    return fjern(tekst);
+  }
+}

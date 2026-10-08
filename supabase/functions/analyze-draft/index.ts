@@ -6,7 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
-import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp } from "../_shared/beskrivelse.ts";
+import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer, hentRettelser } from "../_shared/laering.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme, prisTekst } from "../_shared/pris.ts";
 
@@ -906,6 +906,7 @@ Deno.serve(async (req: Request) => {
     );
 
 console.log("annonce klar paa", Date.now() - t0, "ms");
+    draft.description = await udenForbudte(ANTHROPIC_API_KEY, cleanText(draft.description));
     // En ny vare med kendt nypris lægges inden for rammen (_shared/pris.ts).
     const ramme = iNyprisRamme(helKroner(cleanText(draft.price)), nyprisRamme(fakta, draft.condition));
     if (ramme.note) {

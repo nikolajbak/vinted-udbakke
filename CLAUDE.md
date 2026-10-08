@@ -237,7 +237,10 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   op på nettet. Findes den ikke, nævnes ingen — der opfindes aldrig et tal.
 - Skriv aldrig "uden synlige huller/pletter/slid", "umiddelbart", "uden fejl
   der springer i øjnene", "almindelige tegn på brug" o.l. (de to sidste set
-  på nr. 47, 8. oktober). Det lyder som skjulte fejl. Sig det positivt: "står flot", "i fin stand".
+  på nr. 47, 8. oktober). Det lyder som skjulte fejl. Prompten alene holdt
+  ikke, så `udenForbudte()` i `_shared/beskrivelse.ts` (`FORBUDTE_VENDINGER`)
+  retter teksten efter modellen i analysen, Vinteds markedsrunde og DBA: én
+  omskrivning af de sætninger, ellers fjernes de. Sig det positivt: "står flot", "i fin stand".
 - Læg aldrig op til, at du kan tage ekstra billeder eller måle op.
 - Mål tastes automatisk, når de kan findes: fra mærkatet, ellers fra mærkets
   størrelsesguide — og teksten siger, hvor de kommer fra.

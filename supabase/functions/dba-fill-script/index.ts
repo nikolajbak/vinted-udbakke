@@ -8,7 +8,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
 import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
-import { BESKRIVELSE_REGLER, faktaTekst, ingenVersaler } from "../_shared/beskrivelse.ts";
+import { BESKRIVELSE_REGLER, faktaTekst, ingenVersaler, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
@@ -284,7 +284,7 @@ async function analyseMarket(
   return {
     price: price || null,
     title: ingenVersaler(clean(out.title), draft.brand).slice(0, 70),
-    description: clean(out.description),
+    description: await udenForbudte(ANTHROPIC_API_KEY, clean(out.description)),
     captions,
     note,
   };
