@@ -932,9 +932,16 @@ async function kvitter(v,udgivet){
 // kvitteret. Besøgte annoncer springes over, så en, der ikke vil gemme, ikke
 // sender runden i ring.
 var RUNDE='udbakke_ret_runde';
+// Appens flag (udbakke=vagt/synk/ret). Det staar efter # og ikke efter ?:
+// Vinted omdirigerer /items/{id}?… til /items/{id}-titel og smider ?-delen
+// vaek, mens #-delen foelger med. Maalt 8. oktober. ?-formen laeses stadig,
+// for en app, der ikke er opdateret, sender den.
+function flag(navn){
+ return new RegExp('[?&#]udbakke='+navn+'(?:&|$)').test(location.search+location.hash);
+}
 function rundeAktiv(){
  try{
-  if(/[?&]udbakke=ret/.test(location.search)&&!sessionStorage.getItem(RUNDE))
+  if(flag('ret')&&!sessionStorage.getItem(RUNDE))
    sessionStorage.setItem(RUNDE,JSON.stringify({tid:Date.now(),ids:[]}));
   var r=JSON.parse(sessionStorage.getItem(RUNDE)||'null');
   return !!(r&&Date.now()-r.tid<3600000);
@@ -980,7 +987,7 @@ function afslut(itemId){
 // adressen. Så læses annoncen, og appen får at vide, hvad der FAKTISK står i
 // den — pris, titel, beskrivelse, størrelse, mærke.
 async function synkroniser(){
- if(!/[?&]udbakke=synk/.test(location.search))return false;
+ if(!flag('synk'))return false;
  var num=location.pathname.match(/^\/items\/(\d+)/);
  if(!num)return false;
  var b=baand('Læser annoncen …',null,null);
@@ -1022,7 +1029,7 @@ async function stilleSynk(){
 
 async function prisvagt(){
  // Kommer vi fra appens Prisvagt-knap, er der givet lov til at ændre priser.
- var bedt=/[?&]udbakke=vagt/.test(location.search);
+ var bedt=flag('vagt');
 
  rundeAktiv();
  // 1) Lige gemt en pris? Så skal den bekræftes, før noget andet.
@@ -1064,8 +1071,18 @@ async function prisvagt(){
  }
  try{localStorage.setItem(VAGT_SIDST,String(Date.now()))}catch(e){}
 
+ // Du har trykket i appen: vis, at der sker noget. Maalingen tager et par
+ // sekunder pr. vare, og uden baand saa det ud, som om intet skete.
+ var vb=bedt?baand('Prisvagt: tjekker varerne mod markedet …',null,null):null;
  var res=await tilsynsrunde();
- if(!res)return false;
+ if(vb)vb.remove();
+ if(!res){
+  if(bedt){
+   spor('vagt: tjekket gav intet (se log)');
+   baand('Prisvagt: tjekket kunne ikke gennemføres — intet forfaldent, eller varerne kunne ikke måles.',null,null);
+  }
+  return false;
+ }
  if(!res.poster.length){
   if(bedt)baand('Prisvagt: tjekket er kørt — ingen priser skal ned lige nu.',null,null);
   return false;

@@ -868,6 +868,12 @@ Delingen mellem server og telefon: se »Telefonen og serveren«.
   adressen bærer `?udbakke=vagt` — altså når trykket kom fra appen. Et script,
   der retter priser på et rigtigt marked i forbifarten, er ikke automatik, det
   er et uheld der venter.
+- **Appens flag står efter `#`, ikke `?`** (`#udbakke=vagt`, `#udbakke=synk`).
+  Vinted omdirigerer `/items/{id}?…` til `/items/{id}-titel` og smider
+  ?-delen væk; #-delen følger med (målt 8. oktober). Med `?` vidste runneren
+  aldrig, at du havde trykket »Tjek«, og havde telefonen kørt et tilsyn inden
+  for en time, skete der intet. Runneren læser begge (`flag()`). Et tryk viser
+  nu et bånd, mens der måles, og et bånd, hvis tjekket ikke blev til noget.
 - **Redigeringssiden spørger serveren, ikke browserens kø.** Køen i
   `localStorage` udløber efter to timer; beslutningen står i databasen, til den
   er gennemført. Uden `mode:'pending'` kunne en pris kun sættes i direkte

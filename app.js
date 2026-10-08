@@ -598,7 +598,7 @@
     var ext = b.getAttribute('data-ext');
     if(op === 'vis' && d){ openDetail(d.id); return; }
     if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit'); return; }
-    if(op === 'tjek'){ aabnUdad('https://www.vinted.dk/items/' + ext + '?udbakke=vagt'); return; }
+    if(op === 'tjek'){ aabnUdad('https://www.vinted.dk/items/' + ext + '#udbakke=vagt'); return; }
     if(op.indexOf('aabn-') === 0){
       var k = op.slice(5);
       if(k === 'reshopper'){
@@ -1026,7 +1026,7 @@
     // En solgt eller lukket annonce har intet nyt at sige.
     if(x.external_id && x.platform === 'vinted' && (x.status === 'aktiv' || x.status === 'pause' || !x.status)){
       h += '<button type="button" class="btn btn-quiet" data-aabn="' +
-           esc('https://www.vinted.dk/items/' + x.external_id + '?udbakke=synk') +
+           esc('https://www.vinted.dk/items/' + x.external_id + '#udbakke=synk') +
            '">Opdatér fra ' + esc(navn) + '</button>';
     }
     if(x.url){
@@ -2535,7 +2535,7 @@
         var f = aktive.filter(function(l){
           return l.status === 'aktiv' && l.auto && new Date(l.next_check_at) <= new Date();
         })[0];
-        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '?udbakke=vagt');
+        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '#udbakke=vagt');
       });
     } else {
       fod.hidden = true;
