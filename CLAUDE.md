@@ -385,6 +385,9 @@ intet på dig, lukkes den, når runneren er færdig.**
   bånd med »Luk selv næste gang«. Læg aldrig andet ind i det.
 - **Tilbage til appen kan ikke gøres fra Safari.** iOS har ingen adresse,
   der åbner en hjemmeskærms-webapp; det er »◀ Udbakke« øverst til venstre.
+  Prøvet 8. oktober: Genvejes »Åbn app« viser ikke Udbakke, så en genvej
+  via `shortcuts://` kan heller ikke gøre det. iPhone-skærmdublering findes
+  ikke i EU. Byg det ikke uden at måle forfra på en ny iOS.
 
 ## Kortene i listen
 
