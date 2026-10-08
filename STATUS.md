@@ -19,6 +19,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+00000. **Markedsrunden udeblev på telefonen — 8. oktober.** Nr. 24, 25, 50
+   og 51 fik analysens foreløbige pris (`price_grounded = false`); Vinteds
+   søgning fejlede på telefonen, ikke på Mac'en. Årsagen er ikke målt (se
+   CLAUDE.md »Søgningen kan fejle på telefonen alene«). Nu meldes fejlen som
+   `spor` »søgning »…« forsøg N: …«, der prøves én gang til, og slutbeskeden
+   siger »Prisen er IKKE tjekket«. **Næste skridt:** læs `spor` efter næste
+   udfyldning; de fire varer ligger ude med skønnet og bør tjekkes mod
+   markedet.
+
 0000. **Skærmen holdes tændt, mens runneren arbejder — bygget 8. oktober.**
    Regler i CLAUDE.md under »Skærmen holdes tændt«. **Ikke afprøvet:** om
    Safari på iOS giver Wake Lock uden et tryk i siden. Se `spor` »vaagen: …«

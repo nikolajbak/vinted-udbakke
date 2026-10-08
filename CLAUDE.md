@@ -798,6 +798,20 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
   og kan være helt ved siden af søgningen — de sorteres fra, og der hentes 96,
   fordi op til 36 af 40 på side 1 kan være fremhævede. Søgningen logger nu sin
   statuskode, så den ikke kan tie igen.
+- **Søgningen kan fejle på telefonen alene.** 8. oktober om eftermiddagen
+  kom der ingen markedsrunde i fire udfyldninger (nr. 24, 25, 50, 51), mens
+  formiddagens tre fik en. Den første skete med samme runner som om
+  formiddagen, så det var ikke koden. Den samme søgning gav 96 annoncer fra
+  Mac'en, også med telefonens brugeragent og på `/items/new`. Runneren gik
+  videre til kategorien under et sekund efter udkastet, så kaldet fejlede
+  med det samme. Uden cookies svarer søgningen
+  403, og Vinted kører DataDome (cookien `datadome`), så en afvist eller
+  udløbet session er det sandsynlige — ikke målt på telefonen. Derfor går
+  hver fejlet søgning til serverens log (spor »søgning »…« forsøg N: …«),
+  der prøves én gang til efter 2,5 s, og slutbeskeden siger »Prisen er IKKE
+  tjekket mod markedet« med grunden. **Omgå aldrig botbeskyttelsen.** Vinteds
+  egen katalogside henter ikke længere fra `svc-catalogue/items` i browseren;
+  resultaterne kommer med siden (3,7 MB), for tungt som reserve.
 - **Vinted skjuler solgte varer.** Det, søgningen viser, er dét, der IKKE er
   solgt, så feltet skævvrider opad. Prisen skal derfor lægge sig under medianen
   af de sammenlignelige — spærren i `analyseMarket` håndhæver det.

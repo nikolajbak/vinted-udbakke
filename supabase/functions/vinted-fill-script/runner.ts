@@ -466,17 +466,35 @@ function dkkItems(list){
 // "…promoted…") er betalt plads, ikke relevans — de kan være en Zara-jakke i
 // en søgning på Ralph Lauren-skjorter — så de sorteres fra. Derfor hentes 96:
 // på side 1 kan 36 af 40 være fremhævede.
+// 8. oktober om eftermiddagen sendte telefonen ingen markedsrunde i to
+// udfyldninger i træk — søgningen fejlede på under et sekund, mens den samme
+// søgning virkede fra Mac'en. Fejlen stod kun i telefonens egen log. Nu går
+// den til serverens (spor »søgning: …«), og der prøves én gang til: siden kan
+// være ved at forny sit login, når runneren starter. SOEG_FEJL er den sidste
+// fejl, så slutbeskeden kan sige, hvorfor prisen ikke blev tjekket.
+var SOEG_FEJL='';
 async function search(text,n){
- try{
-  var r=await timedFetch('https://api.vinted.dk/svc-catalogue/items?search_text='+encodeURIComponent(text)+
-   '&order=relevance&page=1&per_page=96',
-   {headers:{'Accept':'application/json'},credentials:'include'},20000);
-  if(!r.ok){log('søgning: '+r.status);return []}
-  var items=((await r.json()).items||[]).filter(function(i){
-   return !/promoted/.test(String(i.content_source||''));
-  });
-  return dkkItems(items).slice(0,n||40);
- }catch(e){log('søgning: '+e.message);return []}
+ for(var forsoeg=1;forsoeg<=2;forsoeg++){
+  var fejl;
+  try{
+   var r=await timedFetch('https://api.vinted.dk/svc-catalogue/items?search_text='+encodeURIComponent(text)+
+    '&order=relevance&page=1&per_page=96',
+    {headers:{'Accept':'application/json'},credentials:'include'},20000);
+   if(r.ok){
+    var items=((await r.json()).items||[]).filter(function(i){
+     return !/promoted/.test(String(i.content_source||''));
+    });
+    var ud=dkkItems(items).slice(0,n||40);
+    log('søgning »'+text+'«: '+ud.length);
+    return ud;
+   }
+   fejl='status '+r.status;
+  }catch(e){fejl=e.message||String(e)}
+  SOEG_FEJL=fejl;
+  spor('søgning »'+text+'« forsøg '+forsoeg+': '+fejl,DRAFT_ID);
+  if(forsoeg<2)await sleep(2500);
+ }
+ return [];
 }
 
 // De bedst modtagne annoncers egne ord. Beskrivelsen står ikke i søgesvaret,
@@ -507,6 +525,9 @@ async function sampleTexts(items){
  return ud;
 }
 
+// Hvorfor markedsrunden ikke gav en pris — står i slutbeskeden, så en
+// foreløbig pris ikke går stille igennem.
+var MARKED_FEJL='';
 async function markedsanalyse(d){
  var q1=d.searchQuery||d.title||'';
  // To søgninger: én med mærket, én uden. Den første rammer præcist, den anden
@@ -518,7 +539,11 @@ async function markedsanalyse(d){
  var b=(q2&&q2!==q1)?await search(q2,40):[];
  var set={},alle=[];
  a.concat(b).forEach(function(i){if(!set[i.id]){set[i.id]=1;alle.push(i)}});
- if(alle.length<4){log('marked: kun '+alle.length+' annoncer, beholder skønnet');return null}
+ if(alle.length<4){
+  MARKED_FEJL=alle.length?'kun '+alle.length+' sammenlignelige annoncer':'Vinteds søgning svarede ikke ('+(SOEG_FEJL||'ingen annoncer')+')';
+  spor('marked: '+MARKED_FEJL+', beholder skønnet',DRAFT_ID);
+  return null;
+ }
 
  var top=alle.slice().sort(function(x,y){return y.favourites-x.favourites});
  var samples=await sampleTexts(top);
@@ -530,7 +555,9 @@ async function markedsanalyse(d){
    body:JSON.stringify({id:DRAFT_ID,mode:'market',items:alle,samples:samples})},90000);
   var j=await r.json();
   if(j&&j.price){log('marked: '+(j.note||'pris sat'));return j}
- }catch(e){log('marked: opslaget fejlede')}
+  MARKED_FEJL='serveren gav ingen pris'+(j&&j.error?' ('+String(j.error).slice(0,80)+')':'');
+ }catch(e){MARKED_FEJL='opslaget fejlede ('+(e.message||e)+')'}
+ spor('marked: '+MARKED_FEJL,DRAFT_ID);
  return null;
 }
 
@@ -1353,6 +1380,9 @@ try{
   if(marked.description)bedre.description=marked.description;
   if(marked.price)price=marked.price;
   note=marked.note||note;
+ }else{
+  note='Prisen er IKKE tjekket mod markedet: '+(MARKED_FEJL||'ukendt fejl')+
+   '. '+(helKroner(price)>0?helKroner(price)+' kr':'Prisen')+' er analysens skøn — se den efter, før du trykker Upload';
  }
 
  // Felterne først, billederne til sidst. Fotouploaden tegner formularen om,
