@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0058 — 2026-10-08 19:40
+
+Commit `b6a502e` — Gammel indbagt runner afvises: egen vagt, r=2 paa hvert kald, spor og baand  
+App: `app.js?v=99598778` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v70 | `4055dd2c` |
+| dba-fill-script | v22 | `e86e8c45` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v13 | `a31c8881` |
+| vinted-fill-script ← | v79 | `ff138abb` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0057 — 2026-10-08 19:31
 
 Commit `737b884` — Udfyldningens log sendes med clear og gemmes i spor; spor via timedFetch  
