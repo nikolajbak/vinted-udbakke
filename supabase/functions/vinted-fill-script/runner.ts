@@ -1185,6 +1185,18 @@ if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
 // Efterloebet koerer ved siden af, uanset siden - det maa ikke forsinke en
 // udfyldning eller et tilsyn.
 efterloeb();
+// Uden for /items/ er der kun det ovenfor at goere. Brugerscriptet koerer paa
+// hele vinted.dk, fordi Upload sender dig videre med en rigtig sideindlaesning
+// til en side uden for /items/ - og dér skal markoeren kunne melde annoncen.
+// Annoncen kan staa i garderoben et par sekunder efter, at siden er landet.
+if(!/^\/items\//.test(location.pathname)){
+ if(hentAfventer())spor('landet efter upload',hentAfventer().id);
+ for(var forsoeg=0;forsoeg<24&&hentAfventer();forsoeg++){
+  await sleep(5000);
+  if(await meldPostet()===true)break;
+ }
+ return;
+}
 // Prisvagten kører på alle annoncesider undtagen opret-siden: dér er
 // udfyldningen det eneste, der skal ske, og den må ikke vente på et tilsyn.
 if(!/\/items\/new/.test(location.pathname)){

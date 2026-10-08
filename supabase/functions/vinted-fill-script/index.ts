@@ -1106,16 +1106,25 @@ Deno.serve(async (req: Request) => {
       " x.send();",
       "})();",
     ].join("\n");
+    // Hele vinted.dk, ikke kun /items/*: 8. oktober landede Upload paa en side
+    // uden for /items/ med en rigtig sideindlaesning. Fanens vagt doede, og
+    // runneren startede ikke paa den nye side, saa nr. 44 blev aldrig meldt.
+    const match = [
+      "// @match        https://www.vinted.dk/*",
+      "// @match        https://vinted.dk/*",
+    ];
+    // @match er med i versionen: Userscripts henter kun en ny liste, naar
+    // versionen skifter.
+    const kilde = match.join("\n") + "\n" + indlaeser;
     let h = 0;
-    for (let i = 0; i < indlaeser.length; i++) h = (h * 31 + indlaeser.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < kilde.length; i++) h = (h * 31 + kilde.charCodeAt(i)) >>> 0;
     const body = [
       "// ==UserScript==",
       "// @name         VintedAuto",
       "// @namespace    udbakke",
       `// @version      1.0.${h % 100000}`,
       "// @description  Udfylder Vinted-annoncen og holder appen synkroniseret",
-      "// @match        https://www.vinted.dk/items/*",
-      "// @match        https://vinted.dk/items/*",
+      ...match,
       "// @run-at       document-idle",
       "// @grant        none",
       "// @inject-into  page",

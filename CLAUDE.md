@@ -560,7 +560,9 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   den ned i stedet for at vise den.
 - **Ændrer du `@match` i et brugerscript, skal det installeres forfra.** Listen
   er bagt ind ved installationen; Userscripts henter først den nye, når den
-  opdaterer, og indtil da fyrer scriptet ikke på de nye adresser.
+  opdaterer, og indtil da fyrer scriptet ikke på de nye adresser. `@match`
+  regnes derfor med i `@version` (før var det kun indlæseren, og en ny liste
+  ville aldrig være blevet set som en ny version).
 
 ## Billederne
 
@@ -753,6 +755,17 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
   bagefter. Derfor holder runneren selv øje i op til en time, efter den har
   fyldt formularen. Det samme gælder alt andet, der skal ske »på næste side« —
   vent ikke på, at scriptet starter forfra.
+- **…men 8. oktober landede Upload med en RIGTIG sideindlæsning uden for
+  `/items/`.** Fanens vagt døde uden at melde »formularen er væk« (den ville
+  have gjort det inden for et sekund ved et adresseskift i siden), og ingen
+  runner blev hentet bagefter, for brugerscriptet matchede kun `/items/*`.
+  Nr. 36 og 44 blev ikke meldt; nr. 36 blev først fundet af efterløbet ved
+  næste udfyldning. Derfor matcher brugerscriptet nu **hele vinted.dk**, og
+  uden for `/items/` gør runneren KUN to ting: melder markøren (fanens
+  `sessionStorage` overlever sideskiftet) med op til 2 min. venten på
+  garderoben, og kører efterløbet. Prisvagt og synkronisering kører stadig
+  kun på `/items/`. Begge veje er dækket: skifter Vinted i siden, ser vagten
+  det; indlæser den en ny side, starter runneren dér.
 - **Den nye annonce findes i garderoben, ikke på en adresse.** At Vinted
   sender en videre til annoncens side efter Upload, var et gæt, og det holdt
   aldrig: ingen af nr. 5-20 blev tilknyttet ad den vej, og Safari bliver
