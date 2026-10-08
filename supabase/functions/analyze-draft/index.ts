@@ -819,7 +819,13 @@ Deno.serve(async (req: Request) => {
         ? `${tagFarve} (${farveDansk})` : tagFarve).slice(0, 60);
       vision.color = farveDansk || tagFarve;
     }
-    if (vision.measurements) { fakta.maal = cleanText(vision.measurements); fakta.maalKilde = "mærkatet"; }
+    // Et maal har cm, W/L eller et maalord. »EUR 128 US 7 CN 130/59 UK 7-8Y« er
+    // stoerrelsen i andre landes system - nr. 47 fik den som maal to gange i
+    // traek, ogsaa efter prompten sagde fra.
+    const maalTekst = cleanText(vision.measurements);
+    if (/\d\s*cm\b|\bW\s?\d{2}\b.*\bL\s?\d{2}\b|vidde|længde|bredde|højde/i.test(maalTekst)) {
+      fakta.maal = maalTekst; fakta.maalKilde = "mærkatet";
+    }
     // Vaskemaerket er facit for materialet; et foto kan ikke se forskel paa
     // bomuld og viskose.
     const materialer = tom(lm.materialer);
