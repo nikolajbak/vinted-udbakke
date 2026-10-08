@@ -715,6 +715,14 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`
   — en side må ikke åbne filvælgeren, men godt fylde feltet.
+- **Prisfeltet skrives med `setPris`, aldrig `setv`.** Det er et valutafelt,
+  der kun tager et råt tal, mens det har fokus. Uden fokus bliver teksten
+  formateret som valuta: på redigeringssiden (»149,00 kr.«) gav »120« en TOM
+  pris i formularen, og Gem fejlede med »Pris skal være større end eller lig
+  med 8.0«. Alle prisvagtens nedsættelser fejlede sådan. `setPris` sender
+  `focusin` → værdi → `focusout`, for React lytter på dem, og `el.focus()`
+  fyrer ikke, når fanen ikke har fokus. Målt 8. oktober på formularens egen
+  værdi (fiberens `value`), ikke på det, feltet viser.
 
 ## Vinted: søgning og annoncens data
 

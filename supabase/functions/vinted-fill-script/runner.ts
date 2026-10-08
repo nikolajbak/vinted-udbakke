@@ -62,6 +62,18 @@ function setv(el,v){
  el.dispatchEvent(new Event('change',{bubbles:true}));
 }
 
+// Vinteds prisfelt er et valutafelt, der læser det indtastede forskelligt
+// efter, om det har fokus. Uden fokus formateres teksten som valuta, og på
+// redigeringssiden (der står »149,00 kr.«) gav »120« en TOM pris i
+// formularen — Gem fejlede med »Pris skal være større end eller lig med 8.0«.
+// Med fokus tager det rå tal imod. React lytter på focusin/focusout, og
+// el.focus() fyrer ikke, når fanen ikke har fokus. Målt 8. oktober.
+function setPris(el,v){
+ el.dispatchEvent(new FocusEvent('focusin',{bubbles:true}));
+ setv(el,v);
+ el.dispatchEvent(new FocusEvent('focusout',{bubbles:true}));
+}
+
 // Vinted viser vaelgerne paa to maader. Er vinduet smalt - en telefon - er det
 // en dialog midt paa skaermen. Er det bredt, er panelerne indlejrede i siden
 // og staar aabne hele tiden; der er intet at "aabne", og maalt paa DOM'en ser
@@ -759,7 +771,7 @@ async function anvend(post){
   if(navn==='price'?helKroner(el.value)===helKroner(f[navn]):ensLyd(el.value,f[navn])){
    allerede.push(navn);continue;
   }
-  setv(el,String(f[navn]));
+  if(navn==='price')setPris(el,String(helKroner(f[navn])));else setv(el,String(f[navn]));
   sat.push(navn);
   await sleep(150);
  }
@@ -1290,7 +1302,7 @@ try{
  var t2=q('#title'),de2=q('#description'),pe2=q('#price');
  if(t2)setv(t2,bedre.title||d.title);
  if(de2)setv(de2,bedre.description||d.description);
- if(pe2)setv(pe2,price);
+ if(pe2)setPris(pe2,price);
  log('tekst sat');
 
  // Til sidst billederne. Uploaden kører videre af sig selv herfra.
