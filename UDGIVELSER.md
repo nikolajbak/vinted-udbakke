@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0063 — 2026-10-08 21:14
+
+Commit `73e0447` — Forbudte vendinger haandhaeves efter modellen (udenForbudte)  
+App: `app.js?v=23578419` · `style.css?v=64c0b54a`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v75 | `0022fd88` |
+| dba-fill-script ← | v25 | `8880d0c9` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v16 | `a31c8881` |
+| vinted-fill-script ← | v82 | `baf0bbb1` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0062 — 2026-10-08 21:11
 
 Commit `d7b8c9f` — Flere forbudte vendinger om stand (set paa nr. 47)  
