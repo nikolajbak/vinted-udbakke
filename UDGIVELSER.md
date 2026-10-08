@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0054 — 2026-10-08 18:14
+
+Commit `0a46380` — Skaermen holdes taendt, mens runneren arbejder (Wake Lock)  
+App: `app.js?v=99598778` · `style.css?v=64c0b54a`  
+Udrullet: dba-fill-script, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v70 | `4055dd2c` |
+| dba-fill-script ← | v22 | `e86e8c45` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v13 | `a31c8881` |
+| vinted-fill-script ← | v75 | `681197fc` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0053 — 2026-10-08 18:00
 
 Commit `6be3e4d` — Fanen lukker sig selv, naar runneren er faerdig og intet venter (Udbakke luk)  
