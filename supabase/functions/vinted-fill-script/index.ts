@@ -1590,6 +1590,15 @@ Deno.serve(async (req: Request) => {
 
     if (body.mode === "clear") {
       await supabase.from("drafts").update({ selected_at: null }).eq("id", body.id);
+      // Runnerens hele log fra udfyldningen. »clear« naar frem, ogsaa naar
+      // de enkelte spor ikke goer (8. oktober, opret-siden).
+      if (Array.isArray(body.log) && body.log.length) {
+        await supabase.from("spor").insert({
+          draft_id: /^[0-9a-f-]{36}$/i.test(String(body.id ?? "")) ? String(body.id) : null,
+          sti: "udfyldning (log)",
+          tekst: body.log.map(String).join("\n").slice(0, 20000),
+        });
+      }
       return json({ ok: true });
     }
 

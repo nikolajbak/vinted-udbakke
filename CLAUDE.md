@@ -205,7 +205,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
-| Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst) | `sql/011-spor.sql` |
+| Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
 sendte afsted; `listings.published` er annoncens egne ord, læst af annoncen
@@ -811,7 +811,10 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
   videre til kategorien under et sekund efter udkastet, så kaldet fejlede
   med det samme. Uden cookies svarer søgningen
   403, og Vinted kører DataDome (cookien `datadome`), så en afvist eller
-  udløbet session er det sandsynlige — ikke målt på telefonen. Derfor går
+  udløbet session var det første gæt — men søgeadressen åbnet direkte i
+  Safari på telefonen gav søgeresultatet, ingen robottest. Samtidig nåede
+  INGEN spor fra opret-siden frem, mens kategorivalgene og »clear« gjorde;
+  derfor sendes udfyldningens hele log nu med »clear«. Derfor går
   hver fejlet søgning til serverens log (spor »søgning »…« forsøg N: …«),
   der prøves én gang til efter 2,5 s, og slutbeskeden siger »Prisen er IKKE
   tjekket mod markedet« med grunden. **Omgå aldrig botbeskyttelsen.** Vinteds

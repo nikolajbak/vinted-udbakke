@@ -36,8 +36,10 @@ var SIDST_SPOR='';
 function spor(s,id){
  log(s);
  if(s===SIDST_SPOR)return; SIDST_SPOR=s;
- try{fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({mode:'spor',id:id||null,tekst:location.pathname+' | '+s})}).catch(function(){})}catch(e){}
+ // Samme vej som de kald, der beviseligt når frem (timedFetch): 8. oktober
+ // kom ingen spor fra opret-siden, mens kategorivalgene gjorde.
+ try{timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,
+  body:JSON.stringify({mode:'spor',id:id||null,tekst:location.pathname+' | '+s})},15000).catch(function(e){log('spor fejlede: '+(e&&e.message))})}catch(e){log('spor kastede: '+e.message)}
 }
 
 // Skaermen maa ikke slukke, mens runneren arbejder. Slukker iOS skaermen, saetter
@@ -1470,7 +1472,7 @@ try{
 
  // Markeringen ryddes, så et genindlæs ikke fylder den samme annonce ud igen.
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({id:DRAFT_ID,mode:'clear'})},15000)}catch(e){}}
+  body:JSON.stringify({id:DRAFT_ID,mode:'clear',log:LOG.slice(-150)})},15000)}catch(e){}}
 
  // Nu er det dig, der trykker; skaermen slukker ikke, mens du roerer ved den.
  slip();
