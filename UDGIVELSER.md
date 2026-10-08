@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0065 — 2026-10-08 21:20
+
+Commit `0da07f5` — Ogsaa »præg af brug« og »brugsspor« rettes efter modellen  
+App: `app.js?v=23578419` · `style.css?v=64c0b54a`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v77 | `0022fd88` |
+| dba-fill-script ← | v27 | `8880d0c9` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v18 | `a31c8881` |
+| vinted-fill-script ← | v84 | `baf0bbb1` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0064 — 2026-10-08 21:16
 
 Commit `80c621e` — Ogsaa »uden pletter eller huller« o.l. rettes efter modellen  
