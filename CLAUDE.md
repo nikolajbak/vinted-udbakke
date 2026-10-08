@@ -189,6 +189,7 @@ i `function_logs`, beviser intet.
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 | Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
+| Hvad hvert modelkald koster (`noterForbrug`) → tabellen `forbrug` | `supabase/functions/_shared/forbrug.ts` |
 | Fanelukkeren »Udbakke luk« (`/udbakke-luk.user.js`) og `lukFanen()` | `LUK_SCRIPT` i `…/vinted-fill-script/index.ts`; `lukFanen`/`fraApp` i `…/vinted-fill-script/runner.ts` |
 
 ## Databasen
@@ -212,6 +213,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
+| Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -832,6 +834,15 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
 
 ## Modellerne
 
+- **Hvert kald til Anthropic noteres i `forbrug`** — via `noterForbrug(svar,
+  trin, draftId)` lige efter `res.json()`. Et nyt kald uden den er usynligt i
+  regningen. Prisen pr. model står i `PRIS` i `_shared/forbrug.ts`; ret den,
+  når en model skiftes. Spørg `forbrug_pr_trin`, før der gættes på, hvad
+  noget koster.
+- **Et foto koster ~3.200 input-tokens på Sonnet 5** (1350×1800, målt med
+  `count_tokens` 8. oktober) — det samme på Sonnet 5.5, Haiku 5.5 og Opus
+  5.5; Haiku 4.5 nedskalerer til ~1.576. Fotoene er det meste af regningen:
+  skønnet var ~$0,45 pr. vare, heraf ~70 % billeder.
 - **Anthropic-API'et her tager ikke assistant-prefill** → brug `tool_choice`.
 - **Modellen leverer af og til en indlejret liste som tekst** i et
   værktøjssvar (`erfaringer: "[{…}]"`). Første kørsel af gennemgangen væltede

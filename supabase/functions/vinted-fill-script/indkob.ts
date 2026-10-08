@@ -14,6 +14,7 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { erNy, helKroner } from "../_shared/pris.ts";
+import { noterForbrug } from "../_shared/forbrug.ts";
 
 const STILLE_DAGE = 14;
 const HURTIG_DAGE = 7;          // solgt inden for en uge = "saelger let"
@@ -350,7 +351,9 @@ export async function indkob(supabase: SupabaseClient, apiKey: string) {
         }),
       });
       if (!res.ok) throw new Error(`anthropic_error_${res.status}`);
-      const blok = (await res.json()).content?.find((b: { type?: string }) => b.type === "tool_use");
+      const data = await res.json();
+      await noterForbrug(data, "indkob");
+      const blok = data.content?.find((b: { type?: string }) => b.type === "tool_use");
       const ud = (blok?.input ?? {}) as Raekke;
       // Samme greb som laering.ts: en liste kan komme som tekst.
       const liste = (x: unknown): Raekke[] => {

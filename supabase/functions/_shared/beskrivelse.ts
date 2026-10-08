@@ -4,6 +4,8 @@
 // "uden synlige pletter", og en rettelse ét sted naaede aldrig de tre andre.
 // Nu staar reglerne her, og alle fire laeser dem.
 
+import { noterForbrug } from "./forbrug.ts";
+
 export const BESKRIVELSE_REGLER =
   "Regler for beskrivelsen:\n" +
   "- Skriv positivt og varmt, med positive superlativer, hvor varen fortjener dem: \"smuk\", " +
@@ -147,6 +149,7 @@ export async function slaaOp(
     brand?: string | null; productType?: string; size?: string | null; color?: string; ny: boolean;
     maerker?: string | null;
   },
+  draftId?: unknown,
 ): Promise<{ nypris?: number; nyprisKilde?: string; maal?: string; laengde?: number; skulderbredde?: number }> {
   const brand = String(vare.brand ?? "").trim();
   const maerker = String(vare.maerker ?? "").trim();
@@ -193,6 +196,7 @@ export async function slaaOp(
     });
     if (!res.ok) throw new Error(`opslag_${res.status}: ${(await res.text()).slice(0, 200)}`);
     const data = await res.json();
+    await noterForbrug(data, "opslag:nypris_maal", draftId);
     const fund = (data?.content || []).find((b: { type?: string; name?: string }) =>
       b?.type === "tool_use" && b?.name === OPSLAG_TOOL.name);
     if (fund?.input) {
@@ -228,7 +232,7 @@ export function cm(v: unknown): number | undefined {
 export const FORBUDTE_VENDINGER =
   /uden (synlige|nogen|tegn|pletter|huller|slid|fejl|skader|mangler)|ingen (synlige|pletter|huller|fejl|skader)|fri for (pletter|huller|fejl)|umiddelbart|så vidt jeg kan se|springer i øjnene|tegn på (brug|slid)|præg af (brug|slid|almindelig)|brugsspor|\bbytte/i;
 
-export async function udenForbudte(apiKey: string, tekst: string): Promise<string> {
+export async function udenForbudte(apiKey: string, tekst: string, draftId?: unknown): Promise<string> {
   if (!tekst || !FORBUDTE_VENDINGER.test(tekst)) return tekst;
   const fjern = (t: string) =>
     t.split(/\n/).map((l) => l.split(/(?<=[.!?])\s+/).filter((s) => !FORBUDTE_VENDINGER.test(s)).join(" "))
@@ -253,6 +257,7 @@ export async function udenForbudte(apiKey: string, tekst: string): Promise<strin
     });
     if (!res.ok) return fjern(tekst);
     const data = await res.json();
+    await noterForbrug(data, "tekst:uden_forbudte", draftId);
     const ny = String((data?.content || []).find((b: { type?: string }) => b?.type === "text")?.text ?? "").trim();
     // Rettelsen maa ikke selv bringe vendingen med, og ikke sluge teksten.
     if (ny.length < tekst.length * 0.6 || FORBUDTE_VENDINGER.test(ny)) return fjern(ny.length >= tekst.length * 0.6 ? ny : tekst);

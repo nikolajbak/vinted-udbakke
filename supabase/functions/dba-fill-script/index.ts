@@ -10,6 +10,7 @@ import { RUNNER } from "./runner.ts";
 import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
 import { BESKRIVELSE_REGLER, faktaTekst, ingenVersaler, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { noterForbrug } from "../_shared/forbrug.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -105,7 +106,9 @@ async function chooseOption(
     }),
   });
   if (!res.ok) return -1;
-  const block = (await res.json()).content?.find((b: { type?: string }) => b.type === "tool_use");
+  const data = await res.json();
+  await noterForbrug(data, `dba:valg ${kind}`, draft.id);
+  const block = data.content?.find((b: { type?: string }) => b.type === "tool_use");
   const i = Number(block?.input?.index);
   return Number.isInteger(i) && i >= 0 && i < options.length ? i : -1;
 }
@@ -245,7 +248,9 @@ async function analyseMarket(
     }),
   });
   if (!res.ok) return null;
-  const block = (await res.json()).content?.find((b: { type?: string }) => b.type === "tool_use");
+  const data = await res.json();
+  await noterForbrug(data, "dba:marked", draft.id);
+  const block = data.content?.find((b: { type?: string }) => b.type === "tool_use");
   const out = block?.input as Record<string, unknown> | undefined;
   if (!out) return null;
 
@@ -284,7 +289,7 @@ async function analyseMarket(
   return {
     price: price || null,
     title: ingenVersaler(clean(out.title), draft.brand).slice(0, 70),
-    description: await udenForbudte(ANTHROPIC_API_KEY, clean(out.description)),
+    description: await udenForbudte(ANTHROPIC_API_KEY, clean(out.description), draft.id),
     captions,
     note,
   };
@@ -412,7 +417,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "market") {
       const { data } = await supabase
         .from("drafts")
-        .select("title, description, brand, size, condition, color, material, photos, fakta")
+        .select("id, title, description, brand, size, condition, color, material, photos, fakta")
         .eq("id", body.id).single();
       if (!data) return json({ error: "no_draft" }, 404);
       const items = (Array.isArray(body.items) ? body.items : [])
@@ -437,7 +442,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "choose") {
       const { data } = await supabase
         .from("drafts")
-        .select("title, description, brand, size, condition, category_path")
+        .select("id, title, description, brand, size, condition, category_path")
         .eq("id", body.id).single();
       if (!data) return json({ index: -1 });
       const options = (body.options || []).map((o) => String(o));

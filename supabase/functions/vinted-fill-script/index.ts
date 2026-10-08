@@ -20,6 +20,7 @@ import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { noterForbrug } from "../_shared/forbrug.ts";
 import { laer } from "./laering.ts";
 import { indkob } from "./indkob.ts";
 import { erNy, erNyAnnonce, helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
@@ -134,6 +135,7 @@ async function callTool(
   system: string,
   user: string | Block[],
   tool: Record<string, unknown>,
+  draftId?: unknown,
 ) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -153,6 +155,7 @@ async function callTool(
   });
   if (!res.ok) throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   const data = await res.json();
+  await noterForbrug(data, `vinted:${tool.name}`, draftId);
   const block = (data?.content || []).find((b: { type?: string }) => b?.type === "tool_use");
   if (!block?.input) throw new Error("no_tool_use_in_response");
   return block.input as Record<string, unknown>;
@@ -208,6 +211,7 @@ async function backfillFields(draft: Record<string, unknown>) {
       `Kategori (fritekst): ${draft.category ?? ""}\nStand (fritekst): ${draft.condition ?? ""}\n` +
       `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}`,
     FIELDS_TOOL,
+    draft.id,
   );
 
   const derived: Record<string, unknown> = {
@@ -307,6 +311,7 @@ async function chooseOption(
       `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}\n\n` +
       `${where}${suggested}${rejected}Muligheder:\n${list}`,
     CHOICE_TOOL,
+    draft.id,
   );
   const i = Number(out.index);
   return Number.isInteger(i) && i >= 0 && i < options.length ? i : -1;
@@ -370,6 +375,7 @@ async function verifyChoice(
       "Vær ikke kræsen for kræsenhedens skyld; et unødigt false koster sælgeren et helt omvalg.",
     images.length ? [...images, { type: "text", text }] : text,
     VERIFY_TOOL,
+    draft.id,
   );
   return { ok: out.ok !== false, reason: String(out.reason || "") };
 }
@@ -486,6 +492,7 @@ async function analyseMarket(
     MARKET_SYSTEM + (erfaringer ? "\n\n" + erfaringer : ""),
     images.length ? [...images, { type: "text", text }] : text,
     LISTING_TOOL,
+    draft.id,
   );
 
   // Modellens egne udvalgte annoncer er grundlaget. Regnestykket laegges her.
@@ -523,7 +530,7 @@ async function analyseMarket(
 
   return {
     title: ingenVersaler(cleanText(out.title), draft.brand),
-    description: await udenForbudte(ANTHROPIC_API_KEY, cleanText(out.description)),
+    description: await udenForbudte(ANTHROPIC_API_KEY, cleanText(out.description), draft.id),
     price,
     priceNote: cleanText(out.priceNote) + (ramme.note ? ` (${ramme.note})` : guarded ? " (justeret til feltet)" : ""),
     compared: chosen.length,
@@ -579,6 +586,7 @@ async function priceFromComparables(
   });
   if (!res.ok) throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   const data = await res.json();
+  await noterForbrug(data, "vinted:pris_sammenlignelige", draft.id);
   const block = (data?.content || []).find((b: { type?: string }) => b?.type === "tool_use");
   if (!block?.input) throw new Error("no_tool_use_in_response");
   return block.input as { price: string; priceNote: string };
@@ -1641,7 +1649,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "market") {
       const { data: d, error: e } = await supabase
         .from("drafts")
-        .select("title, description, brand, size, condition, material, color, photos, fakta")
+        .select("id, title, description, brand, size, condition, material, color, photos, fakta")
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);
@@ -1657,7 +1665,7 @@ Deno.serve(async (req: Request) => {
             color: String(d.color ?? ""),
             ny: true,
             maerker: fakta.maerker,
-          });
+          }, body.id);
           if (fundet.nypris) {
             fakta.ny = true;
             fakta.nypris = fundet.nypris;
@@ -1697,7 +1705,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "verify") {
       const { data: d, error: e } = await supabase
         .from("drafts")
-        .select("title, description, brand, photos")
+        .select("id, title, description, brand, photos")
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);
@@ -1714,7 +1722,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "choose") {
       const { data: d, error: e } = await supabase
         .from("drafts")
-        .select("title, description, brand, size")
+        .select("id, title, description, brand, size")
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);

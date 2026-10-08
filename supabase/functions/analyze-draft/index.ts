@@ -8,6 +8,7 @@ import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer, hentRettelser } from "../_shared/laering.ts";
+import { noterForbrug } from "../_shared/forbrug.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme, prisTekst } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -95,7 +96,7 @@ const MAERKE_TOOL = {
   },
 };
 
-async function laesMaerker(urls: string[]): Promise<Record<string, unknown>> {
+async function laesMaerker(urls: string[], draftId?: unknown): Promise<Record<string, unknown>> {
   if (!urls.length) return {};
   return await callClaudeJson(
     "Du afskriver mærker på tøj. Skriv kun det, der faktisk står — tegn for tegn. Gæt aldrig et tegn, du ikke kan læse. " +
@@ -111,6 +112,7 @@ async function laesMaerker(urls: string[]): Promise<Record<string, unknown>> {
     STRATEGY_MODEL,
     MAERKE_TOOL,
     800,
+    draftId,
   );
 }
 
@@ -120,6 +122,7 @@ async function callClaudeJson(
   model: string,
   tool: { name: string; description: string; input_schema: Record<string, unknown> },
   maxTokens = 1200,
+  draftId?: unknown,
 ): Promise<Record<string, unknown>> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -141,6 +144,7 @@ async function callClaudeJson(
     throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   }
   const data = await res.json();
+  await noterForbrug(data, `analyse:${tool.name}`, draftId);
   const block = (data?.content || []).find((b: { type?: string }) => b?.type === "tool_use");
   if (!block?.input) throw new Error("no_tool_use_in_response");
   return block.input as Record<string, unknown>;
@@ -602,6 +606,7 @@ Deno.serve(async (req: Request) => {
           STRATEGY_MODEL,
           GUIDANCE_TOOL,
           400,
+          id,
         );
 
         const regions = Array.isArray(g.personalRegions) ? g.personalRegions : [];
@@ -652,6 +657,7 @@ Deno.serve(async (req: Request) => {
             STRATEGY_MODEL,
             CHECK_TOOL,
             250,
+            id,
           );
           // Kravens plads vejer tungere end et tal, modellen selv skulle regne
           // ud. Er den kendt, bestemmer den; ellers falder vi tilbage.
@@ -691,6 +697,7 @@ Deno.serve(async (req: Request) => {
               VISION_MODEL,
               VERIFY_MASK_TOOL,
               200,
+              id,
             );
             if (check.stillVisible === true) {
               const wider = regions.map(function (r: Record<string, number>) {
@@ -775,7 +782,7 @@ Deno.serve(async (req: Request) => {
 
     // Maerkerne side om side med billedanalysen. Fejler det, gaar analysen
     // videre uden.
-    const maerkerP = laesMaerker(loaded.slice(0, 6).map((l) => String(l.photo.url))).catch((err) => { console.error("maerkerne kunne ikke laeses", err); return {} as Record<string, unknown>; });
+    const maerkerP = laesMaerker(loaded.slice(0, 6).map((l) => String(l.photo.url)), id).catch((err) => { console.error("maerkerne kunne ikke laeses", err); return {} as Record<string, unknown>; });
 
     // Det, analysen tidligere har taget fejl af (dine rettelser, Vinteds afvisninger).
     const rettelser = await hentRettelser();
@@ -798,6 +805,7 @@ Deno.serve(async (req: Request) => {
       STRATEGY_MODEL,
       VISION_TOOL,
       1600,
+      id,
     );
     const searchQuery = String(vision.searchQuery || vision.productType || "genbrug");
 
@@ -845,7 +853,7 @@ Deno.serve(async (req: Request) => {
       color: String(vision.color ?? ""),
       ny: ny && !fakta.nypris,
       maerker: fakta.maerker,
-    }).then((fundet) => {
+    }, id).then((fundet) => {
       if (fundet.nypris) { fakta.nypris = fundet.nypris; fakta.nyprisKilde = fundet.nyprisKilde; }
       if (fundet.maal) { fakta.maal = fundet.maal; fakta.maalKilde = "mærkets størrelsesguide"; }
       // Plaggets egne maal til Vinteds felter - kun naar varens produktside
@@ -903,10 +911,11 @@ Deno.serve(async (req: Request) => {
       STRATEGY_MODEL,
       DRAFT_TOOL,
       1600,
+      id,
     );
 
 console.log("annonce klar paa", Date.now() - t0, "ms");
-    draft.description = await udenForbudte(ANTHROPIC_API_KEY, cleanText(draft.description));
+    draft.description = await udenForbudte(ANTHROPIC_API_KEY, cleanText(draft.description), id);
     // En ny vare med kendt nypris lægges inden for rammen (_shared/pris.ts).
     const ramme = iNyprisRamme(helKroner(cleanText(draft.price)), nyprisRamme(fakta, draft.condition));
     if (ramme.note) {

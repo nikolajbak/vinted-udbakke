@@ -11,6 +11,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { noterForbrug } from "../_shared/forbrug.ts";
 import { helKroner } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -130,7 +131,9 @@ Deno.serve(async (req) => {
     }),
   });
   if (!res.ok) return json({ error: `anthropic_${res.status}` }, 500);
-  const block = (await res.json()).content?.find((b: { type?: string }) => b.type === "tool_use");
+  const data = await res.json();
+  await noterForbrug(data, "reshopper", id);
+  const block = data.content?.find((b: { type?: string }) => b.type === "tool_use");
   if (!block?.input) return json({ error: "no_tool_use" }, 500);
 
   const o = block.input as Record<string, unknown>;

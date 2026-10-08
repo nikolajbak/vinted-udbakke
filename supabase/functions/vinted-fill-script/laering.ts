@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { BESKRIVELSE_REGLER } from "../_shared/beskrivelse.ts";
+import { noterForbrug } from "../_shared/forbrug.ts";
 
 const MIN_SOLGTE = 3;
 const MIN_VURDERBARE = 6;    // solgt, eller ude i mindst STILLE_DAGE
@@ -235,7 +236,9 @@ export async function laer(supabase: SupabaseClient, apiKey: string) {
     }),
   });
   if (!res.ok) throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
-  const blok = (await res.json()).content?.find((b: { type?: string }) => b.type === "tool_use");
+  const data = await res.json();
+  await noterForbrug(data, "laering");
+  const blok = data.content?.find((b: { type?: string }) => b.type === "tool_use");
   const ud = (blok?.input ?? {}) as { overblik?: string; erfaringer?: unknown };
   // Modellen leverer af og til en indlejret liste som tekst - maalt paa
   // foerste proevekoersel. Laes den, eller regn med ingen.
