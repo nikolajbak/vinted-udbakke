@@ -808,6 +808,34 @@ const BRUGERSCRIPT: Brugerscript = {
   verVar: "__UDBAKKE_VER__",
 };
 
+// »Udbakke luk«: lukker fanen, naar runneren siger, at den er faerdig og
+// intet venter paa dig (lukFanen i runner.ts). Et eget brugerscript, for
+// GM.closeTab findes kun i udvidelsens rum (@inject-into content), og
+// runneren skal koere i sidens rum for at naa Reacts data. De to taler
+// sammen gennem DOM'en, som begge rum deler. Det skal aldrig bære andet:
+// alt, der kan rettes, hoerer til i runneren.
+const LUK_SCRIPT = [
+  "// ==UserScript==",
+  "// @name         Udbakke luk",
+  "// @namespace    udbakke",
+  "// @version      1.0.0",
+  "// @description  Lukker Vinted-fanen, naar VintedAuto er faerdig og intet venter paa dig",
+  "// @match        https://www.vinted.dk/*",
+  "// @match        https://vinted.dk/*",
+  "// @run-at       document-start",
+  "// @grant        GM.closeTab",
+  "// @inject-into  content",
+  "// ==/UserScript==",
+  "",
+  "(function(){",
+  " function marker(){document.documentElement.setAttribute('data-udbakke-luk','1')}",
+  " marker();",
+  " document.addEventListener('DOMContentLoaded',marker);",
+  " document.addEventListener('udbakke-luk',function(){GM.closeTab().catch(function(){})});",
+  "})();",
+  "",
+].join("\n");
+
 async function registrer(
   draftId: string,
   platform: string,
@@ -1103,6 +1131,12 @@ Deno.serve(async (req: Request) => {
   // Userscripts tilbyder kun at installere, hvis selve STIEN ender paa
   // .user.js - et forespoergselsparameter er ikke nok. Supabase sender
   // undermapper videre til den samme funktion.
+  // Fanelukkeren foer de andre: dens sti ender ogsaa paa .user.js.
+  if (req.method === "GET" && url.pathname.endsWith("/udbakke-luk.user.js")) {
+    return new Response(LUK_SCRIPT, {
+      headers: { ...CORS, "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
   if (req.method === "GET") {
     const svar = await brugerscriptSvar(url, BRUGERSCRIPT, supabase, CORS);
     if (svar) return svar;

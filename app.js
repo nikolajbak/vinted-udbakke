@@ -597,7 +597,7 @@
     var d = rows[b.getAttribute('data-id')];
     var ext = b.getAttribute('data-ext');
     if(op === 'vis' && d){ openDetail(d.id); return; }
-    if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit'); return; }
+    if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit#udbakke=send'); return; }
     if(op === 'tjek'){ aabnUdad('https://www.vinted.dk/items/' + ext + '#udbakke=vagt'); return; }
     if(op.indexOf('aabn-') === 0){
       var k = op.slice(5);
@@ -993,7 +993,7 @@
       h += '<div class="vagt-forslag"><b>Venter på at komme ud: ' + esc(venter.join(', ')) + '</b>' +
         (x.pending_note ? '<span>' + esc(x.pending_note) + '</span>' : '') +
         '<button type="button" class="btn btn-primary" data-aabn="' +
-        esc('https://www.vinted.dk/items/' + x.external_id + '/edit') +
+        esc('https://www.vinted.dk/items/' + x.external_id + '/edit#udbakke=send') +
         '">Send til ' + esc(navn) + '</button></div>';
     }
 
@@ -1763,6 +1763,11 @@
   $('m-userscript-dba').addEventListener('click', function(){
     installer(DBA_API.replace('?key=', '/dba.user.js?key='));
   });
+  // Lukker fanen, naar automatikken er faerdig og intet venter paa dig. Et
+  // eget script, for GM.closeTab findes kun i udvidelsens rum.
+  $('m-userscript-luk').addEventListener('click', function(){
+    installer(FILL_API.replace('?key=', '/udbakke-luk.user.js?key='));
+  });
 
   // ---- Notifikationer -----------------------------------------------------
   function notifTilstand(){
@@ -1987,7 +1992,7 @@
     // mens trykket staar paa — gik gemningen galt, lukkes det igen.
     var sendUd = !!(annonce && Object.keys(aendret).length);
     if(sendUd){
-      aabnUdad('https://www.vinted.dk/items/' + annonce.external_id + '/edit',
+      aabnUdad('https://www.vinted.dk/items/' + annonce.external_id + '/edit#udbakke=send',
         gemt.then(function(){ return true; }, function(){ return false; }));
     }
 
@@ -2544,7 +2549,7 @@
 
   function vagtHandling(v, l, btn){
     if(v === 'saet'){
-      aabnUdad('https://www.vinted.dk/items/' + l.external_id + '/edit');
+      aabnUdad('https://www.vinted.dk/items/' + l.external_id + '/edit#udbakke=send');
       return;
     }
     if(v === 'pause'){

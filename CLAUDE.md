@@ -179,6 +179,7 @@ gættes på, hvorfor en annonce ikke blev tilknyttet.
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 | Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
+| Fanelukkeren »Udbakke luk« (`/udbakke-luk.user.js`) og `lukFanen()` | `LUK_SCRIPT` i `…/vinted-fill-script/index.ts`; `lukFanen`/`fraApp` i `…/vinted-fill-script/runner.ts` |
 
 ## Databasen
 
@@ -363,6 +364,27 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   til Vinted og DBA sidst blev hentet (`puls`), og den sidste mail fra Vinted.
 - **Optagelsen kan tage flere varer i træk** (»Lav udkast · næste vare«) og
   flere billeder fra Fotos på én gang; de fordeles på trinene i rækkefølge.
+
+## Fanen lukker sig selv
+
+Bestemt af dig 8. oktober: **er Safari-fanen åbnet fra appen, og venter
+intet på dig, lukkes den, når runneren er færdig.**
+
+- Kun Vinted, og kun når alt gik igennem: »Tjek« uden nedsættelser,
+  »Opdatér fra Vinted«, og en rettelse/prisnedsættelse kvitteret af Vinted
+  (sidst i en runde). Fejl, rettelser der ikke gik igennem, udfyldning
+  (Upload er dit tryk) og DBA (Udgiv er dit tryk) lader fanen stå.
+- »Fra appen« = et `udbakke=`-flag i adressen, husket i fanens
+  `sessionStorage` (`fraApp`). Appen sætter `#udbakke=send` på alle sine
+  `/edit`-links. En fane, du selv har åbnet, lukkes aldrig.
+- Safari lader ikke en side lukke en fane, den ikke selv har åbnet, og
+  `GM.closeTab` findes kun med `@inject-into content` — mens runneren skal
+  køre i sidens rum (Reacts data). Derfor et eget lille brugerscript,
+  **»Udbakke luk«**, installeret fra Mere: det sætter `data-udbakke-luk` på
+  `<html>` og lukker fanen på hændelsen `udbakke-luk`. Uden det står et
+  bånd med »Luk selv næste gang«. Læg aldrig andet ind i det.
+- **Tilbage til appen kan ikke gøres fra Safari.** iOS har ingen adresse,
+  der åbner en hjemmeskærms-webapp; det er »◀ Udbakke« øverst til venstre.
 
 ## Kortene i listen
 

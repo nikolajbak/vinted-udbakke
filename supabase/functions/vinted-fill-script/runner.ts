@@ -535,6 +535,42 @@ function koeSkriv(k){
  }catch(e){}
 }
 
+// Fanen blev åbnet af appen, når adressen bar et udbakke-flag (vagt, synk,
+// ret, send). Det huskes for FANEN: flaget er væk, så snart Vinted skifter
+// side, og en fane, du selv har åbnet, skal aldrig lukke under dig.
+var FRA_APP='udbakke_fra_app';
+function fraApp(){
+ try{
+  if(/[?&#]udbakke=/.test(location.search+location.hash))sessionStorage.setItem(FRA_APP,'1');
+  return sessionStorage.getItem(FRA_APP)==='1';
+ }catch(e){return false}
+}
+// Færdig, og intet venter på dig: luk fanen. Safari lader ikke en side lukke
+// en fane, den ikke selv har åbnet, så det gør brugerscriptet »Udbakke luk«
+// (GM.closeTab — kun muligt i udvidelsens eget rum, mens runneren skal køre i
+// sidens for at nå Reacts data). Det sætter data-udbakke-luk på <html> og
+// lytter efter 'udbakke-luk'. Uden det står båndet med en knap til at
+// installere det. Tilbage til appen kan en side ikke sende dig: iOS' »◀«
+// øverst til venstre gør det.
+function lukFanen(tekst){
+ if(!fraApp()){baand(tekst,null,null);return}
+ try{sessionStorage.removeItem(FRA_APP)}catch(e){}
+ var kan=function(){return document.documentElement.hasAttribute('data-udbakke-luk')};
+ spor('luk: '+tekst+(kan()?'':' (uden Udbakke luk)'));
+ var b=baand(tekst+' Lukker fanen …',null,null);
+ setTimeout(function(){
+  if(kan())document.dispatchEvent(new CustomEvent('udbakke-luk'));
+  else{try{window.close()}catch(e){}}
+  setTimeout(function(){
+   if(b)b.remove();
+   if(kan())baand(tekst+' Luk fanen, og gå tilbage til appen.',null,null);
+   else baand(tekst+' Luk fanen, og gå tilbage til appen.','Luk selv næste gang',function(){
+    location.href=API.replace('?key=','/udbakke-luk.user.js?key=');
+   });
+  },1500);
+ },2500);
+}
+
 // En lille linje øverst i stedet for en alert. Prisvagten kører uopfordret, og
 // noget uopfordret må ikke spærre siden.
 function baand(tekst,knap,virk){
@@ -780,9 +816,8 @@ async function anvend(post){
   var fra={kilde:'formular',url:location.origin+'/items/'+post.itemId};
   for(var fn in FELT_TIL_INPUT){var fe=q(FELT_TIL_INPUT[fn]);if(fe)fra[fn]=fn==='price'?helKroner(fe.value):fe.value}
   var kv=await kvitter(post,fra);
-  baand(kv&&kv.ok&&!(kv.tilbage||[]).length
-   ?'Ændringen stod allerede i annoncen — kvitteret i appen.'
-   :'Kunne ikke kvittere i appen. Prøv igen fra appen.',null,null);
+  if(kv&&kv.ok&&!(kv.tilbage||[]).length)kv.tekst='Ændringen stod allerede i annoncen — kvitteret i appen.';
+  else baand('Kunne ikke kvittere i appen. Prøv igen fra appen.',null,null);
   return kv;
  }
  if(!sat.length){
@@ -913,7 +948,7 @@ async function bekraeftNu(v){
  spor('bekræft: '+v.itemId+' — '+(kv&&kv.ok?'kvitteret'+((kv.tilbage||[]).length?', mangler '+kv.tilbage.join(','):''):'kunne ikke kvittere'));
  if(!kv||!kv.ok)baand('Gemt på Vinted, men appen kunne ikke kvittere. Prøv igen fra appen.',null,null);
  else if((kv.tilbage||[]).length)baand('Gik ikke igennem på Vinted: '+kv.tilbage.join(', ')+'. Den står stadig som klar i appen.',null,null);
- else baand('Gemt på Vinted og kvitteret i appen.',null,null);
+ else kv.tekst='Gemt på Vinted og kvitteret i appen.';
  return kv;
 }
 
@@ -960,13 +995,15 @@ function besoegt(id){
 }
 
 // Efter en kvittering: næste pris i prisvagtens kø, ellers næste rettelse i
-// runden. Er der ingen af dem, er vi færdige.
+// runden. Er der ingen af dem, er vi færdige — og gik alt igennem, lukkes
+// fanen.
 function videre(itemId,kv){
  afslut(itemId);
  var n=naeste();
  if(n){location.href='/items/'+n.itemId+'/edit';return true}
  if(kv&&kv.naeste&&rundeAktiv()){location.href='/items/'+kv.naeste+'/edit?udbakke=ret';return true}
  try{sessionStorage.removeItem(RUNDE)}catch(e){}
+ if(kv&&kv.tekst)lukFanen(kv.tekst);
  return false;
 }
 
@@ -997,8 +1034,8 @@ async function synkroniser(){
  try{
   var j=await sendSynk(num[1],set);
   if(j&&j.ukendt){baand('Den annonce hører ikke til en vare i appen.',null,null);return true}
-  baand(set.gone?'Annoncen findes ikke længere — noteret som solgt.'
-               :'Appen er opdateret med annoncens egne oplysninger.',null,null);
+  lukFanen(set.gone?'Annoncen findes ikke længere — noteret som solgt.'
+                  :'Appen er opdateret med annoncens egne oplysninger.');
  }catch(e){baand('Kunne ikke sende opdateringen videre.',null,null)}
  return true;
 }
@@ -1084,7 +1121,7 @@ async function prisvagt(){
   return false;
  }
  if(!res.poster.length){
-  if(bedt)baand('Prisvagt: tjekket er kørt — ingen priser skal ned lige nu.',null,null);
+  if(bedt)lukFanen('Prisvagt: tjekket er kørt — ingen priser skal ned lige nu.');
   return false;
  }
  koeSkriv({tid:Date.now(),poster:res.poster});
@@ -1214,6 +1251,8 @@ if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
 // Efterloebet koerer ved siden af, uanset siden - det maa ikke forsinke en
 // udfyldning eller et tilsyn.
 efterloeb();
+// Kom fanen fra appen? Noteres nu, mens flaget stadig staar i adressen.
+fraApp();
 // Uden for /items/ er der kun det ovenfor at goere. Brugerscriptet koerer paa
 // hele vinted.dk, fordi Upload sender dig videre med en rigtig sideindlaesning
 // til en side uden for /items/ - og dér skal markoeren kunne melde annoncen.
