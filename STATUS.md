@@ -19,6 +19,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0000000. **Forbruget måles nu — 8. oktober (udgivelse 0066).** Hvert modelkald
+   lander i `forbrug` (se CLAUDE.md). Afprøvet med én kontrol: 6.068 tokens
+   ind, $0,012. Skønnet før målingen var ~$0,45 pr. vare (~$45/md.).
+   **Næste skridt:** efter ~10 nye varer, læs `forbrug_pr_trin` og
+   `forbrug_pr_vare`. Derefter prøven: rutinekaldene (rotation/beskæring,
+   billedkontrol, kategorivalg, Vinteds feltkontroller) på Haiku 5.5 mod
+   Sonnet 5 på de eksisterende varer, med `rettelser` som facit — ~$2-3,
+   kræver dit ja.
+
 000000. **Analyse, mål, popup og læring af fejl — bygget 8. oktober.** Regler
    i CLAUDE.md (»Mærkerne er facit«, »Mål i Vinteds felter«, »Vinteds
    bedømmelses-popup lukkes«, »Systemet lærer af fejl«). **Afprøvet:**
