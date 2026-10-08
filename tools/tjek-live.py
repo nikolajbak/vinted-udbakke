@@ -6,6 +6,7 @@
 import io, os, re, sys, urllib.request
 
 RUNNERE = ["vinted-fill-script", "dba-fill-script"]
+VARSEL = "(function(){try{\nvar N="
 
 
 def lokal(slug):
@@ -34,7 +35,9 @@ for slug in (sys.argv[1:] or RUNNERE):
     if a is None:
         print("  %-20s fandt ingen RUNNER-tekst i kilden" % slug)
         fejl += 1
-    elif a == b:
+    elif a == b or (b.endswith(a) and b[:-len(a)].startswith(VARSEL)):
+        # Foran runneren ligger varslet om en ny udgave af brugerscriptet
+        # (_shared/brugerscript.ts, varsel). Selve runneren skal staa urørt.
         print("  %-20s live = git (%d tegn)" % (slug, len(a)))
     else:
         print("  %-20s LIVE AFVIGER FRA GIT (git %d tegn, live %d)" % (slug, len(a), len(b)))
