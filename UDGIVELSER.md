@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0052 — 2026-10-08 17:31
+
+Commit `c78f33e` — Tjek mod markedet: appens flag efter # - Vinted smider ?udbakke=vagt vaek ved omdirigeringen  
+App: `app.js?v=c83f8896` · `style.css?v=64c0b54a`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v70 | `4055dd2c` |
+| dba-fill-script | v21 | `c449af3b` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v13 | `a31c8881` |
+| vinted-fill-script ← | v73 | `d810f1a1` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0051 — 2026-10-08 17:30
 
 Commit `05ac8d1` — tjek-live: varslet om ny udgave af brugerscriptet står foran runneren  
