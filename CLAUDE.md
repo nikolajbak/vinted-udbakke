@@ -235,8 +235,9 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
 - Er varen ny, så sig det tydeligt i første linje ("Helt ny med prismærke").
 - Er varen ny, så brug nyprisen i teksten. Den læses af prismærket eller slås
   op på nettet. Findes den ikke, nævnes ingen — der opfindes aldrig et tal.
-- Skriv aldrig "uden synlige huller/pletter/slid", "umiddelbart" o.l. Det
-  lyder som skjulte fejl. Sig det positivt: "står flot", "i fin stand".
+- Skriv aldrig "uden synlige huller/pletter/slid", "umiddelbart", "uden fejl
+  der springer i øjnene", "almindelige tegn på brug" o.l. (de to sidste set
+  på nr. 47, 8. oktober). Det lyder som skjulte fejl. Sig det positivt: "står flot", "i fin stand".
 - Læg aldrig op til, at du kan tage ekstra billeder eller måle op.
 - Mål tastes automatisk, når de kan findes: fra mærkatet, ellers fra mærkets
   størrelsesguide — og teksten siger, hvor de kommer fra.

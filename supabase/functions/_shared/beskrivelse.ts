@@ -20,8 +20,9 @@ export const BESKRIVELSE_REGLER =
   "ikke først, og uden at gøre den større end den er. Skygger, folder, krøl, lysrefleks, fnug fra " +
   "underlaget og almindeligt vaskepræg er IKKE fejl. Gæt aldrig (\"muligvis\", \"evt. en lille plet\").\n" +
   "- Uden fejl: sig det positivt — \"står flot\", \"i rigtig fin stand\", \"pæn og velholdt\". " +
-  "Skriv ALDRIG \"uden synlige huller\", \"ingen synlige pletter\", \"umiddelbart\" eller \"så vidt " +
-  "jeg kan se\": det lyder, som om der er fejl, man bare ikke kan se.\n" +
+  "Skriv ALDRIG \"uden synlige huller\", \"ingen synlige pletter\", \"umiddelbart\", \"så vidt " +
+  "jeg kan se\", \"uden fejl der springer i øjnene\" eller \"almindelige tegn på brug\": det lyder, som om " +
+  "der er fejl, man bare ikke kan se.\n" +
   "- Viser billederne flere ting, der sælges samlet (fx en kjole og et par leggings), så nævn " +
   "HVER del i titlen og beskriv hver af dem i teksten — en del, der ikke nævnes, er ikke solgt.\n" +
   "- Står materialet på vaskemærket (fx \"95% bomuld, 5% elastan\"), så skriv det præcis sådan.\n" +
