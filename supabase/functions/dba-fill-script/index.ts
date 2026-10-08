@@ -7,6 +7,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
+import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
 import { BESKRIVELSE_REGLER, faktaTekst, ingenVersaler } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
@@ -290,6 +291,25 @@ async function analyseMarket(
 }
 
 // "Safari paa iPhone" er nok til at kende telefonen fra Macen.
+// Navnene paa window-variablerne maa aldrig aendres: et installeret bogmaerke
+// saetter dem.
+const BRUGERSCRIPT: Brugerscript = {
+  navn: "VintedAuto — DBA",
+  beskrivelse: "Udfylder DBA-annoncen automatisk",
+  fil: "dba",
+  base: `${SUPABASE_URL}/functions/v1/dba-fill-script`,
+  noegle: SHORTCUT_KEY,
+  match: [
+    "https://www.dba.dk/recommerce/create/*",
+    "https://dba.dk/recommerce/create/*",
+    "https://www.dba.dk/create-item/*",
+    "https://dba.dk/create-item/*",
+  ],
+  apiVar: "__UDBAKKE_DBA_API__",
+  autoVar: "__UDBAKKE_DBA_AUTO__",
+  verVar: "__UDBAKKE_DBA_VER__",
+};
+
 function browserNavn(ua: string): string {
   const enhed = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad"
     : /Macintosh/.test(ua) ? "Mac" : /Android/.test(ua) ? "Android" : "computer";
@@ -304,48 +324,25 @@ Deno.serve(async (req: Request) => {
   if (url.searchParams.get("key") !== SHORTCUT_KEY) return json({ error: "unauthorized" }, 401);
 
   // Userscripts (iOS) tilbyder kun installation, hvis selve STIEN ender paa
-  // .user.js, og filen skal udleveres som ren tekst. Samme greb som Vinteds.
-  const wantsUserscript = url.pathname.endsWith(".user.js") || url.searchParams.get("userscript") === "1";
-  if (req.method === "GET" && wantsUserscript) {
-    const base = `${SUPABASE_URL}/functions/v1/dba-fill-script`;
-    const api = `${base}?key=${SHORTCUT_KEY}`;
-    const install = `${base}/dba.user.js?key=${SHORTCUT_KEY}`;
-    let h = 0;
-    for (let i = 0; i < RUNNER.length; i++) h = (h * 31 + RUNNER.charCodeAt(i)) >>> 0;
-    const body = [
-      "// ==UserScript==",
-      "// @name         VintedAuto — DBA",
-      "// @namespace    udbakke",
-      `// @version      1.0.${h % 100000}`,
-      "// @description  Udfylder DBA-annoncen automatisk",
-      "// @match        https://www.dba.dk/recommerce/create/*",
-      "// @match        https://dba.dk/recommerce/create/*",
-      "// @match        https://www.dba.dk/create-item/*",
-      "// @match        https://dba.dk/create-item/*",
-      "// @run-at       document-idle",
-      "// @grant        none",
-      "// @inject-into  page",
-      `// @downloadURL  ${install}`,
-      `// @updateURL    ${install}`,
-      "// ==/UserScript==",
-      "",
-      `window.__UDBAKKE_DBA_API__=${JSON.stringify(api)};`,
-      "window.__UDBAKKE_DBA_AUTO__=true;",
-      RUNNER,
-    ].join("\n");
-    return new Response(body, {
-      headers: { ...CORS, "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
-    });
+  // .user.js, og filen skal udleveres som ren tekst. Samme greb som Vinteds -
+  // og som dér er brugerscriptet kun en indlaeser. Foer bar det runneren
+  // indbagt, og hver rettelse ventede saa paa, at Userscripts opdaterede.
+  // Udgave, .meta.js og varslet om en ny udgave: se _shared/brugerscript.ts.
+  if (req.method === "GET") {
+    const svar = await brugerscriptSvar(url, BRUGERSCRIPT, supabase, CORS);
+    if (svar) return svar;
   }
 
   if (req.method === "GET" && url.searchParams.get("script") === "1") {
     // Automatikken hentes ved hver sideindlaesning. Tidspunktet staar i appens
-    // opsaetning, saa det kan ses, om telefonen faktisk koerer den.
+    // opsaetning, saa det kan ses, om telefonen faktisk koerer den - og med
+    // hvilken udgave af brugerscriptet.
+    const version = await udgave(BRUGERSCRIPT, supabase);
     await supabase.from("puls").upsert({
       navn: "dba-runner", sidst: new Date().toISOString(),
-      detalje: browserNavn(req.headers.get("user-agent") || ""),
+      detalje: browserNavn(req.headers.get("user-agent") || "") + udgaveTekst(url, version),
     }).then(() => {}, () => {});
-    return new Response(RUNNER, {
+    return new Response(varsel(BRUGERSCRIPT, version) + RUNNER, {
       headers: { ...CORS, "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
     });
   }

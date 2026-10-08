@@ -178,6 +178,7 @@ gættes på, hvorfor en annonce ikke blev tilknyttet.
 | Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
+| Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
 
 ## Databasen
 
@@ -198,6 +199,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
+| Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
 sendte afsted; `listings.published` er annoncens egne ord, læst af annoncen
@@ -547,7 +549,7 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   Brugerscriptet bar før runneren indbagt og ventede på, at Userscripts
   opdaterede: 2. oktober blev nr. 19-21 lagt op med en runner to udgivelser
   bagud, og en rettelse så ud til ikke at virke, fordi den aldrig var nået ud.
-  **Læg aldrig runneren ind i brugerscriptet igen.**
+  **Læg aldrig runneren ind i brugerscriptet igen** — gælder også DBA.
 - **`window.__UDBAKKE_*` må ikke omdøbes.** Et installeret bogmærke sætter dem,
   før det henter automatikken; et andet navn brækker det uden varsel.
 - **Alt, der skal åbne i RIGTIG Safari, skal have `x-safari-` foran.** I den
@@ -560,9 +562,26 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   den ned i stedet for at vise den.
 - **Ændrer du `@match` i et brugerscript, skal det installeres forfra.** Listen
   er bagt ind ved installationen; Userscripts henter først den nye, når den
-  opdaterer, og indtil da fyrer scriptet ikke på de nye adresser. `@match`
-  regnes derfor med i `@version` (før var det kun indlæseren, og en ny liste
-  ville aldrig være blevet set som en ny version).
+  opdaterer, og indtil da fyrer scriptet ikke på de nye adresser.
+- **Userscripts opdaterer kun til et STØRRE versionsnummer — og ikke
+  pålideligt af sig selv.** Dens egen README siger, at opdateringen ikke er
+  færdigbygget. Før var versionen `1.0.<hash>`, og et nyt hash kan være
+  mindre end det gamle: så ville en ny udgave aldrig blive set som ny. Nu
+  (8. oktober, `_shared/brugerscript.ts`):
+  - Versionen er `2.0.<n>`, hvor `n` kommer fra `brugerscript_udgave`: nyt
+    indhold (hoved + indlæser) får næste nummer, samme indhold beholder sit.
+    Ret aldrig versionen i hånden, og gå aldrig tilbage til et hash.
+  - `@updateURL` peger på `.meta.js` (kun hovedet), `@downloadURL` på
+    `.user.js`.
+  - Indlæseren sætter sin udgave (`__UDBAKKE_VER__` / `__UDBAKKE_DBA_VER__`)
+    og sender den med som `&v=`. Er den ikke den nyeste — eller mangler den,
+    som i brugerscripter fra før 8. oktober — viser siden et bånd med
+    **Opdatér**, der åbner `.user.js`; lukkes båndet, kommer det igen om seks
+    timer. Bogmærket får aldrig båndet. `puls.detalje` siger »brugerscript
+    forældet«, og appens »Virker det?« viser det med rødt.
+- **Begge brugerscripter er kun indlæsere** — også DBA's, som til 8. oktober
+  bar runneren indbagt og derfor skulle opdateres ved hver rettelse. Kun en
+  ny `@match` eller en ændret indlæser kræver en ny udgave.
 
 ## Billederne
 

@@ -1723,7 +1723,10 @@
       function auto(k){
         var x = p[k];
         if(!x) return [null, 'ikke set siden opdateringen'];
-        return [friskhed(x.sidst, 14), 'hentet ' + relTime(x.sidst) + (x.detalje ? ' · ' + x.detalje : '')];
+        // Serveren skriver »forældet«, når brugerscriptet ikke er den nyeste
+        // udgave. Siden selv viser et bånd med en Opdatér-knap.
+        if(/forældet/.test(x.detalje || '')) return [false, x.detalje.replace(/^.* · /, '') + ' — tryk Opdatér på Vinted/DBA, eller installér igen herunder'];
+        return [friskhed(x.sidst, 14),'hentet ' + relTime(x.sidst) + (x.detalje ? ' · ' + x.detalje : '')];
       }
       var v = auto('vinted-runner'), db = auto('dba-runner');
       var m = mail ? [friskhed(mail.at, 30), 'sidste mail ' + relTime(mail.at)]

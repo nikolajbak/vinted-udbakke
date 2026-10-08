@@ -16,6 +16,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
+import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
@@ -791,6 +792,22 @@ function ensLyd(a: unknown, b: unknown): boolean {
 // nr. 5-20 blev nogensinde tilknyttet ad den vej.
 const VINTED_BRUGER = "3125670782";
 
+// Hele vinted.dk, ikke kun /items/*: 8. oktober landede Upload paa en side
+// uden for /items/ med en rigtig sideindlaesning, og saa blev nr. 44 aldrig
+// meldt. Navnene paa window-variablerne maa aldrig aendres: et installeret
+// bogmaerke saetter dem.
+const BRUGERSCRIPT: Brugerscript = {
+  navn: "VintedAuto",
+  beskrivelse: "Udfylder Vinted-annoncen og holder appen synkroniseret",
+  fil: "udbakke",
+  base: `${SUPABASE_URL}/functions/v1/vinted-fill-script`,
+  noegle: SHORTCUT_KEY,
+  match: ["https://www.vinted.dk/*", "https://vinted.dk/*"],
+  apiVar: "__UDBAKKE_API__",
+  autoVar: "__UDBAKKE_AUTO__",
+  verVar: "__UDBAKKE_VER__",
+};
+
 async function registrer(
   draftId: string,
   platform: string,
@@ -1078,84 +1095,31 @@ Deno.serve(async (req: Request) => {
   }
 
   // Samme automatik pakket som et brugerscript, saa Safari kan koere den af sig
-  // selv, naar opret-siden aabnes. Versionsnummeret foelger indlaeseren, som
-  // kun aendrer sig, hvis selve adressen goer - runneren hentes frisk hver gang.
+  // selv. Brugerscriptet er kun en indlaeser, ligesom bogmaerket: foer bar det
+  // runneren indbagt, og saa ramte en rettelse foerst telefonen, naar
+  // Userscripts gad opdatere - 2. oktober blev nr. 19-21 lagt op med en runner,
+  // der var to udgivelser bagud. Udgave, .meta.js og varslet om en ny udgave:
+  // se _shared/brugerscript.ts.
   // Userscripts tilbyder kun at installere, hvis selve STIEN ender paa
   // .user.js - et forespoergselsparameter er ikke nok. Supabase sender
-  // undermapper videre til den samme funktion, saa filnavnet kan bare haenges
-  // bagpaa.
-  const wantsUserscript = url.pathname.endsWith(".user.js") ||
-    url.searchParams.get("userscript") === "1";
-  if (req.method === "GET" && wantsUserscript) {
-    // Ikke url.origin: bag Supabase's router er det den interne adresse, og et
-    // brugerscript skal kunne kalde hjem udefra.
-    const base = `${SUPABASE_URL}/functions/v1/vinted-fill-script`;
-    const api = `${base}?key=${SHORTCUT_KEY}`;
-    const install = `${base}/udbakke.user.js?key=${SHORTCUT_KEY}`;
-    // Brugerscriptet er kun en indlaeser, ligesom bogmaerket. Foer bar det
-    // runneren indbagt, og saa ramte en rettelse foerst telefonen, naar
-    // Userscripts gad opdatere: 2. oktober blev nr. 19-21 lagt op med en runner,
-    // der var to udgivelser bagud, og ingen af dem blev tilknyttet.
-    const indlaeser = [
-      `window.__UDBAKKE_API__=${JSON.stringify(api)};`,
-      "window.__UDBAKKE_AUTO__=true;",
-      "(function(){",
-      " var x=new XMLHttpRequest();",
-      " x.open('GET',window.__UDBAKKE_API__+'&script=1');",
-      " x.onload=function(){if(x.status===200)(0,eval)(x.responseText)};",
-      " x.send();",
-      "})();",
-    ].join("\n");
-    // Hele vinted.dk, ikke kun /items/*: 8. oktober landede Upload paa en side
-    // uden for /items/ med en rigtig sideindlaesning. Fanens vagt doede, og
-    // runneren startede ikke paa den nye side, saa nr. 44 blev aldrig meldt.
-    const match = [
-      "// @match        https://www.vinted.dk/*",
-      "// @match        https://vinted.dk/*",
-    ];
-    // @match er med i versionen: Userscripts henter kun en ny liste, naar
-    // versionen skifter.
-    const kilde = match.join("\n") + "\n" + indlaeser;
-    let h = 0;
-    for (let i = 0; i < kilde.length; i++) h = (h * 31 + kilde.charCodeAt(i)) >>> 0;
-    const body = [
-      "// ==UserScript==",
-      "// @name         VintedAuto",
-      "// @namespace    udbakke",
-      `// @version      1.0.${h % 100000}`,
-      "// @description  Udfylder Vinted-annoncen og holder appen synkroniseret",
-      ...match,
-      "// @run-at       document-idle",
-      "// @grant        none",
-      "// @inject-into  page",
-      `// @downloadURL  ${install}`,
-      `// @updateURL    ${install}`,
-      "// ==/UserScript==",
-      "",
-      indlaeser,
-    ].join("\n");
-    // text/plain, ikke text/javascript: ellers henter Safari filen ned i stedet
-    // for at vise den, og saa har udvidelsen ingen side at tilbyde installation
-    // paa. Det er ogsaa derfor GitHub udleverer .user.js som ren tekst.
-    return new Response(body, {
-      headers: {
-        ...CORS,
-        "content-type": "text/plain; charset=utf-8",
-        "cache-control": "no-store",
-      },
-    });
+  // undermapper videre til den samme funktion.
+  if (req.method === "GET") {
+    const svar = await brugerscriptSvar(url, BRUGERSCRIPT, supabase, CORS);
+    if (svar) return svar;
   }
 
-  // Bogmaerket er kun en indlaeser. Selve automatikken hentes her, saa den kan
-  // rettes uden at bogmaerket skal installeres forfra paa telefonen.
+  // Bogmaerket og brugerscriptet er kun indlaesere. Selve automatikken hentes
+  // her, saa den kan rettes uden at noget skal installeres forfra paa telefonen.
   if (req.method === "GET" && url.searchParams.get("script") === "1") {
     // Automatikken hentes ved hver sideindlaesning. Tidspunktet staar i appens
-    // opsaetning, saa det kan ses, om telefonen faktisk koerer den.
+    // opsaetning, saa det kan ses, om telefonen faktisk koerer den - og med
+    // hvilken udgave af brugerscriptet.
+    const version = await udgave(BRUGERSCRIPT, supabase);
     await supabase.from("puls").upsert({
       navn: "vinted-runner", sidst: new Date().toISOString(),
-      detalje: browserNavn(req.headers.get("user-agent") || ""),
+      detalje: browserNavn(req.headers.get("user-agent") || "") + udgaveTekst(url, version),
     }).then(() => {}, () => {});
-    return new Response(RUNNER, {
+    return new Response(varsel(BRUGERSCRIPT, version) + RUNNER, {
       headers: { ...CORS, "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
     });
   }
