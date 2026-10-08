@@ -25,7 +25,7 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    stadig som »sendt til Vinted« — ret dem med »Ikke sendt alligevel«.
    Brugerscriptet matcher nu hele vinted.dk (se CLAUDE.md). **Kræver at
    Userscripts henter den nye version på telefonen** — siden viser nu selv et
-   bånd med »Opdatér«, så længe den gamle er installeret (udgivelse 0050).
+   bånd med »Opdatér«, så længe den gamle er installeret (udgivelse 0051).
    DBA's brugerscript skal installeres forfra én gang fra appen: den gamle
    udgave bærer runneren indbagt og kan ikke selv sige til. Tjek ved
    næste Upload, at funktionens log viser »spor … landet efter upload« eller
