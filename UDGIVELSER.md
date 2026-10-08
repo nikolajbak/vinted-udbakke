@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0048 — 2026-10-08 16:26
+
+Commit `f396d9a` — Priser skrives som hele kroner med komma og to nuller (89,00 kr)  
+App: `app.js?v=238554cd` · `style.css?v=64c0b54a`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v68 | `4055dd2c` |
+| dba-fill-script ← | v19 | `87bae55d` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v11 | `a31c8881` |
+| vinted-fill-script ← | v68 | `7f8c9c54` |
+| vinted-mail ← | v3 | `888c83f1` |
+
 ## udgivelse-0047 — 2026-10-05 08:18
 
 Commit `31628f4` — Rettelser kvitteres med Vinted: runneren bliver på siden efter Gem, læser annoncen frisk, og serveren rydder kun det, der står i annoncen  
