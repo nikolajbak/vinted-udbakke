@@ -203,7 +203,8 @@ const VISION_TOOL = {
         type: ["string", "null"],
         description:
           "Mål, der står trykt på et mærkat, fx \"W32 L34\", \"brystvidde 92 cm\" eller \"110/116 cm\". " +
-          "Kun det, der faktisk kan læses. null ellers.",
+          "Kun det, der faktisk kan læses. Størrelsen i andre landes system (\"EUR 128 US 7 UK 7-8Y\") er " +
+          "ikke mål — nr. 47 fik den skrevet som mål. null ellers.",
       },
       category: { type: "string" },
       searchQuery: { type: "string", description: "Korte danske søgeord til at finde lignende varer på Vinted" },
