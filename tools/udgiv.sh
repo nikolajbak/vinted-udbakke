@@ -42,6 +42,16 @@ done
 echo "Tjekker koden for kald til funktioner, der ikke findes …"
 node tools/check-runner.mjs supabase/functions/*/runner.ts app.js
 
+# Syntaksen i hver funktion. Supabase opdager en parse-fejl foerst ved
+# udrulningen og siger kun, at den »blev afbrudt undervejs« (8. oktober: en
+# overskydende }, i _shared/beskrivelse.ts). esbuild fanger den paa et sekund.
+echo "Tjekker syntaksen i funktionerne …"
+for f in supabase/functions/*/*.ts; do
+  npx --yes esbuild@0.24.0 "$f" --loader:.ts=ts --log-level=error >/dev/null 2>/tmp/udgiv-esbuild.$$ || {
+    echo "Syntaksfejl i $f:"; cat /tmp/udgiv-esbuild.$$; rm -f /tmp/udgiv-esbuild.$$; exit 1; }
+done
+rm -f /tmp/udgiv-esbuild.$$
+
 sidste=$(git tag -l 'udgivelse-*' | sort | tail -1)
 
 # Hvad skal med? Enten det, du peger paa, eller det, der er aendret siden sidst.

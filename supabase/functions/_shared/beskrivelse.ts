@@ -122,7 +122,6 @@ const OPSLAG_TOOL = {
           "længde 66 cm\". Ingen kildeangivelse, adresser eller ord på andre sprog. " +
           "null hvis mærkets størrelsesguide ikke blev fundet.",
       },
-    },
       laengde: {
         type: ["integer", "null"],
         description:

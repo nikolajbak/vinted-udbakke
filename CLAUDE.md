@@ -105,6 +105,11 @@ til et andet og slugte alt imellem. Første gang forsvandt `fillCategory`,
 telefonen som "Can't find variable". Anden gang forsvandt `renderDetail` ud af
 `app.js` — og dén nåede i produktion, hvor appen ikke kunne åbne et udkast.
 
+**`udgiv.sh` tjekker også syntaksen i hver funktion med esbuild.** Supabase
+opdager en parse-fejl først under udrulningen, og scriptet sagde kun »Afbrudt
+undervejs«: 8. oktober stod en overskydende `},` i `_shared/beskrivelse.ts`.
+Deno findes ikke lokalt, så esbuild er tjekket.
+
 **Lav derfor ikke en erstatning, der spænder fra "her" til "der" i en fil, uden
 at vide hvad der ligger imellem.** Erstat den tekst, der skal væk, og ikke
 strækningen omkring den.
