@@ -226,7 +226,7 @@ export function cm(v: unknown): number | undefined {
 // traek efter, at prompten sagde fra (8. oktober). Saa haandhaeves den ogsaa
 // her, efter modellen - som ingenVersaler goer det for titlen.
 export const FORBUDTE_VENDINGER =
-  /uden synlige|ingen synlige|umiddelbart|så vidt jeg kan se|springer i øjnene|tegn på (brug|slid)|\bbytte/i;
+  /uden (synlige|nogen|tegn|pletter|huller|slid|fejl|skader|mangler)|ingen (synlige|pletter|huller|fejl|skader)|fri for (pletter|huller|fejl)|umiddelbart|så vidt jeg kan se|springer i øjnene|tegn på (brug|slid)|\bbytte/i;
 
 export async function udenForbudte(apiKey: string, tekst: string): Promise<string> {
   if (!tekst || !FORBUDTE_VENDINGER.test(tekst)) return tekst;
@@ -245,7 +245,8 @@ export async function udenForbudte(apiKey: string, tekst: string): Promise<strin
           role: "user",
           content:
             "Gentag teksten ordret, med samme afsnit, men omformulér de sætninger, der siger \"tegn på brug\", " +
-            "\"uden synlige …\", \"springer i øjnene\", \"umiddelbart\" eller nævner bytte. Sig standen positivt " +
+            "\"uden pletter/huller/fejl\", \"uden synlige …\", \"springer i øjnene\", \"umiddelbart\" eller nævner " +
+            "bytte — nævn slet ikke pletter, huller eller fejl, der ikke er der. Sig standen positivt " +
             "(\"står pænt\", \"i fin stand\", \"klar til nye eventyr\"), og opfind intet.\n\n" + tekst,
         }],
       }),
