@@ -791,6 +791,10 @@ function ensLyd(a: unknown, b: unknown): boolean {
 // IKKE videre til annoncens side efter Upload - det var et gaet, og ingen af
 // nr. 5-20 blev nogensinde tilknyttet ad den vej.
 const VINTED_BRUGER = "3125670782";
+// Runnerens generation. Runneren laegger &r=<den> paa hvert kald; serveren
+// afviser kald fra vinted.dk uden den (et gammelt brugerscript med runneren
+// indbagt). Haev den kun sammen med runner.ts.
+const RUNNER_GEN = "2";
 
 // Hele vinted.dk, ikke kun /items/*: 8. oktober landede Upload paa en side
 // uden for /items/ med en rigtig sideindlaesning, og saa blev nr. 44 aldrig
@@ -1156,6 +1160,22 @@ Deno.serve(async (req: Request) => {
     return new Response(varsel(BRUGERSCRIPT, version) + RUNNER, {
       headers: { ...CORS, "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
     });
+  }
+
+  // En gammel runner maa intet goere. 8. oktober udfyldte et gammelt
+  // brugerscript med runneren indbagt (fem varer, foreloebig pris), og den
+  // friske runner gav op, fordi den gamle havde sat vagten. Runneren sender
+  // RUNNER_GEN med (&r=); et kald fra Vinted-siden uden den afvises og noteres.
+  const fraVinted = /(^|\.)vinted\.dk$/.test((() => {
+    try { return new URL(req.headers.get("origin") || "").hostname; } catch { return ""; }
+  })());
+  if (fraVinted && url.searchParams.get("r") !== RUNNER_GEN) {
+    await supabase.from("spor").insert({
+      sti: "forældet runner",
+      tekst: req.method + " uden r=" + RUNNER_GEN + " afvist (" +
+        browserNavn(req.headers.get("user-agent") || "") + ")",
+    }).then(() => {}, () => {});
+    return req.method === "GET" ? json({ empty: true, foraeldet: true }) : json({ error: "forældet runner" }, 410);
   }
 
   if (req.method === "GET") {

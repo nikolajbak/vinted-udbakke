@@ -597,6 +597,16 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   opdaterede: 2. oktober blev nr. 19-21 lagt op med en runner to udgivelser
   bagud, og en rettelse så ud til ikke at virke, fordi den aldrig var nået ud.
   **Læg aldrig runneren ind i brugerscriptet igen** — gælder også DBA.
+- **Et gammelt brugerscript med runneren indbagt kan stadig ligge i
+  Userscripts — og vinde.** 8. oktober fra ca. 14:20 UTC fik nr. 24, 25, 41,
+  48-51 den foreløbige pris: den gamle runner kørte synkront, satte vagten
+  `__UDBAKKE_RAN__`, og den friske runner fra `?script=1` gav straks op. Den
+  gamle søgte på `/api/v2/catalog/items` (404) og sendte ingen spor. Samme
+  runner gav i browserruden en markedspris på 14 s. Derfor har runneren sin
+  egen vagt (`__UDBAKKE_RAN2__`), viser et bånd og sporer »en anden runner
+  kørte først«, hvis nogen havde sat den gamle, og hvert kald bærer `&r=2`
+  (`RUNNER_GEN` i `index.ts`): et kald fra vinted.dk uden afvises og noteres i
+  `spor` som »forældet runner«. Hæv tallet kun sammen med `runner.ts`.
 - **`window.__UDBAKKE_*` må ikke omdøbes.** Et installeret bogmærke sætter dem,
   før det henter automatikken; et andet navn brækker det uden varsel.
 - **Alt, der skal åbne i RIGTIG Safari, skal have `x-safari-` foran.** I den
@@ -814,7 +824,9 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
   udløbet session var det første gæt — men søgeadressen åbnet direkte i
   Safari på telefonen gav søgeresultatet, ingen robottest. Samtidig nåede
   INGEN spor fra opret-siden frem, mens kategorivalgene og »clear« gjorde;
-  derfor sendes udfyldningens hele log nu med »clear«. Derfor går
+  derfor sendes udfyldningens hele log nu med »clear«. **Årsagen var en
+  gammel runner** — se »Et gammelt brugerscript …« under »Telefonen og
+  serveren«. Derfor går
   hver fejlet søgning til serverens log (spor »søgning »…« forsøg N: …«),
   der prøves én gang til efter 2,5 s, og slutbeskeden siger »Prisen er IKKE
   tjekket mod markedet« med grunden. **Omgå aldrig botbeskyttelsen.** Vinteds

@@ -17,10 +17,19 @@ export const RUNNER = String.raw`
 (async function(){
 // Kun én gang pr. sideindlæsning: i automatisk tilstand kan scriptet blive
 // sat i gang igen, hver gang Vinted tegner siden om.
-if(window.__UDBAKKE_RAN__)return;
+// Vagten hed __UDBAKKE_RAN__ til 8. oktober. Et gammelt brugerscript med
+// runneren indbagt kører synkront og når den først, og så gav den friske
+// runner op: telefonen udfyldte med en runner, der søgte på en adresse, Vinted
+// har lukket, og prisen blev aldrig tjekket. Derfor egen vagt — og sætter en
+// anden __UDBAKKE_RAN__, er det et gammelt script, og det skal siges.
+if(window.__UDBAKKE_RAN2__)return;
+window.__UDBAKKE_RAN2__=true;
+var ANDEN_RUNNER=!!window.__UDBAKKE_RAN__;
 window.__UDBAKKE_RAN__=true;
 
-var API=window.__UDBAKKE_API__;
+// r=2: serveren afviser kald fra vinted.dk uden den, så en gammel runner ikke
+// kan udfylde eller melde noget (se RUNNER_GEN i index.ts).
+var API=window.__UDBAKKE_API__+'&r=2';
 // Automatisk tilstand kører uden at blive bedt om det, så den må aldrig
 // afbryde med en dialog. Den siger kun til, når der faktisk skete noget.
 var AUTO=!!window.__UDBAKKE_AUTO__;
@@ -1304,6 +1313,12 @@ async function waitForm(){
   await sleep(250);
  }
  return false;
+}
+// Et gammelt brugerscript koerer ogsaa. Serveren afviser det, men det skal
+// slettes - ellers koerer det sin gamle prisvagt og synkronisering paa hver side.
+if(ANDEN_RUNNER){
+ spor('en anden runner koerte foerst (gammelt brugerscript?)');
+ baand('Udbakke: et gammelt brugerscript kører også. Slet det i Userscripts — kun »Udbakke« 2.0 skal være der.',null,null);
 }
 // Laa der en markoer fra en udfyldning, der ikke blev meldt, saa kig efter den
 // nu. Paa opret-siden skal en ny udfyldning stadig koere bagefter.

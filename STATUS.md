@@ -19,7 +19,11 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
-00000. **Markedsrunden udeblev på telefonen — 8. oktober.** Nr. 24, 25, 50
+00000. **Årsag fundet: et gammelt brugerscript kørte en gammel runner** (se
+   CLAUDE.md). Runneren har nu egen vagt og `&r=2`; serveren afviser den
+   gamle. **Næste skridt:** slet det gamle script i Userscripts på telefonen,
+   og se efter »forældet runner« i `spor`.
+   **Markedsrunden udeblev på telefonen — 8. oktober.** Nr. 24, 25, 50
    og 51 fik analysens foreløbige pris (`price_grounded = false`); Vinteds
    søgning fejlede på telefonen, ikke på Mac'en. Årsagen er ikke målt (se
    CLAUDE.md »Søgningen kan fejle på telefonen alene«). Nu meldes fejlen som
