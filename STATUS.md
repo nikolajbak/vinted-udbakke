@@ -19,6 +19,17 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+00. **Tilknytning efter Upload — rettet 8. oktober (udgivelse 0049).**
+   Nr. 24 og 44 lå på Vinted uden at være tilknyttet; de er tilknyttet nu
+   (efterløbet, kørt i hånden). Nr. 32 og 33 blev aldrig lagt op og står
+   stadig som »sendt til Vinted« — ret dem med »Ikke sendt alligevel«.
+   Brugerscriptet matcher nu hele vinted.dk (se CLAUDE.md). **Kræver at
+   Userscripts henter den nye version på telefonen** (1.0.62495). Tjek ved
+   næste Upload, at funktionens log viser »spor … landet efter upload« eller
+   »formularen er vaek« efterfulgt af en tilknytning. Uafklaret: efterløbet
+   ved udfyldningen kl. 14.21 burde have fundet nr. 44 og gjorde det ikke;
+   loggen fra den eftermiddag mangler linjer, så det kunne ikke ses hvorfor.
+
 0. **Rettelser kvitteres med Vinted — rettet 5. oktober (udgivelse 0047).**
    De 13 nye tekster stod som »klar« i appen, men 12 af dem var gemt på
    Vinted: efter Gem skifter Vinted adresse uden at genindlæse, så
