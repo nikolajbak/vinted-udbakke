@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0066 — 2026-10-08 22:27
+
+Commit `64e8dd5` — Hvert modelkald noteres i forbrug (tokens og pris)  
+App: `app.js?v=23578419` · `style.css?v=64c0b54a`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v78 | `18e1546a` |
+| dba-fill-script ← | v28 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v19 | `e05b374e` |
+| vinted-fill-script ← | v85 | `3de58946` |
+| vinted-mail | v3 | `888c83f1` |
+
 ## udgivelse-0065 — 2026-10-08 21:20
 
 Commit `0da07f5` — Ogsaa »præg af brug« og »brugsspor« rettes efter modellen  
