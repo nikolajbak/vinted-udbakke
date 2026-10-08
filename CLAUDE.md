@@ -151,10 +151,14 @@ Automatisk tilstand svarer kun, når `selected_at` er sat inden for 30 minutter 
 det sker, når appens knap "Udfyld i Vinted" trykkes. Til afprøvning: sæt
 `selected_at` på udkastet først, ellers får du `{"empty":true}`.
 
-**Runnerens trin står i funktionens log (`mode:'spor'`, »spor …«).**
+**Runnerens trin står i tabellen `spor` (`mode:'spor'`).**
 Garderobe-kald, foer-nummeret, at formularen forsvandt, når fanen skjules og
-vises igen, og hvad vagten så. Slå op i `function_logs` på »spor«, før der
-gættes på, hvorfor en annonce ikke blev tilknyttet.
+vises igen, hvad vagten så, søgningen og prisens udfald (»pris: …«). Slå op
+dér, før der gættes på, hvorfor en annonce ikke blev tilknyttet eller ikke
+fik en markedspris: `select tid, sti, tekst from spor order by tid desc`.
+**Funktionens log taber linjer** — 8. oktober manglede hentningen af både
+script og udkast for nr. 49, som beviseligt skete — så en linje, der mangler
+i `function_logs`, beviser intet.
 
 ---
 
@@ -201,6 +205,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
+| Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst) | `sql/011-spor.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
 sendte afsted; `listings.published` er annoncens egne ord, læst af annoncen

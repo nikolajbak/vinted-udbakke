@@ -1295,9 +1295,19 @@ Deno.serve(async (req: Request) => {
     // Runnerens egne trin, til loggen. Telefonens konsol kan ikke ses
     // herfra, og 2. oktober kunne loggen ikke sige, om nr. 22 strandede paa
     // garderoben eller paa en fane, iOS havde lagt til at sove.
+    // Funktionens log taber linjer (8. oktober: en hel udfyldning manglede),
+    // saa sporet gemmes ogsaa i tabellen `spor` (sql/011-spor.sql).
     if (body.mode === "spor") {
-      console.log("spor", String(body.id ?? "-").slice(0, 8),
-        String((body as { tekst?: unknown }).tekst ?? "").slice(0, 600));
+      const raa = String((body as { tekst?: unknown }).tekst ?? "").slice(0, 600);
+      console.log("spor", String(body.id ?? "-").slice(0, 8), raa);
+      const skel = raa.indexOf(" | ");
+      const id = /^[0-9a-f-]{36}$/i.test(String(body.id ?? "")) ? String(body.id) : null;
+      await supabase.from("spor").insert({
+        draft_id: id,
+        sti: skel > -1 ? raa.slice(0, skel).slice(0, 200) : null,
+        tekst: skel > -1 ? raa.slice(skel + 3) : raa,
+      });
+      await supabase.from("spor").delete().lt("tid", new Date(Date.now() - 30 * 864e5).toISOString());
       return json({ ok: true });
     }
 

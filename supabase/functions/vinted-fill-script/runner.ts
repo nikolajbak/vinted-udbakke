@@ -1353,7 +1353,7 @@ try{
  DRAFT_ID=d.id;
  // Markedsrunden kan vente op til 90 s paa en nypris; resten tager et minut.
  vaagen(10);
- log('siden klar: '+(await waitReady()));
+ spor('udfylder: siden klar '+(await waitReady()),DRAFT_ID);
 
  // Markedsopslaget sker HERFRA, fra din egen session: Vinted blokerer
  // serverkald, men aldrig sin egen side. Serveren kan altså ikke se markedet —
@@ -1384,6 +1384,7 @@ try{
   note='Prisen er IKKE tjekket mod markedet: '+(MARKED_FEJL||'ukendt fejl')+
    '. '+(helKroner(price)>0?helKroner(price)+' kr':'Prisen')+' er analysens skøn — se den efter, før du trykker Upload';
  }
+ spor('pris: '+note,DRAFT_ID);
 
  // Felterne først, billederne til sidst. Fotouploaden tegner formularen om,
  // mens den kører, og en vælger, der bliver skiftet ud midt i et klik, åbner
