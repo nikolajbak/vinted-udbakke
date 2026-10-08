@@ -226,7 +226,7 @@ export function cm(v: unknown): number | undefined {
 // traek efter, at prompten sagde fra (8. oktober). Saa haandhaeves den ogsaa
 // her, efter modellen - som ingenVersaler goer det for titlen.
 export const FORBUDTE_VENDINGER =
-  /uden (synlige|nogen|tegn|pletter|huller|slid|fejl|skader|mangler)|ingen (synlige|pletter|huller|fejl|skader)|fri for (pletter|huller|fejl)|umiddelbart|så vidt jeg kan se|springer i øjnene|tegn på (brug|slid)|\bbytte/i;
+  /uden (synlige|nogen|tegn|pletter|huller|slid|fejl|skader|mangler)|ingen (synlige|pletter|huller|fejl|skader)|fri for (pletter|huller|fejl)|umiddelbart|så vidt jeg kan se|springer i øjnene|tegn på (brug|slid)|præg af (brug|slid|almindelig)|brugsspor|\bbytte/i;
 
 export async function udenForbudte(apiKey: string, tekst: string): Promise<string> {
   if (!tekst || !FORBUDTE_VENDINGER.test(tekst)) return tekst;
