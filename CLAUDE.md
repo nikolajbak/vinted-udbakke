@@ -265,6 +265,10 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   af dig 8. oktober). Nr. 47 var en sweatkjole og et par leggings på samme
   billede; kun »trøjen« blev beskrevet. Analysen registrerer hver del
   (`dele`, gemt i `fakta.dele`).
+- **Børneartikler skrives til forælderen, der køber til sit barn** (bestemt
+  af dig 9. oktober): holdbart til leg, nemt at vaske, nemt af og på, plads
+  at vokse i — kun det, billeder og fakta bærer. Tal om barnet (»klar til
+  børnehaven«), ikke om »dig«, og ingen voksenmode-ord.
 - **Står materialet på vaskemærket, skrives det præcis sådan** (»95% bomuld,
   5% elastan«), og Vinteds materialefelt får det, der er mest af.
 - Spørgsmål fra købere besvares med samme tone (køber-assistenten,

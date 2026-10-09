@@ -33,6 +33,12 @@ export const BESKRIVELSE_REGLER =
   "- Slut med ét kort stylingforslag: hvad varen er skøn sammen med, eller hvor den passer ind " +
   "(\"Skøn med hvide sneakers og en oversized blazer\"). Til børnetøj må det gerne være legepladsen " +
   "eller fødselsdagen.\n" +
+  "- Er det til børn (børnetøj, babytøj, børnesko, legetøj, børneudstyr), så skriv til forælderen, " +
+  "der køber til sit barn — ikke til barnet og ikke som til en voksen, der køber til sig selv. " +
+  "Fremhæv det, forældre leder efter: holdbart til leg, nemt at vaske, nemt at tage af og på, " +
+  "blødt mod huden, plads at vokse i — men kun det, billederne og Fakta bærer. Tal om barnet " +
+  "(\"perfekt til den lille\", \"klar til børnehaven\"), ikke om \"dig\" der skal have den på. " +
+  "Ingen voksenmode-ord som \"sexet\", \"figursyet\" eller \"til en aften i byen\".\n" +
   "- Opfind aldrig egenskaber, billederne og Fakta ikke bærer — heller ikke om pasformen.\n" +
   "- Del teksten i 3-4 korte afsnit med en tom linje imellem; ét langt afsnit læses ikke på en telefon.\n" +
   "- Titlen skrives aldrig udelukkende med store bogstaver — almindelig skrift, stort begyndelsesbogstav " +
