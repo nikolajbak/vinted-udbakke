@@ -183,6 +183,7 @@ i `function_logs`, beviser intet.
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
+| Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
 | Erfaringerne lagt ind i prompterne (`hentErfaringer`); rettelserne (`hentRettelser`) | `supabase/functions/_shared/laering.ts` |
 | Vinteds bedømmelses-popup lukkes (`vagtPopup`); plaggets mål i Vinteds felter (`fillMaal`) | `…/vinted-fill-script/runner.ts` |
@@ -269,6 +270,16 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   af dig 9. oktober): holdbart til leg, nemt at vaske, nemt af og på, plads
   at vokse i — kun det, billeder og fakta bærer. Tal om barnet (»klar til
   børnehaven«), ikke om »dig«, og ingen voksenmode-ord.
+- **Børnetøj får en børnestørrelse i cm — aldrig S/M/L** (bestemt af dig
+  9. oktober). Nr. 48, et Nike-drengesæt med »L 147-158 cm« på mærket, kom
+  på Vinted som »L«; nr. 15 stod med alderen »14«. Prompten alene holder
+  ikke, så `boerneStoerrelse()` i `_shared/stoerrelse.ts` regner om efter
+  modellen i analysen (`tilBoern`, og igen når kategorien er »Børn«) og i
+  Vinted-udfyldningen (også gamle udkast): et cm-interval → den øverste
+  ende (147-158 → 158), en alder → cm (2 år = 92, +6 cm pr. år; 14 → 164),
+  måneder → babystørrelsen. »str. L« i titlen rettes med. Et bogstav uden
+  cm eller alder ved siden af røres ikke — et børne-L er ikke det samme hos
+  alle mærker. Børnesko har skonumre og røres ikke.
 - **Står materialet på vaskemærket, skrives det præcis sådan** (»95% bomuld,
   5% elastan«), og Vinteds materialefelt får det, der er mest af.
 - Spørgsmål fra købere besvares med samme tone (køber-assistenten,

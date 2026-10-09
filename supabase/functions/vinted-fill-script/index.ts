@@ -22,6 +22,7 @@ import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, uden
 import { hentErfaringer } from "../_shared/laering.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 import { laer } from "./laering.ts";
+import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
 import { indkob } from "./indkob.ts";
 import { erNy, erNyAnnonce, helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
@@ -276,7 +277,9 @@ const CHOICE_INTRO: Record<string, string> = {
     "Svar kun -1, hvis absolut intet punkt kan rumme varen.",
   størrelse:
     "Du står i Vinteds størrelsesvælger. Vælg den størrelse, der svarer til varens etiket. " +
-    "Svar -1, hvis ingen af dem gør.",
+    "Er varen til et barn, så vælg en BØRNESTØRRELSE (cm/alder), aldrig en voksenstørrelse som S/M/L: " +
+    "et cm-interval (147-158 cm) er den størrelse, der dækker den øverste ende (158), og en alder omregnes " +
+    "(12 år = 152, 14 år = 164). Svar -1, hvis ingen af dem gør.",
   mærke: "Du står i Vinteds mærkeliste. Vælg præcis det mærke, varen er. Svar -1, hvis mærket ikke er på listen.",
   materiale:
     "Du står i Vinteds materialeliste. Vælg det materiale, varen hovedsageligt er lavet af. " +
@@ -308,7 +311,8 @@ async function chooseOption(
     "Du er en meget erfaren sælger på Vinted med speciale i det danske marked. " +
       (CHOICE_INTRO[kind] || "Vælg den mulighed, der passer bedst."),
     `Vare: ${draft.title}\nBeskrivelse: ${draft.description}\n` +
-      `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}\n\n` +
+      `Mærke: ${draft.brand ?? "ukendt"}\nStørrelse: ${draft.size ?? "ukendt"}\n` +
+      (Array.isArray(draft.category_path) ? `Kategori: ${draft.category_path.join(" > ")}\n` : "") + "\n" +
       `${where}${suggested}${rejected}Muligheder:\n${list}`,
     CHOICE_TOOL,
     draft.id,
@@ -1229,11 +1233,16 @@ Deno.serve(async (req: Request) => {
     const photoUrls = (Array.isArray(row.photos) ? row.photos : [])
       .map((p: { url?: string }) => p?.url)
       .filter((u: unknown): u is string => typeof u === "string" && !!u);
+    // Boernetoej faar boernestoerrelsen i cm - ogsaa udkast fra foer reglen (_shared/stoerrelse.ts).
+    const raaStr = cleanText(row.size || "");
+    const str = erBoernetoej(row.category_path)
+      ? boerneStoerrelse(raaStr, (data.fakta as Fakta | null)?.maal, data.title)
+      : raaStr;
 
     return json({
       id: data.id,
       photos: photoUrls,
-      title: cleanText(data.title),
+      title: titelMedStoerrelse(cleanText(data.title), raaStr, str),
       description: cleanText(data.description),
       price: plainPrice(data.price || ""),
       searchQuery: data.search_query || data.title || "",
@@ -1244,8 +1253,8 @@ Deno.serve(async (req: Request) => {
       // Vinteds egne felter, i Vinteds egen ordlyd.
       categoryPath: Array.isArray(row.category_path) ? row.category_path : [],
       brand: cleanText(row.brand || ""),
-      size: cleanText(row.size || ""),
-      sizeScale: cleanText(row.size_scale || ""),
+      size: str,
+      sizeScale: str !== raaStr ? "EU" : cleanText(row.size_scale || ""),
       color: cleanText(row.color || ""),
       material: cleanText(row.material || ""),
       condition: cleanText(row.condition || ""),
@@ -1735,10 +1744,13 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "choose") {
       const { data: d, error: e } = await supabase
         .from("drafts")
-        .select("id, title, description, brand, size")
+        .select("id, title, description, brand, size, category_path, fakta")
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);
+      if (erBoernetoej(d.category_path)) {
+        d.size = boerneStoerrelse(d.size, (d.fakta as Fakta | null)?.maal, d.title);
+      }
       const options = Array.isArray(body.options) ? body.options.map(String) : [];
       if (!options.length) return json({ index: -1 });
       try {

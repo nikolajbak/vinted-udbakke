@@ -3,6 +3,7 @@
 // Claude, grounds a price estimate in real Vinted listings, and writes
 // the finished draft back to the row.
 
+import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
@@ -190,7 +191,18 @@ const VISION_TOOL = {
           "Materialet, som vaskemærket angiver det (\"95% bomuld, 5% elastan\"). Kan vaskemærket ikke læses, så " +
           "skriv kun et materiale, der er helt tydeligt (denim, strik, læder) — ellers null. Gæt ikke mellem bomuld og polyester.",
       },
-      size: { type: ["string", "null"] },
+      tilBoern: {
+        type: "boolean",
+        description: "true hvis varen er til et barn eller en baby (børnetøj, babytøj, børnesko) — døm på størrelsesmærket og snittet.",
+      },
+      size: {
+        type: ["string", "null"],
+        description:
+          "Størrelsen. Er varen til et barn, er det BØRNESTØRRELSEN i cm (\"128\", \"158/164\", babytøj \"68\") — aldrig " +
+          "voksenstørrelser som S/M/L. Står der et bogstav sammen med cm eller alder (\"L 147-158 cm\", \"M 11-12Y\"), så " +
+          "skriv den øverste cm-værdi (\"158\") eller alderen omregnet (12 år = 152). Står der kun en alder (\"14\", \"6Y\"), " +
+          "så omregn: 2 år = 92, 6 år = 116, 14 år = 164.",
+      },
       condition: { type: "string" },
       visibleFlaws: {
         type: "string",
@@ -841,6 +853,10 @@ Deno.serve(async (req: Request) => {
     const egenskaber = tom(lm.egenskaber);
     if (egenskaber) fakta.egenskaber = egenskaber.slice(0, 200);
     if (!tom(vision.size) && tom(lm.stoerrelse)) vision.size = tom(lm.stoerrelse);
+    // Boernetoej faar boernestoerrelsen i cm, ogsaa naar maerket siger »L« (_shared/stoerrelse.ts).
+    if (vision.tilBoern === true && !/sko|støvle|sandal|sneaker/i.test(String(vision.productType ?? ""))) {
+      vision.size = boerneStoerrelse(vision.size, lm.stoerrelse, vision.measurements, lm.tagText) || vision.size;
+    }
     const dele = (Array.isArray(vision.dele) ? vision.dele : []).map((x) => cleanText(x)).filter(Boolean);
     if (dele.length > 1) fakta.dele = dele.slice(0, 6);
     const flaws = cleanText(vision.visibleFlaws);
@@ -922,6 +938,17 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
       draft.price = String(ramme.pris);
       draft.priceNote = cleanText(draft.priceNote) + ` (${ramme.note})`;
     }
+    // Skrive-kaldet kan stadig falde tilbage paa et bogstav; boernetoej rettes efter det.
+    const foerStr = cleanText(draft.size || vision.size);
+    let slutStr = foerStr;
+    if (erBoernetoej(draft.categoryPath, String(vision.productType ?? ""))) {
+      slutStr = boerneStoerrelse(foerStr, vision.size, lm.stoerrelse, vision.measurements, fakta.maal, draft.title);
+      if (slutStr !== foerStr) {
+        console.log("boernestoerrelse", foerStr, "->", slutStr);
+        draft.title = titelMedStoerrelse(cleanText(draft.title), foerStr, slutStr);
+        draft.sizeScale = "EU";
+      }
+    }
     const { error } = await supabase
       .from("drafts")
       .update({
@@ -939,7 +966,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
         // her praecis som modellen formulerede dem. draft vinder over vision:
         // draft-kaldet kender Vinteds ordlyd, vision-kaldet laeser bare etiketten.
         brand: cleanText(draft.brand || vision.brand) || null,
-        size: cleanText(draft.size || vision.size) || null,
+        size: slutStr || null,
         size_scale: cleanText(draft.sizeScale) || null,
         color: vintedFarve(draft.color) || vintedFarve(vision.color),
         material: cleanText(draft.material) || hovedMateriale(vision.material),
