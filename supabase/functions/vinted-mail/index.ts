@@ -136,11 +136,17 @@ function beloeb(tekst: string): number | null {
 }
 
 // Annoncenumre i mailen. Linkene kan vaere pakket ind i en sporingsadresse,
-// saa der ledes ogsaa i den URL-kodede form.
+// saa der ledes ogsaa i den URL-kodede form. Vinteds egne er base64:
+// links.vinted.com/t/<base64 af "https://www.vinted.dk/e/item?id=123|…">
+// (maalt 9. oktober) - de pakkes ud foerst.
 function annonceNumre(...kilder: string[]): string[] {
   const ud = new Set<string>();
   for (const k of kilder) {
-    for (const m of k.matchAll(/items(?:\/|%2F)(\d{6,})/gi)) ud.add(m[1]);
+    let alt = k;
+    for (const m of k.matchAll(/links\.vinted\.com\/(?:e\/)?t\/([A-Za-z0-9_\-+\/=]+)/g)) {
+      try { alt += " " + atob(m[1].replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "")); } catch { /* ikke base64 */ }
+    }
+    for (const m of alt.matchAll(/items(?:\/|%2F)(\d{6,})|item\?id=(\d{6,})/gi)) ud.add(m[1] ?? m[2]);
   }
   return [...ud];
 }

@@ -592,6 +592,16 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   varen blev solgt FOR (et accepteret bud), og gemmes som
   `listings.sold_price` — så skal salgsprisen ikke tastes. Mangler beløbet,
   beder push'en stadig om det. Besked-mailen er ikke målt.
+- **Favorit-mailen er målt** (9. oktober): »Din <titel> er lige blevet
+  markeret som favorit«, teksten »<køber> har markeret din "<titel>" som
+  favorit!« med varens AKTUELLE pris (»150.00 kr.«). Den gemmes som
+  »andet« og gør intet. Prisen i den kan afvige fra appens: Acne-trøjen stod
+  til 450 i appen og 150 i mailen.
+- **Annoncenummeret står kun i HTML'en**, når mailen kommer direkte (ikke
+  videresendt): så er der ingen tekstdel, og `udenTags` fjerner linkene.
+  Vinteds links er `links.vinted.com/t/<base64>`, hvor base64 er
+  `https://www.vinted.dk/e/item?id=<nr>|…`; `annonceNumre` pakker dem ud.
+  HTML'en gemmes ikke i `vinted_mails`, kun teksten.
 - **Mailen knyttes til annoncen på nummeret i et link**, ellers på den
   længste titel (mindst seks tegn), der står i mailen.
 - **Solgt** → annoncen sættes til `solgt`, hændelse, gennemgangen af salgene,
