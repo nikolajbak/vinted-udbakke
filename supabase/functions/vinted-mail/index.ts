@@ -207,7 +207,9 @@ Deno.serve(async (req: Request) => {
   const fraVinted = /vinted/i.test(m.fra) || /vinted/i.test(m.html) || /vinted/i.test(tekst);
   const kind = fraVinted ? slags(m.emne, tekst) : "andet";
   const numre = annonceNumre(m.html, m.tekst);
-  const bud = kind === "bud" ? beloeb(m.emne + " " + tekst) : null;
+  // Buddet, eller det, varen blev solgt for ("80.00 kr." i salgsmailen, maalt
+  // 9. oktober) - et accepteret bud ligger under annoncens pris.
+  const bud = kind === "bud" || kind === "solgt" ? beloeb(m.emne + " " + tekst) : null;
 
   const { data: raekker } = await supabase.from("listings")
     .select("id, external_id, title, status, price, draft_id, published")
@@ -240,10 +242,11 @@ Deno.serve(async (req: Request) => {
     if (l && l.status === "aktiv") {
       await supabase.from("listings").update({
         status: "solgt", sold_at: new Date().toISOString(),
+        ...(bud ? { sold_price: bud } : {}),
         pending: null, pending_note: null, pending_since: null,
       }).eq("id", l.id);
       await supabase.from("price_events").insert({
-        listing_id: l.id, kind: "solgt", price: Number(l.price),
+        listing_id: l.id, kind: "solgt", price: bud ?? Number(l.price),
         note: "mail fra Vinted: " + m.emne.slice(0, 120),
       });
       laerIBaggrunden();
@@ -260,7 +263,7 @@ Deno.serve(async (req: Request) => {
         if (navne.length) ogsaa = " Slet den også på " + navne.join(" og ") + ".";
       }
       await puf("Solgt!", (titel || "En vare") + " er solgt på Vinted." + ogsaa +
-        " Tast salgsprisen i appen.", appUrl);
+        (bud ? " Solgt for " + kr(bud) + "." : " Tast salgsprisen i appen."), appUrl);
       handling = "annoncen meldt solgt";
     } else if (l) {
       handling = "annoncen var allerede " + l.status;

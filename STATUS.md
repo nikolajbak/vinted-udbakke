@@ -183,8 +183,9 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    op; den første mail (et bud på Sofie Schnoor-strikken) nåede
    `vinted_mails` og blev knyttet til annoncen. Den blev fejlagtigt gemt som
    »andet«, fordi emnet var tysk — rettet, se CLAUDE.md »Vinteds mails«.
-   **Stadig ikke målt:** mails om solgt og besked. Når de kommer, så læs
-   `vinted_mails` og ret `slags()` efter dem.
+   Salgsmailen (samme dag) blev genkendt i første forsøg og meldte annoncen
+   solgt; salgsprisen læses nu også af den. **Stadig ikke målt:** mails om
+   beskeder. Når en kommer, så læs `vinted_mails` og ret `slags()` efter den.
 
 0. **Læring af salgene — bygget 1. oktober. Der er intet at lære af endnu.**
    Ingen annoncer er tilknyttet (`listings` er tom), intet er solgt, og ingen

@@ -586,7 +586,12 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   som decimaltegn og læses med `helKroner`, efter at links og
   videresendelsens `>` er fjernet. Linkene er base64-sporingsadresser
   (`links.vinted.com/t/…`), så annoncenummeret står ikke som `items/…` —
-  mailen blev knyttet på titlen. Solgt og besked er stadig ikke målt.
+  mailen blev knyttet på titlen.
+- **Salgsmailen er målt** (9. oktober): emnet »Du har solgt en artikel på
+  Vinted«, teksten »<køber> har købt / <titel> / 80.00 kr.«. Beløbet er det,
+  varen blev solgt FOR (et accepteret bud), og gemmes som
+  `listings.sold_price` — så skal salgsprisen ikke tastes. Mangler beløbet,
+  beder push'en stadig om det. Besked-mailen er ikke målt.
 - **Mailen knyttes til annoncen på nummeret i et link**, ellers på den
   længste titel (mindst seks tegn), der står i mailen.
 - **Solgt** → annoncen sættes til `solgt`, hændelse, gennemgangen af salgene,
@@ -603,9 +608,9 @@ Bestemt af dig 1. oktober: appen skal lære af, hvad der sælger, og bruge det i
 næste annonce. Sådan hænger det sammen:
 
 - **Udfaldet måles på annoncen** (`listings`): solgt eller ej, dage ude,
-  hjerter, nedsættelser, og `sold_price` — som du taster ved **Markér som
-  solgt**, fordi et bud, du tog imod, ligger under udbudsprisen. Et automatisk
-  fundet salg har ingen salgspris, og gennemgangen ved det.
+  hjerter, nedsættelser, og `sold_price` — fordi et bud, du tog imod, ligger
+  under udbudsprisen. Den læses af Vinteds salgsmail, ellers taster du den
+  ved **Markér som solgt**. Et salg uden salgspris ved gennemgangen om.
 - **Købernes spørgsmål gemmes** (`koeber_beskeder`) hver gang køber-assistenten
   bruges — fra **Svar en køber** på prisvagt-skærmen. Svaret kopieres; appen
   sender aldrig selv.
