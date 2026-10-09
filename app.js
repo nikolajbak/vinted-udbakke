@@ -528,9 +528,11 @@
      en menu, der hed Indstillinger — og saa saa man det ikke. */
   // Vigtigst foerst: en vare, der kan saelges to gange, foer en salgspris,
   // der mangler.
-  var OPGAVE_ORDEN = { ned:0, fejl:1, send:2, salg:3, knyt:4, tjek:5 };
+  // En koeber, der venter paa svar, kommer lige efter en vare, der kan
+  // saelges to gange.
+  var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5, tjek:6 };
   function opgaveKort(tekst, under, knapper, slags){
-    return { o: OPGAVE_ORDEN[slags], h: '<div class="opgave">' +
+    return { o: OPGAVE_ORDEN[slags], h: '<div class="opgave' + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
       '<div class="opgave-tekst"><b>' + tekst + '</b>' + (under ? '<span>' + under + '</span>' : '') + '</div>' +
       '<div class="opgave-knapper">' + knapper + '</div></div>' };
   }
@@ -579,6 +581,22 @@
           '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Tilknyt</button>', 'knyt'));
       }
     });
+    // Koeberbeskeder fra Vinteds mails, med koeber-assistentens udkast.
+    // Afsendelsen er dit tryk: kopiér, aabn samtalen, saet ind (bestemt af dig).
+    SVAR.forEach(function(k){
+      var under = k.buyer_message ? '»' + esc(k.buyer_message) + '«' : 'Mailen viste ikke beskeden — se den på Vinted.';
+      var forslag = '';
+      if(k.counter_price) forslag += '<b>Modbud: ' + esc(kr(k.counter_price)) + '</b> ';
+      if(k.intent === 'accept') forslag += '<b>Tag imod buddet</b> ';
+      if(k.reply) forslag += esc(k.reply);
+      else if(k.intent === 'defer') forslag += 'Det kan kun du svare på.';
+      if(forslag) under += '<span class="svar-forslag">' + forslag + '</span>';
+      var id = ' data-svar="' + esc(String(k.id)) + '"';
+      kort.push(opgaveKort('Køber skriver om ' + esc(k.item_title || 'en vare'), under,
+        (k.reply ? '<button type="button" class="btn btn-primary" data-op="svar-kopier"' + id + '>Kopiér svaret</button>' : '') +
+        (k.samtale ? '<button type="button" class="btn btn-secondary" data-op="svar-aabn"' + id + '>Åbn samtalen</button>' : '') +
+        '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + id + '>Klaret</button>', 'svar'));
+    });
     if(forfaldne.length){
       kort.push(opgaveKort(forfaldne.length + (forfaldne.length === 1 ? ' vare skal' : ' varer skal') + ' tjekkes mod markedet',
         'Fra din egen Vinted-session.',
@@ -596,6 +614,20 @@
   function opgave(op, b){
     var d = rows[b.getAttribute('data-id')];
     var ext = b.getAttribute('data-ext');
+    var svar = SVAR.filter(function(k){ return String(k.id) === b.getAttribute('data-svar'); })[0];
+    if(op === 'svar-kopier' && svar){
+      if(navigator.clipboard) navigator.clipboard.writeText(svar.reply).then(function(){ toast('Svaret er kopieret'); });
+      return;
+    }
+    if(op === 'svar-aabn' && svar){ aabnUdad(svar.samtale); return; }
+    if(op === 'svar-klaret' && svar){
+      SVAR = SVAR.filter(function(k){ return k !== svar; });
+      renderQueue();
+      sb.from('koeber_beskeder').update({ besvaret_at: new Date().toISOString() }).eq('id', svar.id).then(function(res){
+        if(res.error) toast('Kunne ikke gemme: ' + res.error.message);
+      });
+      return;
+    }
     if(op === 'vis' && d){ openDetail(d.id); return; }
     if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit#udbakke=send'); return; }
     if(op === 'tjek'){ aabnUdad('https://www.vinted.dk/items/' + ext + '#udbakke=vagt'); return; }
@@ -2844,7 +2876,20 @@
   // kortet kommer fra annoncen, ikke fra udkastet.
   var ANNONCE_FELTER = 'id, platform, url, external_id, title, price, start_price, status, favourites, ' +
     'listed_at, sold_at, sold_price, pending, pending_note, next_check_at, auto, published, synced_at';
+  // Koeberbeskeder fra Vinteds mails, der venter paa dit svar.
+  var SVAR = [], KOE_HENTET = false;
+  function hentSvar(){
+    sb.from('koeber_beskeder')
+      .select('id, at, item_title, buyer_message, reply, intent, counter_price, samtale')
+      .eq('kilde', 'mail').is('besvaret_at', null).order('at', { ascending:true })
+      .then(function(res){
+        if(res.error) return;
+        SVAR = res.data || [];
+        if(KOE_HENTET) renderQueue();   // ellers tegnes forsiden tom, foer lageret er hentet
+      });
+  }
   function hentKoe(stille){
+    hentSvar();
     if(!stille){
       visSkelet($('queue-loading'), 3);
       $('queue-empty').hidden = true;
@@ -2859,6 +2904,7 @@
           return;
         }
         (res.data || []).forEach(function(d){ rows[d.id] = d; });
+        KOE_HENTET = true;
         renderQueue();
         opdaterVagtTal();
       });

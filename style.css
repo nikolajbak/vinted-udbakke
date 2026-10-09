@@ -904,6 +904,12 @@
                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .opgave-knapper{ flex: 0 0 auto; display: flex; gap: var(--s1); }
 .opgave-knapper .btn{ width: auto; min-height: 40px; padding: 0 var(--s3); font-size: var(--t-small); }
+/* Koeberens besked og udkastet skal kunne laeses helt, foer det kopieres. */
+.opgave.opgave-svar{ flex-direction: column; align-items: stretch; }
+.opgave-svar .opgave-tekst span{ white-space: normal; }
+.opgave-svar .svar-forslag{ margin-top: var(--s1); padding: var(--s2); border-radius: 8px;
+                            background: var(--raised); color: var(--ink); }
+.opgave-svar .opgave-knapper{ flex-wrap: wrap; }
 
 .kort-hjerter{ font-variant-numeric: tabular-nums; }
 .kort-vent{ color: var(--amber); font-weight: 600; }

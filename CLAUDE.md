@@ -178,7 +178,8 @@ i `function_logs`, beviser intet.
 | Udfyldning af Vinted-formularen | `supabase/functions/vinted-fill-script/` |
 | Automatikken bogmærket/brugerscriptet kører | `…/vinted-fill-script/runner.ts` |
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
-| Vinteds mails → solgt, bud, besked som push (nøgle: `MAIL_KEY`) | `supabase/functions/vinted-mail/` |
+| Vinteds mails → læst af en model og brugt: solgt, bud, besked, favorit, pris (nøgle: `MAIL_KEY`) | `supabase/functions/vinted-mail/` |
+| Køberbeskeder fra mail som opgave på forsiden (`SVAR`, `hentSvar`) | `app.js` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
@@ -214,6 +215,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
 | Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
+| Mailens læsning: `vinted_mails.laesning`; køberbeskeder fra mail: `koeber_beskeder.kilde`, `samtale`, `besvaret_at`, `vinted_mail_id` | `sql/014-mails-analyseres.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -576,9 +578,8 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
 `vinted-mail?key=<MAIL_KEY>`. Funktionen forstår alle tre formater.
 
 - **Hver mail gemmes i `vinted_mails`**, også dem, der ikke blev forstået.
-  Vinteds mailformat er ikke målt — emneord og beløbsmønstre i `vinted-mail`
-  er gæt, og det er de gemte mails, de skal rettes på. Ret aldrig et mønster
-  uden at have set en rigtig mail.
+  Ret aldrig et mønster uden at have set en rigtig mail. Mønstrene for solgt,
+  bud og favorit er målt (herunder) og vinder over modellens læsning.
 - **Bud-mailen er målt** (9. oktober, første mail): afsender
   `no-reply@vinted.dk`, emnet er på **tysk** (»Neues Angebot für <titel>«),
   teksten dansk (»… vil gerne købe … til en lavere pris«, »Ny pris:
@@ -594,23 +595,60 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   beder push'en stadig om det. Besked-mailen er ikke målt.
 - **Favorit-mailen er målt** (9. oktober): »Din <titel> er lige blevet
   markeret som favorit«, teksten »<køber> har markeret din "<titel>" som
-  favorit!« med varens AKTUELLE pris (»150.00 kr.«). Den gemmes som
-  »andet« og gør intet. Prisen i den kan afvige fra appens: Acne-trøjen stod
-  til 450 i appen og 150 i mailen.
+  favorit!« med varens AKTUELLE pris (»150.00 kr.«). Prisen i den kan
+  afvige fra appens: Acne-trøjen stod til 450 i appen og 150 i mailen —
+  rettet i Vinteds egen app, som ikke sender nogen mail om det.
 - **Annoncenummeret står kun i HTML'en**, når mailen kommer direkte (ikke
   videresendt): så er der ingen tekstdel, og `udenTags` fjerner linkene.
   Vinteds links er `links.vinted.com/t/<base64>`, hvor base64 er
   `https://www.vinted.dk/e/item?id=<nr>|…`; `annonceNumre` pakker dem ud.
-  HTML'en gemmes ikke i `vinted_mails`, kun teksten.
+  HTML'en gemmes ikke i `vinted_mails`, kun teksten — de udpakkede links
+  gemmes i `laesning.links`.
 - **Mailen knyttes til annoncen på nummeret i et link**, ellers på den
   længste titel (mindst seks tegn), der står i mailen.
-- **Solgt** → annoncen sættes til `solgt`, hændelse, gennemgangen af salgene,
-  og en push. **Bud** og **besked** → kun en push. Alt andet → intet. Dit eget
-  køb (»du har købt«, »dit køb«) er ikke et salg.
+- **Solgt** → annoncen sættes til `solgt` med salgsprisen, hændelse,
+  gennemgangen af salgene, og en push. Dit eget køb (»du har købt«, »dit
+  køb«) er ikke et salg.
+- **Bud** → push, prisen synkroniseres (»i stedet for kr.100.00«), og buddet
+  gemmes i `koeber_beskeder` (`intent:'bud'`, allerede »besvaret«) til
+  gennemgangen.
+- **Favorit** → stille: prisen synkroniseres, og hjerterne tælles én op
+  (`favourites`). Ingen push (bestemt af dig 9. oktober).
+- **Besked** → står købers ord i mailen, skriver køber-assistenten et udkast
+  (`mode:'negotiate'` med `kilde:'mail'`), og forsiden viser opgaven »Køber
+  skriver om …« med **Kopiér svaret**, **Åbn samtalen** og **Klaret**
+  (`koeber_beskeder.besvaret_at`). Står ordene ikke i mailen, kommer opgaven
+  uden udkast. Besked-mailen er ikke målt endnu.
+- **Prisen fra en mail noteres som enhver pris rettet på Vinted** (`synkPris`):
+  `aendret` med »rettet på Vinted (set i bud-/favorit-mail)«,
+  `last_change_at`, `published.price`, og et ventende prisfelt, der allerede
+  står i annoncen, ryddes.
+- **Alt andet** → modellens slags (forsendelse, udbetaling, bedømmelse,
+  eget_koeb, konto, reklame, andet) og resumé gemmes; første gang en slags
+  dukker op, kommer en push »Ny slags mail fra Vinted«. »andet« meldes hver
+  gang. Så beslutter vi, hvad slagsen skal bruges til.
+- **`?genlaes=<id>`** læser en gemt mail igen og bruger den — uden push og
+  uden at tælle hjerter op igen. Til når reglerne er rettet.
 - **Samme mail to gange er én mail** (`message_id` er unik). Tjenesterne
   sender igen, hvis de ikke fik svar i tide.
 - **En push med en vare åbner varen** (`#v<nr>`), også når appen allerede er
   åben — `sw.js` navigerer den åbne rude.
+
+## Mails bruges til alt, de kan
+
+Bestemt af dig 9. oktober: **hver indgående mail fra Vinted analyseres
+automatisk og bruges til det, den kan — vi lærer af alle hændelser. Stil
+spørgsmål ved tvivl.**
+
+- Hver mail læses af en model (`laesMail` i `vinted-mail`, Haiku 5.5, kun
+  tekst, ~$0,0005 pr. mail), og læsningen gemmes i `vinted_mails.laesning`.
+  De målte mønstre går forud for modellen.
+- Det, en mail kan bruges til, bruges: salgspris, aktuel pris, hjerter,
+  bud og købers ord (se »Vinteds mails«).
+- En ny slags mail meldes med en push første gang, og så spørger Claude dig,
+  hvad den skal bruges til. **For Claude:** ved en ny slags i `vinted_mails`,
+  læs mailen, foreslå en brug, og spørg — gæt ikke.
+- Afsendelse til en køber sker stadig kun ved dit tryk.
 
 ## Læring af salgene
 
@@ -622,8 +660,9 @@ næste annonce. Sådan hænger det sammen:
   under udbudsprisen. Den læses af Vinteds salgsmail, ellers taster du den
   ved **Markér som solgt**. Et salg uden salgspris ved gennemgangen om.
 - **Købernes spørgsmål gemmes** (`koeber_beskeder`) hver gang køber-assistenten
-  bruges — fra **Svar en køber** på prisvagt-skærmen. Svaret kopieres; appen
-  sender aldrig selv.
+  bruges — fra **Svar en køber** på prisvagt-skærmen og fra Vinteds
+  besked-mails — og hvert bud fra en bud-mail. Svaret kopieres; appen sender
+  aldrig selv.
 - **Gennemgangen** (`mode:'laer'`) kører mandag kl. 5.30 UTC, efter hvert salg
   og ved tryk. Den siger »for tidligt«, indtil der er **3 solgte og 6 varer at
   bedømme** (solgt, eller ude i 14 dage) — eller 5 købersamtaler. En erfaring

@@ -184,8 +184,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    `vinted_mails` og blev knyttet til annoncen. Den blev fejlagtigt gemt som
    »andet«, fordi emnet var tysk — rettet, se CLAUDE.md »Vinteds mails«.
    Salgsmailen (samme dag) blev genkendt i første forsøg og meldte annoncen
-   solgt; salgsprisen læses nu også af den. **Stadig ikke målt:** mails om
-   beskeder. Når en kommer, så læs `vinted_mails` og ret `slags()` efter den.
+   solgt; salgsprisen læses nu også af den.
+
+   **Hver mail læses nu af en model og bruges** (9. oktober, se CLAUDE.md
+   »Mails bruges til alt, de kan«): favorit- og bud-mails synkroniserer
+   prisen, favoritter tæller hjerter, bud gemmes til læringen, en købers
+   besked giver et svarudkast som opgave på forsiden, og en ny slags mail
+   meldes med en push første gang. **Ikke målt:** besked-mailen (står købers
+   ord i den?) og opgavekortet »Køber skriver om …« på telefonen. Når den
+   første besked-mail kommer: læs `vinted_mails.laesning` for den.
 
 0. **Læring af salgene — bygget 1. oktober. Der er intet at lære af endnu.**
    Ingen annoncer er tilknyttet (`listings` er tom), intet er solgt, og ingen

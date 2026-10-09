@@ -654,6 +654,7 @@ async function negotiate(
   offer: number,
   platform: string,
   listingId: string | null = null,
+  ekstra: Record<string, unknown> = {},
 ): Promise<Record<string, unknown>> {
   const listed = Number(plainPrice(String(item.price ?? ""))) || 0;
   const facts = [
@@ -710,6 +711,7 @@ async function negotiate(
     emne: out.emne ? String(out.emne) : null,
     reply: cleanText(out.message || "").slice(0, 2000) || null,
     counter_price: counterPrice ?? null,
+    ...ekstra,
   });
   if (logFejl) console.error("koeber_beskeder", logFejl.message);
 
@@ -1269,6 +1271,9 @@ Deno.serve(async (req: Request) => {
       item?: Record<string, unknown>;
       buyerMessage?: string;
       offer?: number;
+      kilde?: string;
+      samtale?: string;
+      vintedMail?: number;
       platform?: string;
       item_id?: string;
       url?: string;
@@ -1299,7 +1304,15 @@ Deno.serve(async (req: Request) => {
       if (!buyerMessage && !offer) return json({ error: "empty_context" }, 400);
       const listingId = typeof body.listing === "string" && /^[0-9a-f-]{36}$/.test(body.listing) ? body.listing : null;
       try {
-        return json(await negotiate(item, buyerMessage, offer, platform, listingId));
+        // En besked fra Vinteds mail (vinted-mail): hvor den kom fra, og hvor
+        // samtalen er, saa appen kan vise svaret som en opgave.
+        const ekstra: Record<string, unknown> = {};
+        if (body.kilde === "mail") {
+          ekstra.kilde = "mail";
+          if (typeof body.samtale === "string" && /^https:\/\/www\.vinted\.dk\//.test(body.samtale)) ekstra.samtale = body.samtale.slice(0, 300);
+          if (Number(body.vintedMail) > 0) ekstra.vinted_mail_id = Number(body.vintedMail);
+        }
+        return json(await negotiate(item, buyerMessage, offer, platform, listingId, ekstra));
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
       }
