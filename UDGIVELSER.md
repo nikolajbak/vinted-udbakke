@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0072 — 2026-10-09 21:46
+
+Commit `17e5d6f` — Boernetoej faar boernestoerrelsen i cm, aldrig S/M/L  
+App: `app.js?v=ba5c7f08` · `style.css?v=5a1481ee`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v80 | `93193533` |
+| dba-fill-script ← | v30 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v21 | `e05b374e` |
+| vinted-fill-script ← | v88 | `1c57d615` |
+| vinted-mail ← | v9 | `0df45ee9` |
+
 ## udgivelse-0071 — 2026-10-09 21:42
 
 Commit `29bf66f` — Boerneartikler skrives til foraelderen, der koeber til sit barn  
