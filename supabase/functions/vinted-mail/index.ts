@@ -18,6 +18,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import PostalMime from "npm:postal-mime@2.4.3";
+import { helKroner, kr } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -114,16 +115,23 @@ function slags(emne: string, tekst: string): string {
   // Dit eget koeb er ikke et salg.
   if (/du har købt|dit køb|your purchase|you bought/.test(s)) return "andet";
   if (/solgt|har købt|købte|sold|purchased|bought/.test(s)) return "solgt";
-  if (/\bbud\b|tilbud|\boffer|byder/.test(s)) return "bud";
+  // Vinteds bud-mail har tysk emne ("Neues Angebot für …") og dansk tekst
+  // ("… vil gerne købe … til en lavere pris"). Målt på den første, 9. oktober.
+  if (/\bbud\b|tilbud|\boffer|byder|angebot|lavere pris/.test(s)) return "bud";
   if (/besked|message|skrev|skrevet/.test(s)) return "besked";
   return "andet";
 }
 
+// Buddet staar som "Ny pris:\nkr.80.00 i stedet for kr.100.00" (maalt 9.
+// oktober). Links og videresendelsens ">" tages ud foerst: sporingsadresserne er lange base64-strenge,
+// hvor et tal foran "kr" kan optraede tilfaeldigt.
 function beloeb(tekst: string): number | null {
-  const m = tekst.match(/(\d{1,6}(?:[.,]\d{1,2})?)\s*(?:kr\.?|dkk)/i) ||
-    tekst.match(/(?:kr\.?|dkk)\s*(\d{1,6}(?:[.,]\d{1,2})?)/i);
-  if (!m) return null;
-  const n = Math.round(Number(m[1].replace(",", ".")));
+  const t = tekst.replace(/<?https?:\/\/\S+>?/g, " ").replace(/^[ \t]*>[ \t]?/gm, "");
+  const tal = "(\\d[\\d.,]*)";
+  const m = t.match(new RegExp("ny pris:?\\s*(?:kr\\.?|dkk)\\s*" + tal, "i")) ||
+    t.match(new RegExp("(?:kr\\.?|dkk)\\s*" + tal, "i")) ||
+    t.match(new RegExp(tal + "\\s*(?:kr\\.?|dkk)", "i"));
+  const n = m ? helKroner(m[1]) : 0;
   return n > 0 ? n : null;
 }
 
@@ -262,7 +270,7 @@ Deno.serve(async (req: Request) => {
     }
   } else if (kind === "bud") {
     await puf(titel ? "Bud på " + titel : "Nyt bud på Vinted",
-      bud ? Math.round(Number(bud)) + ",00 kr" + (l ? " — du har sat den til " + Math.round(Number(l.price)) + ",00 kr" : "") : (m.emne || "Se buddet på Vinted"),
+      bud ? kr(bud) + (l ? " — du har sat den til " + kr(l.price) : "") : (m.emne || "Se buddet på Vinted"),
       appUrl);
     handling = "bud meldt";
   } else if (kind === "besked") {

@@ -179,9 +179,12 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    2. En regel på iCloud.com → Mail → Indstillinger → Regler: fra
       `vinted` → videresend til CloudMailin-adressen.
 
-   **Ikke målt:** Vinteds mails. Emneordene (solgt/bud/besked) og
-   beløbsmønsteret er gæt. Når de første mails er kommet, så læs
-   `vinted_mails` og ret `slags()` og `beloeb()` efter dem.
+   **Mail-vejen virker (9. oktober).** CloudMailin + iCloud-reglen er sat
+   op; den første mail (et bud på Sofie Schnoor-strikken) nåede
+   `vinted_mails` og blev knyttet til annoncen. Den blev fejlagtigt gemt som
+   »andet«, fordi emnet var tysk — rettet, se CLAUDE.md »Vinteds mails«.
+   **Stadig ikke målt:** mails om solgt og besked. Når de kommer, så læs
+   `vinted_mails` og ret `slags()` efter dem.
 
 0. **Læring af salgene — bygget 1. oktober. Der er intet at lære af endnu.**
    Ingen annoncer er tilknyttet (`listings` er tom), intet er solgt, og ingen

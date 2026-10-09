@@ -579,6 +579,14 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   Vinteds mailformat er ikke målt — emneord og beløbsmønstre i `vinted-mail`
   er gæt, og det er de gemte mails, de skal rettes på. Ret aldrig et mønster
   uden at have set en rigtig mail.
+- **Bud-mailen er målt** (9. oktober, første mail): afsender
+  `no-reply@vinted.dk`, emnet er på **tysk** (»Neues Angebot für <titel>«),
+  teksten dansk (»… vil gerne købe … til en lavere pris«, »Ny pris:
+  kr.80.00 i stedet for kr.100.00«). Beløbet står som `kr.80.00` med punktum
+  som decimaltegn og læses med `helKroner`, efter at links og
+  videresendelsens `>` er fjernet. Linkene er base64-sporingsadresser
+  (`links.vinted.com/t/…`), så annoncenummeret står ikke som `items/…` —
+  mailen blev knyttet på titlen. Solgt og besked er stadig ikke målt.
 - **Mailen knyttes til annoncen på nummeret i et link**, ellers på den
   længste titel (mindst seks tegn), der står i mailen.
 - **Solgt** → annoncen sættes til `solgt`, hændelse, gennemgangen af salgene,
