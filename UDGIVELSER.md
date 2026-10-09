@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0071 — 2026-10-09 21:42
+
+Commit `29bf66f` — Boerneartikler skrives til foraelderen, der koeber til sit barn  
+App: `app.js?v=ba5c7f08` · `style.css?v=5a1481ee`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v79 | `18e1546a` |
+| dba-fill-script ← | v29 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v20 | `e05b374e` |
+| vinted-fill-script ← | v87 | `cfbf494d` |
+| vinted-mail ← | v8 | `0df45ee9` |
+
 ## udgivelse-0070 — 2026-10-09 13:06
 
 Commit `c4241b8` — Hver mail fra Vinted laeses af en model og bruges  
