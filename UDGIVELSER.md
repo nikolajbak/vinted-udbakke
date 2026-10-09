@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0069 — 2026-10-09 12:49
+
+Commit `f89bc87` — Annoncenummeret laeses af Vinteds base64-sporingslinks  
+App: `app.js?v=23578419` · `style.css?v=64c0b54a`  
+Udrullet: vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v78 | `18e1546a` |
+| dba-fill-script | v28 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v19 | `e05b374e` |
+| vinted-fill-script | v85 | `3de58946` |
+| vinted-mail ← | v6 | `74b6b904` |
+
 ## udgivelse-0068 — 2026-10-09 09:59
 
 Commit `3278b78` — Salgsprisen laeses af Vinteds salgsmail  
