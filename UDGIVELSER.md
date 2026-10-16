@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0077 — 2026-10-16 13:54
+
+Commit `380472d` — Opslaget paa Haiku 5.5, prisen laest af produktsidens JSON-LD i DKK  
+App: `app.js?v=0357ee15` · `style.css?v=5a1481ee`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v83 | `bdb22c35` |
+| dba-fill-script ← | v33 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v24 | `e05b374e` |
+| vinted-fill-script ← | v92 | `08053030` |
+| vinted-mail ← | v14 | `48755620` |
+
 ## udgivelse-0076 — 2026-10-16 13:42
 
 Commit `60d22dc` — Slå varen op med billeder og web_fetch; produktsiden er fundamentet; ny vare uden nypris saettes ikke ned  
