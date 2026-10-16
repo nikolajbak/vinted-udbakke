@@ -19,6 +19,14 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0000000000. **Varen slås altid op, produktsiden er fundamentet — 16. oktober.**
+   Regler i CLAUDE.md under »Prisen → En ny vare«. **Afprøvet:** opslaget
+   med billeder og `web_fetch` fandt nr. 54's jakke (1.000 kr) på 44 s.
+   **Ikke afprøvet:** de strammere grænser (2 billeder, 5000 tokens pr.
+   side) — Anthropic-kreditten slap op midt i prøven. Kør opslaget på nr.
+   54 igen, og se `forbrug` for prisen pr. opslag. Nr. 54 har fået
+   nypris og produktside i `fakta` i hånden; annoncen står stadig til 70 kr.
+
 000000000. **Skriv beskrivelsen forfra ud fra dine rettelser — 16. oktober
    (udgivelse 0074/0075).** Regler i CLAUDE.md under »Systemet lærer af
    fejl«. **Afprøvet:** `mode:'omskriv'` på nr. 58 (3,5 s, $0,013): den

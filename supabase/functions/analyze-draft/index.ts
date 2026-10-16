@@ -869,8 +869,20 @@ Deno.serve(async (req: Request) => {
       color: String(vision.color ?? ""),
       ny: ny && !fakta.nypris,
       maerker: fakta.maerker,
+      // Hovedbilledet og det foerste maerkebillede, saa opslaget kan sammenligne
+      // med produktsiden i stedet for at stole paa analysens ord.
+      billeder: [
+        loaded[0]?.photo.url,
+        loaded.slice(1).find((l) => /maerke/i.test(String(l.photo.kind ?? "")))?.photo.url,
+      ].filter(Boolean).map(String),
     }, id).then((fundet) => {
+      fakta.opslaaet = new Date().toISOString();
       if (fundet.nypris) { fakta.nypris = fundet.nypris; fakta.nyprisKilde = fundet.nyprisKilde; }
+      if (fundet.produktNavn || fundet.produktTekst) {
+        fakta.produktside = fundet.produktside;
+        fakta.produktNavn = fundet.produktNavn;
+        fakta.produktTekst = fundet.produktTekst;
+      }
       if (fundet.maal) { fakta.maal = fundet.maal; fakta.maalKilde = "mærkets størrelsesguide"; }
       // Plaggets egne maal til Vinteds felter - kun naar varens produktside
       // opgiver dem. Et saet har ingen samlet laengde.

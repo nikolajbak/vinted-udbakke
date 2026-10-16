@@ -95,6 +95,15 @@ export type Fakta = {
   laengde?: number;
   skulderbredde?: number;
   plagMaalKilde?: string;
+  // Varens egen produktside, fundet af opslaget: adressen, butikkens navn paa
+  // varen og dens beskrivelse. Facit for hvad varen er - billedanalysen kaldte
+  // nr. 54, en Teeshoppen Hooded Let Puffer Jakke, for »vendbar dunjakke«.
+  produktside?: string;
+  produktNavn?: string;
+  produktTekst?: string;
+  // Hvornaar opslaget sidst kørte uden at fejle, saa markedsrunden ved, om et
+  // gammelt udkast mangler det.
+  opslaaet?: string;
 };
 
 export function faktaTekst(f: unknown): string {
@@ -102,6 +111,11 @@ export function faktaTekst(f: unknown): string {
   const linjer = [
     k.ny && "Varen er ny.",
     k.nypris && `Nypris: ${Math.round(Number(k.nypris))},00 kr${k.nyprisKilde ? ` (${k.nyprisKilde})` : ""}`,
+    (k.produktNavn || k.produktTekst) &&
+      `Varens egen produktside${k.produktside ? ` (${k.produktside})` : ""}: ${k.produktNavn ?? ""}` +
+        `${k.produktTekst ? ` — ${k.produktTekst}` : ""}. Den er fundamentet for annoncen: brug butikkens ` +
+        "navn for varen og dens egenskaber i titel og tekst, også hvor billedanalysen siger noget andet. " +
+        "Skriv ikke adressen eller butikkens navn i annoncen.",
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
     k.maerkeFarve && `Farve ifølge mærket: ${k.maerkeFarve}. Brug den farve (på dansk) i titel og tekst, også hvis billedet ser anderledes ud, og vælg den nærmeste i Vinteds farveliste.`,
     k.dele?.length && `Sælges samlet: ${k.dele.join(" + ")}. Nævn hver del i titel og tekst.`,
@@ -124,6 +138,14 @@ const OPSLAG_TOOL = {
         description: "Nyprisen i hele danske kroner, fundet hos mærket eller en dansk forhandler. null hvis den ikke blev fundet.",
       },
       nyprisKilde: { type: ["string", "null"], description: "Butikkens navn, højst fire ord, fx \"Magasin\" eller \"mærkets webshop\"." },
+      produktside: { type: ["string", "null"], description: "Adressen på varens produktside, du åbnede. null hvis ingen blev fundet." },
+      produktNavn: { type: ["string", "null"], description: "Varens navn, som butikken skriver det, fx \"Hooded Let Puffer Jakke - Sort\"." },
+      produktTekst: {
+        type: ["string", "null"],
+        description:
+          "Butikkens egen beskrivelse af varen, kort og på dansk (højst 500 tegn): egenskaber, snit, " +
+          "materiale, pasform. Kun det, der står på siden — ingen egne vurderinger eller forbehold.",
+      },
       maal: {
         type: ["string", "null"],
         description:
@@ -142,50 +164,74 @@ const OPSLAG_TOOL = {
         description: "Plaggets skulderbredde i cm i netop denne størrelse, som den står hos mærket. Ikke kropsmål. null ellers.",
       },
     },
-    required: ["nypris", "nyprisKilde", "maal", "laengde", "skulderbredde"],
+    required: ["nypris", "nyprisKilde", "produktside", "produktNavn", "produktTekst", "maal", "laengde", "skulderbredde"],
   },
 };
 
-// Nyprisen og maalene slaas op paa nettet - en model, der svarer efter
-// hukommelsen, finder paa et rundt tal. Opslaget er en ekstra: fejler det,
-// skrives annoncen bare uden, og analysen maa aldrig vaelte paa det.
+// Nyprisen, varens produktside og maalene slaas op paa nettet - en model, der
+// svarer efter hukommelsen, finder paa et rundt tal. Opslaget er en ekstra:
+// fejler det, skrives annoncen bare uden, og analysen maa aldrig vaelte paa det.
+export type Opslag = {
+  nypris?: number; nyprisKilde?: string; produktside?: string; produktNavn?: string; produktTekst?: string;
+  maal?: string; laengde?: number; skulderbredde?: number;
+};
+
 export async function slaaOp(
   apiKey: string,
   vare: {
     brand?: string | null; productType?: string; size?: string | null; color?: string; ny: boolean;
     maerker?: string | null;
+    // Hovedbilledet og et maerkebillede. Uden dem afviste opslaget nr. 54's
+    // jakke, fordi analysens »vendbar dunjakke« ikke stod paa produktsiden.
+    billeder?: string[];
   },
   draftId?: unknown,
-): Promise<{ nypris?: number; nyprisKilde?: string; maal?: string; laengde?: number; skulderbredde?: number }> {
+): Promise<Opslag> {
   const brand = String(vare.brand ?? "").trim();
   const maerker = String(vare.maerker ?? "").trim();
   if (!brand && !maerker) return {};
   const spoerg = [
-    vare.ny && "nyprisen i danske kroner (hos mærket selv eller en dansk forhandler; findes den ikke i Danmark, så omregn en europæisk pris og sig det i kilden)",
+    "varens egen produktside — helst hos mærkets egen webshop, ellers en dansk forhandler — med produktnavn og butikkens beskrivelse (med materiale)",
+    vare.ny && "nyprisen i danske kroner (findes den ikke i Danmark, så omregn en europæisk pris og sig det i kilden)",
     vare.size && `mærkets størrelsesguide: hvilke mål størrelse ${vare.size} svarer til, og — kun hvis ` +
       "varens produktside eller mærket opgiver det — plaggets egen længde og skulderbredde i cm i den størrelse",
   ].filter(Boolean);
-  if (!spoerg.length) return {};
+  const billeder = (vare.billeder ?? []).filter(Boolean).slice(0, 2);
 
   const messages: unknown[] = [{
     role: "user",
-    content:
-      `Vare: ${brand} ${vare.productType ?? ""}${vare.color ? `, ${vare.color}` : ""}` +
-      `${vare.size ? `, str. ${vare.size}` : ""}.\n` +
-      // Varenummer og stregkode rammer den praecise vare. Uden dem fandt
-      // opslaget en strikket Teeshoppen-skjorte til 500 kr i stedet for
-      // hoerskjorten til 349 kr; med dem fandt det den paa 10 s (2. oktober).
-      (maerker ? `På mærkerne står: ${maerker}. Brug varenummer, modelnavn og stregkode i søgningen.\n` : "") +
-      `Find ${spoerg.join(", og ")}. Søg højst et par gange, og kald så angiv_fund. ` +
-      "Er du ikke sikker på, at det er den samme vare eller det samme mærkes guide, så skriv null.",
+    content: [
+      ...billeder.map((url) => ({ type: "image", source: { type: "url", url } })),
+      {
+        type: "text",
+        text:
+          (billeder.length ? "Billederne viser varen, der skal sælges. " : "") +
+          `Billedanalysen gættede: ${brand} ${vare.productType ?? ""}${vare.color ? `, ${vare.color}` : ""}` +
+          `${vare.size ? `, str. ${vare.size}` : ""}${vare.ny ? ", ny" : ""}. ` +
+          "Gættet kan tage fejl — billederne og mærkerne er facit.\n" +
+          // Varenummer og stregkode rammer den praecise vare. Uden dem fandt
+          // opslaget en strikket Teeshoppen-skjorte til 500 kr i stedet for
+          // hoerskjorten til 349 kr; med dem fandt det den paa 10 s (2. oktober).
+          (maerker ? `På mærkerne står (afskrevet fra et foto, kan være læst forkert): ${maerker}.\n` : "") +
+          `Find ${spoerg.join(", og ")}. Søg med varenummer, modelnavn og stregkode (gerne site:<mærkets webshop>), ` +
+          "og åbn den produkt- eller kollektionsside, der ligner mest, med web_fetch. " +
+          (billeder.length ? "Sammenlign med billederne: snit, hætte, quiltning, lynlås, lommer. " : "") +
+          "Samme model i en anden farve eller størrelse tæller — prisen er den samme; skriv så siden for " +
+          "den farve, varen har, hvis den findes. Højst tre søgninger og tre sider. Kald til sidst angiv_fund. " +
+          "Er det tydeligt en anden model, eller fandt du intet, så skriv null.",
+      },
+    ],
   }];
 
-  // web_search er et servervaerktoej: soegningen sker hos Anthropic, og svaret
-  // kommer tilbage i samme kald. Et langt opslag kan standse med pause_turn og
-  // skal saa bare sendes videre. Den simple variant, ikke 20260209: den nye
-  // filtrerer resultaterne med kode og tog 34-140 s mod 21 s for det samme
-  // fund (maalt paa en Name It-softshell, 1. oktober). max_tokens 2000 slap op
-  // undervejs og gav et tomt svar.
+  // web_search og web_fetch er servervaerktoejer: soegningen sker hos
+  // Anthropic, og svaret kommer tilbage i samme kald. Et langt opslag kan
+  // standse med pause_turn og skal saa bare sendes videre. Den simple
+  // soegevariant, ikke 20260209: den nye filtrerer resultaterne med kode og tog
+  // 34-140 s mod 21 s for det samme fund (Name It-softshell, 1. oktober).
+  // max_tokens 2000 slap op undervejs og gav et tomt svar. web_fetch fordi
+  // soegningen alene kun gav kollektionssider, som modellen ikke kunne aabne
+  // (nr. 54, 16. oktober); max_content_tokens holder hver side nede - med
+  // 12000 kostede ét opslag 261.000 input-tokens.
   for (let runde = 0; runde < 3; runde++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -195,6 +241,7 @@ export async function slaaOp(
         max_tokens: 4000,
         tools: [
           { type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "DK" } },
+          { type: "web_fetch_20250910", name: "web_fetch", max_uses: 3, max_content_tokens: 5000 },
           OPSLAG_TOOL,
         ],
         messages,
@@ -208,9 +255,14 @@ export async function slaaOp(
     if (fund?.input) {
       const i = fund.input as Record<string, unknown>;
       const nypris = Math.round(Number(i.nypris));
+      const tekst = (v: unknown, max = 600) => typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+      const side = tekst(i.produktside, 300);
       return {
         nypris: vare.ny && nypris > 0 ? nypris : undefined,
         nyprisKilde: vare.ny && nypris > 0 && i.nyprisKilde ? String(i.nyprisKilde) : undefined,
+        produktside: side && /^https?:\/\//.test(side) ? side : undefined,
+        produktNavn: tekst(i.produktNavn, 120),
+        produktTekst: tekst(i.produktTekst),
         // Kun naar der er spurgt om maal. Ellers lagde modellen produktnavnet
         // i feltet ("Hoerskjorte - Army, varenummer TEE35").
         maal: vare.size && i.maal ? String(i.maal) : undefined,

@@ -531,12 +531,21 @@ async function analyseMarket(
   // Nyprisens ramme til sidst: gulvet vinder over feltets loft.
   const ramme = iNyprisRamme(price, nyprisRamme(draft.fakta, draft.condition));
   price = vintedPris(roundPrice(ramme.pris));
+  // En ny vare uden fundet nypris saettes ikke ned af markedsrunden: feltet er
+  // brugte varer, og uden et gulv gav det nr. 54, en ny Teeshoppen-jakke til
+  // 1.000 kr, 70 kr mod en median paa 75 (16. oktober). Analysens pris staar.
+  const foer = helKroner(draft.price);
+  let holdt = "";
+  if (ny && !nyprisRamme(draft.fakta, draft.condition) && foer > price) {
+    price = vintedPris(foer);
+    holdt = ` (holdt på ${foer},00 kr — en ny vare uden fundet nypris sættes ikke ned mod brugte)`;
+  }
 
   return {
     title: ingenVersaler(cleanText(out.title), draft.brand),
     description: await udenForbudte(ANTHROPIC_API_KEY, cleanText(out.description), draft.id),
     price,
-    priceNote: cleanText(out.priceNote) + (ramme.note ? ` (${ramme.note})` : guarded ? " (justeret til feltet)" : ""),
+    priceNote: cleanText(out.priceNote) + (holdt || (ramme.note ? ` (${ramme.note})` : guarded ? " (justeret til feltet)" : "")),
     compared: chosen.length,
     median: ref ? ref.median : null,
   };
@@ -1753,30 +1762,42 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "market") {
       const { data: d, error: e } = await supabase
         .from("drafts")
-        .select("id, title, description, brand, size, condition, material, color, photos, fakta, tekst_rettet")
+        .select("id, title, description, brand, size, condition, material, color, price, photos, fakta, tekst_rettet")
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);
-      // En ny vare skal prissaettes mod sin nypris. Fandt analysen den ikke,
-      // proeves igen her - med det, der staar paa maerkerne. Fejler det, gaar
+      // Varen slaas altid op: en ny vare skal prissaettes mod sin nypris, og
+      // produktsiden er fundamentet for teksten. Fandt analysen ikke nyprisen,
+      // eller er udkastet fra foer opslaget fandt produktsiden, proeves her -
+      // med billederne og det, der staar paa maerkerne. Fejler det, gaar
       // runden videre uden.
       const fakta = { ...((d.fakta ?? {}) as Fakta) };
-      if (erNy(fakta, d.condition) && !(helKroner(fakta.nypris) > 0)) {
+      const ny = erNy(fakta, d.condition);
+      if ((ny && !(helKroner(fakta.nypris) > 0)) || !fakta.opslaaet) {
         try {
+          const fotos = (Array.isArray(d.photos) ? d.photos : []) as Array<{ url?: string; kind?: string }>;
           const fundet = await slaaOp(ANTHROPIC_API_KEY, {
             brand: d.brand as string | null,
             productType: String(d.title ?? ""),
             color: String(d.color ?? ""),
-            ny: true,
+            ny,
             maerker: fakta.maerker,
+            billeder: [fotos[0]?.url, fotos.slice(1).find((f) => /maerke/i.test(String(f.kind ?? "")))?.url]
+              .filter(Boolean).map(String),
           }, body.id);
+          fakta.opslaaet = new Date().toISOString();
           if (fundet.nypris) {
             fakta.ny = true;
             fakta.nypris = fundet.nypris;
             fakta.nyprisKilde = fundet.nyprisKilde;
-            d.fakta = fakta;
-            await supabase.from("drafts").update({ fakta }).eq("id", body.id);
           }
+          if (fundet.produktNavn || fundet.produktTekst) {
+            fakta.produktside = fundet.produktside;
+            fakta.produktNavn = fundet.produktNavn;
+            fakta.produktTekst = fundet.produktTekst;
+          }
+          d.fakta = fakta;
+          await supabase.from("drafts").update({ fakta }).eq("id", body.id);
         } catch (err) {
           console.error("nypris i markedsrunden sprunget over", err);
         }

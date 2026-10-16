@@ -816,6 +816,11 @@
     rk('Materiale', d.material, fk.materialer ? 'vaskemærket: ' + fk.materialer : '');
     rk('Kategori', d.category);
     if(fk.dele && fk.dele.length) rk('Dele', fk.dele.join(' + '));
+    // Varens egen produktside er fundamentet for teksten (_shared/beskrivelse.ts).
+    if(fk.produktNavn){
+      var vaert = ''; try { vaert = new URL(fk.produktside).hostname.replace(/^www\./, ''); } catch(e){}
+      rk('Produkt', fk.produktNavn, vaert ? 'fra ' + vaert : 'fundet på nettet');
+    }
     if(ny){
       var np = prisTal(fk.nypris);
       rk('Nypris', isFinite(np) ? kr(np) : '', isFinite(np) ? (fk.nyprisKilde || '') : 'ikke fundet — prisen er ikke målt mod nyprisen', !isFinite(np));

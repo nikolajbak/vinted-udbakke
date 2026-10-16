@@ -217,7 +217,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Løbenumre: `drafts.nr` fra en sekvens | `sql/003-loebenummer.sql` |
 | Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
-| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`) | `sql/006-fakta.sql` |
+| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, varens produktside `produktside`/`produktNavn`/`produktTekst`, opslagets tidspunkt `opslaaet`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
@@ -428,6 +428,31 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
   10 s. Mangler en ny vare stadig sin nypris, når Vinteds markedsrunde kører,
   slås den op igen dér, og runneren venter op til 90 s på svaret.
 - `maerker` skrives aldrig i annoncen — det er kun til opslaget.
+- **Varen slås altid op på nettet, og produktsiden er fundamentet for
+  annoncen** (bestemt af dig 16. oktober). Nr. 54, en helt ny Teeshoppen
+  »Hooded Let Puffer Jakke« til 1.000 kr, kom på Vinted til 70 kr: analysen
+  kaldte den »vendbar dunjakke«, opslaget fandt kun kollektionssider, kunne
+  ikke åbne dem, og afviste jakken, fordi »vendbar« ikke stod på siden.
+  Uden en nypris var der intet gulv, og den brugte median (75 kr) bestemte.
+  Nu (`slaaOp` i `_shared/beskrivelse.ts`):
+  - Opslaget kører for hver vare med mærke eller mærketekst, ny eller brugt,
+    og ser **hovedbilledet og et mærkebillede**, så det sammenligner med
+    produktsiden i stedet for at stole på analysens ord. Mærkets afskrift
+    kan være læst forkert (»TEE-20« for »TEE320«), og samme model i en
+    anden farve tæller.
+  - Det har `web_fetch` (`web_fetch_20250910`, ingen beta-header) ved
+    siden af søgningen og åbner butikkens sider. Højst 3 søgninger, 3 sider
+    og `max_content_tokens: 5000` — med 12000 kostede ét opslag 261.000
+    input-tokens (~0,80 $).
+  - Fundet gemmes i `fakta.produktside`/`produktNavn`/`produktTekst`, og
+    `faktaTekst` siger, at produktsiden er fundamentet: butikkens navn for
+    varen og dens egenskaber går forud for billedanalysen. Adressen skrives
+    ikke i annoncen. Appen viser »Produkt … fra teeshoppen.dk«.
+  - `fakta.opslaaet` er tidspunktet for opslaget. Mangler det (udkast fra
+    før), eller mangler en ny vare sin nypris, slås varen op igen i
+    Vinteds markedsrunde.
+  - **En ny vare uden fundet nypris sættes ikke ned af markedsrunden**: den
+    beholder analysens pris (`holdt` i `analyseMarket`).
 
 ## Billedernes farver
 
