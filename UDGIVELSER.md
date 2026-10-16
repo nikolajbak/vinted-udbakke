@@ -14,21 +14,23 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
-## udgivelse-0074 — 2026-10-16 13:25
+## udgivelse-0074 — 2026-10-16 09:00
 
-Commit `41f5785` — Skriv beskrivelsen forfra ud fra dine rettelser, og laer af det fjernede/tilfoejede  
-App: `app.js?v=a600dad3` · `style.css?v=5a1481ee`  
-Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+Udrullet fra en cloud-session via Supabase-MCP (ingen .env.secrets dér); versionerne aflæst med list_edge_functions.
+
+Commit `52b9470` — vinted-mail: kommentaren til findAnnonce tilbage paa plads  
+App: `app.js?v=ba5c7f08` · `style.css?v=5a1481ee`  
+Udrullet: vinted-mail
 
 | funktion | live | indhold |
 |---|---|---|
-| analyze-draft ← | v81 | `93193533` |
-| dba-fill-script ← | v31 | `e4683a25` |
+| analyze-draft | v80 | `93193533` |
+| dba-fill-script | v30 | `e4683a25` |
 | push-send | v4 | `cce82c40` |
 | push-subscribe | v4 | `989f990f` |
-| reshopper-draft ← | v22 | `e05b374e` |
-| vinted-fill-script ← | v90 | `5161c368` |
-| vinted-mail ← | v11 | `0df45ee9` |
+| reshopper-draft | v21 | `e05b374e` |
+| vinted-fill-script | v89 | `19646ddc` |
+| vinted-mail ← | v10 | `48755620` |
 
 ## udgivelse-0073 — 2026-10-16 10:00
 

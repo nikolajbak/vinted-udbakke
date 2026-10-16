@@ -274,6 +274,9 @@ type Raekke = {
   pending: Record<string, unknown> | null; favourites: number | null;
 };
 
+// Slags, der kun gaelder en annonce, vi selv har til salg.
+const KOEBERS = new Set(["besked", "bud"]);
+
 // Nummeret i et link foerst; ellers den laengste titel, der staar i mailen.
 // En titel paa under seks tegn ("Jakke") er ikke nok til at pege paa en vare.
 function findAnnonce(raekker: Raekke[], numre: string[], tekst: string): Raekke | null {
@@ -379,19 +382,36 @@ Deno.serve(async (req: Request) => {
   // teksten. Derfor tjekkes begge.
   const fraVinted = /vinted/i.test(m.fra) || /vinted/i.test(m.html) || /vinted/i.test(tekst);
   const links = [...new Set([...gemteLinks, ...vintedLinks(m.html, m.tekst)])];
-  const laest = fraVinted ? await laesMail(m.emne, tekst) : null;
   const maalt = fraVinted ? slags(m.emne, tekst) : "andet";
-  const kind = !fraVinted ? "andet" : maalt !== "andet" ? maalt : (laest?.slags ?? "andet");
   const numre = annonceNumre(links, m.html, m.tekst);
-  const bud = kind === "bud" || kind === "solgt" || kind === "favorit"
-    ? (beloeb(m.emne + " " + tekst) ?? (laest?.beloeb || laest?.pris || null)) : null;
-
   const { data: raekker } = await supabase.from("listings")
     .select("id, external_id, title, status, price, draft_id, published, pending, favourites")
     .eq("platform", "vinted").not("external_id", "is", null);
-  const l = fraVinted
-    ? findAnnonce((raekker ?? []) as Raekke[], numre, m.emne + "\n" + tekst + (laest?.titel ? "\n" + laest.titel : ""))
+  const find = (titel?: string) => fraVinted
+    ? findAnnonce((raekker ?? []) as Raekke[], numre, m.emne + "\n" + tekst + (titel ? "\n" + titel : ""))
     : null;
+
+  // Kun beskeder og bud paa VORES annoncer (bestemt af dig 16. oktober). En
+  // besked eller et tilbud om en vare, vi selv har spurgt til, ser ud som en
+  // koebers (nr. 30-31: parykker) og maa hverken laeses af modellen, gemmes,
+  // pushes eller taelle med i gennemgangen. Den maalte slags afgoer det foer
+  // modelkaldet; modellens slags efter.
+  const ikkeVores = async () => {
+    if (genlaes) {
+      await supabase.from("koeber_beskeder").delete().eq("vinted_mail_id", gemtId);
+      await supabase.from("vinted_mails").delete().eq("id", gemtId);
+    }
+    console.log("ikke vores annonce, ignoreret:", m.emne.slice(0, 120));
+    return json({ ok: true, ignoreret: "ikke vores annonce" });
+  };
+  let l = find();
+  if (!l && KOEBERS.has(maalt)) return await ikkeVores();
+  const laest = fraVinted ? await laesMail(m.emne, tekst) : null;
+  const kind = !fraVinted ? "andet" : maalt !== "andet" ? maalt : (laest?.slags ?? "andet");
+  l = l ?? find(laest?.titel);
+  if (!l && KOEBERS.has(kind)) return await ikkeVores();
+  const bud = kind === "bud" || kind === "solgt" || kind === "favorit"
+    ? (beloeb(m.emne + " " + tekst) ?? (laest?.beloeb || laest?.pris || null)) : null;
   const laesning = laest ? { ...laest, links } : (links.length ? { links } : null);
 
   const raekke = {

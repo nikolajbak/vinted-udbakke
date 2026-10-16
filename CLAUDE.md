@@ -58,6 +58,14 @@ python3 tools/tjek-live.py                        # kører telefonen det, git si
 sh tools/vent-paa-pages.sh                        # er HEAD ude på Pages? (kaldes selv af de to)
 ```
 
+**Fra en cloud-session** findes `.env.secrets` ikke, og git-forbindelsen
+tager kun grene, ikke mærker (16. oktober: 403 på `udgivelse-0074`). Så
+udrulles funktionen med Supabase-MCP'en fra et rent `main`, noten skrives med
+`tools/udgivelse-note.py` (versionerne fra `list_edge_functions`), og commit'et
+hedder »Udgivelse udgivelse-NNNN« som altid. Mærket sætter GitHub selv:
+`.github/workflows/udgivelsesmaerke.yml` sætter hvert manglende mærke fra
+`UDGIVELSER.md` på sit »Udgivelse …«-commit, når filen ændres på `main`.
+
 `tilbage.sh` skriver aldrig historien om. Den henter indholdet fra mærket og
 lægger det oven på som et nyt commit, så selve tilbagerulningen også kan
 fortrydes.
@@ -612,7 +620,8 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
 (CloudMailin, Postmark eller en Cloudflare Email Worker), som POSTer dem til
 `vinted-mail?key=<MAIL_KEY>`. Funktionen forstår alle tre formater.
 
-- **Hver mail gemmes i `vinted_mails`**, også dem, der ikke blev forstået.
+- **Hver mail gemmes i `vinted_mails`**, også dem, der ikke blev forstået —
+  undtagen besked/bud om en vare, der ikke er vores (se »Mails bruges til alt«).
   Ret aldrig et mønster uden at have set en rigtig mail. Mønstrene for solgt,
   bud og favorit er målt (herunder) og vinder over modellens læsning.
 - **Bud-mailen er målt** (9. oktober, første mail): afsender
@@ -684,6 +693,15 @@ spørgsmål ved tvivl.**
   hvad den skal bruges til. **For Claude:** ved en ny slags i `vinted_mails`,
   læs mailen, foreslå en brug, og spørg — gæt ikke.
 - Afsendelse til en køber sker stadig kun ved dit tryk.
+- **Kun beskeder og bud på VORES annoncer** (bestemt af dig 16. oktober).
+  Vinted sender samme slags mail, når en SÆLGER skriver eller giver et
+  tilbud på en vare, du selv har spurgt til (16. oktober: to parykker,
+  »Ny besked vedr. …«, »… har lige tilbudt at sælge dig …«). En besked- eller
+  bud-mail, der ikke kan knyttes til en annonce i `listings` (nummer i
+  linket, ellers titlen), gemmes IKKE, læses ikke af modellen, giver ingen
+  push og ingen `koeber_beskeder` (`KOEBERS`/`ikkeVores` i `vinted-mail`).
+  `?genlaes` på sådan en sletter den og dens købersamtale. Mail 30-31 og
+  deres spor (`koeber_beskeder` 6-7, `forbrug` 164-165) er slettet.
 
 ## Læring af salgene
 

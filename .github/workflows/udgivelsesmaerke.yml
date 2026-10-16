@@ -1,0 +1,35 @@
+# Saetter udgivelsesmaerket (udgivelse-NNNN), hvis det mangler paa GitHub.
+#
+# udgiv.sh paa Mac'en pusher selv maerket. En cloud-session kan kun pushe
+# grene, ikke maerker (16. oktober: 403 paa udgivelse-0074), saa uden det her
+# ville tilbage.sh ikke kunne finde udgivelsen. Maerket saettes paa commit'et
+# "Udgivelse udgivelse-NNNN", ligesom udgiv.sh goer.
+name: Udgivelsesmaerke
+on:
+  push:
+    branches: [main]
+    paths: [UDGIVELSER.md]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  maerk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Saet manglende maerker
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for tag in $(grep -o '^## udgivelse-[0-9]\{4\}' UDGIVELSER.md | cut -c4-); do
+            git rev-parse -q --verify "refs/tags/$tag" >/dev/null && continue
+            sha=$(git log --format=%H --grep="^Udgivelse $tag\$" -1)
+            [ -n "$sha" ] || { echo "$tag: intet commit 'Udgivelse $tag' - springes over"; continue; }
+            udrullet=$(awk -v t="## $tag " 'index($0,t)==1{f=1;next} /^## /{f=0} f&&/^Udrullet:/{sub(/^Udrullet: */,"");print;exit}' UDGIVELSER.md)
+            case "$udrullet" in ""|ingen*) msg="Udgivelse $tag" ;; *) msg="Udgivelse $tag — $udrullet" ;; esac
+            git tag -a "$tag" "$sha" -m "$msg"
+            git push origin "refs/tags/$tag"
+            echo "$tag sat paa $sha"
+          done
