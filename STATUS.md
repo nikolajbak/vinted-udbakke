@@ -22,9 +22,11 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 0000000000. **Varen slås altid op, produktsiden er fundamentet — 16. oktober.**
    Regler i CLAUDE.md under »Prisen → En ny vare«. **Afprøvet:** opslaget
    med billeder og `web_fetch` fandt nr. 54's jakke (1.000 kr) på 44 s.
-   **Ikke afprøvet:** de strammere grænser (2 billeder, 5000 tokens pr.
-   side) — Anthropic-kreditten slap op midt i prøven. Kør opslaget på nr.
-   54 igen, og se `forbrug` for prisen pr. opslag. Nr. 54 har fået
+   Efter skiftet til Haiku 5.5 og prisen fra JSON-LD: nr. 54 fundet på
+   teeshoppen.dk (1.000 kr fra siden, 25 s, $0,047), nr. 53 hos nike.com/dk
+   ($0,029) — kørt lokalt med den udgivne `slaaOp`. **Ikke afprøvet:** en ny
+   analyse hele vejen i appen, og Vinteds markedsrunde på et gammelt udkast
+   uden `opslaaet`. Nr. 54 har fået
    nypris og produktside i `fakta` i hånden, og 16. oktober lagt i `pending`: 500 kr,
    ny titel og beskrivelse ud fra produktsiden (`tekst_rettet` sat). Prisvagten
    sætter det, næste gang telefonen har en Vinted-side åben — tjek at Vinted

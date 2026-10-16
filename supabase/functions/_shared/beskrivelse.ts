@@ -191,7 +191,7 @@ export async function slaaOp(
   const maerker = String(vare.maerker ?? "").trim();
   if (!brand && !maerker) return {};
   const spoerg = [
-    "varens egen produktside — helst hos mærkets egen webshop, ellers en dansk forhandler — med produktnavn og butikkens beskrivelse (med materiale)",
+    "varens egen produktside — helst mærkets egen DANSKE webshop (.dk), ellers en dansk forhandler — med produktnavn og butikkens beskrivelse (med materiale)",
     vare.ny && "nyprisen i danske kroner (findes den ikke i Danmark, så omregn en europæisk pris og sig det i kilden)",
     vare.size && `mærkets størrelsesguide: hvilke mål størrelse ${vare.size} svarer til, og — kun hvis ` +
       "varens produktside eller mærket opgiver det — plaggets egen længde og skulderbredde i cm i den størrelse",
@@ -231,13 +231,14 @@ export async function slaaOp(
   // max_tokens 2000 slap op undervejs og gav et tomt svar. web_fetch fordi
   // soegningen alene kun gav kollektionssider, som modellen ikke kunne aabne
   // (nr. 54, 16. oktober); max_content_tokens holder hver side nede - med
-  // 12000 kostede ét opslag 261.000 input-tokens.
+  // 12000 kostede ét opslag 261.000 input-tokens. Haiku 5.5, ikke Sonnet 5:
+  // samme opgave fandt nr. 54's jakke paa 23 s for $0,035 mod 64 s og $0,98.
   for (let runde = 0; runde < 3; runde++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: "claude-sonnet-5",
+        model: "claude-haiku-5-5",
         max_tokens: 4000,
         tools: [
           { type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "DK" } },
@@ -257,10 +258,17 @@ export async function slaaOp(
       const nypris = Math.round(Number(i.nypris));
       const tekst = (v: unknown, max = 600) => typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
       const side = tekst(i.produktside, 300);
+      const url = side && /^https?:\/\//.test(side) ? side : undefined;
+      // Prisen paa siden gaar forud for modellens tal: Haiku skrev 999 kr for
+      // en side, der stod i EUR (133,95 € paa teeshoppen.com).
+      const paaSiden = url ? await prisPaaSiden(url) : undefined;
+      const pris = paaSiden ?? (nypris > 0 ? nypris : undefined);
       return {
-        nypris: vare.ny && nypris > 0 ? nypris : undefined,
-        nyprisKilde: vare.ny && nypris > 0 && i.nyprisKilde ? String(i.nyprisKilde) : undefined,
-        produktside: side && /^https?:\/\//.test(side) ? side : undefined,
+        nypris: vare.ny && pris ? pris : undefined,
+        nyprisKilde: vare.ny && pris
+          ? (paaSiden ? new URL(url!).hostname.replace(/^www\./, "") : i.nyprisKilde ? String(i.nyprisKilde) : undefined)
+          : undefined,
+        produktside: url,
         produktNavn: tekst(i.produktNavn, 120),
         produktTekst: tekst(i.produktTekst),
         // Kun naar der er spurgt om maal. Ellers lagde modellen produktnavnet
@@ -274,6 +282,37 @@ export async function slaaOp(
     messages.push({ role: "assistant", content: data.content });
   }
   return {};
+}
+
+// Prisen i hele danske kroner, som produktsiden selv opgiver den i sin JSON-LD
+// (`Product` med `offers`). Kun DKK - en pris i en anden valuta er ikke en
+// dansk nypris. Intet, hvis siden ikke svarer, ikke har det, eller er for tung.
+async function prisPaaSiden(url: string): Promise<number | undefined> {
+  try {
+    const res = await fetch(url, {
+      headers: { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1", "accept-language": "da-DK" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return undefined;
+    const html = (await res.text()).slice(0, 3_000_000);
+    const blokke = html.match(/<script[^>]*application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi) ?? [];
+    for (const b of blokke) {
+      let d: unknown;
+      try { d = JSON.parse(b.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "")); } catch { continue; }
+      const alle = ([] as unknown[]).concat(d, (d as { "@graph"?: unknown[] })?.["@graph"] ?? []);
+      for (const x of alle) {
+        const p = x as { "@type"?: unknown; offers?: unknown };
+        if (!p || !String(p["@type"] ?? "").includes("Product")) continue;
+        const offers = ([] as unknown[]).concat(p.offers ?? []) as Array<Record<string, unknown>>;
+        for (const o of offers) {
+          const valuta = String(o.priceCurrency ?? (o.priceSpecification as Record<string, unknown>)?.priceCurrency ?? "");
+          const v = Number(o.price ?? o.lowPrice ?? (o.priceSpecification as Record<string, unknown>)?.price);
+          if (valuta === "DKK" && v > 0) return Math.round(v);
+        }
+      }
+    }
+  } catch (_) { /* siden er en ekstra */ }
+  return undefined;
 }
 
 // Et maal i hele cm, eller intet. Et plag under 10 eller over 250 cm er en

@@ -444,6 +444,14 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
     siden af søgningen og åbner butikkens sider. Højst 3 søgninger, 3 sider
     og `max_content_tokens: 5000` — med 12000 kostede ét opslag 261.000
     input-tokens (~0,80 $).
+  - **Opslaget kører på Haiku 5.5, ikke Sonnet 5.** Målt 16. oktober på
+    nr. 54: Sonnet brugte 64 s og 0,98 $ (414.000 tokens over to runder),
+    Haiku 23-25 s og 0,03-0,05 $, med det rigtige fund. Nr. 53 (Nike, brugt)
+    fandt Nikes danske side med materiale og stylenummer.
+  - **Prisen læses af produktsidens JSON-LD, ikke af modellen**
+    (`prisPaaSiden`): kun `Product`→`offers` i DKK. Haiku skrev 999 kr for
+    teeshoppen.com, der stod i EUR (133,95 €). Prompten beder om mærkets
+    DANSKE webshop (.dk). Svarer siden ikke, bruges modellens tal.
   - Fundet gemmes i `fakta.produktside`/`produktNavn`/`produktTekst`, og
     `faktaTekst` siger, at produktsiden er fundamentet: butikkens navn for
     varen og dens egenskaber går forud for billedanalysen. Adressen skrives
