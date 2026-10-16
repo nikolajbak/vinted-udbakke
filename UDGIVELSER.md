@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0081 — 2026-10-16 14:33
+
+Commit `89c6e86` — Intet opslag uden maerke: billederne alene gav forkerte Teeshoppen-fund  
+App: `app.js?v=0357ee15` · `style.css?v=5a1481ee`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v87 | `66083c2e` |
+| dba-fill-script ← | v37 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v28 | `e05b374e` |
+| vinted-fill-script ← | v96 | `85aa52cc` |
+| vinted-mail ← | v18 | `48755620` |
+
 ## udgivelse-0080 — 2026-10-16 14:27
 
 Commit `2ea084e` — Opslaget ser op til otte billeder; »str. ukendt« fjernes fra titlen  
