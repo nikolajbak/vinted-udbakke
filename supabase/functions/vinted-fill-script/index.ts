@@ -1395,6 +1395,19 @@ Deno.serve(async (req: Request) => {
     // Redigeringssiden spoerger selv: skal DENNE annonce have en ny pris?
     // Uden det ville en prisaendring kun kunne gennemfoeres i forlaengelse af
     // det tilsyn, der besluttede den — og saa var den vaek dagen efter.
+    // Runneren spoerger paa hver Vinted-side: venter en aendring paa at
+    // blive sat? Saa gaar den selv til redigeringssiden (bestemt af dig
+    // 16. oktober). De, der er proevet for nylig, springes over.
+    if (body.mode === "ventende") {
+      const spring = new Set((Array.isArray(body.spring) ? body.spring : []).map(String));
+      const { data: rk } = await supabase.from("listings")
+        .select("external_id, pending").eq("platform", "vinted").eq("status", "aktiv")
+        .not("pending", "is", null).order("pending_since");
+      const f = (rk ?? []).find((x) => x.external_id && !spring.has(String(x.external_id)) &&
+        x.pending && Object.keys(x.pending as Record<string, unknown>).length);
+      return json({ itemId: f ? String(f.external_id) : null });
+    }
+
     if (body.mode === "pending") {
       const it = String(body.item_id ?? "");
       if (!it) return json({ error: "mangler" }, 400);

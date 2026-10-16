@@ -561,9 +561,9 @@ har ingen række i `listings` endnu.
   ud — en titel rettet på Vinted skrives ikke tilbage, fordi du bagefter rettede
   prisen i appen. Gem lægger ændringen i `pending` og åbner straks
   redigeringssiden, hvor runneren skriver den ind og gemmer. Trykket på Gem ER
-  trykket. Prisvagtens egne nedsættelser kræver stadig et tryk fra
-  Prisvagt-skærmen; ligger der en i forvejen, siger redigeringsskærmen, at den
-  går med ud.
+  trykket. Prisvagtens egne nedsættelser sættes selv, næste gang telefonen
+  har en Vinted-side åben (se »Prisvagten«); ligger der en i forvejen, siger
+  redigeringsskærmen, at den går med ud.
 - **Udkastet overskrives stadig aldrig af en synkronisering** — kun af dit eget
   Gem. Forskellen mellem udkast og annonce er det, appen viser.
 - **En pris rettet på Vinted noteres som `aendret` (»rettet på Vinted«) og
@@ -1106,11 +1106,21 @@ Delingen mellem server og telefon: se »Telefonen og serveren«.
   pris og hjerter læses af annoncen selv ved hvert tilsyn, og en prisændring
   kvitteres først, når den nye pris er læst TILBAGE fra annoncen. Samme lære
   som fra DBA: DOM'en lyver, kilden gør ikke.
-- **En prisændring kræver et tryk.** Tilsynet måler stille, når der alligevel
-  er en Vinted-side åben, men det navigerer kun til en redigeringsside, når
-  adressen bærer `?udbakke=vagt` — altså når trykket kom fra appen. Et script,
-  der retter priser på et rigtigt marked i forbifarten, er ikke automatik, det
-  er et uheld der venter.
+- **Prisvagten sætter selv priserne — uden et tryk** (bestemt af dig
+  16. oktober; før krævede hver ændring et tryk fra appen). Står der en
+  ændring i `pending`, eller beslutter tilsynet en nedsættelse, går runneren
+  selv til redigeringssiden, gemmer, kvitterer, tager den næste og sender dig
+  tilbage til siden, du stod på (`selvTil`, `mode:'ventende'`). Den rører
+  aldrig opret-siden, beskeder, betaling eller indstillinger (`maaSkifteSide`),
+  og en annonce, der er prøvet inden for 30 min, springes over. Det kræver
+  stadig, at telefonen har en Vinted-side åben i Safari — serveren kan ikke
+  selv nå Vinted (se »Telefonen og serveren«). `spor` »vagt: går selv til …«.
+- **Efter Gem lander Vinted på `/member/{bruger}` med en rigtig
+  sideindlæsning** (målt 16. oktober), ikke på annoncen. Kvitteringen krævede
+  annoncens egen side, så tre gemte priser stod som »klar« i appen, og køen
+  gik aldrig videre. Nu kvitteres på enhver side undtagen redigeringssiden,
+  og runneren kører prisvagten også uden for `/items/`. Gem-knappen kan være
+  slået fra et øjeblik efter, prisen er sat; der ventes op til 6 s på den.
 - **Appens flag står efter `#`, ikke `?`** (`#udbakke=vagt`, `#udbakke=synk`).
   Vinted omdirigerer `/items/{id}?…` til `/items/{id}-titel` og smider
   ?-delen væk; #-delen følger med (målt 8. oktober). Med `?` vidste runneren

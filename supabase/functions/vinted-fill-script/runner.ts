@@ -619,8 +619,7 @@ var bedre={title:null,description:null};
    den nye pris ind, når du har bedt om det.
 
    At MÅLE sker stille, når der alligevel er en annonceside åben. At ÆNDRE en
-   pris sker kun, når du selv har trykket på Prisvagt i appen — en pris på et
-   rigtigt marked er ikke noget, et script skal rette i forbifarten. */
+   pris sker også uden et tryk (se selvTil) — bestemt af dig 16. oktober. */
 
 var VAGT_KOE='udbakke_prisvagt_koe';
 var VAGT_SIDST='udbakke_prisvagt_sidst';
@@ -937,7 +936,10 @@ async function anvend(post){
 
  // Findes knappen ikke, står ændringerne i felterne, og du trykker selv —
  // ventetiden herunder kvitterer alligevel, når formularen forsvinder.
- var gem=findGemKnap();
+ // Knappen kan være slået fra, til formularen har opdaget ændringen
+ // (16. oktober: »fandt ingen gem-knap« et sekund efter, prisen var sat).
+ var gem=null;
+ for(var g=0;g<24&&!gem;g++){ gem=findGemKnap(); if(!gem)await sleep(250) }
  if(!gem){
   baand('Ændringerne er sat ind ('+sat.join(', ')+'). Tryk Gem for at gemme dem.',null,null);
   spor('anvend: fandt ingen gem-knap');
@@ -1002,12 +1004,15 @@ function hentMarkoer(){
  return v;
 }
 
-// Genindlæst efter Gem: står vi på annoncen, markøren peger på?
+// Genindlæst efter Gem. Vinted sender dig IKKE til annoncen, men med en
+// rigtig sideindlæsning til din profil (/member/{bruger}) — målt 16. oktober:
+// tre priser stod gemt på Vinted og »klar« i appen, fordi kvitteringen kun
+// kørte på annoncens egen side. Annoncen læses alligevel frisk, så siden, vi
+// står på, er ligegyldig — bare ikke redigeringssiden selv.
 async function bekraeft(){
  var v=hentMarkoer();
  if(!v)return null;
- var num=location.pathname.match(/^\/items\/(\d+)/);
- if(!num||num[1]!==String(v.itemId)||/\/edit/.test(location.pathname))return null;
+ if(/\/edit/.test(location.pathname))return null;
  return await bekraeftNu(v);
 }
 
@@ -1106,10 +1111,59 @@ function videre(itemId,kv){
  afslut(itemId);
  var n=naeste();
  if(n){location.href='/items/'+n.itemId+'/edit';return true}
- if(kv&&kv.naeste&&rundeAktiv()){location.href='/items/'+kv.naeste+'/edit?udbakke=ret';return true}
+ var tilbage=null; try{tilbage=sessionStorage.getItem(TILBAGE)}catch(e){}
+ if(kv&&kv.naeste&&rundeAktiv()){
+  location.href='/items/'+kv.naeste+'/edit'+(tilbage?'':'?udbakke=ret');return true;
+ }
  try{sessionStorage.removeItem(RUNDE)}catch(e){}
+ // Gik vagten selv i gang, sendes du tilbage til siden, du stod på.
+ if(tilbage){
+  try{sessionStorage.removeItem(TILBAGE)}catch(e){}
+  spor('vagt: færdig, tilbage til '+tilbage);
+  location.href=tilbage;return true;
+ }
  if(kv&&kv.tekst)lukFanen(kv.tekst);
  return false;
+}
+
+/* Prisvagten sætter selv priserne — bestemt af dig 16. oktober. Står der en
+   ændring og venter, og er du på en Vinted-side, hvor et sideskift ikke
+   afbryder noget, går runneren til redigeringssiden, gemmer, kvitterer og
+   sender dig tilbage. Aldrig fra opret-siden, beskeder, betaling eller
+   indstillinger. En annonce, der er prøvet inden for 30 min, springes over,
+   så en ændring, Vinted ikke vil tage, ikke kaprer hver sideindlæsning. */
+var TILBAGE='udbakke_vagt_tilbage';
+var FORSOEGT='udbakke_vagt_forsoegt';
+function maaSkifteSide(){
+ return !/^\/(items\/new|items\/\d+\/edit|inbox|checkout|transaction|settings|wallet|signup|login|member\/signup|member\/general)/.test(location.pathname);
+}
+function forsoegte(){
+ try{
+  var f=JSON.parse(localStorage.getItem(FORSOEGT)||'{}'),ud=[],nu=Date.now();
+  for(var id in f){ if(nu-f[id]<1800000)ud.push(id); else delete f[id] }
+  localStorage.setItem(FORSOEGT,JSON.stringify(f));
+  return ud;
+ }catch(e){return []}
+}
+function selvTil(itemId,hvorfor){
+ if(!maaSkifteSide())return false;
+ try{
+  var f=JSON.parse(localStorage.getItem(FORSOEGT)||'{}');
+  f[String(itemId)]=Date.now();localStorage.setItem(FORSOEGT,JSON.stringify(f));
+  if(!sessionStorage.getItem(TILBAGE))sessionStorage.setItem(TILBAGE,location.href);
+  if(!sessionStorage.getItem(RUNDE))sessionStorage.setItem(RUNDE,JSON.stringify({tid:Date.now(),ids:[]}));
+ }catch(e){return false}
+ spor('vagt: går selv til '+itemId+' ('+hvorfor+')');
+ location.href='/items/'+itemId+'/edit';
+ return true;
+}
+// Står der en ændring og venter på serveren? Billigt kald, intet hentes fra Vinted.
+async function ventende(){
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'ventende',spring:forsoegte().concat(rundeBesoegt())})},15000);
+  return ((await r.json())||{}).itemId||null;
+ }catch(e){return null}
 }
 
 // Næste post i køen. Er der ikke flere, er runden slut.
@@ -1198,12 +1252,27 @@ async function prisvagt(){
   if(post){
    var kv=await anvend(post);
    if(kv&&kv.ok)videre(red[1],kv);
+   else{
+    // Gik vagten selv hertil, står du ikke fast på redigeringssiden.
+    var tb=null; try{tb=sessionStorage.getItem(TILBAGE)}catch(e){}
+    if(tb){
+     try{sessionStorage.removeItem(TILBAGE);sessionStorage.removeItem(RUNDE)}catch(e){}
+     spor('vagt: '+red[1]+' gik ikke igennem, tilbage');
+     setTimeout(function(){location.href=tb},4000);
+    }
+   }
    return true;
   }
   return false;
  }
 
- // 3) Ellers: er der noget forfaldent? Kun én runde i timen, og kun når vi
+ // 3) Venter der allerede en ændring, sættes den nu — uden et tryk.
+ if(!bedt&&maaSkifteSide()){
+  var vi=await ventende();
+  if(vi&&selvTil(vi,'ventende ændring'))return true;
+ }
+
+ // 4) Ellers: er der noget forfaldent? Kun én runde i timen, og kun når vi
  //    ikke er midt i noget andet — målingen koster data på telefonen.
  if(!bedt){
   try{
@@ -1235,6 +1304,7 @@ async function prisvagt(){
   (res.poster.length===1?' vare skal ned i pris':' varer skal ned i pris')+
   ' ('+f1.fra+' → '+f1.pris+' kr'+(res.poster.length>1?' først':'')+').';
  if(bedt){location.href='/items/'+f1.itemId+'/edit';return true}
+ if(selvTil(f1.itemId,'tilsyn'))return true;
  baand(tekst,'Sæt priserne',function(){location.href='/items/'+f1.itemId+'/edit'});
  return false;
 }
@@ -1428,6 +1498,9 @@ if(!/^\/items\//.test(location.pathname)){
   await sleep(5000);
   if(await meldPostet()===true)break;
  }
+ // Prisvagten: kvittér en Gem (Vinted lander på /member/… efter Gem), og
+ // sæt ventende priser. Ikke midt i en udfyldning, der venter på garderoben.
+ if(!hentAfventer()){try{await prisvagt()}catch(e){log('vagt: '+e.message)}}
  return;
 }
 // Prisvagten kører på alle annoncesider undtagen opret-siden: dér er
