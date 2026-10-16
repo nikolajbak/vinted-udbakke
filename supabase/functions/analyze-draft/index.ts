@@ -75,6 +75,14 @@ const MAERKE_TOOL = {
       tagColor: { type: ["string", "null"], description: "Farvenavnet præcis som det står, fx \"Army\". null hvis der ikke står et." },
       farveDansk: { type: ["string", "null"], description: "Samme farve på dansk, fx \"armygrøn\". null hvis der ikke står en farve." },
       priceTag: { type: ["integer", "null"], description: "En trykt pris i danske kroner. null hvis der ikke står en." },
+      maerke: {
+        type: ["string", "null"],
+        description: "Mærkets navn, som det står trykt på hænge-, nakke- eller vaskemærket, fx \"Roly\". Ikke en butik. null hvis det ikke kan læses.",
+      },
+      haengemaerke: {
+        type: "boolean",
+        description: "true hvis et hængemærke eller prismærke stadig sidder fast på varen (varen er ny med mærke).",
+      },
       materialer: {
         type: ["string", "null"],
         description:
@@ -93,7 +101,7 @@ const MAERKE_TOOL = {
           "vandsøjle, dun/fjer-fordeling, Gore-Tex o.l. Kort, på dansk. Ikke vaskeanvisning, ikke produktionsland. null ellers.",
       },
     },
-    required: ["tagText", "tagColor", "farveDansk", "priceTag", "materialer", "stoerrelse", "egenskaber"],
+    required: ["tagText", "tagColor", "farveDansk", "priceTag", "maerke", "haengemaerke", "materialer", "stoerrelse", "egenskaber"],
   },
 };
 
@@ -823,11 +831,19 @@ Deno.serve(async (req: Request) => {
 
     // Nypris og maal. Prismaerket og mærkatet er de sikre kilder; nettet bruges
     // kun til det, billederne ikke selv kan svare paa.
+    const lm = await maerkerP;
+    const tom = (v: unknown) => { const s = cleanText(v); return s && !/^(null|ingen|-)$/i.test(s) ? s : ""; };
+    // Mærkerne er facit (bestemt af dig 8. oktober). Nr. 56 havde et Roly-
+    // hængemærke og blev kaldt »TeeShoppen« i stand »God« (16. oktober).
+    if (lm.haengemaerke === true && !/^ny/i.test(String(vision.condition ?? "").trim())) vision.condition = "ny med mærke";
+    const trykt = tom(lm.maerke);
+    const analyseret = String(vision.brand ?? "").trim().toLowerCase();
+    if (trykt.length >= 3 && !(analyseret && (analyseret.includes(trykt.toLowerCase()) || trykt.toLowerCase().includes(analyseret)))) {
+      vision.brand = trykt;
+    }
     const ny = /^ny/i.test(String(vision.condition ?? "").trim());
     const fakta: Fakta = {};
     if (ny) fakta.ny = true;
-    const lm = await maerkerP;
-    const tom = (v: unknown) => { const s = cleanText(v); return s && !/^(null|ingen|-)$/i.test(s) ? s : ""; };
     const tagPris = Math.round(Number(lm.priceTag)) || Math.round(Number(vision.priceTag));
     if (ny && tagPris > 0) { fakta.nypris = tagPris; fakta.nyprisKilde = "prismærket"; }
     const maerker = tom(lm.tagText);
@@ -879,6 +895,7 @@ Deno.serve(async (req: Request) => {
         fakta.produktside = fundet.produktside;
         fakta.produktNavn = fundet.produktNavn;
         fakta.produktTekst = fundet.produktTekst;
+        fakta.produktMaerke = fundet.produktMaerke;
       }
       if (fundet.maal) { fakta.maal = fundet.maal; fakta.maalKilde = "mærkets størrelsesguide"; }
       // Plaggets egne maal til Vinteds felter - kun naar varens produktside
@@ -947,6 +964,14 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
       draft.price = String(ramme.pris);
       draft.priceNote = cleanText(draft.priceNote) + ` (${ramme.note})`;
     }
+    // Produktsidens maerke vinder, naar det er et andet maerke end analysens -
+    // ikke bare en anden stavemaade (»TEESHOPPEN« for »TeeShoppen«).
+    const analyseMaerke = cleanText(draft.brand || vision.brand);
+    const sideMaerke = cleanText(fakta.produktMaerke);
+    const maerke = sideMaerke && sideMaerke.toLowerCase() !== analyseMaerke.toLowerCase() ? sideMaerke : analyseMaerke;
+    if (maerke !== analyseMaerke && analyseMaerke) {
+      draft.title = cleanText(draft.title).replace(new RegExp(analyseMaerke.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), maerke);
+    }
     // Skrive-kaldet kan stadig falde tilbage paa et bogstav; boernetoej rettes efter det.
     const foerStr = cleanText(draft.size || vision.size);
     let slutStr = foerStr;
@@ -962,7 +987,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
       .from("drafts")
       .update({
         status: "ny",
-        title: ingenVersaler(cleanText(draft.title), cleanText(draft.brand || vision.brand)),
+        title: ingenVersaler(cleanText(draft.title), maerke),
         description: cleanText(draft.description),
         category: cleanText(draft.category),
         condition: cleanText(draft.condition),
@@ -974,7 +999,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
         // Vinteds egne felter. Bogmaerket klikker dem igennem, saa de gemmes
         // her praecis som modellen formulerede dem. draft vinder over vision:
         // draft-kaldet kender Vinteds ordlyd, vision-kaldet laeser bare etiketten.
-        brand: cleanText(draft.brand || vision.brand) || null,
+        brand: maerke || null,
         size: slutStr || null,
         size_scale: cleanText(draft.sizeScale) || null,
         color: vintedFarve(draft.color) || vintedFarve(vision.color),

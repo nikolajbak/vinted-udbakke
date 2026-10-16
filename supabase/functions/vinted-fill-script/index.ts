@@ -1794,6 +1794,7 @@ Deno.serve(async (req: Request) => {
             fakta.produktside = fundet.produktside;
             fakta.produktNavn = fundet.produktNavn;
             fakta.produktTekst = fundet.produktTekst;
+            fakta.produktMaerke = fundet.produktMaerke;
           }
           d.fakta = fakta;
           await supabase.from("drafts").update({ fakta }).eq("id", body.id);

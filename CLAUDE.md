@@ -217,7 +217,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Løbenumre: `drafts.nr` fra en sekvens | `sql/003-loebenummer.sql` |
 | Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
-| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, varens produktside `produktside`/`produktNavn`/`produktTekst`, opslagets tidspunkt `opslaaet`) | `sql/006-fakta.sql` |
+| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
@@ -461,6 +461,12 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
   - `fakta.opslaaet` er tidspunktet for opslaget. Mangler det (udkast fra
     før), eller mangler en ny vare sin nypris, slås varen op igen i
     Vinteds markedsrunde.
+  - **Mærket og hængemærket læses af mærkerne** (16. oktober, nr. 56: et
+    Roly-hængemærke, kaldt »TeeShoppen« i stand »God«). `laesMaerker` giver
+    `maerke` (trykt navn) og `haengemaerke`; et hængemærke gør standen til
+    »ny med mærke«, og et trykt mærke på mindst tre tegn erstatter
+    analysens, når de ikke ligner hinanden. Produktsidens JSON-LD-mærke
+    (`fakta.produktMaerke`) vinder til sidst — butikken kan være forhandler.
   - **En ny vare uden fundet nypris sættes ikke ned af markedsrunden**: den
     beholder analysens pris (`holdt` i `analyseMarket`).
 

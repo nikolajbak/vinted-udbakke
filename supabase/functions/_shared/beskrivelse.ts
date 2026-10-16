@@ -101,6 +101,9 @@ export type Fakta = {
   produktside?: string;
   produktNavn?: string;
   produktTekst?: string;
+  // Maerket, som produktsiden selv opgiver det (JSON-LD). Nr. 56 var en Roly
+  // Sitka solgt hos Teeshoppen og blev kaldt »TeeShoppen«.
+  produktMaerke?: string;
   // Hvornaar opslaget sidst kørte uden at fejle, saa markedsrunden ved, om et
   // gammelt udkast mangler det.
   opslaaet?: string;
@@ -113,7 +116,8 @@ export function faktaTekst(f: unknown): string {
     k.nypris && `Nypris: ${Math.round(Number(k.nypris))},00 kr${k.nyprisKilde ? ` (${k.nyprisKilde})` : ""}`,
     (k.produktNavn || k.produktTekst) &&
       `Varens egen produktside${k.produktside ? ` (${k.produktside})` : ""}: ${k.produktNavn ?? ""}` +
-        `${k.produktTekst ? ` — ${k.produktTekst}` : ""}. Den er fundamentet for annoncen: brug butikkens ` +
+        `${k.produktTekst ? ` — ${k.produktTekst}` : ""}` +
+        `${k.produktMaerke ? `. Mærket er ${k.produktMaerke} — butikken er kun forhandler` : ""}. Den er fundamentet for annoncen: brug butikkens ` +
         "navn for varen og dens egenskaber i titel og tekst, også hvor billedanalysen siger noget andet. " +
         "Skriv ikke adressen eller butikkens navn i annoncen.",
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
@@ -173,6 +177,7 @@ const OPSLAG_TOOL = {
 // fejler det, skrives annoncen bare uden, og analysen maa aldrig vaelte paa det.
 export type Opslag = {
   nypris?: number; nyprisKilde?: string; produktside?: string; produktNavn?: string; produktTekst?: string;
+  produktMaerke?: string;
   maal?: string; laengde?: number; skulderbredde?: number;
 };
 
@@ -269,7 +274,8 @@ export async function slaaOp(
       const url = side && /^https?:\/\//.test(side) ? side : undefined;
       // Prisen paa siden gaar forud for modellens tal: Haiku skrev 999 kr for
       // en side, der stod i EUR (133,95 € paa teeshoppen.com).
-      const paaSiden = url ? await prisPaaSiden(url) : undefined;
+      const siden = url ? await laesSiden(url) : {};
+      const paaSiden = siden.pris;
       const pris = paaSiden ?? (nypris > 0 ? nypris : undefined);
       return {
         nypris: vare.ny && pris ? pris : undefined,
@@ -277,6 +283,7 @@ export async function slaaOp(
           ? (paaSiden ? new URL(url!).hostname.replace(/^www\./, "") : i.nyprisKilde ? String(i.nyprisKilde) : undefined)
           : undefined,
         produktside: url,
+        produktMaerke: siden.maerke,
         produktNavn: tekst(i.produktNavn, 120),
         produktTekst: tekst(i.produktTekst),
         // Kun naar der er spurgt om maal. Ellers lagde modellen produktnavnet
@@ -292,16 +299,17 @@ export async function slaaOp(
   return {};
 }
 
-// Prisen i hele danske kroner, som produktsiden selv opgiver den i sin JSON-LD
-// (`Product` med `offers`). Kun DKK - en pris i en anden valuta er ikke en
-// dansk nypris. Intet, hvis siden ikke svarer, ikke har det, eller er for tung.
-async function prisPaaSiden(url: string): Promise<number | undefined> {
+// Prisen i hele danske kroner og maerket, som produktsiden selv opgiver dem i
+// sin JSON-LD (`Product` med `offers` og `brand`). Kun DKK - en pris i en
+// anden valuta er ikke en dansk nypris. Intet, hvis siden ikke svarer.
+async function laesSiden(url: string): Promise<{ pris?: number; maerke?: string }> {
+  const ud: { pris?: number; maerke?: string } = {};
   try {
     const res = await fetch(url, {
       headers: { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1", "accept-language": "da-DK" },
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return undefined;
+    if (!res.ok) return ud;
     const html = (await res.text()).slice(0, 3_000_000);
     const blokke = html.match(/<script[^>]*application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi) ?? [];
     for (const b of blokke) {
@@ -309,18 +317,20 @@ async function prisPaaSiden(url: string): Promise<number | undefined> {
       try { d = JSON.parse(b.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "")); } catch { continue; }
       const alle = ([] as unknown[]).concat(d, (d as { "@graph"?: unknown[] })?.["@graph"] ?? []);
       for (const x of alle) {
-        const p = x as { "@type"?: unknown; offers?: unknown };
+        const p = x as { "@type"?: unknown; offers?: unknown; brand?: unknown };
         if (!p || !String(p["@type"] ?? "").includes("Product")) continue;
+        const b = typeof p.brand === "string" ? p.brand : (p.brand as { name?: unknown })?.name;
+        if (!ud.maerke && typeof b === "string" && b.trim()) ud.maerke = b.trim().slice(0, 60);
         const offers = ([] as unknown[]).concat(p.offers ?? []) as Array<Record<string, unknown>>;
         for (const o of offers) {
           const valuta = String(o.priceCurrency ?? (o.priceSpecification as Record<string, unknown>)?.priceCurrency ?? "");
           const v = Number(o.price ?? o.lowPrice ?? (o.priceSpecification as Record<string, unknown>)?.price);
-          if (valuta === "DKK" && v > 0) return Math.round(v);
+          if (!ud.pris && valuta === "DKK" && v > 0) ud.pris = Math.round(v);
         }
       }
     }
   } catch (_) { /* siden er en ekstra */ }
-  return undefined;
+  return ud;
 }
 
 // Et maal i hele cm, eller intet. Et plag under 10 eller over 250 cm er en
