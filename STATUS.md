@@ -19,6 +19,14 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+00000000000. **Klar-varerne analyseret forfra — 16. oktober (udgivelse 0078-0081).**
+   Nr. 55-60 (62-69 var allerede efter de nye regler; 64 hang i »afventer«
+   siden kreditten slap op og er kørt igen). Nr. 56 er nu Roly Sitka
+   (nypris 800 kr, 360 kr), nr. 58 Teeshoppen Puffer Jakke (1.100 kr,
+   550 kr). Nr. 55 og 59 er nye uden mærke og derfor uden nypris — tastes
+   mærket i udkastet, kan opslaget køre. De gamle tekster ligger ikke i git;
+   ~4,40 $ i alt for de mange kørsler.
+
 0000000000. **Varen slås altid op, produktsiden er fundamentet — 16. oktober.**
    Regler i CLAUDE.md under »Prisen → En ny vare«. **Afprøvet:** opslaget
    med billeder og `web_fetch` fandt nr. 54's jakke (1.000 kr) på 44 s.
