@@ -619,7 +619,7 @@ var bedre={title:null,description:null};
    den nye pris ind, når du har bedt om det.
 
    At MÅLE sker stille, når der alligevel er en annonceside åben. At ÆNDRE en
-   pris sker også uden et tryk (se selvTil) — bestemt af dig 16. oktober. */
+   pris sker også uden et tryk, se selvTil — bestemt af dig 16. oktober. */
 
 var VAGT_KOE='udbakke_prisvagt_koe';
 var VAGT_SIDST='udbakke_prisvagt_sidst';
