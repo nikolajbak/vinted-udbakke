@@ -440,8 +440,10 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
   Uden en nypris var der intet gulv, og den brugte median (75 kr) bestemte.
   Nu (`slaaOp` i `_shared/beskrivelse.ts`):
   - Opslaget kører for hver vare med mærke eller mærketekst, ny eller brugt,
-    — også uden mærke, hvis billederne viser et (ellers null med det
-    samme) — og ser **op til otte billeder** (ikke valgt efter trinnet;
+    — **aldrig uden mærke eller mærketekst**: prøvet med billederne alene
+    16. oktober parrede Haiku fire mærkeløse jakker med tilfældige
+    Teeshoppen-varer (nr. 57, en gråbrun softshell, blev »sort puffer
+    jakke«) — og ser **op til otte billeder** (ikke valgt efter trinnet;
     nr. 55's »mærke« var jakken bagfra), så det sammenligner med
     produktsiden i stedet for at stole på analysens ord. Mærkets afskrift
     kan være læst forkert (»TEE-20« for »TEE320«), og samme model i en

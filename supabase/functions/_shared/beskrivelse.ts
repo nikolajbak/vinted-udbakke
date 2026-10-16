@@ -200,9 +200,11 @@ export async function slaaOp(
   const brand = String(vare.brand ?? "").trim();
   const maerker = String(vare.maerker ?? "").trim();
   const billeder = (vare.billeder ?? []).filter(Boolean).slice(0, 8);
-  // Uden maerke kan billederne stadig vise det (et logo, analysen ikke
-  // naevnte) - fem af seks klare jakker 16. oktober havde intet maerke.
-  if (!brand && !maerker && !billeder.length) return {};
+  // Uden maerke eller maerketekst slaas intet op. Proevet 16. oktober med
+  // billederne alene: Haiku parrede fire maerkeloese jakker med tilfaeldige
+  // Teeshoppen-varer, og nr. 57, en graabrun softshell, blev til en »sort
+  // puffer jakke«, fordi produktsiden er facit.
+  if (!brand && !maerker) return {};
   const spoerg = [
     "varens egen produktside — helst mærkets egen DANSKE webshop (.dk), ellers en dansk forhandler — med produktnavn og butikkens beskrivelse (med materiale)",
     vare.ny && "nyprisen i danske kroner (findes den ikke i Danmark, så omregn en europæisk pris og sig det i kilden)",
@@ -221,10 +223,7 @@ export async function slaaOp(
           `Billedanalysen gættede: ${brand} ${vare.productType ?? ""}${vare.color ? `, ${vare.color}` : ""}` +
           `${vare.size ? `, str. ${vare.size}` : ""}${vare.ny ? ", ny" : ""}. ` +
           "Gættet kan tage fejl — billederne og mærkerne er facit.\n" +
-          (!brand && !maerker
-            ? "Mærket er ukendt. Søg kun, hvis et mærke eller en model tydeligt kan ses på billederne; " +
-              "ellers kald angiv_fund med null med det samme. Et produkt, der bare ligner, er ikke varen.\n"
-            : "") +
+          "Et produkt, der bare ligner, er ikke varen: mærket skal passe, og farve og snit skal stemme med billederne.\n" +
           // Varenummer og stregkode rammer den praecise vare. Uden dem fandt
           // opslaget en strikket Teeshoppen-skjorte til 500 kr i stedet for
           // hoerskjorten til 349 kr; med dem fandt det den paa 10 s (2. oktober).
