@@ -19,6 +19,14 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+00000000. **Prisvagten sætter selv priserne — 16. oktober (udgivelse 0073).**
+   Regler i CLAUDE.md under »Prisvagten«. Nr. 10289967384 (55 kr),
+   10293074694 (110 kr) og 10290315677 (400 kr) ER gemt på Vinted, men stod
+   som »klar«, fordi kvitteringen kun kørte på annoncesiden. **Ikke afprøvet
+   på telefonen:** næste gang Safari har en Vinted-side åben, skal `spor`
+   vise »vagt: går selv til …«, »anvend: price stod allerede i annoncen« og
+   »vagt: færdig, tilbage til …«, og `listings.pending` være tom for de tre.
+
 0000000. **Forbruget måles nu — 8. oktober (udgivelse 0066).** Hvert modelkald
    lander i `forbrug` (se CLAUDE.md). Afprøvet med én kontrol: 6.068 tokens
    ind, $0,012. Skønnet før målingen var ~$0,45 pr. vare (~$45/md.).
