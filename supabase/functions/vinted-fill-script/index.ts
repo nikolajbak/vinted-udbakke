@@ -19,7 +19,7 @@ import { RUNNER } from "./runner.ts";
 import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
-import { hentErfaringer } from "../_shared/laering.ts";
+import { hentErfaringer, noterTekstRettelse } from "../_shared/laering.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 import { laer } from "./laering.ts";
 import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
@@ -540,6 +540,50 @@ async function analyseMarket(
     compared: chosen.length,
     median: ref ? ref.median : null,
   };
+}
+
+// Beskrivelsen skrevet forfra ud fra DINE rettelser i appen. Din titel og det,
+// du har tilfoejet, er facit; det, du har fjernet, kommer ikke igen. Teksten
+// gemmes ikke her - den lander i feltet, og det er dit Gem, der gemmer.
+const OMSKRIV_TOOL = {
+  name: "ny_beskrivelse",
+  description: "Den nye, komplette beskrivelse.",
+  input_schema: {
+    type: "object",
+    properties: { description: { type: "string", description: "Hele beskrivelsen, klar til annoncen." } },
+    required: ["description"],
+  },
+};
+
+async function omskriv(
+  draft: Record<string, unknown>,
+  titel: string,
+  tekst: string,
+  forskel: { fjernet: string[]; tilfoejet: string[] },
+) {
+  const images = await photoBlocks(draft.photos, ["forfra"], 1);
+  const text =
+    `Titel (skrevet af sælgeren, brug den som den er): ${titel}\n` +
+    `Mærke: ${draft.brand ?? "ukendt"} · str. ${draft.size ?? "?"} · ${draft.condition ?? "?"} · ` +
+    `${draft.material ?? "?"} · ${draft.color ?? "?"}\n${faktaTekst(draft.fakta)}\n\n` +
+    `Sælgerens rettede beskrivelse:\n${tekst}\n\n` +
+    (forskel.fjernet.length ? "Sælgeren FJERNEDE (må ikke komme igen, heller ikke omskrevet):\n" +
+      forskel.fjernet.map((x) => `- ${x}`).join("\n") + "\n\n" : "") +
+    (forskel.tilfoejet.length ? "Sælgeren TILFØJEDE (skal med, i indhold og gerne i ordlyd):\n" +
+      forskel.tilfoejet.map((x) => `- ${x}`).join("\n") + "\n\n" : "") +
+    "Skriv en ny, komplet beskrivelse, der bygger på sælgerens rettede tekst og følger reglerne. " +
+    "Alt, sælgeren har skrevet, er facit — også når det strider mod billedet. Tilføj ikke noget, " +
+    "som hverken sælgerens tekst, billedet eller fakta bærer.";
+  const erfaringer = await hentErfaringer(["tekst"]);
+  const out = await callTool(
+    "Du er en meget erfaren sælger på Vinted i Danmark og gør en annoncetekst færdig, efter at " +
+      "sælgeren selv har rettet i den. Sælgerens rettelser vejer tungest.\n\n" + BESKRIVELSE_REGLER +
+      (erfaringer ? "\n\n" + erfaringer : ""),
+    images.length ? [...images, { type: "text", text }] : text,
+    OMSKRIV_TOOL,
+    draft.id,
+  );
+  return await udenForbudte(ANTHROPIC_API_KEY, cleanText(out.description), draft.id);
 }
 
 const PRICE_TOOL = {
@@ -1327,6 +1371,31 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Din rettelse af titel/beskrivelse i appen: noteres i rettelser, og med
+    // skriv:true skrives beskrivelsen forfra ud fra den. `fra` er teksten, du
+    // startede fra - ikke modellens omskrivning - saa kun dine egne rettelser
+    // bliver til laering.
+    if (body.mode === "omskriv") {
+      if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
+      const { data: d, error: e } = await supabase.from("drafts")
+        .select("id, nr, title, description, brand, size, condition, material, color, photos, fakta")
+        .eq("id", body.id).single();
+      if (e) return json({ error: e.message }, 500);
+      const tekst = (v: unknown) => typeof v === "string" ? v.slice(0, 3000) : "";
+      const fra = (body.fra && typeof body.fra === "object") ? body.fra as Record<string, unknown> : {};
+      const til = { title: tekst(body.title).trim(), description: tekst(body.description).trim() };
+      try {
+        const forskel = await noterTekstRettelse(d.id, d.nr ?? null,
+          { title: tekst(fra.title), description: tekst(fra.description) }, til);
+        if (!body.skriv) return json({ ok: true, ...forskel });
+        const description = await omskriv(d as Record<string, unknown>, til.title || String(d.title ?? ""),
+          til.description, forskel);
+        return json({ description, ...forskel });
+      } catch (err) {
+        return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
+    }
+
     // Gennemgangen af udfaldene. Kaldes af appen, af det ugentlige job og
     // efter et salg - den handler om alle annoncer, ikke om ét udkast.
     if (body.mode === "laer") {
@@ -1684,7 +1753,7 @@ Deno.serve(async (req: Request) => {
     if (body.mode === "market") {
       const { data: d, error: e } = await supabase
         .from("drafts")
-        .select("id, title, description, brand, size, condition, material, color, photos, fakta")
+        .select("id, title, description, brand, size, condition, material, color, photos, fakta, tekst_rettet")
         .eq("id", body.id)
         .single();
       if (e) return json({ error: e.message }, 500);
@@ -1718,6 +1787,12 @@ Deno.serve(async (req: Request) => {
           Array.isArray(body.items) ? body.items as MarketItem[] : [],
           Array.isArray(body.samples) ? body.samples as Array<Record<string, never>> : [],
         );
+        // Har du selv rettet titel eller beskrivelse i appen, er det din tekst,
+        // der kommer paa Vinted. Runden saetter kun prisen.
+        if (d.tekst_rettet) {
+          out.title = String(d.title ?? "");
+          out.description = String(d.description ?? "");
+        }
         await supabase.from("drafts").update({
           title: out.title,
           description: out.description,

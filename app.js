@@ -1890,6 +1890,10 @@
   var VAELGERE = ['brand', 'size', 'color', 'condition', 'material'];
   // Den Vinted-annonce, rettelsen skal ud i — og det, der står i den lige nu.
   var REDIGERES_ANNONCE = null;
+  // Teksten, du startede fra paa redigeringsskaermen — eller den, modellen
+  // senest skrev forfra. Kun forskellen mellem den og det, du har skrevet, er
+  // DIN rettelse og bliver til laering.
+  var REDIGERES_GRUNDLAG = null;
 
   // Et mål i hele cm, eller null. Under 10 eller over 250 cm er en tastefejl.
   function cmTal(v){
@@ -1937,6 +1941,7 @@
     $('e-title').value = d.title || '';
     $('e-desc').value = d.description || '';
     $('e-price').value = String(prisTal(d.price) || '');
+    REDIGERES_GRUNDLAG = { title: d.title || '', description: d.description || '' };
     VAELGERE.forEach(function(k){ $('e-' + k).value = d[k] || ''; });
     $('e-laengde').value = (d.fakta || {}).laengde || '';
     $('e-skulder').value = (d.fakta || {}).skulderbredde || '';
@@ -1959,6 +1964,8 @@
           var nu = nuvaerende(d, vinted);
           if($('e-title').value === (d.title || '')) $('e-title').value = nu.title;
           if($('e-desc').value === (d.description || '')) $('e-desc').value = nu.description;
+          if(ensLyd(REDIGERES_GRUNDLAG.title, d.title) && ensLyd(REDIGERES_GRUNDLAG.description, d.description))
+            REDIGERES_GRUNDLAG = { title: $('e-title').value, description: $('e-desc').value };
           if($('e-price').value === String(prisTal(d.price) || '') && nu.price)
             $('e-price').value = String(nu.price);
           $('e-save').textContent = 'Gem og send til Vinted';
@@ -1979,6 +1986,43 @@
             'i udkastet.') + '</p>';
       });
   }
+
+  // Din rettelse af titel og tekst, sendt til serveren (mode:'omskriv'), som
+  // noterer det fjernede og det tilfoejede i rettelser. Med skriv:true kommer
+  // en ny, komplet beskrivelse tilbage.
+  function sendTekstRettelse(d, skriv){
+    return fetch(FILL_API, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode:'omskriv', id: d.id, skriv: !!skriv,
+        fra: REDIGERES_GRUNDLAG,
+        title: $('e-title').value.trim(), description: $('e-desc').value.trim() })
+    }).then(function(r){ return r.json(); });
+  }
+
+  $('e-omskriv').addEventListener('click', function(){
+    var d = REDIGERES, knap = $('e-omskriv');
+    if(!d || !REDIGERES_GRUNDLAG) return;
+    if(ensLyd($('e-title').value, REDIGERES_GRUNDLAG.title) && ensLyd($('e-desc').value, REDIGERES_GRUNDLAG.description)){
+      toast('Ret først i titlen eller beskrivelsen'); return;
+    }
+    var tekst = knap.textContent;
+    knap.disabled = true; knap.textContent = 'Skriver …';
+    sendTekstRettelse(d, true).then(function(svar){
+      knap.disabled = false; knap.textContent = tekst;
+      if(REDIGERES !== d) return;
+      if(!svar || !svar.description){ toast('Kunne ikke skrive forfra' + (svar && svar.error ? ': ' + svar.error : '')); return; }
+      $('e-desc').value = svar.description;
+      // Det, modellen skrev, er ikke din rettelse. Retter du videre, er det
+      // forskellen fra DENNE tekst, der laeres af.
+      REDIGERES_GRUNDLAG = { title: $('e-title').value.trim(), description: svar.description };
+      d._tekstRettet = true;
+      var n = (svar.fjernet || []).length, m = (svar.tilfoejet || []).length;
+      toast('Skrevet forfra — ' + (n || m ? 'husker ' + n + ' fjernet og ' + m + ' tilføjet' : 'tjek den, og tryk Gem'));
+    }).catch(function(){
+      knap.disabled = false; knap.textContent = tekst;
+      toast('Kunne ikke skrive forfra — prøv igen');
+    });
+  });
 
   $('edit-form').addEventListener('submit', function(e){
     e.preventDefault();
@@ -2029,6 +2073,13 @@
     var tekst = knap.textContent;
     knap.disabled = true; knap.textContent = 'Gemmer …';
     var opd = { title: nyTitel, description: nyTekst };
+    // Har du rettet teksten selv, laeres der af det, og Vinteds markedsrunde
+    // lader den staa ved udfyldningen (tekst_rettet).
+    var tekstRettet = !ensLyd(nyTitel, d.title) || !ensLyd(nyTekst, d.description);
+    if(REDIGERES_GRUNDLAG && (!ensLyd(nyTitel, REDIGERES_GRUNDLAG.title) || !ensLyd(nyTekst, REDIGERES_GRUNDLAG.description))){
+      sendTekstRettelse(d, false).catch(function(){});
+    }
+    if(tekstRettet || d._tekstRettet) opd.tekst_rettet = new Date().toISOString();
     if(isFinite(nyPrisTal) && nyPrisTal > 0) opd.price = String(nyPrisTal);
     Object.keys(vaelg).forEach(function(k){ opd[k] = vaelg[k]; });
 

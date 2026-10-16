@@ -185,7 +185,7 @@ i `function_logs`, beviser intet.
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
-| Erfaringerne lagt ind i prompterne (`hentErfaringer`); rettelserne (`hentRettelser`) | `supabase/functions/_shared/laering.ts` |
+| Erfaringerne lagt ind i prompterne (`hentErfaringer`, med tekstrettelserne `hentTekstRettelser`); rettelserne (`hentRettelser`); `noterTekstRettelse` | `supabase/functions/_shared/laering.ts` |
 | Vinteds bedømmelses-popup lukkes (`vagtPopup`); plaggets mål i Vinteds felter (`fillMaal`) | `…/vinted-fill-script/runner.ts` |
 | Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
@@ -217,6 +217,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
 | Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
 | Mailens læsning: `vinted_mails.laesning`; køberbeskeder fra mail: `koeber_beskeder.kilde`, `samtale`, `besvaret_at`, `vinted_mail_id` | `sql/014-mails-analyseres.sql` |
+| Din tekst skal stå: `drafts.tekst_rettet`; tekstrettelser i `rettelser` (felt `title`/`beskrivelse`) | `sql/015-tekstrettelser.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -355,6 +356,25 @@ markedspladsernes — og brug læringen fremover.**
   materiale eller kategori i et analyseret udkast, noterer triggeren det i
   `rettelser`. De 25 nyeste lægges ind i billedanalysen og skrive-kaldet
   (`hentRettelser`), uden en model imellem.
+- **Rettelser i titel og beskrivelse lærer også** (bestemt af dig
+  16. oktober). I »Redigér udkast« skriver **Skriv beskrivelsen forfra ud
+  fra mine rettelser** en ny, komplet beskrivelse (`mode:'omskriv'`,
+  `omskriv()` i `vinted-fill-script`): din titel står urørt, det du
+  tilføjede skal med, det du fjernede kommer ikke igen. Teksten gemmes
+  først ved dit Gem.
+  - Læringen er kun DIN forskel: appen sender teksten, du startede fra
+    (`REDIGERES_GRUNDLAG`), og efter en omskrivning er grundlaget modellens
+    tekst. `noterTekstRettelse` gemmer en rettelse pr. gang: `title` (hele
+    titlen fra/til) og `beskrivelse` (`fra` = fjernede sætninger, `til` =
+    tilføjede, én pr. linje). Ikke via triggeren — serveren skriver også i
+    beskrivelsen, og dét er ikke en rettelse.
+  - `hentErfaringer([... "tekst" ...])` lægger de 20 nyeste ind
+    (`hentTekstRettelser`), så alle fire tekstskrivere får dem: det fjernede
+    skrives ikke igen, det tilføjede er en slags oplysning, der tages med,
+    når varen bærer det.
+  - **Vinteds markedsrunde skriver ikke din tekst over.** Har du gemt en
+    rettet titel/beskrivelse (`drafts.tekst_rettet`), sætter runden kun
+    prisen. DBA og Reshopper skriver stadig deres egen udgave ud fra den.
 - **Vinteds afvisninger tæller med.** Et felt, Vinteds formular ikke kunne
   tage, sendes med »clear« (`afvist`) og lægges ind som »brug Vinteds ord«.
 - **Ukendte forhindringer noteres i `spor`** (fx »popup set, ikke lukket«),
