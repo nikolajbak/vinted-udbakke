@@ -436,7 +436,9 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
   Uden en nypris var der intet gulv, og den brugte median (75 kr) bestemte.
   Nu (`slaaOp` i `_shared/beskrivelse.ts`):
   - Opslaget kører for hver vare med mærke eller mærketekst, ny eller brugt,
-    og ser **hovedbilledet og et mærkebillede**, så det sammenligner med
+    — også uden mærke, hvis billederne viser et (ellers null med det
+    samme) — og ser **de første fire billeder** (ikke valgt efter trinnet;
+    nr. 55's »mærke« var jakken bagfra), så det sammenligner med
     produktsiden i stedet for at stole på analysens ord. Mærkets afskrift
     kan være læst forkert (»TEE-20« for »TEE320«), og samme model i en
     anden farve tæller.

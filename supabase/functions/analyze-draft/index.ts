@@ -869,12 +869,9 @@ Deno.serve(async (req: Request) => {
       color: String(vision.color ?? ""),
       ny: ny && !fakta.nypris,
       maerker: fakta.maerker,
-      // Hovedbilledet og det foerste maerkebillede, saa opslaget kan sammenligne
-      // med produktsiden i stedet for at stole paa analysens ord.
-      billeder: [
-        loaded[0]?.photo.url,
-        loaded.slice(1).find((l) => /maerke/i.test(String(l.photo.kind ?? "")))?.photo.url,
-      ].filter(Boolean).map(String),
+      // Billederne, saa opslaget kan sammenligne med produktsiden i stedet for
+      // at stole paa analysens ord.
+      billeder: loaded.slice(0, 4).map((l) => String(l.photo.url)),
     }, id).then((fundet) => {
       fakta.opslaaet = new Date().toISOString();
       if (fundet.nypris) { fakta.nypris = fundet.nypris; fakta.nyprisKilde = fundet.nyprisKilde; }

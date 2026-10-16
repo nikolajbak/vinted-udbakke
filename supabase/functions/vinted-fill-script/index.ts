@@ -1775,15 +1775,14 @@ Deno.serve(async (req: Request) => {
       const ny = erNy(fakta, d.condition);
       if ((ny && !(helKroner(fakta.nypris) > 0)) || !fakta.opslaaet) {
         try {
-          const fotos = (Array.isArray(d.photos) ? d.photos : []) as Array<{ url?: string; kind?: string }>;
+          const fotos = (Array.isArray(d.photos) ? d.photos : []) as Array<{ url?: string }>;
           const fundet = await slaaOp(ANTHROPIC_API_KEY, {
             brand: d.brand as string | null,
             productType: String(d.title ?? ""),
             color: String(d.color ?? ""),
             ny,
             maerker: fakta.maerker,
-            billeder: [fotos[0]?.url, fotos.slice(1).find((f) => /maerke/i.test(String(f.kind ?? "")))?.url]
-              .filter(Boolean).map(String),
+            billeder: fotos.slice(0, 4).map((f) => f.url).filter(Boolean).map(String),
           }, body.id);
           fakta.opslaaet = new Date().toISOString();
           if (fundet.nypris) {

@@ -181,22 +181,26 @@ export async function slaaOp(
   vare: {
     brand?: string | null; productType?: string; size?: string | null; color?: string; ny: boolean;
     maerker?: string | null;
-    // Hovedbilledet og et maerkebillede. Uden dem afviste opslaget nr. 54's
-    // jakke, fordi analysens »vendbar dunjakke« ikke stod paa produktsiden.
+    // De foerste fire billeder. Uden dem afviste opslaget nr. 54's jakke,
+    // fordi analysens »vendbar dunjakke« ikke stod paa produktsiden. Ikke
+    // valgt efter trinnet: billeder fra Fotos fordeles i raekkefoelge, og nr.
+    // 55's »maerke« var jakken bagfra.
     billeder?: string[];
   },
   draftId?: unknown,
 ): Promise<Opslag> {
   const brand = String(vare.brand ?? "").trim();
   const maerker = String(vare.maerker ?? "").trim();
-  if (!brand && !maerker) return {};
+  const billeder = (vare.billeder ?? []).filter(Boolean).slice(0, 4);
+  // Uden maerke kan billederne stadig vise det (et logo, analysen ikke
+  // naevnte) - fem af seks klare jakker 16. oktober havde intet maerke.
+  if (!brand && !maerker && !billeder.length) return {};
   const spoerg = [
     "varens egen produktside — helst mærkets egen DANSKE webshop (.dk), ellers en dansk forhandler — med produktnavn og butikkens beskrivelse (med materiale)",
     vare.ny && "nyprisen i danske kroner (findes den ikke i Danmark, så omregn en europæisk pris og sig det i kilden)",
     vare.size && `mærkets størrelsesguide: hvilke mål størrelse ${vare.size} svarer til, og — kun hvis ` +
       "varens produktside eller mærket opgiver det — plaggets egen længde og skulderbredde i cm i den størrelse",
   ].filter(Boolean);
-  const billeder = (vare.billeder ?? []).filter(Boolean).slice(0, 2);
 
   const messages: unknown[] = [{
     role: "user",
@@ -209,6 +213,10 @@ export async function slaaOp(
           `Billedanalysen gættede: ${brand} ${vare.productType ?? ""}${vare.color ? `, ${vare.color}` : ""}` +
           `${vare.size ? `, str. ${vare.size}` : ""}${vare.ny ? ", ny" : ""}. ` +
           "Gættet kan tage fejl — billederne og mærkerne er facit.\n" +
+          (!brand && !maerker
+            ? "Mærket er ukendt. Søg kun, hvis et mærke eller en model tydeligt kan ses på billederne; " +
+              "ellers kald angiv_fund med null med det samme. Et produkt, der bare ligner, er ikke varen.\n"
+            : "") +
           // Varenummer og stregkode rammer den praecise vare. Uden dem fandt
           // opslaget en strikket Teeshoppen-skjorte til 500 kr i stedet for
           // hoerskjorten til 349 kr; med dem fandt det den paa 10 s (2. oktober).
