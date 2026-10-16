@@ -274,11 +274,11 @@ type Raekke = {
   pending: Record<string, unknown> | null; favourites: number | null;
 };
 
-// Nummeret i et link foerst; ellers den laengste titel, der staar i mailen.
-// En titel paa under seks tegn ("Jakke") er ikke nok til at pege paa en vare.
 // Slags, der kun gaelder en annonce, vi selv har til salg.
 const KOEBERS = new Set(["besked", "bud"]);
 
+// Nummeret i et link foerst; ellers den laengste titel, der staar i mailen.
+// En titel paa under seks tegn ("Jakke") er ikke nok til at pege paa en vare.
 function findAnnonce(raekker: Raekke[], numre: string[], tekst: string): Raekke | null {
   const paaNr = raekker.find((r) => numre.includes(String(r.external_id)));
   if (paaNr) return paaNr;
