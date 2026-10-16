@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0079 — 2026-10-16 14:21
+
+Commit `15fa39b` — Maerket og haengemaerket laeses af maerkerne; produktsidens maerke vinder  
+App: `app.js?v=0357ee15` · `style.css?v=5a1481ee`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v85 | `ce1b3e43` |
+| dba-fill-script ← | v35 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v26 | `e05b374e` |
+| vinted-fill-script ← | v94 | `328689cc` |
+| vinted-mail ← | v16 | `48755620` |
+
 ## udgivelse-0078 — 2026-10-16 14:14
 
 Commit `6a77a01` — Opslaget ogsaa uden maerke og med de foerste fire billeder  
