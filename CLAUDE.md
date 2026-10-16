@@ -270,7 +270,11 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   markedsrunde og DBA: er der intet lille bogstav, bliver den almindelig
   skrift med stort begyndelsesbogstav og mærket stavet som i `drafts.brand`.
   Størrelser (XL, 2XL) og ord med tal eller & (H&M) står urørt. En titel, du
-  selv skriver i appen, røres ikke.
+  selv skriver i appen, røres ikke. Samme funktion fjerner »str. ukendt«
+  (16. oktober: tre jakker).
+- **Opslaget ser op til otte billeder**: nr. 56's hængemærke lå på billede
+  7, og mærkelæsningen afskrev det forskelligt hver gang (»SYTRA R20«,
+  »SHYKA R09« for »SITKA«).
 - **Sælges flere ting samlet, nævnes hver del** i titel og tekst (bestemt
   af dig 8. oktober). Nr. 47 var en sweatkjole og et par leggings på samme
   billede; kun »trøjen« blev beskrevet. Analysen registrerer hver del
@@ -437,7 +441,7 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
   Nu (`slaaOp` i `_shared/beskrivelse.ts`):
   - Opslaget kører for hver vare med mærke eller mærketekst, ny eller brugt,
     — også uden mærke, hvis billederne viser et (ellers null med det
-    samme) — og ser **de første fire billeder** (ikke valgt efter trinnet;
+    samme) — og ser **op til otte billeder** (ikke valgt efter trinnet;
     nr. 55's »mærke« var jakken bagfra), så det sammenligner med
     produktsiden i stedet for at stole på analysens ord. Mærkets afskrift
     kan være læst forkert (»TEE-20« for »TEE320«), og samme model i en

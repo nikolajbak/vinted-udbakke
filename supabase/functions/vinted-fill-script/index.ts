@@ -1782,7 +1782,7 @@ Deno.serve(async (req: Request) => {
             color: String(d.color ?? ""),
             ny,
             maerker: fakta.maerker,
-            billeder: fotos.slice(0, 4).map((f) => f.url).filter(Boolean).map(String),
+            billeder: fotos.slice(0, 8).map((f) => f.url).filter(Boolean).map(String),
           }, body.id);
           fakta.opslaaet = new Date().toISOString();
           if (fundet.nypris) {

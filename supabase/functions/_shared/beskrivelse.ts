@@ -50,7 +50,10 @@ export const BESKRIVELSE_REGLER =
 // er: et maerke som "ONLY" foran almindelige ord er ikke en raabende titel.
 // Stoerrelser (XS, XL, 2XL) og ord med tal eller & (H&M) bliver staaende.
 export function ingenVersaler(titel: string, maerke?: unknown): string {
-  const t = String(titel ?? "");
+  // »str. ukendt« siger intet til en koeber og fyldte tre titler 16. oktober.
+  const t = String(titel ?? "")
+    .replace(/[\s,(–-]*\b(str\.?|størrelse)\s+ukendt\b\)?/giu, "")
+    .replace(/\s{2,}/g, " ").replace(/^[\s,–-]+|[\s,–-]+$/g, "");
   if (!/\p{Lu}/u.test(t) || /\p{Ll}/u.test(t)) return t;
   const behold = (o: string) => /[\d&]/.test(o) || /^(X{0,3}S|M|X{0,3}L)$/.test(o);
   let ud = t.split(/(\s+)/).map((o) => behold(o) ? o : o.toLocaleLowerCase("da-DK")).join("");
@@ -186,7 +189,7 @@ export async function slaaOp(
   vare: {
     brand?: string | null; productType?: string; size?: string | null; color?: string; ny: boolean;
     maerker?: string | null;
-    // De foerste fire billeder. Uden dem afviste opslaget nr. 54's jakke,
+    // Op til otte billeder. Uden dem afviste opslaget nr. 54's jakke,
     // fordi analysens »vendbar dunjakke« ikke stod paa produktsiden. Ikke
     // valgt efter trinnet: billeder fra Fotos fordeles i raekkefoelge, og nr.
     // 55's »maerke« var jakken bagfra.
@@ -196,7 +199,7 @@ export async function slaaOp(
 ): Promise<Opslag> {
   const brand = String(vare.brand ?? "").trim();
   const maerker = String(vare.maerker ?? "").trim();
-  const billeder = (vare.billeder ?? []).filter(Boolean).slice(0, 4);
+  const billeder = (vare.billeder ?? []).filter(Boolean).slice(0, 8);
   // Uden maerke kan billederne stadig vise det (et logo, analysen ikke
   // naevnte) - fem af seks klare jakker 16. oktober havde intet maerke.
   if (!brand && !maerker && !billeder.length) return {};

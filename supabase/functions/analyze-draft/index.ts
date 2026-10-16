@@ -887,7 +887,7 @@ Deno.serve(async (req: Request) => {
       maerker: fakta.maerker,
       // Billederne, saa opslaget kan sammenligne med produktsiden i stedet for
       // at stole paa analysens ord.
-      billeder: loaded.slice(0, 4).map((l) => String(l.photo.url)),
+      billeder: loaded.slice(0, 8).map((l) => String(l.photo.url)),
     }, id).then((fundet) => {
       fakta.opslaaet = new Date().toISOString();
       if (fundet.nypris) { fakta.nypris = fundet.nypris; fakta.nyprisKilde = fundet.nyprisKilde; }
