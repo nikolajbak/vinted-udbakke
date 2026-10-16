@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0075 — 2026-10-16 13:26
+
+Commit `863d35b` — Flet main (udgivelse-0074 fra en anden session)  
+App: `app.js?v=a600dad3` · `style.css?v=5a1481ee`  
+Udrullet: vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v81 | `93193533` |
+| dba-fill-script | v31 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v22 | `e05b374e` |
+| vinted-fill-script | v90 | `5161c368` |
+| vinted-mail ← | v12 | `48755620` |
+
 ## udgivelse-0074 — 2026-10-16 09:00
 
 Udrullet fra en cloud-session via Supabase-MCP (ingen .env.secrets dér); versionerne aflæst med list_edge_functions.
