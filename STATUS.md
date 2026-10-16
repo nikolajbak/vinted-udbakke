@@ -25,7 +25,10 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    **Ikke afprøvet:** de strammere grænser (2 billeder, 5000 tokens pr.
    side) — Anthropic-kreditten slap op midt i prøven. Kør opslaget på nr.
    54 igen, og se `forbrug` for prisen pr. opslag. Nr. 54 har fået
-   nypris og produktside i `fakta` i hånden; annoncen står stadig til 70 kr.
+   nypris og produktside i `fakta` i hånden, og 16. oktober lagt i `pending`: 500 kr,
+   ny titel og beskrivelse ud fra produktsiden (`tekst_rettet` sat). Prisvagten
+   sætter det, næste gang telefonen har en Vinted-side åben — tjek at Vinted
+   har kvitteret (`pending` tom, `price` 500).
 
 000000000. **Skriv beskrivelsen forfra ud fra dine rettelser — 16. oktober
    (udgivelse 0074/0075).** Regler i CLAUDE.md under »Systemet lærer af
