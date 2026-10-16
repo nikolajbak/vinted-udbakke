@@ -58,6 +58,14 @@ python3 tools/tjek-live.py                        # kører telefonen det, git si
 sh tools/vent-paa-pages.sh                        # er HEAD ude på Pages? (kaldes selv af de to)
 ```
 
+**Fra en cloud-session** findes `.env.secrets` ikke, og git-forbindelsen
+tager kun grene, ikke mærker (16. oktober: 403 på `udgivelse-0074`). Så
+udrulles funktionen med Supabase-MCP'en fra et rent `main`, noten skrives med
+`tools/udgivelse-note.py` (versionerne fra `list_edge_functions`), og commit'et
+hedder »Udgivelse udgivelse-NNNN« som altid. Mærket sætter GitHub selv:
+`.github/workflows/udgivelsesmaerke.yml` sætter hvert manglende mærke fra
+`UDGIVELSER.md` på sit »Udgivelse …«-commit, når filen ændres på `main`.
+
 `tilbage.sh` skriver aldrig historien om. Den henter indholdet fra mærket og
 lægger det oven på som et nyt commit, så selve tilbagerulningen også kan
 fortrydes.
