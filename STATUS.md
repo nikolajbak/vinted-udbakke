@@ -19,6 +19,13 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+000000000. **Skriv beskrivelsen forfra ud fra dine rettelser — 16. oktober
+   (udgivelse 0074/0075).** Regler i CLAUDE.md under »Systemet lærer af
+   fejl«. **Afprøvet:** `mode:'omskriv'` på nr. 58 (3,5 s, $0,013): den
+   fjernede sætning kom ikke igen, den tilføjede stod med; testrettelsen er
+   slettet igen. **Ikke afprøvet:** knappen i appen på telefonen, og at
+   Vinteds markedsrunde lader en rettet tekst stå (`tekst_rettet`).
+
 00000000. **Prisvagten sætter selv priserne — 16. oktober (udgivelse 0073).**
    Regler i CLAUDE.md under »Prisvagten«. Nr. 10289967384 (55 kr),
    10293074694 (110 kr) og 10290315677 (400 kr) ER gemt på Vinted, men stod
