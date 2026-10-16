@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0073 — 2026-10-16 10:00
+
+Commit `efe67be` — Kommentar uden parentes efter et ord (check-runner)  
+App: `app.js?v=ba5c7f08` · `style.css?v=5a1481ee`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v80 | `93193533` |
+| dba-fill-script | v30 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v21 | `e05b374e` |
+| vinted-fill-script ← | v89 | `19646ddc` |
+| vinted-mail | v9 | `0df45ee9` |
+
 ## udgivelse-0072 — 2026-10-09 21:46
 
 Commit `17e5d6f` — Boernetoej faar boernestoerrelsen i cm, aldrig S/M/L  
