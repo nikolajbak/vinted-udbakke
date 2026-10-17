@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=5b9e86a2">
+<link rel="stylesheet" href="style.css?v=d0308437">
 </head>
 <body>
 
@@ -229,6 +229,20 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
             <p class="note">Fanelukkeren lukker Safari-fanen, når et tjek, en opdatering eller en rettelse er færdig. Tilbage til appen kommer du med ◀ øverst til venstre.</p>
           </div>
         </details>
+        <details class="trin" data-tjek="dagligt">
+          <summary><span class="tjek-prik" aria-hidden="true"></span><span class="trin-navn">Dagligt pristjek<small class="trin-status"></small></span></summary>
+          <div class="trin-krop setup">
+            <p class="note">Prisvagten tjekker dine annoncer, hver gang Vinted er åben i Safari. Vinted lukker for kald fra servere, så den kan kun se Vinted gennem din telefon. Med en automation i <b>Genveje</b> åbner telefonen selv Vinted én gang om dagen: alle annoncer tjekkes, priser sættes ned, hvis markedet siger det, og fanen lukker igen.</p>
+            <ol>
+              <li>Åbn <b>Genveje</b> → <b>Automatisering</b> → <b>+</b> → <b>Tidspunkt på dagen</b></li>
+              <li>Vælg et tidspunkt, hvor du plejer at have telefonen fremme (fx <b>08.00</b>), <b>Dagligt</b>, og <b>Kør straks</b></li>
+              <li>Tilføj handlingen <b>Åbn URL'er</b>, og indsæt adressen, du kopierer herunder</li>
+            </ol>
+            <p class="note">Kræver automatikken til Vinted og fanelukkeren ovenfor. Safari kan ikke åbne, mens telefonen er låst.</p>
+            <button type="button" class="btn btn-primary" id="m-dagligt-kopier">Kopiér adressen</button>
+            <button type="button" class="btn btn-secondary" id="m-dagligt-proev">Prøv tjekket nu</button>
+          </div>
+        </details>
         <details class="trin" data-tjek="dba">
           <summary><span class="tjek-prik" aria-hidden="true"></span><span class="trin-navn">Automatik, DBA<small class="trin-status"></small></span></summary>
           <div class="trin-krop setup">
@@ -416,6 +430,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=5db18218"></script>
+<script src="app.js?v=25dd5c37"></script>
 </body>
 </html>

@@ -1532,7 +1532,17 @@ Deno.serve(async (req: Request) => {
     // annonce, ikke om et udkast, og et udkast kan vaere kasseret laenge foer
     // varen er solgt.
     if (body.mode === "due") {
-      const raekker = await hentForfaldne(3);
+      // I baggrunden (en Vinted-side er aaben) maales hoejst tre ad gangen:
+      // det koster data paa telefonen. Det daglige tjek (Genvejes automation
+      // aabner vinted.dk/#udbakke=vagt, `alle`) tager alt det forfaldne.
+      const alle = body.alle === true;
+      const raekker = await hentForfaldne(alle ? 15 : 3);
+      const nu = new Date().toISOString();
+      const detalje = raekker.length + (raekker.length === 1 ? " vare" : " varer") + " til tjek";
+      await supabase.from("puls").upsert(
+        alle ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-dagligt", sidst: nu, detalje }]
+             : [{ navn: "prisvagt", sidst: nu, detalje }],
+      ).then(() => {}, () => {});
       return json({
         forfaldne: raekker.map((r) => ({
           id: r.id,

@@ -582,7 +582,7 @@
   // der mangler.
   // En koeber, der venter paa svar, kommer lige efter en vare, der kan
   // saelges to gange.
-  var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5, tjek:6 };
+  var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5 };
   var OPG_AABEN = false;
   function opgaveKort(tekst, under, knapper, slags){
     return { o: OPGAVE_ORDEN[slags], h: '<div class="opgave' + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
@@ -591,7 +591,6 @@
   }
   function tegnOpgaver(alle){
     var kort = [];
-    var forfaldne = [];
     alle.forEach(function(d){
       var nr = esc(fmtNr(d.nr));
       var navn = esc(d.title || 'Varen');
@@ -614,13 +613,14 @@
         }
       }
       annoncer(d).forEach(function(l){
-        if((l.status === 'aktiv' || l.status === 'pause') && venterFelter(l).length && l.external_id){
-          kort.push(opgaveKort(nr + ': ' + esc(venterFelter(l).join(', ')) + ' venter på Vinted',
-            esc(l.pending_note || navn),
-            '<button type="button" class="btn btn-secondary" data-op="send" data-ext="' + esc(l.external_id) + '">Send</button>', 'send'));
+        // Prisvagten saetter selv aendringerne, naar Vinted er aaben i Safari.
+        // Kun en, der har ventet over et doegn, er din opgave.
+        if((l.status === 'aktiv' || l.status === 'pause') && sidderFast(l) && l.external_id){
+          var pv = l.pending && l.pending.price;
+          kort.push(opgaveKort(nr + (pv ? ': ny pris ' + esc(kr(pv)) + ' er ikke nået ud' : ': din rettelse er ikke nået ud'),
+            'Vinted har ikke været åben i Safari, så den er ikke sat endnu.',
+            '<button type="button" class="btn btn-secondary" data-op="send" data-ext="' + esc(l.external_id) + '">Sæt nu</button>', 'send'));
         }
-        if(l.status === 'aktiv' && l.auto && l.next_check_at && new Date(l.next_check_at) <= new Date() &&
-           !venterFelter(l).length && l.external_id) forfaldne.push(l);
       });
       if(d.status === 'afventer' && (d.price_note || '').indexOf('Analyse mislykkedes') === 0){
         kort.push(opgaveKort(nr + ': analysen mislykkedes', '',
@@ -650,11 +650,6 @@
         (k.samtale ? '<button type="button" class="btn btn-secondary" data-op="svar-aabn"' + id + '>Åbn samtalen</button>' : '') +
         '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + id + '>Klaret</button>', 'svar'));
     });
-    if(forfaldne.length){
-      kort.push(opgaveKort(forfaldne.length + (forfaldne.length === 1 ? ' vare skal' : ' varer skal') + ' tjekkes mod markedet',
-        'Fra din egen Vinted-session.',
-        '<button type="button" class="btn btn-secondary" data-op="tjek" data-ext="' + esc(forfaldne[0].external_id) + '">Tjek</button>', 'tjek'));
-    }
     kort.sort(function(a, b){ return a.o - b.o; });
     var el = $('opgaver');
     // Den vigtigste staar altid fremme; resten ligger bag ét baand, saa
@@ -694,7 +689,6 @@
     }
     if(op === 'vis' && d){ openDetail(d.id); return; }
     if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit#udbakke=send'); return; }
-    if(op === 'tjek'){ aabnUdad('https://www.vinted.dk/items/' + ext + '#udbakke=vagt'); return; }
     if(op.indexOf('aabn-') === 0){
       var k = op.slice(5);
       if(k === 'reshopper'){
@@ -917,6 +911,15 @@
   }
 
   // En raekke pr. markedsplads: hvor er varen, og hvad kan du goere dér.
+  function pladsVagt(l){
+    var pv = l.pending && l.pending.price;
+    if(pv) return 'Prisvagt: ny pris ' + kr(pv) + ' på vej — ' +
+      (sidderFast(l) ? 'Vinted har ikke været åben i Safari' : 'sættes, næste gang Vinted er åben');
+    if(l.status === 'pause') return 'Prisvagt: på pause';
+    if(!l.auto) return 'Prisvagt: sætter ikke længere ned' + (l.note ? ' — ' + l.note : '');
+    return 'Prisvagt: ' + (l.last_check_at ? 'tjekket ' + relTime(l.last_check_at) : 'ikke tjekket endnu') +
+      (l.next_check_at ? ' · ' + omDage(l.next_check_at) : '');
+  }
   function pladsRaekke(d, m, f){
     var sendt = sendtTil(d)[m.k], ned = (d.taget_ned || {})[m.k];
     var l = annoncer(d).filter(function(x){ return x.platform === m.k; })[0];
@@ -939,8 +942,9 @@
       } else {
         status = l.status === 'pause' ? 'Ude · prisvagten holder pause' : 'Ude';
         krop += '<div class="plads-tal">♥ ' + esc(String(l.favourites || 0)) +
-          (dg !== null ? ' · ' + dg + (dg === 1 ? ' dag' : ' dage') : '') +
-          (l.next_check_at && l.status === 'aktiv' ? ' · ' + esc(omDage(l.next_check_at)) : '') + '</div>';
+          (dg !== null ? ' · ' + dg + (dg === 1 ? ' dag' : ' dage') : '') + '</div>';
+        // Prisvagten paa selve varen: hvad den sidst gjorde, og hvad der sker.
+        if(l.platform === 'vinted') krop += '<div class="plads-vagt">' + esc(pladsVagt(l)) + '</div>';
       }
       krop += udgivetBlok(l, d);
       if(l.status === 'aktiv' || l.status === 'pause'){
@@ -2136,10 +2140,14 @@
         return [friskhed(x.sidst, 14),'hentet ' + relTime(x.sidst) + (x.detalje ? ' · ' + x.detalje : '')];
       }
       var v = auto('vinted-runner'), db = auto('dba-runner');
+      // Det daglige tjek er valgfrit: uden det er det ikke »galt«, bare ikke sat op.
+      var dg = p['prisvagt-dagligt'];
+      var dagligt = dg ? [friskhed(dg.sidst, 2) ? true : false, 'kørte ' + relTime(dg.sidst) + (dg.detalje ? ' · ' + dg.detalje : '')]
+                       : [null, 'ikke sat op'];
       var m = mail ? [friskhed(mail.at, 30), 'sidste mail ' + relTime(mail.at)]
                    : [false, 'ingen mails modtaget — ikke sat op'];
-      var res = { notif: notif, vinted: v, dba: db, mail: m };
-      var NAVN = { notif: 'Notifikationer', vinted: 'Vinted', dba: 'DBA', mail: 'mails' };
+      var res = { notif: notif, vinted: v, dagligt: dagligt, dba: db, mail: m };
+      var NAVN = { notif: 'Notifikationer', vinted: 'Vinted', dagligt: 'dagligt pristjek', dba: 'DBA', mail: 'mails' };
       var gale = Object.keys(res).filter(function(k){ return res[k][0] === false; });
       var ok = Object.keys(res).filter(function(k){ return res[k][0] === true; }).length;
       Object.keys(res).forEach(function(k){
@@ -2162,7 +2170,7 @@
             '<small>' + esc(gale.map(function(k){ return NAVN[k]; }).join(', ')) + '</small>'
           : 'Alt virker<small>Notifikationer, automatik og mails</small>') + '</span>' +
         '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>';
-      $('opsaet-tal').textContent = ok + ' af 4 virker';
+      $('opsaet-tal').textContent = ok + ' af ' + Object.keys(res).length + ' virker';
       var mt = $('mere-tal');
       if(mt){ mt.textContent = String(gale.length); mt.hidden = !gale.length; }
     }
@@ -2174,6 +2182,15 @@
       tegn(r[0].data || [], (r[1].data || [])[0] || null);
     }).catch(function(){});
   }
+  // Adressen, Genvejes automation aabner hver dag. #-flaget overlever Vinteds
+  // omdirigeringer (maalt 8. oktober), og runneren tager saa alt forfaldent.
+  var DAGLIGT_URL = 'https://www.vinted.dk/#udbakke=vagt';
+  $('m-dagligt-kopier').addEventListener('click', function(){
+    if(navigator.clipboard) navigator.clipboard.writeText(DAGLIGT_URL).then(function(){ toast('Adressen er kopieret'); },
+      function(){ toast(DAGLIGT_URL); });
+    else toast(DAGLIGT_URL);
+  });
+  $('m-dagligt-proev').addEventListener('click', function(){ aabnUdad(DAGLIGT_URL); });
   $('m-logout').addEventListener('click', function(){
     sb.auth.signOut().then(function(){ stack = []; show('login', { fade:true }); });
   });
@@ -3035,8 +3052,8 @@
     if(!iso) return '';
     var d = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
     if(isNaN(d)) return '';
-    if(d <= 0) return 'tjekkes ved næste besøg på Vinted';
-    return 'tjekkes igen om ' + d + (d === 1 ? ' dag' : ' dage');
+    if(d <= 0) return 'pristjek i dag';
+    return 'pristjek om ' + d + (d === 1 ? ' dag' : ' dage');
   }
   function prisKaede(l){
     var e = (VAGT_EVENTS[l.id] || []).filter(function(x){ return x.kind === 'aendret'; });
@@ -3046,53 +3063,90 @@
     return k.map(function(x){ return Math.round(Number(x)) + ',00'; }).join(' → ') + ' kr';
   }
 
+  // Prisvagtens seneste dom over annoncen, i hele saetninger. Uden den stod
+  // der kun »tjekkes ved næste besøg på Vinted«, og man kunne ikke se, om
+  // vagten overhovedet havde kigget, eller hvad den havde fundet.
+  function sidsteMaaling(l){
+    var e = (VAGT_EVENTS[l.id] || []).filter(function(x){ return x.kind === 'maalt'; });
+    return e.length ? e[e.length - 1] : null;
+  }
+  function vagtDom(l){
+    var m = sidsteMaaling(l);
+    if(!l.last_check_at && !m) return 'Ikke tjekket endnu';
+    var t = 'Tjekket ' + relTime(l.last_check_at || m.at);
+    if(m && m.median && m.comparables){
+      t += ' · ' + m.comparables + ' lignende til ca. ' + kr(m.median);
+    }
+    return t;
+  }
+  function naesteTjek(l){
+    if(!l.next_check_at) return '';
+    var d = Math.round((new Date(l.next_check_at).getTime() - Date.now()) / 86400000);
+    if(isNaN(d)) return '';
+    if(d < 0) return 'Tjekkes, så snart Vinted er åben i Safari';
+    if(d === 0) return 'Næste tjek: i dag';
+    return 'Næste tjek: om ' + d + (d === 1 ? ' dag' : ' dage');
+  }
+  function nedsat(l){
+    return (VAGT_EVENTS[l.id] || []).filter(function(x){ return x.kind === 'aendret'; }).length;
+  }
+  // En aendring, der har ventet over et doegn, er ikke naaet ud af sig selv:
+  // saa har Vinted ikke vaeret aaben i Safari. Dét er noget, du skal vide.
+  function sidderFast(l){
+    if(!venterFelter(l).length) return false;
+    var t = l.pending_since ? new Date(l.pending_since).getTime() : 0;
+    return !t || Date.now() - t > 86400000;
+  }
+
   function vagtRaekke(l){
     var dage = dageSiden(l.listed_at);
+    var n = nedsat(l);
     var h = '<div class="vagt-row" data-l="' + esc(l.id) + '">';
-    h += '<div class="vagt-top"><span class="t">' + esc(l.title || 'Uden titel') + '</span>' +
-         '<span class="pris">' + esc(kr(l.price)) + '</span></div>';
-    h += '<div class="s">' + esc(l.platform) + ' · ' + dage + (dage === 1 ? ' dag' : ' dage') +
-         ' · ' + (l.favourites || 0) + ' hjerter · ' + esc(prisKaede(l)) + '</div>';
+    h += '<button type="button" class="vagt-top" data-v="vis"><span class="t">' + esc(l.title || 'Uden titel') + '</span>' +
+         '<span class="pris">' + esc(kr(l.price)) + '</span></button>';
+    h += '<div class="s">Ude ' + dage + (dage === 1 ? ' dag' : ' dage') +
+         ' · ♥ ' + (l.favourites || 0) +
+         (n ? ' · pris ' + esc(prisKaede(l)) : '') + '</div>';
 
     var venter = venterFelter(l);
     if(venter.length){
-      var prisVenter = l.pending && l.pending.price;
-      h += '<div class="vagt-forslag"><b>' +
-           (prisVenter ? 'Ny pris: ' + esc(kr(l.pending.price))
-                       : 'Rettelser klar: ' + esc(venter.join(', '))) + '</b>' +
-           (prisVenter && venter.length > 1
-             ? '<span>Også: ' + esc(venter.filter(function(n){ return n !== 'pris'; }).join(', ')) + '</span>' : '') +
-           (l.pending_note ? '<span>' + esc(l.pending_note) + '</span>' : '') +
-           '<button type="button" class="btn btn-primary" data-v="saet">' +
-           (prisVenter ? 'Sæt prisen på Vinted' : 'Send rettelserne til Vinted') + '</button></div>';
-    } else if(l.status === 'aktiv' && !l.auto){
-      h += '<div class="vagt-stop">Prisvagten er holdt op med at sætte ned' +
-           (l.note ? ': ' + esc(l.note) : '.') + '</div>';
-    } else if(l.status === 'aktiv'){
-      h += '<div class="s dim">' + esc(omDage(l.next_check_at)) + '</div>';
+      var pv = l.pending && l.pending.price;
+      var andre = venter.filter(function(x){ return x !== 'pris'; });
+      h += '<div class="vagt-forslag' + (sidderFast(l) ? ' fast' : '') + '"><b>' +
+           (pv ? 'Ny pris: ' + esc(kr(pv)) + ' <s>' + esc(kr(l.price)) + '</s>' : 'Din rettelse: ' + esc(venter.join(', '))) + '</b>' +
+           (pv && andre.length ? '<span>Også: ' + esc(andre.join(', ')) + '</span>' : '') +
+           (pv && l.pending_note ? '<span>' + esc(l.pending_note) + '</span>' : '') +
+           '<span>' + (sidderFast(l)
+             ? 'Besluttet ' + esc(relTime(l.pending_since) || 'for over et døgn siden') + ', men Vinted har ikke været åben i Safari siden.'
+             : 'Sættes af sig selv, næste gang Vinted er åben i Safari.') + '</span>' +
+           '<button type="button" class="btn ' + (sidderFast(l) ? 'btn-primary' : 'btn-secondary') + '" data-v="saet">Sæt den på Vinted nu</button></div>';
+    } else if(l.status === 'pause'){
+      h += '<div class="vagt-stop"><span>Sat på pause af dig. Prisen bliver, hvor den er.</span>' +
+           '<button type="button" class="btn btn-secondary" data-v="pause">Genoptag</button></div>';
+    } else if(!l.auto){
+      h += '<div class="vagt-stop"><span>Sætter ikke længere ned' + (l.note ? ': ' + esc(l.note) : '.') + '</span>' +
+           '<button type="button" class="btn btn-secondary" data-v="igen">Tjek den igen</button></div>';
+    } else {
+      h += '<div class="vagt-dom">' + esc(vagtDom(l)) + '</div>';
+      var nt = naesteTjek(l);
+      if(nt) h += '<div class="s dim">' + esc(nt) + '</div>';
     }
 
-    if(l.status === 'aktiv' || l.status === 'pause'){
-      h += '<details class="vagt-mere"><summary>Svar en køber</summary>' +
-           '<textarea class="vagt-besked" rows="3" placeholder="Indsæt købers besked"></textarea>' +
-           '<label class="vagt-bund">Bud, hvis der er et' +
-           '<input type="number" inputmode="numeric" min="1" class="vagt-bud" placeholder="kr"></label>' +
-           '<div class="vagt-knapper"><button type="button" class="btn btn-quiet" data-v="svar">Skriv et svar</button></div>' +
-           '<div class="vagt-svar" hidden></div>' +
-           '<p class="note">Svaret sendes ikke — du kopierer det selv over i Vinted. ' +
-           'Hvad køberne spørger om, bruges, når der læres af salgene.</p></details>';
-    }
-
-    h += '<details class="vagt-mere"><summary>Indstillinger</summary>' +
+    // Alt det, man sjaeldent skal bruge, bag ét fold.
+    h += '<details class="vagt-mere"><summary>Mindstepris, pause og købers spørgsmål</summary>' +
          '<label class="vagt-bund">Mindstepris' +
          '<input type="number" inputmode="numeric" min="15" step="5" value="' +
          esc(String(l.floor_price == null ? '' : l.floor_price)) + '" ' +
          'placeholder="' + esc(String(Math.max(15, Math.round(l.start_price * 0.4)))) + '" data-v="bund"></label>' +
-         '<p class="note">Prisvagten går aldrig under den. Står feltet tomt, bruges 40 % af udbudsprisen.</p>' +
-         '<div class="vagt-knapper">' +
-         '<button type="button" class="btn btn-quiet" data-v="pause">' +
-           (l.status === 'pause' ? 'Genoptag' : 'Sæt på pause') + '</button>' +
-         '</div>' +
+         '<p class="note">Prisen sættes aldrig under den. Står feltet tomt, er det 40 % af startprisen.</p>' +
+         (l.status === 'aktiv' ? '<div class="vagt-knapper"><button type="button" class="btn btn-quiet" data-v="pause">Sæt på pause</button></div>' : '') +
+         '<div class="vagt-svar-blok"><div class="label">Svar en køber</div>' +
+         '<textarea class="vagt-besked" rows="3" placeholder="Indsæt købers besked"></textarea>' +
+         '<label class="vagt-bund">Bud, hvis der er et' +
+         '<input type="number" inputmode="numeric" min="1" class="vagt-bud" placeholder="kr"></label>' +
+         '<div class="vagt-knapper"><button type="button" class="btn btn-quiet" data-v="svar">Skriv et svar</button></div>' +
+         '<div class="vagt-svar" hidden></div>' +
+         '<p class="note">Svaret sendes ikke — du kopierer det selv over i Vinted.</p></div>' +
          '<div class="salg-form"><input type="number" inputmode="numeric" min="1" class="salg-pris" ' +
          'placeholder="' + esc(String(l.price)) + '" aria-label="Salgspris i kroner">' +
          '<button type="button" class="btn btn-secondary" data-v="solgt">Solgt for det</button></div>' +
@@ -3100,14 +3154,20 @@
     return h;
   }
 
+  var VAGT_PULS = {};
   function hentVagt(){
     var krop = $('vagt-body');
     krop.innerHTML = '<div class="skel" id="vagt-skel"></div>';
     visSkelet($('vagt-skel'), 3);
     $('vagt-footer').hidden = true;
 
-    sb.from('listings').select('*').order('next_check_at', { ascending:true }).limit(100)
-      .then(function(res){
+    Promise.all([
+      sb.from('listings').select('*').order('next_check_at', { ascending:true }).limit(100),
+      sb.from('puls').select('navn, sidst, detalje').in('navn', ['prisvagt', 'prisvagt-dagligt'])
+    ]).then(function(r){
+        var res = r[0];
+        VAGT_PULS = {};
+        (r[1].data || []).forEach(function(x){ VAGT_PULS[x.navn] = x; });
         if(res.error){
           krop.innerHTML = '<div class="empty" id="vagt-fejl"></div>';
           visFejl($('vagt-fejl'), 'Prisvagten kunne ikke hentes',
@@ -3118,7 +3178,7 @@
         var ids = alle.map(function(l){ return l.id; });
         if(!ids.length){ tegnVagt(alle); return; }
         sb.from('price_events').select('*').in('listing_id', ids)
-          .order('at', { ascending:true }).limit(500)
+          .order('at', { ascending:true }).limit(1000)
           .then(function(ev){
             VAGT_EVENTS = {};
             (ev.data || []).forEach(function(e){
@@ -3129,34 +3189,72 @@
       });
   }
 
+  // Øverst: virker prisvagten? Ét kort, der svarer paa det, du vil vide —
+  // hvornaar den sidst kiggede, og om noget staar i stampe.
+  function vagtStatus(aktive){
+    var vagter = aktive.filter(function(l){ return l.status === 'aktiv' && l.auto; });
+    var sidst = null;
+    aktive.forEach(function(l){ if(l.last_check_at && (!sidst || l.last_check_at > sidst)) sidst = l.last_check_at; });
+    var p = VAGT_PULS.prisvagt, dagligt = VAGT_PULS['prisvagt-dagligt'];
+    if(p && (!sidst || p.sidst > sidst)) sidst = p.sidst;
+    var forsinket = vagter.filter(function(l){
+      return new Date(l.next_check_at).getTime() < Date.now() - 86400000;
+    }).length;
+    var dagligOk = dagligt && friskhed(dagligt.sidst, 2);
+    var galt = forsinket > 0 && !dagligOk;
+
+    var h = '<div class="vagt-status' + (galt ? ' galt' : '') + '">' +
+      '<span class="tjek-prik ' + (galt ? 'maaske' : 'ok') + '" aria-hidden="true"></span><div>' +
+      '<b>' + (vagter.length
+        ? 'Holder øje med ' + vagter.length + (vagter.length === 1 ? ' annonce' : ' annoncer')
+        : 'Ingen annoncer at holde øje med lige nu') + '</b>' +
+      '<span>' + (sidst ? 'Sidste tjek ' + esc(relTime(sidst)) : 'Ikke tjekket endnu') +
+        (dagligOk ? ' · dagligt tjek slået til' : '') + '</span>';
+    if(galt){
+      h += '<span>' + forsinket + (forsinket === 1 ? ' annonce venter' : ' annoncer venter') +
+        ' på et tjek. Prisvagten kan kun se Vinted gennem din Safari — med det daglige tjek sker det af sig selv.</span>' +
+        '<button type="button" class="btn btn-primary" id="vagt-dagligt">Slå dagligt tjek til</button>';
+    } else if(!dagligOk){
+      h += '<button type="button" class="vagt-link" id="vagt-dagligt">Tjek hver dag af sig selv →</button>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  function vagtAfsnit(titel, under, raekker){
+    if(!raekker.length) return '';
+    return '<div class="sect vagt-afsnit"><div class="label">' + esc(titel) + ' · ' + raekker.length + '</div>' +
+      (under ? '<p class="note">' + under + '</p>' : '') +
+      raekker.map(vagtRaekke).join('') + '</div>';
+  }
+
   function tegnVagt(alle){
     var krop = $('vagt-body');
     var aktive = alle.filter(function(l){ return l.status === 'aktiv' || l.status === 'pause'; });
     var solgte = alle.filter(function(l){ return l.status === 'solgt' || l.status === 'afsluttet'; });
+    $('vagt-footer').hidden = true;
 
     if(!alle.length){
       krop.innerHTML = '<div class="empty"><h3>Ingen annoncer at holde øje med</h3>' +
         '<p>Når du lægger en annonce op på Vinted med automatikken, kommer den her af sig selv. ' +
         'Så holder prisvagten øje med den, indtil den er solgt.</p>' +
-        '<p>Er annoncen lagt op uden om appen, så tilknyt den på udkastets side. ' +
-        'Først når annoncerne står her, kan der læres af, hvad der sælger.</p></div>';
-      $('vagt-footer').hidden = true;
+        '<p>Er annoncen lagt op uden om appen, så tilknyt den på udkastets side.</p></div>';
       return;
     }
 
-    var h = '';
-    var venter = aktive.filter(function(l){ return venterFelter(l).length; }).length;
-    var forfaldne = aktive.filter(function(l){
-      return l.status === 'aktiv' && l.auto && new Date(l.next_check_at) <= new Date();
-    }).length;
+    var paaVej = aktive.filter(function(l){ return venterFelter(l).length; });
+    var fri = aktive.filter(function(l){ return !venterFelter(l).length && (l.status === 'pause' || !l.auto); });
+    var oeje = aktive.filter(function(l){ return paaVej.indexOf(l) < 0 && fri.indexOf(l) < 0; });
+    // Den, der er tjekket senest, er mindst interessant; den, der snart
+    // tjekkes, oeverst.
+    oeje.sort(function(a, b){ return String(a.next_check_at).localeCompare(String(b.next_check_at)); });
 
-    h += '<p class="note vagt-intro">Prisvagten måler markedet fra din egen Vinted-session — ' +
-         'Vinted svarer ikke på serverkald. Derfor sker både tjekket og prisændringen, ' +
-         'når du åbner Vinted herfra.</p>';
-
-    h += '<div class="sect">' + aktive.map(vagtRaekke).join('') + '</div>';
+    var h = vagtStatus(aktive);
+    h += vagtAfsnit('Ny pris på vej', '', paaVej);
+    h += vagtAfsnit('Holder øje', 'Prisen sammenlignes med lignende varer på Vinted. Står den for højt, sættes den ned — aldrig under mindsteprisen.', oeje);
+    h += vagtAfsnit('Rører ikke prisen', '', fri);
     if(solgte.length){
-      h += '<details class="sect"><summary class="label">Solgt eller taget hjem (' + solgte.length + ')</summary>' +
+      h += '<details class="sect"><summary class="label">Solgt eller taget ned · ' + solgte.length + '</summary>' +
         solgte.map(function(l){
           return '<div class="hist-row"><div><div class="t">' + esc(l.title || '') + '</div>' +
             '<div class="s">' + (l.sold_price != null ? 'solgt for ' + esc(kr(l.sold_price)) : esc(kr(l.price))) + ' · lå ' +
@@ -3168,7 +3266,10 @@
     krop.innerHTML = h;
     hentLaerdomme();
 
-    Array.prototype.forEach.call(krop.querySelectorAll('[data-v]'), function(el){
+    var dk = $('vagt-dagligt');
+    if(dk) dk.addEventListener('click', aabnDagligt);
+
+    Array.prototype.forEach.call(krop.querySelectorAll('.vagt-row [data-v]'), function(el){
       var raekke = el.closest('.vagt-row');
       var l = alle.filter(function(x){ return x.id === raekke.getAttribute('data-l'); })[0];
       if(!l) return;
@@ -3183,35 +3284,28 @@
       }
       el.addEventListener('click', function(){ vagtHandling(v, l, el); });
     });
+  }
 
-    // Foden: ét tryk, der aabner Vinted og lader automatikken goere resten.
-    var fod = $('vagt-footer');
-    if(venter){
-      fod.innerHTML = '<button type="button" class="btn btn-primary" id="vagt-go">Send ' +
-        venter + (venter === 1 ? ' rettelse' : ' rettelser') + ' til Vinted</button>';
-      fod.hidden = false;
-      $('vagt-go').addEventListener('click', function(){
-        var f = aktive.filter(function(l){ return venterFelter(l).length; })[0];
-        // udbakke=ret: én runde over dem alle. Runneren gaar selv videre til
-        // naeste annonce, naar den forrige er kvitteret.
-        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '/edit?udbakke=ret');
-      });
-    } else if(forfaldne){
-      fod.innerHTML = '<button type="button" class="btn btn-primary" id="vagt-go">Tjek ' +
-        forfaldne + (forfaldne === 1 ? ' vare' : ' varer') + ' mod markedet</button>';
-      fod.hidden = false;
-      $('vagt-go').addEventListener('click', function(){
-        var f = aktive.filter(function(l){
-          return l.status === 'aktiv' && l.auto && new Date(l.next_check_at) <= new Date();
-        })[0];
-        aabnUdad('https://www.vinted.dk/items/' + f.external_id + '#udbakke=vagt');
-      });
-    } else {
-      fod.hidden = true;
-    }
+  // Opsaetningens trin for det daglige tjek, foldet ud.
+  function aabnDagligt(){
+    show('opsaet'); tegnTjek();
+    var t = document.querySelector('.trin[data-tjek="dagligt"]');
+    if(t){ t.open = true; setTimeout(function(){ t.scrollIntoView({ block:'start', behavior:'smooth' }); }, 50); }
   }
 
   function vagtHandling(v, l, btn){
+    if(v === 'vis'){
+      if(l.draft_id && rows[l.draft_id]) openDetail(l.draft_id);
+      else if(l.url) aabnUdad(l.url);
+      return;
+    }
+    if(v === 'igen'){
+      sb.from('listings').update({ auto: true, next_check_at: new Date().toISOString() }).eq('id', l.id).then(function(){
+        toast('Tjekkes, næste gang Vinted er åben');
+        hentVagt();
+      });
+      return;
+    }
     if(v === 'saet'){
       aabnUdad('https://www.vinted.dk/items/' + l.external_id + '/edit#udbakke=send');
       return;
@@ -3354,11 +3448,9 @@
 
   // Tallet i menuen: hvor mange varer venter paa dig lige nu.
   function opdaterVagtTal(){
-    sb.from('listings').select('id, pending, next_check_at, status, auto')
-      .eq('status','aktiv').then(function(res){
-        var n = (res.data || []).filter(function(l){
-          return venterFelter(l).length || (l.auto && new Date(l.next_check_at) <= new Date());
-        }).length;
+    sb.from('listings').select('id, pending, pending_since, status')
+      .in('status', ['aktiv', 'pause']).then(function(res){
+        var n = (res.data || []).filter(sidderFast).length;
         ['vagt-tal', 'fod-vagt-tal'].forEach(function(id){
           var el = $(id);
           if(!el) return;
@@ -3648,7 +3740,7 @@
   // Hele lageret hentes med annoncerne paa: fasen, prisen og hjerterne paa
   // kortet kommer fra annoncen, ikke fra udkastet.
   var ANNONCE_FELTER = 'id, platform, url, external_id, title, price, start_price, status, favourites, ' +
-    'listed_at, sold_at, sold_price, pending, pending_note, next_check_at, auto, published, synced_at, fotos';
+    'listed_at, sold_at, sold_price, pending, pending_note, pending_since, last_check_at, next_check_at, auto, note, published, synced_at, fotos';
   // Koeberbeskeder fra Vinteds mails, der venter paa dit svar.
   var SVAR = [], KOE_HENTET = false;
   function hentSvar(){

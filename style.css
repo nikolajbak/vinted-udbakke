@@ -684,8 +684,34 @@
   }
 
   .vagt-intro{ margin-bottom: var(--s4); }
+  /* Prisvagten 18. oktober: et statuskort oeverst, saa grupper med hver sin
+     overskrift. Ingen tjek-knap — vagten tjekker selv. */
+  .vagt-status{
+    display: flex; gap: var(--s3); align-items: flex-start;
+    padding: var(--s3) var(--s4); margin-bottom: var(--s4);
+    background: var(--raised); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .vagt-status.galt{ background: var(--amber-soft); border-color: transparent; }
+  .vagt-status.galt .tjek-prik{ background: var(--amber); }
+  .vagt-status > div{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
+  .vagt-status span:not(.tjek-prik){ font-size: var(--t-small); color: var(--ink-soft); }
+  .vagt-status .btn{ margin: var(--s2) 0 0; }
+  .vagt-link{
+    align-self: flex-start; background: none; border: 0; padding: var(--s1) 0 0;
+    color: var(--accent); font: inherit; font-size: var(--t-small); font-weight: 600; cursor: pointer;
+  }
+  .vagt-afsnit{ margin-top: var(--s4); }
+  .vagt-afsnit > .note{ margin: var(--s1) 0 0; }
   .vagt-row{ padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
-  .vagt-top{ display: flex; align-items: baseline; gap: var(--s3); }
+  .vagt-row:last-child{ border-bottom: 0; }
+  .vagt-top{ display: flex; align-items: baseline; gap: var(--s3);
+             width: 100%; padding: 0; border: 0; background: none; color: inherit;
+             font: inherit; text-align: left; cursor: pointer; }
+  .vagt-dom{ margin-top: var(--s2); font-size: var(--t-small); color: var(--ink); }
+  .vagt-forslag s{ color: var(--ink-soft); font-weight: 400; margin-left: var(--s1); }
+  .vagt-forslag.fast{ background: var(--amber-soft); }
+  .vagt-svar-blok{ margin-top: var(--s4); }
+  .plads-vagt{ margin-top: var(--s1); font-size: var(--t-small); color: var(--ink-soft); }
   .vagt-top .t{ font-weight: 600; flex: 1 1 auto; min-width: 0;
                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vagt-top .pris{ font-variant-numeric: tabular-nums; font-weight: 700;
@@ -707,7 +733,9 @@
     margin-top: var(--s3); padding: var(--s3);
     background: var(--amber-soft); border-radius: 10px;
     font-size: var(--t-small);
+    display: flex; flex-direction: column; gap: var(--s2);
   }
+  .vagt-stop .btn{ margin: 0; }
 
   .vagt-mere{ margin-top: var(--s2); }
   .vagt-mere > summary{

@@ -239,7 +239,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, køn sat af dig `koen`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
-| Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
+| Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` (rækkerne `vinted-runner`, `dba-runner`, `prisvagt` = sidste forespørgsel på forfaldne, `prisvagt-dagligt` = sidste daglige tjek) | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
 | Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
@@ -634,10 +634,12 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   sendt DERHEN — ikke at den er lagt op; kun Vinted-scriptet kan bekræfte det
   sidste.
 - **Det, der venter på dig, står øverst på forsiden** som opgaver, vigtigst
-  først: solgt på Vinted men stadig ude på DBA/Reshopper → analysen fejlede →
-  rettelse venter → salgspris mangler → ikke tilknyttet (over en time efter
-  udfyldningen) → tjek mod markedet. Den vigtigste står fremme, resten bag
-  ét bånd »N ting mere venter på dig« (se »Appens opbygning«).
+  først: solgt på Vinted men stadig ude på DBA/Reshopper → køber skriver →
+  analysen fejlede → en ny pris/rettelse, der har ventet over et døgn
+  (`sidderFast`) → salgspris mangler → ikke tilknyttet (over en time efter
+  udfyldningen). Den vigtigste står fremme, resten bag ét bånd »N ting mere
+  venter på dig« (se »Appens opbygning«). **Intet »tjek mod markedet«** —
+  prisvagten tjekker selv (se »Prisvagten → Ingen tjek-knap«).
 - **Solgt ét sted = tag den ned de andre steder.** DBA og Reshopper kan ikke
   tages ned af appen, så push-beskeden om salget siger »Slet den også på DBA«,
   og opgaven står, til du trykker **Taget ned** (`drafts.taget_ned`).
@@ -738,8 +740,8 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
 - **Fire faner i bunden**: Lager, Prisvagt, Konto, Mere (`skiftFane`). De er
   rødder: ingen tilbagepil og ingen post i historien. Der er én
   fanebjælke (`#fanebar`), og `flytFanebar` flytter den ind i den skærm,
-  der er fremme. Prisvagten har sit tal på fanen, Mere sit, når noget i
-  opsætningen er gået i stå.
+  der er fremme. Prisvagten har sit tal på fanen (ændringer, der har
+  ventet over et døgn), Mere sit, når noget i opsætningen er gået i stå.
 - **Nyt produkt** er en svævende knap over listen; Scan sidder øverst til
   højre på Lager.
 - **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
@@ -802,6 +804,8 @@ har ingen række i `listings` endnu.
 - **Ingen runde på et ur.** Bestemt af dig 1. oktober: der må ikke tjekkes
   med et fast interval. En baggrundsrunde over alle annoncer blev bygget og
   fjernet igen samme dag. Synkroniseringen sker på hændelser.
+  Undtagelse (bestemt af dig 18. oktober): prisvagtens daglige tjek, som
+  kører i din egen Safari via Genveje (se »Prisvagten → Ingen tjek-knap«).
 - **Salg, bud og beskeder når serveren som mail fra Vinted** (`vinted-mail`).
   Det er den eneste vej, der virker uden telefonen: Vinted blokerer
   datacenter-IP'er og har ingen webhooks. Se »Vinteds mails« nedenfor.
@@ -1432,6 +1436,44 @@ Målt 17. oktober, logget ind i browserruden.
 ## Prisvagten
 
 Delingen mellem server og telefon: se »Telefonen og serveren«.
+
+### Ingen tjek-knap — prisvagten tjekker selv
+
+Bestemt af dig 18. oktober: banneret og knappen »Tjek N varer mod markedet«
+gav ikke mening og virkede ikke ordentligt. **Priserne tjekkes i
+baggrunden, og automatisk dagligt.** Det manuelle tjek er væk fra forsiden
+og Prisvagt-skærmen.
+
+- **I baggrunden**: hver gang en Vinted-side er åben i Safari, tjekker
+  runneren højst tre forfaldne annoncer, højst én gang i timen (som før).
+  Appen selv kan ikke nå Vinted — det er en anden side, og Vinted blokerer
+  servere. Prøv det ikke.
+- **Dagligt**: en personlig automation i iPhonens **Genveje** (Tidspunkt på
+  dagen → Kør straks → Åbn URL'er) åbner `https://www.vinted.dk/#udbakke=vagt`.
+  Flaget `vagt` betyder nu kun »dagligt tjek«: runneren tager ALLE
+  forfaldne (`mode:'due'` med `alle`, op til 15), uden timegrænsen, sætter
+  nedsættelserne, sætter en ventende ændring fra før, og lukker fanen
+  (»intet at tjekke i dag« / »N annoncer tjekket — ingen priser skal ned«).
+  Vejledningen står i Opsætning → **Dagligt pristjek** (`DAGLIGT_URL` i
+  `app.js`), og serveren skriver `puls` `prisvagt-dagligt`, så trinnet kan
+  vise, hvornår det sidst kørte. Det er det eneste ur, der rører Vinted, og
+  det kører i din egen Safari. **Ikke målt:** om Genveje åbner Safari, mens
+  telefonen er låst — vejledningen siger at vælge et tidspunkt, hvor
+  telefonen er i brug.
+- **Prisvagt-skærmen** (`tegnVagt`): et statuskort øverst (»Holder øje med N
+  annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede uden et
+  dagligt tjek — »Slå dagligt tjek til«). Så tre grupper med overskrift:
+  **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »sættes
+  af sig selv, næste gang Vinted er åben«; rav og en primær knap, når den
+  har ventet over et døgn), **Holder øje** (seneste dom: »Tjekket for 2
+  dage siden · 40 lignende til ca. 150,00 kr« og »Næste tjek: om 3 dage«),
+  **Rører ikke prisen** (pause eller stoppet, med grunden og Genoptag/Tjek
+  den igen). Mindstepris, pause og »Svar en køber« ligger bag ét fold pr.
+  annonce. Titlen åbner varen.
+- **Varens side** viser prisvagtens linje under Vinted (`pladsVagt`):
+  ny pris på vej, eller »tjekket … · pristjek om N dage«.
+- Afprøvet 18. oktober på en prøveside med de rigtige annoncer (46 aktive,
+  20 forsinkede); ikke i den indloggede app eller på telefonen.
 
 - **En prisvagt skal kunne holde OP.** Uden den spærre ender enhver automatisk
   nedsættelse på bunden: hver runde finder en grund til at gå lidt længere ned.

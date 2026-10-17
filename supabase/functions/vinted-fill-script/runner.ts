@@ -854,14 +854,16 @@ function laesAnnonceside(t,id){
 }
 
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.
-async function tilsynsrunde(){
+// `alle`: det daglige tjek tager alt det forfaldne, ellers højst tre.
+// Intet forfaldent er {tom:true} — ikke det samme som en fejl (null).
+async function tilsynsrunde(alle){
  var forfaldne=[];
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'due'})},20000);
+   body:JSON.stringify({mode:'due',alle:!!alle})},20000);
   forfaldne=((await r.json())||{}).forfaldne||[];
  }catch(e){log('vagt: kunne ikke hente forfaldne');return null}
- if(!forfaldne.length){log('vagt: intet forfaldent');return null}
+ if(!forfaldne.length){log('vagt: intet forfaldent');return {tom:true,beslutninger:[],poster:[]}}
  log('vagt: '+forfaldne.length+' vare(r) til tjek');
 
  var maalinger=[];
@@ -1335,7 +1337,8 @@ async function stilleSynk(){
 }
 
 async function prisvagt(){
- // Kommer vi fra appens Prisvagt-knap, er der givet lov til at ændre priser.
+ // Det daglige tjek: Genvejes automation åbner vinted.dk/#udbakke=vagt.
+ // Så måles alt det forfaldne, uden timegrænsen, og fanen lukker bagefter.
  var bedt=flag('vagt');
 
  rundeAktiv();
@@ -1409,18 +1412,27 @@ async function prisvagt(){
 
  // Du har trykket i appen: vis, at der sker noget. Maalingen tager et par
  // sekunder pr. vare, og uden baand saa det ud, som om intet skete.
- var vb=bedt?baand('Prisvagt: tjekker varerne mod markedet …',null,null):null;
- var res=await tilsynsrunde();
+ var vb=bedt?baand('Prisvagt: dagligt tjek af dine annoncer …',null,null):null;
+ var res=await tilsynsrunde(bedt);
  if(vb)vb.remove();
  if(!res){
   if(bedt){
-   spor('vagt: tjekket gav intet (se log)');
-   baand('Prisvagt: tjekket kunne ikke gennemføres — intet forfaldent, eller varerne kunne ikke måles.',null,null);
+   spor('vagt: dagligt tjek fejlede (se log)');
+   baand('Prisvagt: tjekket kunne ikke gennemføres. Det prøves igen, næste gang Vinted er åben.',null,null);
   }
   return false;
  }
  if(!res.poster.length){
-  if(bedt)lukFanen('Prisvagt: tjekket er kørt — ingen priser skal ned lige nu.');
+  if(!bedt)return false;
+  // Venter en ændring fra før (en rettelse fra appen, en pris, der ikke gik
+  // igennem), sættes den med det samme. Bagefter føres fanen hertil igen,
+  // og så er der intet tilbage at måle.
+  var vd=await ventende();
+  if(vd&&selvTil(vd,'dagligt tjek'))return true;
+  var n=res.beslutninger.length;
+  spor('vagt: dagligt tjek, '+(res.tom?'intet forfaldent':n+' tjekket, ingen ned'));
+  lukFanen(res.tom?'Prisvagt: intet at tjekke i dag.'
+   :'Prisvagt: '+n+(n===1?' annonce':' annoncer')+' tjekket — ingen priser skal ned.');
   return false;
  }
  koeSkriv({tid:Date.now(),poster:res.poster});
