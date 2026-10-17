@@ -682,11 +682,15 @@
       '</div>';
     }
     if(photos.length){
-      html += '<div class="strip" id="d-strip">' + photos.map(function(p, i){
-        return '<img src="' + esc(p.url) + '" data-i="' + i + '" alt="' + esc(p.kind || '') + '">';
+      // Numrene og »Forside« staar kun fremme, naar billederne kan flyttes
+      // — saa kan man se, hvor et billede lander (flytbarStribe).
+      html += '<div class="strip' + (faerdig ? ' flytbar' : '') + '" id="d-strip">' + photos.map(function(p, i){
+        return '<div class="strip-cel" data-i="' + i + '"><img src="' + esc(p.url) + '" alt="' + esc(p.kind || '') + '" draggable="false">' +
+          (faerdig ? '<b class="strip-nr">' + (i === 0 ? 'Forside' : i + 1) + '</b>' : '') + '</div>';
       }).join('') + '</div>';
+      if(faerdig) html += '<div class="flyt-vis" id="d-flyt-vis" aria-live="polite"></div>';
       html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det' +
-        (faerdig ? ' — hold fingeren på det, og træk det for at flytte det.' : '.') + '</div>';
+        (faerdig ? '. <b>Hold fingeren på det</b>, til det løfter sig, og træk det for at flytte det — det første er forsidebilledet.' : '.') + '</div>';
     }
 
     if(faerdig){
@@ -756,8 +760,8 @@
     if(strip){
       strip.addEventListener('click', function(e){
         if(strip.__netFlyttet){ strip.__netFlyttet = false; return; }
-        var i = e.target.getAttribute && e.target.getAttribute('data-i');
-        if(i !== null && i !== undefined) openCrop(d, Number(i));
+        var c = e.target.closest && e.target.closest('.strip-cel');
+        if(c) openCrop(d, Number(c.getAttribute('data-i')));
       });
       // Under analysen skriver serveren billederne pr. plads (ét kald pr.
       // foto); en flytning dér ville lande paa de forkerte pladser.
@@ -1750,90 +1754,199 @@
      vinted-fill-script. Hold fingeren paa et lille billede, til det
      loefter sig, og traek det. Et kort tryk beskaerer stadig.
 
+     Det skal kunne SES (bestemt af dig 17. oktober): billedet svaever over
+     fingeren, pladsen det lander paa er en stiplet ramme, naboerne glider
+     til side, hver plads har sit nummer, og det foerste hedder »Forside«, og en linje
+     under striben siger »Slip her: billede 3 af 12«.
+
      Beroerings-haendelser, ikke Pointer Events: paa iOS bliver en pointer
      annulleret, saa snart striben begynder at rulle, og et traek kan kun
      holde rullen tilbage med preventDefault paa et touchmove, der ikke er
      passivt. Musen paa en Mac gaar samme vej. */
   function flytbarStribe(strip, d){
     var holdt = null, traek = null;
-    function billede(t){ return t && t.tagName === 'IMG' && t.parentNode === strip ? t : null; }
-    function start(el, x, y){
-      holdt = { el: el, x: x, y: y, t: setTimeout(function(){ loeft(); }, 320) };
+    var vis = $('d-flyt-vis');
+    function celle(t){
+      var c = t && t.closest ? t.closest('.strip-cel') : null;
+      return c && c.parentNode === strip ? c : null;
     }
-    function loeft(){
+    function celler(){ return Array.prototype.slice.call(strip.children); }
+    function start(el, x, y){
+      el.classList.add('flyt-trykket');
+      holdt = { el: el, x: x, y: y, t: setTimeout(function(){ loeft(x, y); }, 280) };
+    }
+    function glem(){
       if(!holdt) return;
-      traek = { el: holdt.el, foer: raekke() };
+      clearTimeout(holdt.t);
+      holdt.el.classList.remove('flyt-trykket');
       holdt = null;
-      traek.el.classList.add('flyt-loeftet');
+    }
+    function loeft(x, y){
+      if(!holdt) return;
+      var el = holdt.el;
+      el.classList.remove('flyt-trykket');
+      holdt = null;
+      var r = el.getBoundingClientRect();
+      // Spoegelset er billedet, der foelger fingeren. Det svaever OVER
+      // fingeren, saa du kan se det, du flytter; selve pladsen i striben
+      // bliver en stiplet ramme, der viser, hvor det lander.
+      var spoegelse = el.querySelector('img').cloneNode(false);
+      spoegelse.className = 'flyt-spoegelse';
+      spoegelse.removeAttribute('data-i');
+      document.body.appendChild(spoegelse);
+      traek = {
+        el: el, spoegelse: spoegelse, foer: raekke(),
+        dx: x - (r.left + r.width / 2), x: x, y: y, top: r.top, rul: 0, ramme: 0,
+      };
+      el.classList.add('flyt-plads');
       strip.classList.add('flytter');
-      try{ navigator.vibrate && navigator.vibrate(10); }catch(e){}
+      placer(x, y);
+      fortael();
+      try{ navigator.vibrate && navigator.vibrate(12); }catch(e){}
+      traek.ramme = requestAnimationFrame(rul);
     }
     function raekke(){
-      return Array.prototype.map.call(strip.children, function(img){ return Number(img.getAttribute('data-i')); });
+      return celler().map(function(c){ return Number(c.getAttribute('data-i')); });
     }
-    function flyt(x){
-      var andre = Array.prototype.filter.call(strip.children, function(img){ return img !== traek.el; });
+    function placer(x, y){
+      var s = traek.spoegelse;
+      // Over fingeren og over striben: under fingeren er billedet skjult.
+      s.style.transform = 'translate(' + (x - 40) + 'px,' + (Math.min(y, traek.top + 40) - 120) + 'px) scale(1) rotate(-3deg)';
+    }
+    function fortael(){
+      var n = celler().indexOf(traek.el) + 1;
+      celler().forEach(function(c, k){
+        var b = c.querySelector('.strip-nr');
+        if(b) b.textContent = k === 0 ? 'Forside' : String(k + 1);
+      });
+      if(vis){
+        vis.textContent = n === 1 ? 'Slip her: forsidebilledet' : 'Slip her: billede ' + n + ' af ' + celler().length;
+        vis.classList.add('vist');
+      }
+    }
+    // FLIP: maal hvor naboerne stod, flyt pladsen, og lad dem glide fra det
+    // gamle sted til det nye. Uden det springer striben, og det er svaert at
+    // se, hvad der skete.
+    function flytPlads(foran){
+      var alle = celler();
+      var foer = alle.map(function(c){ return c.getBoundingClientRect().left; });
+      strip.insertBefore(traek.el, foran);
+      alle.forEach(function(c, k){
+        if(c === traek.el) return;
+        var dx = foer[k] - c.getBoundingClientRect().left;
+        if(!dx || reduce) return;
+        c.style.transition = 'none';
+        c.style.transform = 'translateX(' + dx + 'px)';
+        c.getBoundingClientRect();
+        c.style.transition = '';
+        c.style.transform = '';
+      });
+      fortael();
+      try{ navigator.vibrate && navigator.vibrate(4); }catch(e){}
+    }
+    function flyt(x, y){
+      traek.x = x; traek.y = y;
+      placer(x, y);
+      var midt = x - traek.dx;
+      var andre = celler().filter(function(c){ return c !== traek.el; });
       var foran = null;
+      // Naboens plads uden dens glidning (offsetLeft ser bort fra
+      // transform), ellers vipper pladsen frem og tilbage, mens den glider.
+      var v0 = strip.getBoundingClientRect().left - strip.scrollLeft;
       for(var k = 0; k < andre.length; k++){
-        var r = andre[k].getBoundingClientRect();
-        if(x < r.left + r.width / 2){ foran = andre[k]; break; }
+        if(midt < v0 + andre[k].offsetLeft + andre[k].offsetWidth / 2){ foran = andre[k]; break; }
       }
-      if(foran !== traek.el.nextSibling || (!foran && strip.lastChild !== traek.el)){
-        strip.insertBefore(traek.el, foran);
+      if(traek.el.nextSibling !== foran || (foran === null && strip.lastChild !== traek.el)){
+        if(foran !== traek.el) flytPlads(foran);
       }
-      // Ved kanten ruller striben med, saa et billede kan naa hele vejen.
-      var sr = strip.getBoundingClientRect();
-      if(x < sr.left + 28) strip.scrollLeft -= 8;
-      else if(x > sr.right - 28) strip.scrollLeft += 8;
     }
-    function slut(){
-      if(holdt){ clearTimeout(holdt.t); holdt = null; }
+    // Ved kanten ruller striben af sig selv — hurtigere jo taettere paa.
+    function rul(){
+      if(!traek) return;
+      var sr = strip.getBoundingClientRect(), zone = 44, v = 0;
+      if(traek.x < sr.left + zone) v = -Math.ceil((sr.left + zone - traek.x) / 4);
+      else if(traek.x > sr.right - zone) v = Math.ceil((traek.x - (sr.right - zone)) / 4);
+      if(v){
+        var foer = strip.scrollLeft;
+        strip.scrollLeft += v;
+        if(strip.scrollLeft !== foer) flyt(traek.x, traek.y);
+      }
+      traek.ramme = requestAnimationFrame(rul);
+    }
+    function slut(fortryd){
+      glem();
       if(!traek) return;
       var t = traek; traek = null;
-      t.el.classList.remove('flyt-loeftet');
-      strip.classList.remove('flytter');
+      cancelAnimationFrame(t.ramme);
+      if(fortryd){
+        t.foer.forEach(function(i){ strip.appendChild(strip.querySelector('.strip-cel[data-i="' + i + '"]')); });
+      }
       strip.__netFlyttet = true;
       setTimeout(function(){ strip.__netFlyttet = false; }, 400);
+      // Spoegelset lander paa pladsen, foer striben tegnes om.
+      var r = t.el.getBoundingClientRect();
+      var s = t.spoegelse;
+      s.classList.add('lander');
+      s.style.transform = 'translate(' + r.left + 'px,' + r.top + 'px) scale(' + (r.width / 80) + ') rotate(0deg)';
       var efter = raekke();
-      if(efter.join() === t.foer.join()) return;
-      var photos = d.photos || [];
-      gemRaekkefoelge(d, efter.map(function(i){ return photos[i]; }));
+      var aendret = efter.join() !== t.foer.join();
+      setTimeout(function(){
+        s.remove();
+        t.el.classList.remove('flyt-plads');
+        strip.classList.remove('flytter');
+        celler().forEach(function(c, k){
+          var b = c.querySelector('.strip-nr');
+          if(b) b.textContent = k === 0 ? 'Forside' : String(k + 1);
+        });
+        if(vis){
+          vis.textContent = aendret ? 'Gemmer rækkefølgen …' : '';
+          vis.classList.toggle('vist', aendret);
+        }
+        if(!aendret) return;
+        t.el.classList.add('flyt-landet');
+        var photos = d.photos || [];
+        setTimeout(function(){ gemRaekkefoelge(d, efter.map(function(i){ return photos[i]; })); }, reduce ? 0 : 420);
+      }, reduce ? 0 : 180);
     }
     function annuller(x, y){
-      if(holdt && (Math.abs(x - holdt.x) > 8 || Math.abs(y - holdt.y) > 8)){ clearTimeout(holdt.t); holdt = null; }
+      if(holdt && (Math.abs(x - holdt.x) > 8 || Math.abs(y - holdt.y) > 8)) glem();
     }
 
     strip.addEventListener('touchstart', function(e){
-      var el = billede(e.target);
+      var el = celle(e.target);
       if(el && e.touches.length === 1) start(el, e.touches[0].clientX, e.touches[0].clientY);
+      else if(e.touches.length > 1) slut(true);
     }, { passive: true });
     strip.addEventListener('touchmove', function(e){
       var p = e.touches[0];
-      if(traek){ e.preventDefault(); flyt(p.clientX); } else annuller(p.clientX, p.clientY);
+      if(traek){ e.preventDefault(); flyt(p.clientX, p.clientY); } else annuller(p.clientX, p.clientY);
     }, { passive: false });
-    strip.addEventListener('touchend', slut);
-    strip.addEventListener('touchcancel', slut);
+    strip.addEventListener('touchend', function(){ slut(false); });
+    strip.addEventListener('touchcancel', function(){ slut(true); });
     // Et loeftet billede maa ikke aabne iOS' billedmenu.
-    strip.addEventListener('contextmenu', function(e){ if(billede(e.target)) e.preventDefault(); });
+    strip.addEventListener('contextmenu', function(e){ if(celle(e.target)) e.preventDefault(); });
 
     strip.addEventListener('mousedown', function(e){
-      var el = billede(e.target);
+      var el = celle(e.target);
       if(!el || e.button !== 0) return;
       e.preventDefault();
       start(el, e.clientX, e.clientY);
       function bevaeg(ev){
-        if(holdt && (Math.abs(ev.clientX - holdt.x) > 6)){ clearTimeout(holdt.t); loeft(); }
-        if(traek) flyt(ev.clientX);
+        if(holdt && (Math.abs(ev.clientX - holdt.x) > 6)){ clearTimeout(holdt.t); loeft(ev.clientX, ev.clientY); }
+        if(traek) flyt(ev.clientX, ev.clientY);
       }
-      function op(){
+      function tast(ev){ if(ev.key === 'Escape') op(null, true); }
+      function op(ev, fortryd){
         document.removeEventListener('mousemove', bevaeg);
         document.removeEventListener('mouseup', op);
+        document.removeEventListener('keydown', tast);
         var flyttet = !!traek;
-        slut();
+        slut(!!fortryd);
         if(!flyttet) strip.__netFlyttet = false;
       }
       document.addEventListener('mousemove', bevaeg);
       document.addEventListener('mouseup', op);
+      document.addEventListener('keydown', tast);
     });
   }
 
@@ -1857,7 +1970,10 @@
     if(!ny.length || ny.some(function(p){ return !p; })) return;
     var foer = d.photos;
     d.photos = ny;
+    // Striben tegnes om; rullet ud til hoejre skal den blive staaende dér.
+    var rullet = $('d-strip') ? $('d-strip').scrollLeft : 0;
     renderDetail();
+    if($('d-strip')) $('d-strip').scrollLeft = rullet;
     sb.from('drafts').update({ photos: ny, image_path: ny[0].path || null, image_url: ny[0].url || null })
       .eq('id', d.id).then(function(res){
         if(res.error) throw res.error;

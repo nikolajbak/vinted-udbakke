@@ -327,6 +327,13 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   løfter sig, og træk det (`flytbarStribe`). Et kort tryk beskærer stadig.
   Kun når analysen er færdig — under analysen skriver serveren billederne
   pr. plads. Det første billede er hovedbilledet (`image_url`).
+- **Det skal kunne ses, hvad der sker** (bestemt af dig 17. oktober):
+  billedet trykkes lidt ned, mens du holder, og svæver så OVER fingeren
+  (under den er det skjult). Pladsen, det lander på, er en stiplet ramme,
+  naboerne glider til side, hver plads har sit nummer (den første hedder
+  »Forside«), og en linje under striben siger »Slip her: billede 3 af 12«.
+  Ved kanten ruller striben selv. Et afbrudt træk (`touchcancel`, Esc)
+  lægger billederne tilbage.
 - **Ikke ude endnu**: rækkefølgen gemmes i udkastet, og Vinted og DBA får den,
   når de udfyldes (de lægger `drafts.photos` op i rækkefølge).
 - **Ude på Vinted**: rækkefølgen lægges i `pending.fotos` som enhver anden

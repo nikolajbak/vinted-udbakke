@@ -313,18 +313,57 @@
   .dots{ display: flex; justify-content: center; gap: 6px; margin-top: var(--s2); }
   .dots i{ width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background-color 160ms ease; }
   .dots i.on{ background: var(--accent); }
-  .strip{ display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: var(--s1); margin-top: var(--s2); }
+  .strip{
+    display: flex; gap: var(--s2); overflow-x: auto; margin-top: var(--s2);
+    position: relative; padding: var(--s1) 2px var(--s2);
+  }
+  .strip-cel{ position: relative; flex: none; width: 64px; height: 64px; transition: transform 200ms cubic-bezier(.2,.8,.2,1); }
   .strip img{
-    width: 64px; height: 64px; flex: none; object-fit: contain;
+    width: 64px; height: 64px; display: block; object-fit: contain;
     border-radius: 8px; border: 1px solid var(--line); cursor: pointer; background: var(--surface);
+    transition: transform 160ms ease, opacity 160ms ease, border-color 160ms ease;
   }
   /* Traek og slip af billederne (flytbarStribe i app.js). Uden callout og
      markering aabner et langt tryk iOS' billedmenu i stedet for at loefte. */
-  .strip img{ -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
-  .strip.flytter img{ transition: transform 120ms ease; }
-  .strip img.flyt-loeftet{
-    transform: scale(1.12); border-color: var(--accent); box-shadow: 0 6px 16px rgba(0,0,0,.18);
-    position: relative; z-index: 1;
+  .strip img, .strip-cel{ -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+  .strip-nr{
+    position: absolute; left: 4px; bottom: 4px; pointer-events: none;
+    font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 5px; border-radius: 6px;
+    background: color-mix(in oklab, var(--raised), transparent 12%); color: var(--ink-soft);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .strip-cel:first-child .strip-nr{ background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+  /* Fingeren holder: billedet trykkes lidt ned, saa man kan se, at noget sker. */
+  .strip-cel.flyt-trykket img{ transform: scale(.92); transition-duration: 280ms; border-color: var(--accent); }
+  /* Under traekket: pladsen, billedet lander paa, er en stiplet ramme. */
+  .strip.flytter{ overflow-x: hidden; }
+  .strip.flytter .strip-cel:not(.flyt-plads) img{ opacity: .85; }
+  .strip-cel.flyt-plads img{ opacity: 0; }
+  .strip-cel.flyt-plads::before{
+    content: ''; position: absolute; inset: 0; border-radius: 8px;
+    border: 2px dashed var(--accent); background: color-mix(in oklab, var(--accent), transparent 88%);
+  }
+  .strip-cel.flyt-plads .strip-nr{ background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+  .strip-cel.flyt-landet img{ animation: flyt-landet 420ms ease; }
+  @keyframes flyt-landet{
+    0%{ border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent), transparent 60%); }
+    100%{ border-color: var(--line); box-shadow: 0 0 0 0 transparent; }
+  }
+  .flyt-spoegelse{
+    position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none;
+    width: 80px; height: 80px; object-fit: contain; transform-origin: 0 0;
+    border-radius: 10px; border: 2px solid var(--accent); background: var(--surface);
+    box-shadow: var(--skygge); will-change: transform;
+  }
+  .flyt-spoegelse.lander{ transition: transform 180ms cubic-bezier(.2,.8,.2,1); }
+  .flyt-vis{
+    font-size: var(--t-small); font-weight: 600; color: var(--accent);
+    height: 0; overflow: hidden; opacity: 0; transition: opacity 160ms ease, height 160ms ease;
+  }
+  .flyt-vis.vist{ height: 20px; opacity: 1; }
+  @media (prefers-reduced-motion: reduce){
+    .strip-cel, .strip img, .flyt-spoegelse.lander, .flyt-vis{ transition: none; }
+    .strip-cel.flyt-landet img{ animation: none; }
   }
   .price-row{ display: flex; align-items: baseline; gap: var(--s2); margin-top: var(--s4); }
   .price-big{ font-size: var(--t-display); font-weight: 700; letter-spacing: -0.02em; }
@@ -795,7 +834,7 @@
   .row:hover{ background: var(--raised); border-color: var(--ink-soft); }
   .menu-item:hover{ color: var(--accent); }
   .rs-row:hover,
-  .strip img:hover{ border-color: var(--ink-soft); }
+  .strip:not(.flytter) img:hover{ border-color: var(--ink-soft); }
   .setup summary:hover{ color: var(--ink); }
   .swipe-del:hover{ background: color-mix(in oklab, var(--danger), #000 14%); }
   .dots i{ cursor: default; }
