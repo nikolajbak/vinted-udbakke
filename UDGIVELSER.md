@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0095 — 2026-10-17 14:05
+
+Commit `bcc8075` — Redigér: alle markedspladsernes felter — kategori, farve, stand, køn m.m.  
+App: `app.js?v=8abc3f74` · `style.css?v=71624179`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v88 | `66083c2e` |
+| dba-fill-script ← | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v29 | `63727506` |
+| vinted-fill-script ← | v103 | `7ac5efb4` |
+| vinted-mail ← | v19 | `48755620` |
+
 ## udgivelse-0094 — 2026-10-17 13:53
 
 Commit `0a7c544` — Temavalg i Mere: som enheden, lyst eller mørkt  
