@@ -719,6 +719,27 @@
   .ind-vare .t{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ind-vare .s{ color: var(--ink-soft); }
 
+  /* Konto: omsaetning og salg. Tallene staar med tabeltal, saa de flugter. */
+  .konto-top{ padding: var(--s4); background: var(--raised); border: 1px solid var(--line); border-radius: 14px; }
+  .konto-stor{ font-size: 40px; font-weight: 700; line-height: 1.1; margin-top: var(--s1); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .konto-under{ display: block; font-size: var(--t-small); color: var(--ink-soft); margin-top: var(--s1); font-variant-numeric: tabular-nums; }
+  .konto-gitter{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-top: var(--s2); }
+  .konto-felt{ padding: var(--s3); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+  .konto-tal{ display: block; font-size: var(--t-title); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .konto-navn{ display: block; font-size: var(--t-small); margin-top: 2px; }
+  .konto-felt .konto-under{ margin-top: 0; }
+  .konto-graf{ display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--s2); height: 170px; align-items: end; }
+  .konto-md{ display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+  .konto-md-tal{ font-size: var(--t-label); color: var(--ink-soft); font-variant-numeric: tabular-nums; min-height: 1.3em; }
+  .konto-soejle{ display: block; width: 100%; max-width: 36px; background: var(--moss); opacity: .55; border-radius: 4px 4px 0 0; flex: 0 0 auto; }
+  .konto-md.nu .konto-soejle{ opacity: 1; }
+  .konto-md-navn{ font-size: var(--t-small); margin-top: var(--s1); }
+  .konto-md.nu .konto-md-navn{ font-weight: 700; }
+  .konto-md-n{ font-size: var(--t-label); color: var(--ink-soft); min-height: 1.3em; }
+  .konto-linje{ display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .konto-linje.s{ font-size: var(--t-small); color: var(--ink-soft); }
+  .konto-linje.sum{ border-bottom: 0; border-top: 2px solid var(--ink); margin-top: -1px; }
+
   .toast{
     position: fixed; left: var(--s4); right: var(--s4);
     max-width: var(--maal); margin-inline: auto;

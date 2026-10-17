@@ -213,6 +213,7 @@ i `function_logs`, beviser intet.
 | Vinteds bedømmelses-popup lukkes (`vagtPopup`); plaggets mål i Vinteds felter (`fillMaal`) | `…/vinted-fill-script/runner.ts` |
 | Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
 | »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
+| »Konto« i Mere (`hentKonto`, `tegnKonto`) — omsætning, salg pr. måned, AI-udgifter; læser `listings` og `forbrug` direkte | `app.js` |
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 | Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
 | Hvad hvert modelkald koster (`noterForbrug`) → tabellen `forbrug` | `supabase/functions/_shared/forbrug.ts` |
@@ -244,6 +245,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Mailens læsning: `vinted_mails.laesning`; køberbeskeder fra mail: `koeber_beskeder.kilde`, `samtale`, `besvaret_at`, `vinted_mail_id` | `sql/014-mails-analyseres.sql` |
 | Din tekst skal stå: `drafts.tekst_rettet`; tekstrettelser i `rettelser` (felt `title`/`beskrivelse`) | `sql/015-tekstrettelser.sql` |
 | Billedernes rækkefølge: `drafts.fotos_sendt` (de billeder, der kom med op, pr. plads), `listings.fotos` (Vinteds billed-id'er parret med appens, `[{id, rod}]`) og `listings.published.fotos`; `pending.fotos` er en ventende rækkefølge | `sql/016-billedraekkefoelge.sql` |
+| Appen må læse `forbrug` (til »Konto«) | `sql/017-forbrug-laeses.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -894,6 +896,22 @@ næste annonce. Sådan hænger det sammen:
   er en erfaring. Den, der skriver annoncen, kan heller ikke slå noget op: en
   erfaring om »altid at skrive mål« uden »når de findes« får den til at opfinde
   dem.
+
+## Konto
+
+Bestemt af dig 17. oktober: **en brugervenlig kontooversigt med omsætning og
+andet relevant**, øverst i Mere (`tegnKonto` i `app.js`). Regnes i appen,
+hver gang skærmen åbnes; intet gemmes.
+
+- **Omsætningen er Vinteds salg**: `listings.sold_price`, ellers
+  udbudsprisen (og det siges). DBA og Reshopper har ingen `listings`-række,
+  så deres salg kendes ikke — skærmen siger det, og tæller »taget ned«.
+- Tallene: omsætning i alt, denne og sidste måned, gns. salgspris, median
+  tid til salg, ude nu (antal og samlet udbudspris), salgspris i % af
+  udbudsprisen, søjler for de seneste seks måneder, de mest favoritmarkerede
+  og alle salg (med link til varen).
+- **Udgifter er kun modelkaldene** (`forbrug.usd`, regnet om med `USD_KR`
+  = 6,9 og skrevet »ca.«). Indkøbsprisen kendes ikke og trækkes ikke fra.
 
 ## Hvad skal jeg købe igen?
 

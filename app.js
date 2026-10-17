@@ -3228,6 +3228,174 @@
 
   $('m-indkob').addEventListener('click', function(){ show('indkob'); hentIndkob(); });
 
+  /* ---- Konto -------------------------------------------------------------
+     Omsaetning og salg, regnet af listings - kun Vinted har en
+     raekke dér, saa et salg paa DBA/Reshopper kendes kun som »taget ned«.
+     Modelkaldene laeses af forbrug (sql/017 giver appen lov). Intet gemmes. */
+
+  // Kurs til at vise modelforbruget i kroner. Et skoen, derfor »ca.«.
+  var USD_KR = 6.9;
+
+  function hentKonto(){
+    var krop = $('konto-body');
+    visSkelet(krop, 4);
+    Promise.all([
+      sb.from('listings').select('id, platform, title, status, price, start_price, sold_price, listed_at, sold_at, favourites, drafts(nr, brand, category)'),
+      sb.from('forbrug').select('usd, draft_id').limit(20000),
+      sb.from('drafts').select('id', { count:'exact', head:true }).not('taget_ned', 'is', null)
+    ]).then(function(svar){
+      var fejl = svar[0].error || svar[1].error;
+      if(fejl) throw new Error(fejl.message);
+      tegnKonto(svar[0].data || [], svar[1].data || [], svar[2].count || 0);
+    }).catch(function(e){
+      visFejl(krop, 'Kontoen kunne ikke hentes', e.message || 'Kunne ikke nå serveren', hentKonto);
+    });
+  }
+
+  function median(a){
+    if(!a.length) return null;
+    var s = a.slice().sort(function(x, y){ return x - y; }), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+  }
+  function dageMellem(a, b){ return (new Date(b) - new Date(a)) / 86400000; }
+  function dageTekst(d){ return d < 0.5 ? 'under en dag' : String(d).replace('.', ',') + (d === 1 ? ' dag' : ' dage'); }
+  function tusind(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  // Store beloeb i oversigten: »1.058 kr« - kr() giver »1058,00 kr«, som er
+  // reglen for priser, men tallene her er summer.
+  function krSum(n){ return tusind(n) + ',00 kr'; }
+
+  function kontoFelt(tal, navn, under){
+    return '<div class="konto-felt"><span class="konto-tal">' + esc(tal) + '</span>' +
+      '<span class="konto-navn">' + esc(navn) + '</span>' +
+      (under ? '<span class="konto-under">' + esc(under) + '</span>' : '') + '</div>';
+  }
+
+  function tegnKonto(ann, forbrug, tagetNed){
+    var krop = $('konto-body');
+    krop.className = 'body';
+    krop.removeAttribute('aria-hidden');
+
+    var solgte = ann.filter(function(l){ return l.status === 'solgt'; });
+    var aktive = ann.filter(function(l){ return l.status === 'aktiv'; });
+    if(!ann.length){
+      krop.innerHTML = '<div class="empty"><h3>Ingen annoncer endnu</h3>' +
+        '<p>Når dine første varer ligger på Vinted, står omsætningen og salgene her.</p></div>';
+      return;
+    }
+    function salgspris(l){ return Number(l.sold_price != null ? l.sold_price : l.price) || 0; }
+    var omsaetning = solgte.reduce(function(s, l){ return s + salgspris(l); }, 0);
+    var udenPris = solgte.filter(function(l){ return l.sold_price == null; }).length;
+    var nu = new Date(), mdNu = nu.getFullYear() * 12 + nu.getMonth();
+    function md(iso){ var d = new Date(iso); return d.getFullYear() * 12 + d.getMonth(); }
+    var denneMd = solgte.filter(function(l){ return l.sold_at && md(l.sold_at) === mdNu; });
+    var forrigeMd = solgte.filter(function(l){ return l.sold_at && md(l.sold_at) === mdNu - 1; });
+    function sum(a){ return a.reduce(function(s, l){ return s + salgspris(l); }, 0); }
+
+    var dage = solgte.filter(function(l){ return l.listed_at && l.sold_at; })
+      .map(function(l){ return Math.max(0, dageMellem(l.listed_at, l.sold_at)); });
+    var medDage = median(dage);
+    var udbud = solgte.filter(function(l){ return l.sold_price != null && Number(l.start_price) > 0; });
+    var andel = udbud.length ? udbud.reduce(function(s, l){ return s + Number(l.sold_price); }, 0) /
+                               udbud.reduce(function(s, l){ return s + Number(l.start_price); }, 0) * 100 : null;
+    var udeVaerdi = aktive.reduce(function(s, l){ return s + (Number(l.price) || 0); }, 0);
+    var hjerter = aktive.reduce(function(s, l){ return s + (Number(l.favourites) || 0); }, 0);
+
+    var h = '';
+
+    // Det store tal foerst - det er det, man kommer for.
+    var sammen = '';
+    if(forrigeMd.length || denneMd.length){
+      sammen = 'denne måned ' + krSum(sum(denneMd)) + ' · sidste måned ' + krSum(sum(forrigeMd));
+    }
+    h += '<div class="konto-top"><span class="label">Omsætning i alt</span>' +
+      '<div class="konto-stor">' + esc(krSum(omsaetning)) + '</div>' +
+      '<div class="konto-under">' + esc(solgte.length + (solgte.length === 1 ? ' vare solgt' : ' varer solgt') +
+        (sammen ? ' · ' + sammen : '')) + '</div></div>';
+
+    h += '<div class="konto-gitter">' +
+      kontoFelt(solgte.length ? krSum(omsaetning / solgte.length) : '–', 'Gns. salgspris') +
+      kontoFelt(medDage != null ? dageTekst(Math.round(medDage * 10) / 10) : '–', 'Tid til salg', 'median') +
+      kontoFelt(String(aktive.length), 'Ude nu', 'til ' + krSum(udeVaerdi)) +
+      kontoFelt(andel != null ? Math.round(andel) + ' %' : '–', 'Af udbudsprisen', 'det, køberne betalte') +
+      '</div>';
+
+    // Omsaetning pr. maaned, de seneste seks. Soejlerne er relative til den
+    // stoerste maaned; tallet staar over, saa intet skal aflaeses af hoejden.
+    var mdr = [];
+    for(var i = 5; i >= 0; i--){
+      var m = mdNu - i, liste = solgte.filter(function(l){ return l.sold_at && md(l.sold_at) === m; });
+      mdr.push({ navn: new Date(Math.floor(m / 12), m % 12, 1).toLocaleDateString('da-DK', { month:'short' }).replace('.', ''),
+                 kr: sum(liste), n: liste.length, nu: i === 0 });
+    }
+    var maks = Math.max.apply(null, mdr.map(function(x){ return x.kr; })) || 1;
+    h += '<div class="sect"><span class="label">Pr. måned</span><div class="konto-graf" role="img" aria-label="' +
+      esc(mdr.map(function(x){ return x.navn + ' ' + Math.round(x.kr) + ' kr'; }).join(', ')) + '">' +
+      mdr.map(function(x){
+        return '<div class="konto-md' + (x.nu ? ' nu' : '') + '">' +
+          '<span class="konto-md-tal">' + (x.kr ? esc(tusind(x.kr)) : '') + '</span>' +
+          '<span class="konto-soejle" style="height:' + Math.max(x.kr ? 4 : 1, Math.round(x.kr / maks * 110)) + 'px"></span>' +
+          '<span class="konto-md-navn">' + esc(x.navn) + '</span>' +
+          '<span class="konto-md-n">' + (x.n ? x.n + ' stk' : '') + '</span></div>';
+      }).join('') + '</div><p class="note">Beløb i kroner, solgt på Vinted.</p></div>';
+
+    // Hvad det har kostet. Kun modelkaldene kendes - indkoebsprisen gemmes ikke.
+    var usd = forbrug.reduce(function(s, f){ return s + (Number(f.usd) || 0); }, 0);
+    var varer = {};
+    forbrug.forEach(function(f){ if(f.draft_id) varer[f.draft_id] = 1; });
+    var nVarer = Object.keys(varer).length, udgift = usd * USD_KR;
+    h += '<div class="sect"><span class="label">Udgifter</span>' +
+      '<div class="konto-linje"><span>Analyse og tekster (AI)</span><b>ca. ' + esc(krSum(udgift)) + '</b></div>' +
+      (nVarer ? '<div class="konto-linje s"><span>Pr. vare analyseret (' + nVarer + ')</span><span>ca. ' + esc(kr(udgift / nVarer)) + '</span></div>' : '') +
+      '<div class="konto-linje sum"><span>Tilbage efter AI</span><b>' + esc(krSum(omsaetning - udgift)) + '</b></div>' +
+      '<p class="note">' + esc(usd.toFixed(2).replace('.', ',') + ' $ regnet om til ca. ' + String(USD_KR).replace('.', ',') +
+        ' kr pr. dollar. Indkøbsprisen kender appen ikke, så den er ikke trukket fra.') + '</p></div>';
+
+    // Det, der ligger ude: hjerterne viser, hvad der er tæt paa et salg.
+    if(aktive.length){
+      var top = aktive.filter(function(l){ return l.favourites; })
+        .sort(function(a, b){ return b.favourites - a.favourites; }).slice(0, 3);
+      h += '<div class="sect"><span class="label">Ude nu</span>' +
+        '<div class="konto-linje"><span>Annoncer på Vinted</span><b>' + aktive.length + '</b></div>' +
+        '<div class="konto-linje"><span>Samlet udbudspris</span><b>' + esc(krSum(udeVaerdi)) + '</b></div>' +
+        '<div class="konto-linje"><span>Hjerter i alt</span><b>' + hjerter + ' ♥</b></div>' +
+        (top.length ? '<p class="note note-luft">Flest hjerter</p>' + top.map(kontoVare(function(l){
+          return l.favourites + ' ♥ · ' + kr(l.price) + ' · ude ' + dageTekst(Math.round(dageMellem(l.listed_at || nu, nu)));
+        })).join('') : '') + '</div>';
+    }
+
+    if(solgte.length){
+      var seneste = solgte.slice().sort(function(a, b){ return new Date(b.sold_at || 0) - new Date(a.sold_at || 0); });
+      h += '<div class="sect"><span class="label">Salg</span>' + seneste.map(kontoVare(function(l){
+        var d = l.listed_at && l.sold_at ? Math.round(dageMellem(l.listed_at, l.sold_at)) : null;
+        var bud = l.sold_price != null && Number(l.start_price) > Number(l.sold_price) ? ' (udbudt ' + kr(l.start_price) + ')' : '';
+        return (l.sold_price != null ? kr(l.sold_price) : 'salgspris mangler') + bud +
+          (l.sold_at ? ' · ' + new Date(l.sold_at).toLocaleDateString('da-DK', { day:'numeric', month:'short' }) : '') +
+          (d != null ? ' · lå ' + dageTekst(d) : '');
+      })).join('') + '</div>';
+    }
+
+    var noter = [];
+    if(udenPris) noter.push(udenPris + ' salg mangler salgsprisen og tæller med udbudsprisen.');
+    if(tagetNed) noter.push(tagetNed + (tagetNed === 1 ? ' vare er' : ' varer er') + ' taget ned på DBA/Reshopper; salg dér kender appen ikke beløbet på.');
+    noter.push('DBA og Reshopper er ikke med i tallene — kun Vinted har annoncer, appen kan følge.');
+    h += '<p class="note note-luft">' + esc(noter.join(' ')) + '</p>';
+
+    krop.innerHTML = h;
+  }
+
+  // En raekke pr. vare, der aabner varen, naar den har et loebenummer.
+  function kontoVare(linje){
+    return function(l){
+      var nr = l.drafts && l.drafts.nr;
+      var tag = nr != null ? 'a class="ind-vare" href="#v' + esc(String(nr)) + '"' : 'div class="ind-vare"';
+      return '<' + tag + '><span class="t">' + (nr != null ? 'Nr. ' + esc(String(nr)) + ' · ' : '') + esc(l.title || '') + '</span>' +
+        '<span class="s">' + esc(linje(l)) + '</span></' + (nr != null ? 'a' : 'div') + '>';
+    };
+  }
+
+  $('m-konto').addEventListener('click', function(){ show('konto'); hentKonto(); });
+
+
   $('m-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
   $('fod-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
 

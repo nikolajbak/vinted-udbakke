@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=869a1d5e">
+<link rel="stylesheet" href="style.css?v=54dad8ba">
 </head>
 <body>
 
@@ -144,6 +144,10 @@
       <!-- Virker opsaetningen? Hver linje siger det med et tidspunkt, ikke med
            en vejledning. Vejledningerne ligger laengere nede. -->
       <div class="sect tjek" id="tjek"></div>
+      <button type="button" class="menu-item" id="m-konto">
+        <span>Konto<small>Omsætning, salg og hvad det har kostet</small></span>
+        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+      </button>
       <button type="button" class="menu-item" id="m-labels">
         <span>Etiketter<small>Løbenummer og QR-kode til udprintning</small></span>
         <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
@@ -284,6 +288,16 @@
     <div class="footer" id="vagt-footer" hidden></div>
   </section>
 
+  <section class="screen" id="s-konto" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>Konto</h2>
+    </header>
+    <div class="body" id="konto-body"></div>
+  </section>
+
   <section class="screen" id="s-indkob" hidden>
     <header class="bar">
       <button type="button" class="icon-btn" data-back aria-label="Tilbage">
@@ -320,6 +334,6 @@
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=a1d0c11c"></script>
+<script src="app.js?v=815dcc46"></script>
 </body>
 </html>
