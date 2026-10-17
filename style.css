@@ -73,6 +73,13 @@
 
   *{ box-sizing: border-box; }
   html, body{ height: 100%; }
+  /* Som hjemmeskaermsapp er 100 % paa iOS kortere end skaermen (statuslinjens
+     hoejde mangler), saa fanerne stod over et tomt baand i bunden. I
+     standalone er der ingen vaerktoejslinjer, saa den store viewport er
+     hele skaermen. */
+  @media (display-mode: standalone){
+    html, body{ height: 100vh; height: 100lvh; }
+  }
   /* Ingen zoom: dobbelttryk zoomer ikke (manipulation), knib stoppes i app.js. */
   html{ touch-action: manipulation; }
   body{
