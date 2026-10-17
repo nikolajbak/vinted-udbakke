@@ -1866,6 +1866,11 @@
           toast('Rækkefølgen er gemt');
           return;
         }
+        // Har Vinted lagt billederne op paa ny, kan de ikke parres (fotos.ts).
+        if(l.fotos && l.fotos.udskiftet){
+          toast('Gemt i appen. Vinted har lagt billederne op på ny, så rækkefølgen kan ikke sendes dertil');
+          return;
+        }
         var raekke = ny.map(fotoRod);
         var ude = l.published && l.published.fotos;
         if(ude && sammeRaekke(ude, raekke)){
@@ -3105,7 +3110,7 @@
   // Hele lageret hentes med annoncerne paa: fasen, prisen og hjerterne paa
   // kortet kommer fra annoncen, ikke fra udkastet.
   var ANNONCE_FELTER = 'id, platform, url, external_id, title, price, start_price, status, favourites, ' +
-    'listed_at, sold_at, sold_price, pending, pending_note, next_check_at, auto, published, synced_at';
+    'listed_at, sold_at, sold_price, pending, pending_note, next_check_at, auto, published, synced_at, fotos';
   // Koeberbeskeder fra Vinteds mails, der venter paa dit svar.
   var SVAR = [], KOE_HENTET = false;
   function hentSvar(){
