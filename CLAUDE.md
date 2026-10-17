@@ -350,10 +350,14 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
 - **DBA og Reshopper**: en annonce, der allerede er ude dér, kan appen ikke
   nå (ingen `listings`-række, ingen runner på DBA's redigering). Rækkefølgen
   følger med, når varen sendes derhen.
-- **Ikke afprøvet på en rigtig annonce** (17. oktober): krogen er prøvet på
-  Vinteds redigeringsside — med en stub, og på nr. 55 fra browserruden, hvor
-  den lagde rækkefølgen i kaldet, men DataDome afviste Gem (se »Vinted:
-  billederne i en annonce«). Gem skal prøves på telefonen. Se `spor`
+- **Appen → Vinted er afprøvet på telefonen** (17. oktober, nr. 55):
+  billede 1 og 2 byttet i appen kl. 12.34, en Vinted-side åbnet i Safari,
+  og runneren gik selv til redigeringssiden, lagde rækkefølgen i Gem-kaldet
+  (»12 af 12«), Vinted gemte (id'erne 342, 337, … i den nye orden), og
+  kvitteringen ryddede `pending` på 9 s. Fra browserruden afviste DataDome
+  samme Gem (se »Vinted: billederne i en annonce«). **Vinted → appen er ikke
+  afprøvet**: flyt billederne på Vinted, og se efter `price_events`
+  »rettet på Vinted: billedrækkefølge«. Se `spor`
   »fotos: rækkefølgen lagt i gem-kaldet …«, »fotos: gemt på Vinted …« og
   `price_events` »sat på Vinted: billedrækkefølge«.
 
