@@ -14,6 +14,24 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0082 — 2026-10-17 09:13
+
+Udrullet fra en cloud-session med Supabase-MCP'en: indgangsfilen importerer git-commit 5ab8756 fra raw.githubusercontent.com, og Supabase bager den ind. Runneren fra ?script=1 er tjekket identisk med den forrige (73930 tegn, samme md5).
+
+Commit `5ab8756` — Omskriv: ny titel, når et felt i titlen er rettet  
+App: `app.js?v=0149c23b` · `style.css?v=5a1481ee`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v87 | `66083c2e` |
+| dba-fill-script | v37 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v28 | `e05b374e` |
+| vinted-fill-script ← | v97 | `89ed5f33` |
+| vinted-mail | v18 | `48755620` |
+
 ## udgivelse-0081 — 2026-10-16 14:33
 
 Commit `89c6e86` — Intet opslag uden maerke: billederne alene gav forkerte Teeshoppen-fund  
