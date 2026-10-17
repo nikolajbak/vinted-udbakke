@@ -594,17 +594,21 @@ async function omskriv(
       : `Titel (skrevet af sælgeren, brug den som den er): ${titel}\n`) +
     `Mærke: ${draft.brand ?? "ukendt"} · str. ${draft.size ?? "?"} · ${draft.condition ?? "?"} · ` +
     `${draft.material ?? "?"} · ${draft.color ?? "?"}\n${faktaTekst(draft.fakta)}\n\n` +
-    (felter.length ? "Sælgeren RETTEDE disse oplysninger (facit — går forud for billedet, fakta og den " +
-      "gamle tekst; det gamle må ikke stå nogen steder i beskrivelsen):\n" +
-      felter.map((f) => `- ${f.navn}: ${f.fra || "(intet)"} → ${f.til || "(fjernet)"}`).join("\n") + "\n\n" : "") +
-    `Sælgerens rettede beskrivelse:\n${tekst}\n\n` +
+    // Den nuvaerende tekst er IKKE facit, naar et felt er rettet: den bar den
+    // gamle vaerdi. Proevet 17. oktober paa nr. 65 (farve Sort -> Hvid): med
+    // teksten kaldt »sælgerens rettede beskrivelse, facit« blev »i sort« staaende.
+    `${felter.length ? "Nuværende beskrivelse (udgangspunkt — den kan bære de gamle oplysninger)" : "Sælgerens rettede beskrivelse"}:\n${tekst}\n\n` +
     (forskel.fjernet.length ? "Sælgeren FJERNEDE (må ikke komme igen, heller ikke omskrevet):\n" +
       forskel.fjernet.map((x) => `- ${x}`).join("\n") + "\n\n" : "") +
     (forskel.tilfoejet.length ? "Sælgeren TILFØJEDE (skal med, i indhold og gerne i ordlyd):\n" +
       forskel.tilfoejet.map((x) => `- ${x}`).join("\n") + "\n\n" : "") +
+    (felter.length ? "Sælgeren har RETTET disse oplysninger. De er facit og går forud for billedet, fakta " +
+      "og den nuværende tekst — også når billedet ser anderledes ud. Den gamle værdi må ikke stå nogen " +
+      "steder; skriv den nye ind, hvor den gamle stod:\n" +
+      felter.map((f) => `- ${f.navn}: ${f.fra || "(intet)"} → ${f.til || "(fjernet)"}`).join("\n") + "\n\n" : "") +
     (nyTitel ? "Skriv en ny titel og en ny, komplet beskrivelse" : "Skriv en ny, komplet beskrivelse") +
-    ", der bygger på sælgerens rettede tekst og følger reglerne. " +
-    "Alt, sælgeren har skrevet, er facit — også når det strider mod billedet. Tilføj ikke noget, " +
+    ", der følger reglerne. Sælgerens rettelser og tilføjelser er facit — også når de strider mod " +
+    "billedet. Tilføj ikke noget, " +
     "som hverken sælgerens tekst, billedet eller fakta bærer.";
   const erfaringer = await hentErfaringer(["tekst"]);
   const out = await callTool(

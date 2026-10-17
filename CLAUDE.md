@@ -129,6 +129,11 @@ opdager en parse-fejl først under udrulningen, og scriptet sagde kun »Afbrudt
 undervejs«: 8. oktober stod en overskydende `},` i `_shared/beskrivelse.ts`.
 Deno findes ikke lokalt, så esbuild er tjekket.
 
+**Et manglende `+` mellem to tekststykker på hver sin linje fanges af
+ingenting.** JavaScript sætter selv et semikolon, så `"a, "` ⏎ `"b"` er to
+gyldige sætninger, og prompten slutter bare efter »a, «. esbuild og
+`node --check` tier (17. oktober, `omskriv`). Læs en ændret prompt igennem.
+
 **Lav derfor ikke en erstatning, der spænder fra "her" til "der" i en fil, uden
 at vide hvad der ligger imellem.** Erstat den tekst, der skal væk, og ikke
 strækningen omkring den.
@@ -393,6 +398,9 @@ markedspladsernes — og brug læringen fremover.**
   **Titlen skrives også forfra** (bestemt af dig 17. oktober), når et felt,
   der kan stå i den, er rettet — mærke, størrelse, farve, stand, materiale —
   og du ikke selv har rettet titlen (`titelRettet`). Har du, står den urørt.
+  Er et felt rettet, kaldes den nuværende tekst »udgangspunkt«, ikke facit:
+  prøvet på nr. 65 (farve Sort → Hvid) med teksten kaldt »sælgerens rettede
+  beskrivelse — facit« blev »i sort« stående.
   - Læringen er kun DIN forskel: appen sender teksten, du startede fra
     (`REDIGERES_GRUNDLAG`), og efter en omskrivning er grundlaget modellens
     tekst. `noterTekstRettelse` gemmer en rettelse pr. gang: `title` (hele
