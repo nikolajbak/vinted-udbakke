@@ -334,6 +334,14 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   »Forside«), og en linje under striben siger »Slip her: billede 3 af 12«.
   Ved kanten ruller striben selv. Et afbrudt træk (`touchcancel`, Esc)
   lægger billederne tilbage.
+- **Telefonen giver et lille ryk** (bestemt af dig 17. oktober), når
+  billedet løfter sig, når det skifter plads, og når det slippes
+  (`ryst()` i `app.js`). iOS' Safari har ikke `navigator.vibrate`; i stedet
+  slås en skjult kontakt (`<input type=checkbox switch>`, iOS 18) om via
+  sin label, hvilket giver systemets haptiske tik. Kræver »Systemhaptik«
+  slået til. **Ikke målt på telefonen**: om iOS giver tikket uden for et
+  tryk (løftet sker i en timer, pladsskiftet i `touchmove`) er usikkert —
+  slippet sker i `touchend` og er det mest sandsynlige.
 - **Ikke ude endnu**: rækkefølgen gemmes i udkastet, og Vinted og DBA får den,
   når de udfyldes (de lægger `drafts.photos` op i rækkefølge).
 - **Ude på Vinted**: rækkefølgen lægges i `pending.fotos` som enhver anden

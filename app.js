@@ -68,6 +68,27 @@
     el.appendChild(b);
   }
 
+  // Et lille ryk i telefonen. iOS' Safari har ikke navigator.vibrate, men
+  // siden iOS 18 giver en kontakt (<input type=checkbox switch>) systemets
+  // eget haptiske tik, naar den slaas om — ogsaa naar det sker fra koden via
+  // dens label. Kontakten ligger skjult i <head> og fjernes straks igen.
+  // Telefonens »Systemhaptik« skal vaere slaaet til. Android: vibrate.
+  function ryst(ms){
+    try{
+      if(navigator.vibrate){ navigator.vibrate(ms || 10); return; }
+      var l = document.createElement('label');
+      l.setAttribute('aria-hidden', 'true');
+      l.style.display = 'none';
+      var k = document.createElement('input');
+      k.type = 'checkbox';
+      k.setAttribute('switch', '');
+      l.appendChild(k);
+      document.head.appendChild(l);
+      l.click();
+      l.remove();
+    }catch(e){}
+  }
+
   function toast(msg){
     var t = document.createElement('div');
     t.className = 'toast'; t.textContent = msg;
@@ -1802,7 +1823,7 @@
       strip.classList.add('flytter');
       placer(x, y);
       fortael();
-      try{ navigator.vibrate && navigator.vibrate(12); }catch(e){}
+      ryst(12);
       traek.ramme = requestAnimationFrame(rul);
     }
     function raekke(){
@@ -1842,7 +1863,7 @@
         c.style.transform = '';
       });
       fortael();
-      try{ navigator.vibrate && navigator.vibrate(4); }catch(e){}
+      ryst(4);
     }
     function flyt(x, y){
       traek.x = x; traek.y = y;
@@ -1890,6 +1911,8 @@
       s.style.transform = 'translate(' + r.left + 'px,' + r.top + 'px) scale(' + (r.width / 80) + ') rotate(0deg)';
       var efter = raekke();
       var aendret = efter.join() !== t.foer.join();
+      // I selve touchend: dér regner iOS det for dit tryk.
+      if(aendret) ryst(8);
       setTimeout(function(){
         s.remove();
         t.el.classList.remove('flyt-plads');
