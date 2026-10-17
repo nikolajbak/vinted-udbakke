@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0098 — 2026-10-18 00:38
+
+Commit `87444e3` — Runner: ingen backtick i kommentaren (String.raw)  
+App: `app.js?v=25dd5c37` · `style.css?v=d0308437`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script ← | v104 | `cc400c58` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0097 — 2026-10-17 20:38
 
 Commit `49ab725` — Appen fylder hele skærmen som hjemmeskærmsapp (100lvh i standalone)  
