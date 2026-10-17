@@ -27,6 +27,12 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    den udgivne server: nr. 55 parret (12 billeder), nr. 57 afvist med grunden
    (11 på Vinted, 12 i appen). **Ikke afprøvet:** trækket på telefonen, og en
    rigtig rækkefølge sat på Vinted og læst tilbage — se `spor` »fotos: …«.
+   Prøvet på nr. 55 fra browserruden: rækkefølgen kom i Gem-kaldet, men
+   DataDome afviste det (403, captcha). Intet blev ændret, og udkastet er sat
+   tilbage. **Næste skridt:** flyt to billeder på nr. 55 i appen på
+   telefonen, åbn en Vinted-side i Safari, og se efter `spor` »fotos:
+   rækkefølgen lagt i gem-kaldet« og `price_events` »sat på Vinted:
+   billedrækkefølge«.
 
 00000000000. **Klar-varerne analyseret forfra — 16. oktober (udgivelse 0078-0081).**
    Nr. 55-60 (62-69 var allerede efter de nye regler; 64 hang i »afventer«

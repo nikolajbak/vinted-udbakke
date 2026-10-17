@@ -351,7 +351,9 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   nå (ingen `listings`-række, ingen runner på DBA's redigering). Rækkefølgen
   følger med, når varen sendes derhen.
 - **Ikke afprøvet på en rigtig annonce** (17. oktober): krogen er prøvet på
-  Vinteds redigeringsside med en stub i stedet for netværket. Se `spor`
+  Vinteds redigeringsside — med en stub, og på nr. 55 fra browserruden, hvor
+  den lagde rækkefølgen i kaldet, men DataDome afviste Gem (se »Vinted:
+  billederne i en annonce«). Gem skal prøves på telefonen. Se `spor`
   »fotos: rækkefølgen lagt i gem-kaldet …«, »fotos: gemt på Vinted …« og
   `price_events` »sat på Vinted: billedrækkefølge«.
 
@@ -1186,6 +1188,12 @@ Målt 17. oktober, logget ind i browserruden.
   (`aria-roledescription="sortable"`) og flyttes ikke udefra.
 - **Garderoben** (`/api/v2/wardrobe/{bruger}/items`) har også `photos` med id
   og rækkefølge, men vejer ~14 kB pr. annonce (20 = 284 kB).
+- **Gem fra browserruden afvises af DataDome** (17. oktober): runneren lagde
+  rækkefølgen i kaldet (»12 af 12«), og `PUT …/item_upload/items/{id}` fik
+  403 med en captcha-side (`geo.captcha-delivery.com`). Intet blev gemt.
+  Hentninger (GET) fra samme rude gik fint, og telefonen har gemt priser ad
+  samme vej (16. oktober). Afprøv derfor alt, der GEMMER på Vinted, på
+  telefonen, aldrig fra browserruden — og omgå aldrig captchaen.
 - **Vinteds billeder har ingen CORS** (`access-control-allow-origin` mangler),
   så de kan ikke sammenlignes med appens på et canvas i siden.
 
