@@ -2018,7 +2018,8 @@
       body: JSON.stringify({ mode:'omskriv', id: d.id, skriv: !!skriv,
         fra: REDIGERES_GRUNDLAG,
         title: $('e-title').value.trim(), description: $('e-desc').value.trim(),
-        felter: skriv ? feltRettelser(d) : undefined })
+        felter: skriv ? feltRettelser(d) : undefined,
+        titelRettet: !ensLyd($('e-title').value, REDIGERES_GRUNDLAG.title) })
     }).then(function(r){ return r.json(); });
   }
 
@@ -2036,12 +2037,15 @@
       if(REDIGERES !== d) return;
       if(!svar || !svar.description){ toast('Kunne ikke skrive forfra' + (svar && svar.error ? ': ' + svar.error : '')); return; }
       $('e-desc').value = svar.description;
+      // En ny titel kommer kun, naar du har rettet et felt, der kan staa i
+      // den, og ikke selv har rettet titlen.
+      if(svar.title) $('e-title').value = svar.title;
       // Det, modellen skrev, er ikke din rettelse. Retter du videre, er det
       // forskellen fra DENNE tekst, der laeres af.
       REDIGERES_GRUNDLAG = { title: $('e-title').value.trim(), description: svar.description };
       d._tekstRettet = true;
       var n = (svar.fjernet || []).length, m = (svar.tilfoejet || []).length;
-      toast('Skrevet forfra — ' + (n || m ? 'husker ' + n + ' fjernet og ' + m + ' tilføjet' : 'tjek den, og tryk Gem'));
+      toast((svar.title ? 'Titel og tekst skrevet forfra — ' : 'Skrevet forfra — ') + (n || m ? 'husker ' + n + ' fjernet og ' + m + ' tilføjet' : 'tjek den, og tryk Gem'));
     }).catch(function(){
       knap.disabled = false; knap.textContent = tekst;
       toast('Kunne ikke skrive forfra — prøv igen');

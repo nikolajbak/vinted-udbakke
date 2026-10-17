@@ -379,6 +379,9 @@ markedspladsernes — og brug læringen fremover.**
   skulderbredde. De rettede felter (`felter`, ikke gemt endnu) lægges over
   udkastet i prompten som facit, og det, mærkerne/produktsiden sagde om
   samme felt (`maerkeFarve`, `materialer`, `produktMaerke`, `ny`), tages ud.
+  **Titlen skrives også forfra** (bestemt af dig 17. oktober), når et felt,
+  der kan stå i den, er rettet — mærke, størrelse, farve, stand, materiale —
+  og du ikke selv har rettet titlen (`titelRettet`). Har du, står den urørt.
   - Læringen er kun DIN forskel: appen sender teksten, du startede fra
     (`REDIGERES_GRUNDLAG`), og efter en omskrivning er grundlaget modellens
     tekst. `noterTekstRettelse` gemmer en rettelse pr. gang: `title` (hele

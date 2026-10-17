@@ -563,6 +563,20 @@ const OMSKRIV_TOOL = {
     required: ["description"],
   },
 };
+// Har du rettet et felt, der kan staa i titlen (maerke, stoerrelse, farve,
+// stand, materiale), men ikke selv rettet titlen, skrives den ogsaa forfra.
+const OMSKRIV_TITEL_TOOL = {
+  ...OMSKRIV_TOOL,
+  description: "Den nye titel og den nye, komplette beskrivelse.",
+  input_schema: {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Den nye titel, klar til annoncen." },
+      ...OMSKRIV_TOOL.input_schema.properties,
+    },
+    required: ["title", "description"],
+  },
+};
 
 async function omskriv(
   draft: Record<string, unknown>,
@@ -570,10 +584,14 @@ async function omskriv(
   tekst: string,
   forskel: { fjernet: string[]; tilfoejet: string[] },
   felter: Array<{ navn: string; fra: string; til: string }> = [],
+  nyTitel = false,
 ) {
   const images = await photoBlocks(draft.photos, ["forfra"], 1);
   const text =
-    `Titel (skrevet af sælgeren, brug den som den er): ${titel}\n` +
+    (nyTitel
+      ? `Nuværende titel (skriv den forfra, så den passer til sælgerens rettede oplysninger; ` +
+        `behold det, der stadig passer): ${titel}\n`
+      : `Titel (skrevet af sælgeren, brug den som den er): ${titel}\n`) +
     `Mærke: ${draft.brand ?? "ukendt"} · str. ${draft.size ?? "?"} · ${draft.condition ?? "?"} · ` +
     `${draft.material ?? "?"} · ${draft.color ?? "?"}\n${faktaTekst(draft.fakta)}\n\n` +
     (felter.length ? "Sælgeren RETTEDE disse oplysninger (facit — går forud for billedet, fakta og den " +
@@ -584,7 +602,8 @@ async function omskriv(
       forskel.fjernet.map((x) => `- ${x}`).join("\n") + "\n\n" : "") +
     (forskel.tilfoejet.length ? "Sælgeren TILFØJEDE (skal med, i indhold og gerne i ordlyd):\n" +
       forskel.tilfoejet.map((x) => `- ${x}`).join("\n") + "\n\n" : "") +
-    "Skriv en ny, komplet beskrivelse, der bygger på sælgerens rettede tekst og følger reglerne. " +
+    (nyTitel ? "Skriv en ny titel og en ny, komplet beskrivelse" : "Skriv en ny, komplet beskrivelse") +
+    ", der bygger på sælgerens rettede tekst og følger reglerne. " +
     "Alt, sælgeren har skrevet, er facit — også når det strider mod billedet. Tilføj ikke noget, " +
     "som hverken sælgerens tekst, billedet eller fakta bærer.";
   const erfaringer = await hentErfaringer(["tekst"]);
@@ -593,10 +612,13 @@ async function omskriv(
       "sælgeren selv har rettet i den. Sælgerens rettelser vejer tungest.\n\n" + BESKRIVELSE_REGLER +
       (erfaringer ? "\n\n" + erfaringer : ""),
     images.length ? [...images, { type: "text", text }] : text,
-    OMSKRIV_TOOL,
+    nyTitel ? OMSKRIV_TITEL_TOOL : OMSKRIV_TOOL,
     draft.id,
   );
-  return await udenForbudte(ANTHROPIC_API_KEY, cleanText(out.description), draft.id);
+  return {
+    title: nyTitel && cleanText(out.title) ? ingenVersaler(cleanText(out.title), draft.brand) : undefined,
+    description: await udenForbudte(ANTHROPIC_API_KEY, cleanText(out.description), draft.id),
+  };
 }
 
 const PRICE_TOOL = {
@@ -1423,9 +1445,13 @@ Deno.serve(async (req: Request) => {
           if (k === "condition" && !/^ny/i.test(f.til)) delete fk.ny;
           return f;
         });
-        const description = await omskriv(rettet, til.title || String(d.title ?? ""),
-          til.description, forskel, felter);
-        return json({ description, ...forskel });
+        // Titlen skrives kun forfra, naar du ikke selv har rettet den, og et
+        // felt, der kan staa i den, er rettet. Laengde og skulderbredde kan ikke.
+        const iTitlen = ["brand", "size", "color", "condition", "material"].some((k) => raa[k]);
+        const nyTitel = iTitlen && body.titelRettet !== true;
+        const ny = await omskriv(rettet, til.title || String(d.title ?? ""),
+          til.description, forskel, felter, nyTitel);
+        return json({ ...ny, ...forskel });
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
       }
