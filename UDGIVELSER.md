@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0085 — 2026-10-17 12:40
+
+Commit `80d1215` — Billedrækkefølgen: parr ikke igen, når Vinted har lagt billederne op på ny  
+App: `app.js?v=d56fa805` · `style.css?v=9fb2cad4`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v87 | `66083c2e` |
+| dba-fill-script | v37 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v28 | `e05b374e` |
+| vinted-fill-script ← | v101 | `44000750` |
+| vinted-mail | v18 | `48755620` |
+
 ## udgivelse-0084 — 2026-10-17 12:25
 
 Commit `f310dca` — Billedernes rækkefølge: træk og slip i appen, synkroniseret med Vinted begge veje  
