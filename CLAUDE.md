@@ -1532,7 +1532,7 @@ Delingen mellem server og telefon: se »Telefonen og serveren«.
   `@media (display-mode: standalone)` giver `html, body` `100lvh` — i
   standalone er der ingen værktøjslinjer, så den store viewport er hele
   skærmen. I Safari står det urørt (`lvh` ville lægge bunden under
-  værktøjslinjen). **Ikke målt på telefonen endnu.**
+  værktøjslinjen). Bekræftet af dig på telefonen samme dag.
 - **Korte klassenavne i `style.css` er allerede taget.** `.label` er appens
   versal-overskrift, og `.h` er beskæringens hjørnehåndtag (`position:
   absolute` med en hvid firkant). Begge blev genbrugt ved et uheld: hver
