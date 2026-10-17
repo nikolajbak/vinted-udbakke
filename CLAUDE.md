@@ -719,6 +719,13 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   markedspladserne først. »Tekst og detaljer« (det udfyldte, beskrivelsen,
   prisnoten) er foldet ud, mens varen er klar, ellers sammen; dit valg
   huskes pr. vare (`FOLD`).
+- **Farverne** (bestemt af dig 17. oktober: »pænere, mere brugervenligt og
+  indbydende«): varm hvid bund (`--paper` #F6F4EF), hvide kort med en blød
+  skygge, lyse streger og petrol som accent (`--accent` #0F6E72, mørkt
+  #5FC4BE), med `--accent-soft` som pille om den aktive fane. Grøn = ok,
+  rav = se på det, rød = galt. Hvert tekst/bund-par holder mindst 4,5:1 i
+  begge temaer — mål kontrasten, før en farve rettes. Før var bunden
+  grågrøn, kortene beige og accenten aubergine.
 
 ## Kortene i listen
 

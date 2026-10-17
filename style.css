@@ -4,22 +4,26 @@
        moerke tema. Den styrer ogsaa rullebjaelker og felternes indmad. */
     color-scheme: light dark;
 
-    --paper: #E8EAE0;
-    --surface: #F5F3EA;
-    --raised: #FBFAF4;
-    --ink: #211F1B;
-    --ink-soft: #5B584E;
-    --accent: #5B3A52;
-    --accent-ink: #FBFAF4;
-    --moss: #3F5C4C;
-    --moss-soft: #E1EAE2;
-    --amber: #8C5F1F;
-    --danger: #8E3B2E; --danger-ink: #FDF6F2;
+    /* Paletten fra 17. oktober: lys og varm i stedet for graagroen og beige.
+       Hvide kort paa en varm hvid bund, lyse streger, en frisk petrol som
+       accent. Groen er stadig "ok", rav "se paa det", roed "galt". */
+    --paper: #F6F4EF;
+    --surface: #EEEBE4;
+    --raised: #FFFFFF;
+    --ink: #1D2327;
+    --ink-soft: #5E676C;
+    --accent: #0F6E72;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #DCEEEC;
+    --moss: #2E7A4E;
+    --moss-soft: #E1F1E6;
+    --amber: #95600F;
+    --danger: #B13A2C; --danger-ink: #FFF6F3;
     /* Roed tekst paa papir er den samme roed. I moerkt tema er den ikke:
        #A8493A paa naesten sort er for lav en kontrast at laese paa. */
-    --danger-tekst: #8E3B2E;
-    --amber-soft: #F3E6CE;
-    --line: #C9C2B0;
+    --danger-tekst: #B13A2C;
+    --amber-soft: #FBEFD8;
+    --line: #E2DED5;
     --focus: #2E63B8;
 
     /* Én skala. Før var der syv skriftstørrelser og fire afstande i flæng. */
@@ -32,35 +36,35 @@
     --maal: 560px;
     /* Skyggen baerer papirets farve. Ren sort under en varm palet laeser som
        snavs, ikke som hoejde. */
-    --skygge: 0 8px 30px rgba(33,31,27,.26);
+    --skygge: 0 8px 28px rgba(29,35,39,.16);
     /* Kornet. Uden det er fladerne reneste digitale ingenting; med det ligner
        de papir. Saa svagt at man kun ser det, hvis man leder efter det. */
     --korn: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="160" height="160" filter="url(%23n)" opacity="0.035"/></svg>');
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --paper: #19170F; --surface: #221F16; --raised: #2A2620;
-      --ink: #ECE7DB; --ink-soft: #B7B0A0;
-      --accent: #D3A6C4; --accent-ink: #1B1712;
-      --moss: #9BC0A9; --moss-soft: #24352B;
-      --amber: #E3B569; --amber-soft: #3A2E17;
-    --danger: #A8493A; --danger-ink: #FFF2ED;
-      --danger-tekst: #EFA090;
-      --line: #4A4433; --focus: #7FB0FF;
+      --paper: #121619; --surface: #1A2024; --raised: #21282D;
+      --ink: #E9EDED; --ink-soft: #A2ADB1;
+      --accent: #5FC4BE; --accent-ink: #0C1B1C; --accent-soft: #173533;
+      --moss: #82CC9E; --moss-soft: #1B3226;
+      --amber: #E8B866; --amber-soft: #372B14;
+    --danger: #C2503E; --danger-ink: #FFF2ED;
+      --danger-tekst: #F2A394;
+      --line: #313A40; --focus: #7FB0FF;
       --skygge: 0 8px 30px rgba(0,0,0,.55);
       --korn: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="160" height="160" filter="url(%23n)" opacity="0.055"/></svg>');
     }
   }
   :root[data-theme="dark"]{
     color-scheme: dark;
-    --paper: #19170F; --surface: #221F16; --raised: #2A2620;
-    --ink: #ECE7DB; --ink-soft: #B7B0A0;
-    --accent: #D3A6C4; --accent-ink: #1B1712;
-    --moss: #9BC0A9; --moss-soft: #24352B;
-    --amber: #E3B569; --amber-soft: #3A2E17;
-    --danger: #A8493A; --danger-ink: #FFF2ED;
-    --danger-tekst: #EFA090;
-    --line: #4A4433; --focus: #7FB0FF;
+    --paper: #121619; --surface: #1A2024; --raised: #21282D;
+    --ink: #E9EDED; --ink-soft: #A2ADB1;
+    --accent: #5FC4BE; --accent-ink: #0C1B1C; --accent-soft: #173533;
+    --moss: #82CC9E; --moss-soft: #1B3226;
+    --amber: #E8B866; --amber-soft: #372B14;
+    --danger: #C2503E; --danger-ink: #FFF2ED;
+    --danger-tekst: #F2A394;
+    --line: #313A40; --focus: #7FB0FF;
     --skygge: 0 8px 30px rgba(0,0,0,.55);
     --korn: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="160" height="160" filter="url(%23n)" opacity="0.055"/></svg>');
   }
@@ -206,9 +210,10 @@
     align-items: center;
     gap: var(--s3);
     padding: var(--s3);
-    background: var(--surface);
+    background: var(--raised);
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(29,35,39,.05), 0 2px 8px rgba(29,35,39,.04);
     cursor: pointer;
     text-align: left;
     width: 100%;
@@ -955,7 +960,7 @@
   color: var(--ink-soft); font: inherit; font-size: var(--t-small); font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
-.faner button.on{ background: var(--raised); color: var(--ink); box-shadow: 0 1px 2px rgba(33,31,27,.12); }
+.faner button.on{ background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px rgba(29,35,39,.12); }
 .fane-tal{ font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ink-soft); }
 .fane-tal:empty{ display: none; }
 
@@ -1053,6 +1058,9 @@
                 stroke-linecap: round; stroke-linejoin: round; }
 .fane-knap[data-til="menu"] svg{ stroke-width: 3.2; }
 .fane-knap.on{ color: var(--accent); }
+/* Den aktive fane faar en lys accentpille om ikonet, saa den ses i et blik. */
+.fane-knap svg{ box-sizing: content-box; padding: 3px 16px; border-radius: 999px; transition: background .15s; }
+.fane-knap.on svg{ background: var(--accent-soft); }
 .fane-knap .fod-tal{ top: 2px; right: calc(50% - 26px); }
 
 /* Nyt produkt svaever over listen, lige over fanerne. */
