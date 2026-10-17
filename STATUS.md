@@ -19,6 +19,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+000000000000. **Billedernes rækkefølge — træk og slip, synkroniseret med Vinted
+   begge veje — 17. oktober (udgivelse 0084).** Regler i CLAUDE.md under
+   »Billedernes rækkefølge«, målinger under »Vinted: billederne i en annonce«.
+   **Afprøvet:** trækket med berørings- og musehændelser på en prøveside;
+   krogen i Gem-kaldet på Vinteds redigeringsside med en stub (intet sendt);
+   den udgivne server: nr. 55 parret (12 billeder), nr. 57 afvist med grunden
+   (11 på Vinted, 12 i appen). **Ikke afprøvet:** trækket på telefonen, og en
+   rigtig rækkefølge sat på Vinted og læst tilbage — se `spor` »fotos: …«.
+
 00000000000. **Klar-varerne analyseret forfra — 16. oktober (udgivelse 0078-0081).**
    Nr. 55-60 (62-69 var allerede efter de nye regler; 64 hang i »afventer«
    siden kreditten slap op og er kørt igen). Nr. 56 er nu Roly Sitka
