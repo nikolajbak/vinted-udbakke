@@ -854,7 +854,7 @@ function laesAnnonceside(t,id){
 }
 
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.
-// `alle`: det daglige tjek tager alt det forfaldne, ellers højst tre.
+// alle: det daglige tjek tager alt det forfaldne, ellers højst tre.
 // Intet forfaldent er {tom:true} — ikke det samme som en fejl (null).
 async function tilsynsrunde(alle){
  var forfaldne=[];
