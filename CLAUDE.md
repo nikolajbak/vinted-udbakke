@@ -358,8 +358,9 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   samme Gem (se »Vinted: billederne i en annonce«). **Vinted → appen virker
   ikke, når Vinted lægger billederne op på ny** (målt samme dag, nr. 55):
   så er der intet at parre på, og annoncen mærkes som udskiftet (se
-  »Vinted: billederne i en annonce«). Flytningen fra appen virker derefter
-  heller ikke for den annonce. Ret rækkefølgen i appen, ikke på Vinted. Se `spor`
+  »Vinted: billederne i en annonce«). Det sker, når billederne flyttes i
+  **Vinteds egen app**. Flytningen fra appen virker derefter heller ikke for
+  den annonce (appen siger det). Ret rækkefølgen i appen, ikke i Vinteds app. Se `spor`
   »fotos: rækkefølgen lagt i gem-kaldet …«, »fotos: gemt på Vinted …« og
   `price_events` »sat på Vinted: billedrækkefølge«.
 
@@ -1207,8 +1208,10 @@ Målt 17. oktober, logget ind i browserruden.
   Gem (ingen kald fra telefonen). Derfor: en annonce, hvis billed-id'er
   slet ikke overlapper med parringen, mærkes `listings.fotos =
   {udskiftet}` og parres aldrig igen på pladsen — de nye id'er ville parre
-  de forkerte billeder. Hvornår Vinted gør det (Vinteds egen app, eller
-  hvert flyt i Safari), er ikke målt.
+  de forkerte billeder. **Det var Vinteds egen app** (bekræftet af dig):
+  den lægger alle billeder op på ny ved Gem, og runneren ser det ikke —
+  den findes kun i Safari. Om et flyt på redigeringssiden i Safari beholder
+  id'erne, er ikke målt.
 - **Vinteds billeder har ingen CORS** (`access-control-allow-origin` mangler),
   så de kan ikke sammenlignes med appens på et canvas i siden.
 
