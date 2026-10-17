@@ -216,7 +216,7 @@ i `function_logs`, beviser intet.
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 | Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
 | Hvad hvert modelkald koster (`noterForbrug`) → tabellen `forbrug` | `supabase/functions/_shared/forbrug.ts` |
-| Billedernes rækkefølge mellem appen og Vinted (`fotoSynk`, `lavKort`, `omordn`) | `…/vinted-fill-script/fotos.ts`; krogen i Gem-kaldet `fotoKrog`/`fotoKald` og `fotoIds` i `runner.ts`; træk og slip `flytbarStribe`/`gemRaekkefoelge` i `app.js` |
+| Billedernes rækkefølge mellem appen og Vinted (`fotoSynk`, `lavKort`, `omordn`); genkendelse på billedet (`genkend`, `aftryk`) | `…/vinted-fill-script/fotos.ts`, `…/vinted-fill-script/fotohash.ts`; krogen i Gem-kaldet `fotoKrog`/`fotoKald` og `fotoIds` i `runner.ts`; træk og slip `flytbarStribe`/`gemRaekkefoelge` i `app.js` |
 | Fanelukkeren »Udbakke luk« (`/udbakke-luk.user.js`) og `lukFanen()` | `LUK_SCRIPT` i `…/vinted-fill-script/index.ts`; `lukFanen`/`fraApp` i `…/vinted-fill-script/runner.ts` |
 
 ## Databasen
@@ -346,7 +346,23 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   rod (`org || path`), så en beskæring er stadig samme billede. Passer
   antallet ikke (nr. 57: 11 på Vinted, 12 i appen, fra før `fotos_sendt`),
   parres intet, en ventende rækkefølge droppes med en note i historikken,
-  og `spor` siger »fotos: … kan ikke parres sikkert«.
+  og `spor` siger »fotos: … kan ikke parres sikkert« — medmindre
+  genkendelsen herunder kan parre dem.
+- **Lægger Vinted billederne op på ny, parres de på selve billedet**
+  (17. oktober, `genkend` i `vinted-fill-script/fotohash.ts`). Vinteds egen
+  app gør det ved Gem: nye id'er, intet at parre på. Runneren sender hvert
+  billede som `{id, t}`, hvor `t` er Vinteds miniature (150×210); serveren
+  henter den og appens billede i lille udgave og sammenligner et aftryk
+  (16×16 felters lysstyrke, afstand = 1 − korrelationen). **Kun entydigt**:
+  hvert Vinted-billede skal have ét app-billede på højst 0,15, det
+  næstbedste mindst 0,15 længere væk, de to skal være hinandens bedste, og
+  intet app-billede bruges to gange. Ellers parres intet. Det prøves, når
+  id'erne slet ikke overlapper (før annoncen mærkes `{udskiftet}`), igen
+  hver gang på en annonce, der allerede er mærket `{udskiftet}`, og når
+  antallet ikke passer ved første parring. Lykkes det, skrives
+  `listings.fotos` på ny, og udkastet flyttes efter Vinted;
+  `price_events` »billederne genkendt på Vinted (…)«, og funktionens log
+  »fotos: genkendt …« med afstandene.
 - **DBA og Reshopper**: en annonce, der allerede er ude dér, kan appen ikke
   nå (ingen `listings`-række, ingen runner på DBA's redigering). Rækkefølgen
   følger med, når varen sendes derhen.
@@ -356,11 +372,11 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   (»12 af 12«), Vinted gemte (id'erne 342, 337, … i den nye orden), og
   kvitteringen ryddede `pending` på 9 s. Fra browserruden afviste DataDome
   samme Gem (se »Vinted: billederne i en annonce«). **Vinted → appen virker
-  ikke, når Vinted lægger billederne op på ny** (målt samme dag, nr. 55):
-  så er der intet at parre på, og annoncen mærkes som udskiftet (se
-  »Vinted: billederne i en annonce«). Det sker, når billederne flyttes i
-  **Vinteds egen app**. Flytningen fra appen virker derefter heller ikke for
-  den annonce (appen siger det). Ret rækkefølgen i appen, ikke i Vinteds app. Se `spor`
+  ikke på id'erne, når Vinted lægger billederne op på ny** (målt samme dag,
+  nr. 55) — det sker, når billederne flyttes i **Vinteds egen app**. Så
+  parres de på billedet (se ovenfor); kun hvis det ikke er entydigt, mærkes
+  annoncen udskiftet, og flytningen fra appen virker ikke for den annonce
+  (appen siger det). Se `spor`
   »fotos: rækkefølgen lagt i gem-kaldet …«, »fotos: gemt på Vinted …« og
   `price_events` »sat på Vinted: billedrækkefølge«.
 
@@ -1214,6 +1230,22 @@ Målt 17. oktober, logget ind i browserruden.
   id'erne, er ikke målt.
 - **Vinteds billeder har ingen CORS** (`access-control-allow-origin` mangler),
   så de kan ikke sammenlignes med appens på et canvas i siden.
+- **Supabase Edge KAN hente Vinteds billeder** (17. oktober): blokeringen af
+  datacenter-IP'er gælder sitet, ikke `images1.vinted.net`. Miniaturerne
+  står i `photos[].thumbnails` fra `item_upload` (`thumb70x100`,
+  `thumb150x210`, `thumb310x430`; adressen har en `?s=`-signatur). 150×210
+  svarede 200, ~17 kB, afkodet på 6-10 ms med ImageScript.
+- **Appens billeder i lille udgave: Storage's billedtransformation**
+  (`/storage/v1/render/image/public/photos/<sti>?width=160&height=160&resize=contain`,
+  ~6 kB mod ~490 kB, 2-3 ms at afkode). **Begge mål og `contain`**:
+  `?width=150` alene gav 150×1600 — strakt, og sammenligningen faldt til
+  6 af 12 rigtige.
+- **Aftrykket skiller sikkert** (17. oktober, nr. 55: 12 billeder af den
+  samme gule jakke, flere næsten ens): de rigtige par lå på 0,006-0,071,
+  det næstbedste på mindst 0,35, og mod 32 billeder af tre andre jakker
+  (nr. 54, 56, 57) var intet under 0,37. Hele genkendelsen af 12 mod 12
+  tog 150-800 ms. Tærsklerne (0,15 / 0,15) står i `fotohash.ts`; ret dem
+  ikke uden at måle på flere annoncer.
 
 ## Vinted: at finde den nye annonce
 

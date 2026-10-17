@@ -905,13 +905,19 @@ var FELT_TIL_INPUT={price:'#price',title:'#title',description:'#description'};
 // /api/v2/item_upload/items/{id} giver annoncens billed-id'er i Vinteds
 // rækkefølge og vejer ~23 kB — annoncesiden vejer ~2 MB (målt 17. oktober).
 // Kun din egen annonce svarer; en andens giver 403.
+// Hvert billede sendes som {id, t}: t er Vinteds miniature (150x210), som
+// serveren kan hente og sammenligne med appens billeder, når Vinted har lagt
+// billederne op på ny (fotohash.ts). Serveren tager også bare id'er.
 async function fotoIds(id){
  try{
   var r=await timedFetch('/api/v2/item_upload/items/'+id,
    {headers:{'Accept':'application/json'},credentials:'include',cache:'no-store'},15000);
   if(!r.ok)return null;
   var j=await r.json(),it=(j&&(j.item||j))||{};
-  var ids=(it.photos||[]).map(function(p){return String((p&&p.id)||'')}).filter(Boolean);
+  var ids=(it.photos||[]).map(function(p){
+   var t=((p&&p.thumbnails)||[]).filter(function(x){return x&&x.type==='thumb150x210'})[0];
+   return {id:String((p&&p.id)||''),t:(t&&t.url)||''};
+  }).filter(function(f){return f.id});
   return ids.length?ids:null;
  }catch(e){return null}
 }
