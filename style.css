@@ -318,6 +318,14 @@
     width: 64px; height: 64px; flex: none; object-fit: contain;
     border-radius: 8px; border: 1px solid var(--line); cursor: pointer; background: var(--surface);
   }
+  /* Traek og slip af billederne (flytbarStribe i app.js). Uden callout og
+     markering aabner et langt tryk iOS' billedmenu i stedet for at loefte. */
+  .strip img{ -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+  .strip.flytter img{ transition: transform 120ms ease; }
+  .strip img.flyt-loeftet{
+    transform: scale(1.12); border-color: var(--accent); box-shadow: 0 6px 16px rgba(0,0,0,.18);
+    position: relative; z-index: 1;
+  }
   .price-row{ display: flex; align-items: baseline; gap: var(--s2); margin-top: var(--s4); }
   .price-big{ font-size: var(--t-display); font-weight: 700; letter-spacing: -0.02em; }
   .note{ font-size: var(--t-small); color: var(--ink-soft); margin-top: var(--s1); line-height: 1.55; }

@@ -216,6 +216,7 @@ i `function_logs`, beviser intet.
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 | Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
 | Hvad hvert modelkald koster (`noterForbrug`) → tabellen `forbrug` | `supabase/functions/_shared/forbrug.ts` |
+| Billedernes rækkefølge mellem appen og Vinted (`fotoSynk`, `lavKort`, `omordn`) | `…/vinted-fill-script/fotos.ts`; krogen i Gem-kaldet `fotoKrog`/`fotoKald` og `fotoIds` i `runner.ts`; træk og slip `flytbarStribe`/`gemRaekkefoelge` i `app.js` |
 | Fanelukkeren »Udbakke luk« (`/udbakke-luk.user.js`) og `lukFanen()` | `LUK_SCRIPT` i `…/vinted-fill-script/index.ts`; `lukFanen`/`fraApp` i `…/vinted-fill-script/runner.ts` |
 
 ## Databasen
@@ -242,6 +243,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
 | Mailens læsning: `vinted_mails.laesning`; køberbeskeder fra mail: `koeber_beskeder.kilde`, `samtale`, `besvaret_at`, `vinted_mail_id` | `sql/014-mails-analyseres.sql` |
 | Din tekst skal stå: `drafts.tekst_rettet`; tekstrettelser i `rettelser` (felt `title`/`beskrivelse`) | `sql/015-tekstrettelser.sql` |
+| Billedernes rækkefølge: `drafts.fotos_sendt` (de billeder, der kom med op, pr. plads), `listings.fotos` (Vinteds billed-id'er parret med appens, `[{id, rod}]`) og `listings.published.fotos`; `pending.fotos` er en ventende rækkefølge | `sql/016-billedraekkefoelge.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -315,6 +317,43 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
   din beslutning, og hånden (scriptet i samtalen) er ikke bygget endnu.
+
+## Billedernes rækkefølge
+
+Bestemt af dig 17. oktober: **billedernes rækkefølge kan ændres med træk og
+slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
+
+- **I appen**: hold fingeren på et lille billede på varens side, til det
+  løfter sig, og træk det (`flytbarStribe`). Et kort tryk beskærer stadig.
+  Kun når analysen er færdig — under analysen skriver serveren billederne
+  pr. plads. Det første billede er hovedbilledet (`image_url`).
+- **Ikke ude endnu**: rækkefølgen gemmes i udkastet, og Vinted og DBA får den,
+  når de udfyldes (de lægger `drafts.photos` op i rækkefølge).
+- **Ude på Vinted**: rækkefølgen lægges i `pending.fotos` som enhver anden
+  rettelse, og runneren sætter den selv, næste gang telefonen har en
+  Vinted-side åben (som prisvagtens »går selv til«). Den lægges i Vinteds
+  eget Gem-kald (`assigned_photos`), ikke i gitteret, og kvitteres på
+  annoncens billed-id'er, læst frisk bagefter.
+- **Fra Vinted tilbage**: flytter du billederne på Vinted, flyttes udkastets
+  billeder efter — set i dit eget Gem-kald på redigeringssiden, når du står
+  på annoncen, og når prisvagten måler den. Rettet i Vinteds egen app kommer
+  det hjem ved næste besøg på annoncen i Safari. Venter en rækkefølge fra
+  appen, vinder den, til den er sat. **Det er den eneste synkronisering, der
+  skriver i udkastet** — der er kun én rækkefølge, og begge sider skal vise den.
+- **Billederne parres på id**: Vinteds billed-id'er stiger i upload-
+  rækkefølge, så sorteret id ↔ de billeder, der faktisk kom med
+  (`drafts.fotos_sendt.vinted`, sendt med »clear«). Et billede kendes på sin
+  rod (`org || path`), så en beskæring er stadig samme billede. Passer
+  antallet ikke (nr. 57: 11 på Vinted, 12 i appen, fra før `fotos_sendt`),
+  parres intet, en ventende rækkefølge droppes med en note i historikken,
+  og `spor` siger »fotos: … kan ikke parres sikkert«.
+- **DBA og Reshopper**: en annonce, der allerede er ude dér, kan appen ikke
+  nå (ingen `listings`-række, ingen runner på DBA's redigering). Rækkefølgen
+  følger med, når varen sendes derhen.
+- **Ikke afprøvet på en rigtig annonce** (17. oktober): krogen er prøvet på
+  Vinteds redigeringsside med en stub i stedet for netværket. Se `spor`
+  »fotos: rækkefølgen lagt i gem-kaldet …«, »fotos: gemt på Vinted …« og
+  `price_events` »sat på Vinted: billedrækkefølge«.
 
 ## Farven står på mærket
 
@@ -667,7 +706,8 @@ har ingen række i `listings` endnu.
   har en Vinted-side åben (se »Prisvagten«); ligger der en i forvejen, siger
   redigeringsskærmen, at den går med ud.
 - **Udkastet overskrives stadig aldrig af en synkronisering** — kun af dit eget
-  Gem. Forskellen mellem udkast og annonce er det, appen viser.
+  Gem. Forskellen mellem udkast og annonce er det, appen viser. Eneste
+  undtagelse: billedernes rækkefølge (se »Billedernes rækkefølge«).
 - **En pris rettet på Vinted noteres som `aendret` (»rettet på Vinted«) og
   sætter `last_change_at`.** Ellers ville prisvagten ikke holde sin ro efter en
   håndrettet pris, og gennemgangen af salgene ville ikke se nedsættelsen.
@@ -1127,6 +1167,27 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
   skåret til to og springes over på en målt forbindelse.
 - **`favourite_count` er brugbar, `view_count` er altid 0.** Mange hjerter på en
   vare, der stadig ligger der, er et loft, ikke et mål.
+
+## Vinted: billederne i en annonce
+
+Målt 17. oktober, logget ind i browserruden.
+
+- **`/api/v2/item_upload/items/{id}` svarer for din EGEN annonce** (403 for
+  andres og uden login) og giver `item.photos` med `id` i annoncens
+  rækkefølge — ~23 kB mod annoncesidens ~1,9 MB. Det er sådan runneren læser
+  rækkefølgen (`fotoIds`). `/api/v2/items/{id}` svarer stadig 404.
+- **Vinteds billed-id'er stiger i den rækkefølge, de blev lagt op** — på alle
+  seks nyeste annoncer. Det er grundlaget for parringen i `fotos.ts`.
+- **Gem på redigeringssiden er `PUT /api/v2/item_upload/items/{id}`** med
+  `{item: {…, assigned_photos: [{id, orientation}]}}` i gitterets
+  rækkefølge (`updateItem` i Vinteds kode). Klienten er axios, altså
+  `XMLHttpRequest` — krogen sidder på `XMLHttpRequest.prototype` (og
+  `fetch` for en sikkerheds skyld). Gitteret er dnd-kit
+  (`aria-roledescription="sortable"`) og flyttes ikke udefra.
+- **Garderoben** (`/api/v2/wardrobe/{bruger}/items`) har også `photos` med id
+  og rækkefølge, men vejer ~14 kB pr. annonce (20 = 284 kB).
+- **Vinteds billeder har ingen CORS** (`access-control-allow-origin` mangler),
+  så de kan ikke sammenlignes med appens på et canvas i siden.
 
 ## Vinted: at finde den nye annonce
 

@@ -24,6 +24,7 @@ import { noterForbrug } from "../_shared/forbrug.ts";
 import { laer } from "./laering.ts";
 import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
 import { indkob } from "./indkob.ts";
+import { fotoSynk } from "./fotos.ts";
 import { erNy, erNyAnnonce, helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1151,7 +1152,15 @@ async function tilsyn(maalinger: Maaling[]) {
       price: nuPris,
     };
     const snap = renUdgivet((m as unknown as { udgivet?: unknown }).udgivet);
-    if (snap) { opd.published = snap; opd.synced_at = new Date().toISOString(); }
+    if (snap) {
+      opd.published = { ...snap, fotos: (r.published as Record<string, unknown> | null)?.fotos ?? null };
+      opd.synced_at = new Date().toISOString();
+    }
+    // Prisvagten raader kun over prisen. En titel eller en billedraekkefoelge,
+    // der venter, skal blive staaende, uanset hvad vagten beslutter.
+    const andetVenter = { ...((r.pending ?? {}) as Record<string, unknown>) };
+    delete andetVenter.price;
+    const harAndet = Object.keys(andetVenter).length > 0;
 
     await supabase.from("price_events").insert({
       listing_id: r.id, kind: "maalt", price: nuPris, favourites: hjerter,
@@ -1162,7 +1171,7 @@ async function tilsyn(maalinger: Maaling[]) {
     if (b.handling === "saenk" && b.nyPris > 0 && b.nyPris < nuPris) {
       // Samme postkasse som appens egne rettelser: ét sted at kigge, naar
       // spoergsmaalet er "hvad mangler at blive skrevet ind i annoncen".
-      opd.pending = { price: b.nyPris };
+      opd.pending = { ...andetVenter, price: b.nyPris };
       opd.pending_note = b.begrundelse;
       opd.pending_since = new Date().toISOString();
       await supabase.from("price_events").insert({
@@ -1172,9 +1181,8 @@ async function tilsyn(maalinger: Maaling[]) {
       });
       aendringer++;
     } else {
-      opd.pending = null;
-      opd.pending_note = null;
-      opd.pending_since = null;
+      opd.pending = harAndet ? andetVenter : null;
+      if (!harAndet) { opd.pending_note = null; opd.pending_since = null; }
       opd.note = b.begrundelse;
       if (b.handling === "stop") {
         // Prisen er ikke laengere haandtaget. Vagten holder op med at saenke,
@@ -1188,6 +1196,8 @@ async function tilsyn(maalinger: Maaling[]) {
     }
 
     await supabase.from("listings").update(opd).eq("id", r.id);
+    const fotoIds = (m as unknown as { fotos?: unknown }).fotos;
+    if (fotoIds) await fotoSynk(supabase, String(r.id), fotoIds, "prisvagten");
     ud.push({
       id: r.id, externalId: r.external_id, handling: b.handling,
       nyPris: b.nyPris, fraPris: nuPris, begrundelse: b.begrundelse,
@@ -1548,10 +1558,37 @@ Deno.serve(async (req: Request) => {
       const { data: r } = await supabase.from("listings")
         .select("id, price, pending, pending_note")
         .eq("platform", "vinted").eq("external_id", it).maybeSingle();
-      const p = r?.pending as Record<string, unknown> | null;
-      if (!r || !p || !Object.keys(p).length) return json({ pending: null });
-      return json({ pending: { listing: r.id, felter: p,
-        fra: Number(r.price), note: r.pending_note } });
+      if (!r) return json({ pending: null });
+      // Redigeringssiden sender annoncens billed-id'er med. Saa parres de
+      // (foerste gang), og en ventende raekkefoelge oversaettes til Vinteds
+      // id'er - eller kvitteres, hvis den allerede staar der.
+      const fs = body.fotos ? await fotoSynk(supabase, String(r.id), body.fotos, "redigeringssiden") : null;
+      const p = (fs ? fs.pending : r.pending) as Record<string, unknown> | null;
+      if (!p || !Object.keys(p).length) {
+        return json({ pending: null, fotoGemt: !!fs?.gemt, fotoOmordnet: !!fs?.omordnet });
+      }
+      const felter = { ...p };
+      if (felter.fotos) {
+        if (fs?.oenske?.length) felter.fotos = fs.oenske;
+        else {
+          delete felter.fotos;
+          if (fs && !fs.kort) console.log("fotos: kan ikke parres", it, fs.grund);
+        }
+      }
+      return json({ pending: { listing: r.id, felter,
+        fra: Number(r.price), note: r.pending_note, fotoGrund: fs?.grund ?? null } });
+    }
+
+    // Du har gemt annoncen paa Vinteds redigeringsside, og Gem-kaldet bar
+    // billederne i en raekkefoelge (runneren saa kaldet, ikke DOM'en).
+    if (body.mode === "fotos") {
+      const it = String(body.item_id ?? "");
+      if (!it) return json({ error: "mangler" }, 400);
+      const { data: r } = await supabase.from("listings")
+        .select("id").eq("platform", "vinted").eq("external_id", it).maybeSingle();
+      if (!r) return json({ ukendt: true });
+      const fs = await fotoSynk(supabase, String(r.id), body.fotos, "gemt på Vinted");
+      return json({ ok: true, omordnet: !!fs?.omordnet, gemt: !!fs?.gemt, grund: fs?.grund ?? null });
     }
 
     // Én annonce, laest paa opfordring. Serveren gemmer annoncens egne ord ved
@@ -1586,7 +1623,7 @@ Deno.serve(async (req: Request) => {
       const snap = renUdgivet(body.udgivet);
       const nu = Math.round(Number(body.price) || 0);
       const opd: Record<string, unknown> = { synced_at: new Date().toISOString() };
-      if (snap) opd.published = snap;
+      if (snap) opd.published = { ...snap, fotos: (r.published as Record<string, unknown> | null)?.fotos ?? null };
       if (nu > 0) opd.price = nu;
       if (Number.isFinite(Number(body.favourites))) opd.favourites = Number(body.favourites);
 
@@ -1624,7 +1661,8 @@ Deno.serve(async (req: Request) => {
         const rest: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(p)) {
           const ude = snap[k];
-          const passer = k === "price"
+          // Billedernes raekkefoelge afgoer fotoSynk herunder.
+          const passer = k === "fotos" ? false : k === "price"
             ? Math.round(Number(ude)) === Math.round(Number(v))
             : ensLyd(ude, v);
           if (!passer) rest[k] = v;
@@ -1637,7 +1675,8 @@ Deno.serve(async (req: Request) => {
       }
 
       await supabase.from("listings").update(opd).eq("id", r.id);
-      return json({ ok: true, published: snap });
+      const fs = body.fotos ? await fotoSynk(supabase, String(r.id), body.fotos, "annoncen") : null;
+      return json({ ok: true, published: snap, fotoOmordnet: !!fs?.omordnet, fotoGemt: !!fs?.gemt });
     }
 
     if (body.mode === "watch") {
@@ -1674,13 +1713,13 @@ Deno.serve(async (req: Request) => {
       const gemt: string[] = [];
       for (const [k, v] of Object.entries(p)) {
         const ude = udgivet[k];
-        const passer = k === "price"
+        const passer = k === "fotos" ? false : k === "price"
           ? Math.round(Number(ude)) === Math.round(Number(v))
           : ensLyd(ude, v);
         if (passer) gemt.push(k); else rest[k] = v;
       }
       const tom = !Object.keys(rest).length;
-      const navne: Record<string, string> = { price: "pris", title: "titel", description: "beskrivelse" };
+      const navne: Record<string, string> = { price: "pris", title: "titel", description: "beskrivelse", fotos: "billedrækkefølge" };
 
       const ny = Math.round(Number(snap?.price) || Number(body.price) || 0);
       const opd: Record<string, unknown> = {
@@ -1696,6 +1735,10 @@ Deno.serve(async (req: Request) => {
       const prisSat = ny > 0 && ny !== Number(r.price);
       if (prisSat) opd.last_change_at = new Date().toISOString();
       await supabase.from("listings").update(opd).eq("id", id);
+      // Billedernes raekkefoelge kvitteres paa annoncens billed-id'er, laest
+      // frisk efter Gem — ikke paa det, runneren lagde i kaldet.
+      const fs = body.fotos ? await fotoSynk(supabase, id, body.fotos, "efter gem") : null;
+      if (fs?.gemt) delete rest.fotos;
 
       if (gemt.length || prisSat) {
         await supabase.from("price_events").insert({
@@ -1719,7 +1762,7 @@ Deno.serve(async (req: Request) => {
 
       return json({
         ok: true,
-        gemt: gemt.map((k) => navne[k] ?? k),
+        gemt: [...gemt, ...(fs?.gemt ? ["fotos"] : [])].map((k) => navne[k] ?? k),
         tilbage: Object.keys(rest).map((k) => navne[k] ?? k),
         naeste: naeste ? String(naeste.external_id) : null,
       });
@@ -1791,7 +1834,20 @@ Deno.serve(async (req: Request) => {
     }
 
     if (body.mode === "clear") {
-      await supabase.from("drafts").update({ selected_at: null }).eq("id", body.id);
+      // De billeder, der faktisk kom med op, i formularens raekkefoelge. Saa
+      // kan Vinteds billeder parres med appens, ogsaa naar et ikke kunne hentes.
+      const sendtUrls = Array.isArray(body.fotos_sendt) ? body.fotos_sendt.map(String) : null;
+      let fotosSendt: Record<string, unknown> | null = null;
+      if (sendtUrls && /^[0-9a-f-]{36}$/i.test(String(body.id ?? ""))) {
+        const { data: dr } = await supabase.from("drafts").select("photos, fotos_sendt").eq("id", body.id).maybeSingle();
+        const efterUrl = new Map(((dr?.photos ?? []) as Array<{ url?: string; path?: string }>)
+          .map((p) => [String(p.url ?? ""), String(p.path ?? "")]));
+        const stier = sendtUrls.map((u) => efterUrl.get(u)).filter((x): x is string => !!x);
+        fotosSendt = { ...((dr?.fotos_sendt ?? {}) as Record<string, unknown>), vinted: stier };
+      }
+      await supabase.from("drafts").update({
+        selected_at: null, ...(fotosSendt ? { fotos_sendt: fotosSendt } : {}),
+      }).eq("id", body.id);
       // Runnerens hele log fra udfyldningen. »clear« naar frem, ogsaa naar
       // de enkelte spor ikke goer (8. oktober, opret-siden).
       if (Array.isArray(body.log) && body.log.length) {

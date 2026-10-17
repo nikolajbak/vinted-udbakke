@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=5a1481ee">
+<link rel="stylesheet" href="style.css?v=9fb2cad4">
 </head>
 <body>
 
@@ -213,6 +213,9 @@
           <input type="number" id="e-price" inputmode="numeric" min="1" step="1"></label>
         <label class="felt"><span>Beskrivelse</span>
           <textarea id="e-desc" rows="8" maxlength="3000"></textarea></label>
+        <!-- Skriver beskrivelsen forfra ud fra det, du har rettet i titel og
+             tekst. Det, du fjernede eller tilfoejede, huskes til naeste vare. -->
+        <button type="button" class="btn btn-secondary" id="e-omskriv">Skriv beskrivelsen forfra ud fra mine rettelser</button>
         <!-- Vinteds vaelgere. De bruges, naar annoncen udfyldes; paa en annonce,
              der allerede er ude, kan de kun rettes paa Vinted. -->
         <div id="e-vaelgere" class="felter">
@@ -229,10 +232,6 @@
       <div id="edit-note"></div>
     </div>
     <div class="footer">
-      <!-- Skriver beskrivelsen forfra ud fra alt, du har rettet: titel, tekst,
-           maerke, stoerrelse, farve, stand, materiale og maal. Det, du fjernede
-           eller tilfoejede i teksten, huskes til naeste vare. -->
-      <button type="button" class="btn btn-secondary" id="e-omskriv">Skriv beskrivelsen forfra ud fra mine rettelser</button>
       <button type="submit" form="edit-form" class="btn btn-primary" id="e-save">Gem</button>
     </div>
   </section>
@@ -321,6 +320,6 @@
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=0149c23b"></script>
+<script src="app.js?v=d56fa805"></script>
 </body>
 </html>

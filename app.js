@@ -685,7 +685,8 @@
       html += '<div class="strip" id="d-strip">' + photos.map(function(p, i){
         return '<img src="' + esc(p.url) + '" data-i="' + i + '" alt="' + esc(p.kind || '') + '">';
       }).join('') + '</div>';
-      html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det.</div>';
+      html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det' +
+        (faerdig ? ' — hold fingeren på det, og træk det for at flytte det.' : '.') + '</div>';
     }
 
     if(faerdig){
@@ -754,9 +755,13 @@
     var strip = $('d-strip');
     if(strip){
       strip.addEventListener('click', function(e){
+        if(strip.__netFlyttet){ strip.__netFlyttet = false; return; }
         var i = e.target.getAttribute && e.target.getAttribute('data-i');
         if(i !== null && i !== undefined) openCrop(d, Number(i));
       });
+      // Under analysen skriver serveren billederne pr. plads (ét kald pr.
+      // foto); en flytning dér ville lande paa de forkerte pladser.
+      if(faerdig) flytbarStribe(strip, d);
     }
 
     // Foden: de tre markedspladser, saa laenge varen ikke er ude nogen steder.
@@ -1739,6 +1744,152 @@
     }, 'image/jpeg', 0.92);
   });
 
+  /* ---- Billedernes raekkefoelge -----------------------------------------
+     Bestemt af dig 17. oktober: billederne kan flyttes med traek og slip, og
+     raekkefoelgen synkroniseres med Vinted begge veje — se fotos.ts i
+     vinted-fill-script. Hold fingeren paa et lille billede, til det
+     loefter sig, og traek det. Et kort tryk beskaerer stadig.
+
+     Beroerings-haendelser, ikke Pointer Events: paa iOS bliver en pointer
+     annulleret, saa snart striben begynder at rulle, og et traek kan kun
+     holde rullen tilbage med preventDefault paa et touchmove, der ikke er
+     passivt. Musen paa en Mac gaar samme vej. */
+  function flytbarStribe(strip, d){
+    var holdt = null, traek = null;
+    function billede(t){ return t && t.tagName === 'IMG' && t.parentNode === strip ? t : null; }
+    function start(el, x, y){
+      holdt = { el: el, x: x, y: y, t: setTimeout(function(){ loeft(); }, 320) };
+    }
+    function loeft(){
+      if(!holdt) return;
+      traek = { el: holdt.el, foer: raekke() };
+      holdt = null;
+      traek.el.classList.add('flyt-loeftet');
+      strip.classList.add('flytter');
+      try{ navigator.vibrate && navigator.vibrate(10); }catch(e){}
+    }
+    function raekke(){
+      return Array.prototype.map.call(strip.children, function(img){ return Number(img.getAttribute('data-i')); });
+    }
+    function flyt(x){
+      var andre = Array.prototype.filter.call(strip.children, function(img){ return img !== traek.el; });
+      var foran = null;
+      for(var k = 0; k < andre.length; k++){
+        var r = andre[k].getBoundingClientRect();
+        if(x < r.left + r.width / 2){ foran = andre[k]; break; }
+      }
+      if(foran !== traek.el.nextSibling || (!foran && strip.lastChild !== traek.el)){
+        strip.insertBefore(traek.el, foran);
+      }
+      // Ved kanten ruller striben med, saa et billede kan naa hele vejen.
+      var sr = strip.getBoundingClientRect();
+      if(x < sr.left + 28) strip.scrollLeft -= 8;
+      else if(x > sr.right - 28) strip.scrollLeft += 8;
+    }
+    function slut(){
+      if(holdt){ clearTimeout(holdt.t); holdt = null; }
+      if(!traek) return;
+      var t = traek; traek = null;
+      t.el.classList.remove('flyt-loeftet');
+      strip.classList.remove('flytter');
+      strip.__netFlyttet = true;
+      setTimeout(function(){ strip.__netFlyttet = false; }, 400);
+      var efter = raekke();
+      if(efter.join() === t.foer.join()) return;
+      var photos = d.photos || [];
+      gemRaekkefoelge(d, efter.map(function(i){ return photos[i]; }));
+    }
+    function annuller(x, y){
+      if(holdt && (Math.abs(x - holdt.x) > 8 || Math.abs(y - holdt.y) > 8)){ clearTimeout(holdt.t); holdt = null; }
+    }
+
+    strip.addEventListener('touchstart', function(e){
+      var el = billede(e.target);
+      if(el && e.touches.length === 1) start(el, e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    strip.addEventListener('touchmove', function(e){
+      var p = e.touches[0];
+      if(traek){ e.preventDefault(); flyt(p.clientX); } else annuller(p.clientX, p.clientY);
+    }, { passive: false });
+    strip.addEventListener('touchend', slut);
+    strip.addEventListener('touchcancel', slut);
+    // Et loeftet billede maa ikke aabne iOS' billedmenu.
+    strip.addEventListener('contextmenu', function(e){ if(billede(e.target)) e.preventDefault(); });
+
+    strip.addEventListener('mousedown', function(e){
+      var el = billede(e.target);
+      if(!el || e.button !== 0) return;
+      e.preventDefault();
+      start(el, e.clientX, e.clientY);
+      function bevaeg(ev){
+        if(holdt && (Math.abs(ev.clientX - holdt.x) > 6)){ clearTimeout(holdt.t); loeft(); }
+        if(traek) flyt(ev.clientX);
+      }
+      function op(){
+        document.removeEventListener('mousemove', bevaeg);
+        document.removeEventListener('mouseup', op);
+        var flyttet = !!traek;
+        slut();
+        if(!flyttet) strip.__netFlyttet = false;
+      }
+      document.addEventListener('mousemove', bevaeg);
+      document.addEventListener('mouseup', op);
+    });
+  }
+
+  // Rod = originalens sti. En beskaering giver en ny fil, men er stadig det
+  // samme billede paa Vinted (samme regel som rod() i fotos.ts).
+  function fotoRod(p){ return String((p && (p.org || p.path)) || ''); }
+  function sammeRaekke(a, b){
+    var A = {}, B = {};
+    a.forEach(function(r){ A[r] = 1; }); b.forEach(function(r){ B[r] = 1; });
+    var x = a.filter(function(r){ return B[r]; }), y = b.filter(function(r){ return A[r]; });
+    return x.length === y.length && x.every(function(r, i){ return r === y[i]; });
+  }
+
+  // Udkastet faar den nye raekkefoelge straks. Ligger varen ude paa Vinted,
+  // laegges raekkefoelgen i annoncens postkasse som enhver anden rettelse:
+  // runneren saetter den selv, naeste gang telefonen har en Vinted-side
+  // aaben (prisvagtens »gaar selv til«). DBA og Reshopper faar raekkefoelgen,
+  // naar varen sendes derhen — en annonce, der allerede er ude dér, kan appen
+  // ikke naa.
+  function gemRaekkefoelge(d, ny){
+    if(!ny.length || ny.some(function(p){ return !p; })) return;
+    var foer = d.photos;
+    d.photos = ny;
+    renderDetail();
+    sb.from('drafts').update({ photos: ny, image_path: ny[0].path || null, image_url: ny[0].url || null })
+      .eq('id', d.id).then(function(res){
+        if(res.error) throw res.error;
+        var l = vintedAnnonce(d);
+        if(!l || !l.external_id || (l.status !== 'aktiv' && l.status !== 'pause')){
+          toast('Rækkefølgen er gemt');
+          return;
+        }
+        var raekke = ny.map(fotoRod);
+        var ude = l.published && l.published.fotos;
+        if(ude && sammeRaekke(ude, raekke)){
+          // Tilbage til det, der staar paa Vinted: intet at sende.
+          if(l.pending && l.pending.fotos){
+            var rest = Object.assign({}, l.pending); delete rest.fotos;
+            var tom = !Object.keys(rest).length;
+            return sb.from('listings').update(tom ? { pending: null, pending_note: null, pending_since: null } : { pending: rest })
+              .eq('id', l.id).then(function(){ toast('Rækkefølgen er som på Vinted igen'); hentAnnoncer(d.id); });
+          }
+          toast('Rækkefølgen er gemt');
+          return;
+        }
+        return koeTilMarkedsplads(d, { fotos: raekke }).then(function(){
+          toast('Gemt — Vinted får rækkefølgen næste gang en Vinted-side er åben i Safari');
+          hentAnnoncer(d.id);
+        });
+      }).catch(function(err){
+        d.photos = foer;
+        renderDetail();
+        toast('Kunne ikke gemme rækkefølgen: ' + (err && err.message ? err.message : 'ukendt fejl'));
+      });
+  }
+
   /* ---- Menu og historik ------------------------------------------------- */
   $('menu-btn').addEventListener('click', function(){ show('menu'); tegnTjek(); });
 
@@ -2487,7 +2638,7 @@
 
   // Hvilke felter venter paa at blive skrevet ind i annoncen? Baade
   // prisvagtens forslag og dine egne rettelser ligger i den samme postkasse.
-  var FELT_NAVNE = { price:'pris', title:'titel', description:'beskrivelse' };
+  var FELT_NAVNE = { price:'pris', title:'titel', description:'beskrivelse', fotos:'billedrækkefølge' };
   function venterFelter(l){
     var p = (l && l.pending) || null;
     if(!p) return [];

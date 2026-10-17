@@ -436,20 +436,27 @@ async function fillMaal(d){
 // Vinted laeser filerne af selve input-feltet. En side maa ikke AABNE
 // filvaelgeren, men den maa godt lagge filer i feltet og sige til - saa
 // billederne kan faktisk komme med hele vejen.
+// De billeder, der faktisk kom med, i formularens rækkefølge. Sendes med
+// »clear«, så serveren kan parre Vinteds billeder med appens (fotos.ts) —
+// nr. 57 fik 11 af 12 op, og så passer pladserne ikke.
+var FOTOS_SENDT=null;
 async function fillPhotos(urls){
  if(!urls||!urls.length)return 'billeder';
  var inp=document.querySelector('[data-testid="add-photos-input"]');
  if(!inp)return 'billeder';
- var dt=new DataTransfer(),n=0;
+ var dt=new DataTransfer(),n=0,med=[];
  for(var i=0;i<urls.length;i++){
   try{
    var b=await(await timedFetch(urls[i],{cache:'no-store'},30000)).blob();
    if(!b.size)continue;
    dt.items.add(new File([b],'foto'+(i+1)+'.jpg',{type:b.type||'image/jpeg'}));
+   med.push(urls[i]);
    n++;
   }catch(e){}
  }
  if(!n)return 'billeder';
+ FOTOS_SENDT=med;
+ if(n<urls.length)spor('billeder: '+n+' af '+urls.length+' kom med',DRAFT_ID);
  inp.files=dt.files;
  inp.dispatchEvent(new Event('change',{bubbles:true}));
  // Vent til miniaturerne staar der, saa uploaden er i gang foer vi gaar videre.
@@ -867,7 +874,8 @@ async function tilsynsrunde(){
   // tilsvarende varer koster i dag — og det er hele grundlaget.
   var felt=await search(f.query||f.title||'',40);
   maalinger.push({id:f.id,price:set.price,favourites:set.favourites,
-                  views:set.views,comparables:felt,udgivet:set.udgivet});
+                  views:set.views,comparables:felt,udgivet:set.udgivet,
+                  fotos:await fotoIds(f.itemId)});
  }
  if(!maalinger.length)return null;
 
@@ -893,6 +901,90 @@ async function tilsynsrunde(){
 // DOM'en lyver, kilden gør ikke.
 var FELT_TIL_INPUT={price:'#price',title:'#title',description:'#description'};
 
+// Billedernes rækkefølge (bestemt af dig 17. oktober), se fotos.ts.
+// /api/v2/item_upload/items/{id} giver annoncens billed-id'er i Vinteds
+// rækkefølge og vejer ~23 kB — annoncesiden vejer ~2 MB (målt 17. oktober).
+// Kun din egen annonce svarer; en andens giver 403.
+async function fotoIds(id){
+ try{
+  var r=await timedFetch('/api/v2/item_upload/items/'+id,
+   {headers:{'Accept':'application/json'},credentials:'include',cache:'no-store'},15000);
+  if(!r.ok)return null;
+  var j=await r.json(),it=(j&&(j.item||j))||{};
+  var ids=(it.photos||[]).map(function(p){return String((p&&p.id)||'')}).filter(Boolean);
+  return ids.length?ids:null;
+ }catch(e){return null}
+}
+
+// Vinteds Gem kalder PUT /api/v2/item_upload/items/{id} med
+// item.assigned_photos i gitterets rækkefølge (updateItem, læst i Vinteds
+// kode 17. oktober). Gitteret er et dnd-kit-gitter, og det kan ikke flyttes
+// sikkert udefra, så rækkefølgen lægges i selve kaldet: de billeder, appen
+// vil have, i appens rækkefølge, resten bagefter, som de stod. Uden en
+// ventende rækkefølge sendes kaldets rækkefølge til appen bagefter — så har
+// du selv flyttet billederne på Vinted.
+var FOTO_OENSKE=null,FOTO_KROG=false;
+function ordnFotos(arr,oenske){
+ var efter={},ud=[];
+ arr.forEach(function(p){efter[String(p&&p.id)]=p});
+ oenske.forEach(function(id){if(efter[id]){ud.push(efter[id]);delete efter[id]}});
+ arr.forEach(function(p){if(efter[String(p&&p.id)])ud.push(p)});
+ return ud;
+}
+function fotoKald(url,metode,krop,itemId){
+ if(!/^put$/i.test(String(metode||''))||typeof krop!=='string')return null;
+ var m=String(url||'').match(/\/item_upload\/items\/(\d+)/);
+ if(!m||m[1]!==itemId)return null;
+ var o;try{o=JSON.parse(krop)}catch(e){return null}
+ var a=o&&o.item&&o.item.assigned_photos;
+ if(!Array.isArray(a)){spor('fotos: gem-kaldet bar ingen assigned_photos');return null}
+ if(FOTO_OENSKE){
+  o.item.assigned_photos=ordnFotos(a,FOTO_OENSKE);
+  spor('fotos: rækkefølgen lagt i gem-kaldet ('+FOTO_OENSKE.length+' af '+a.length+')');
+  FOTO_OENSKE=null;
+  return {krop:JSON.stringify(o),vores:true};
+ }
+ return {krop:krop,vores:false,ids:a.map(function(p){return String(p&&p.id)})};
+}
+async function meldFotos(itemId,ids){
+ try{
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'fotos',item_id:itemId,fotos:ids})},20000);
+  var j=await r.json()||{};
+  spor('fotos: gemt på Vinted'+(j.omordnet?' — appen flyttet efter Vinted':'')+(j.grund?' — '+j.grund:''));
+ }catch(e){}
+}
+function fotoKrog(itemId){
+ if(FOTO_KROG)return;
+ FOTO_KROG=true;
+ var X=XMLHttpRequest.prototype,aabn=X.open,send=X.send;
+ X.open=function(m,u){this.__udbM=m;this.__udbU=u;return aabn.apply(this,arguments)};
+ X.send=function(b){
+  var xhr=this;
+  try{
+   var k=fotoKald(xhr.__udbU,xhr.__udbM,b,itemId);
+   if(k){
+    b=k.krop;
+    if(!k.vores)xhr.addEventListener('load',function(){if(xhr.status>=200&&xhr.status<300)meldFotos(itemId,k.ids)});
+   }
+  }catch(e){}
+  return send.call(xhr,b);
+ };
+ var f=window.fetch;
+ window.fetch=function(inp,init){
+  try{
+   var u=typeof inp==='string'?inp:(inp&&inp.url);
+   var m=(init&&init.method)||(inp&&typeof inp!=='string'&&inp.method)||'GET';
+   var k=init&&fotoKald(u,m,init.body,itemId);
+   if(k){
+    init=Object.assign({},init,{body:k.krop});
+    if(!k.vores)return f.call(this,inp,init).then(function(r){if(r.ok)meldFotos(itemId,k.ids);return r});
+   }
+  }catch(e){}
+  return f.call(this,inp,init);
+ };
+}
+
 async function anvend(post){
  var f=post.felter||{};
  // Prisfeltet er det eneste, der altid er der. Er det ikke dukket op, er vi
@@ -914,6 +1006,13 @@ async function anvend(post){
   if(navn==='price')setPris(el,String(helKroner(f[navn])));else setv(el,String(f[navn]));
   sat.push(navn);
   await sleep(150);
+ }
+ // Rækkefølgen sættes ikke i et felt, men i Gem-kaldet (fotoKrog). Serveren
+ // har allerede tjekket, at den ikke står der i forvejen.
+ if(Array.isArray(f.fotos)&&f.fotos.length){
+  FOTO_OENSKE=f.fotos.map(String);
+  fotoKrog(String(post.itemId));
+  sat.push('fotos');
  }
  if(!sat.length&&allerede.length){
   spor('anvend: '+allerede.join(', ')+' stod allerede i annoncen');
@@ -1039,6 +1138,7 @@ async function bekraeftNu(v){
   set=await laesFrisk(v.itemId);
   if(!set||!set.udgivet)continue;
   ikke=(v.satte||[]).filter(function(navn){
+   if(navn==='fotos')return false;
    var oenske=v.felter[navn], faktisk=set.udgivet[navn];
    return !((navn==='price')
     ? (Math.round(Number(faktisk))===Math.round(Number(oenske)))
@@ -1064,10 +1164,12 @@ async function bekraeftNu(v){
 
 async function kvitter(v,udgivet){
  besoegt(v.itemId);
+ // Billedernes rækkefølge kvitteres på annoncens id'er, læst frisk.
+ var ids=(v.satte||[]).indexOf('fotos')>-1?await fotoIds(v.itemId):null;
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({mode:'anvendt',listing:v.listing,price:udgivet.price,
-    udgivet:udgivet,besoegt:rundeBesoegt()})},20000);
+    udgivet:udgivet,besoegt:rundeBesoegt(),fotos:ids})},20000);
   return await r.json();
  }catch(e){return null}
 }
@@ -1200,10 +1302,13 @@ async function synkroniser(){
 }
 
 async function sendSynk(itemId,set){
+ var ids=set.gone?null:await fotoIds(itemId);
  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({mode:'synk',item_id:String(itemId),gone:!!set.gone,
-   price:set.price,favourites:set.favourites,udgivet:set.udgivet})},20000);
- return await r.json();
+   price:set.price,favourites:set.favourites,udgivet:set.udgivet,fotos:ids})},20000);
+ var j=await r.json();
+ if(j&&j.fotoOmordnet)spor('fotos: '+itemId+' — appen flyttet efter Vinted');
+ return j;
 }
 
 // Synkroniseringen tilbage fra Vinted, uden at du beder om den: står du på en
@@ -1236,18 +1341,23 @@ async function prisvagt(){
  // 2) Står vi på en redigeringsside, som køen peger på? Så sæt prisen.
  var red=location.pathname.match(/^\/items\/(\d+)\/edit/);
  if(red){
-  var k=koeLaes();
-  var post=k&&k.poster.filter(function(p){return String(p.itemId)===red[1]})[0];
-  // Ligger der ingen kø, så spørg serveren. Du kan være kommet hertil fra
-  // appen dage efter, tilsynet traf beslutningen — og beslutningen står
-  // stadig ved magt, selvom køen i browseren for længst er udløbet.
+  // Gemmer du selv, ser krogen billedernes rækkefølge i Gem-kaldet.
+  fotoKrog(red[1]);
+  // Spørg serveren først: dér står alt, der venter — også det, tilsynet
+  // besluttede for dage siden, og billedernes rækkefølge, som kun kan
+  // oversættes til Vinteds id'er med annoncens billeder ved hånden.
+  var post=null;
+  try{
+   var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'pending',item_id:red[1],fotos:await fotoIds(red[1])})},20000);
+   var svj=(await sv.json())||{},pj=svj.pending;
+   if(pj&&pj.fotoGrund)spor('fotos: '+red[1]+' — '+pj.fotoGrund);
+   if(svj.fotoOmordnet)spor('fotos: '+red[1]+' — appen flyttet efter Vinted');
+   if(pj&&Object.keys(pj.felter||{}).length)post={listing:pj.listing,itemId:red[1],felter:pj.felter,fra:pj.fra};
+  }catch(e){}
   if(!post){
-   try{
-    var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({mode:'pending',item_id:red[1]})},20000);
-    var pj=((await sv.json())||{}).pending;
-    if(pj)post={listing:pj.listing,itemId:red[1],felter:pj.felter,fra:pj.fra};
-   }catch(e){}
+   var k=koeLaes();
+   post=k&&k.poster.filter(function(p){return String(p.itemId)===red[1]})[0];
   }
   if(post){
    var kv=await anvend(post);
@@ -1261,6 +1371,15 @@ async function prisvagt(){
      setTimeout(function(){location.href=tb},4000);
     }
    }
+   return true;
+  }
+  // Gik vagten selv hertil, og var der alligevel intet at sætte (fx en
+  // billedrækkefølge, der ikke kan parres), føres du tilbage.
+  var tb0=null; try{tb0=sessionStorage.getItem(TILBAGE)}catch(e){}
+  if(tb0){
+   try{sessionStorage.removeItem(TILBAGE)}catch(e){}
+   spor('vagt: '+red[1]+' intet at sætte, tilbage');
+   setTimeout(function(){location.href=tb0},1500);
    return true;
   }
   return false;
@@ -1659,7 +1778,7 @@ try{
 
  // Markeringen ryddes, så et genindlæs ikke fylder den samme annonce ud igen.
  if(AUTO){try{await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({id:DRAFT_ID,mode:'clear',log:LOG.slice(-150),afvist:AFVIST})},15000)}catch(e){}}
+  body:JSON.stringify({id:DRAFT_ID,mode:'clear',log:LOG.slice(-150),afvist:AFVIST,fotos_sendt:FOTOS_SENDT})},15000)}catch(e){}}
 
  // Nu er det dig, der trykker; skaermen slukker ikke, mens du roerer ved den.
  slip();
