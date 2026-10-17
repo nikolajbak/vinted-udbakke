@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0090 — 2026-10-17 13:09
+
+Commit `a809058` — Haptik: iOS giver intet ryk fra en webside — kun vibrate på Android  
+App: `app.js?v=a1d0c11c` · `style.css?v=869a1d5e`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v87 | `66083c2e` |
+| dba-fill-script | v37 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v28 | `e05b374e` |
+| vinted-fill-script | v102 | `36699a3e` |
+| vinted-mail | v18 | `48755620` |
+
 ## udgivelse-0089 — 2026-10-17 13:01
 
 Commit `5d2dfad` — Træk og slip: haptisk ryk på iPhone via kontakt-tricket  
