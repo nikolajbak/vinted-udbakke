@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0092 — 2026-10-17 13:26
+
+Commit `14d9979` — Redesign: faner i bunden, kort Mere, Opsætning som tjekliste, ryddeligere varens side  
+App: `app.js?v=81d71dd9` · `style.css?v=6c251364`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v87 | `66083c2e` |
+| dba-fill-script | v37 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v28 | `e05b374e` |
+| vinted-fill-script | v102 | `36699a3e` |
+| vinted-mail | v18 | `48755620` |
+
 ## udgivelse-0091 — 2026-10-17 13:15
 
 Commit `ea759c7` — Konto: omsætning, salg pr. måned og AI-udgifter i Mere  
