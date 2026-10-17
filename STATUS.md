@@ -19,6 +19,17 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0000000000000. **Prisvagten tjekker selv — 18. oktober (udgivelse 0098).** Regler i
+   CLAUDE.md under »Prisvagten → Ingen tjek-knap«. Tjek-knappen og
+   forsidens »tjek mod markedet« er væk; nyt dagligt tjek via Genveje
+   (`https://www.vinted.dk/#udbakke=vagt`) og en ny Prisvagt-skærm.
+   **Afprøvet:** skærmen på en prøveside med de rigtige annoncer (46 aktive,
+   20 over et døgn forsinkede), og `mode:'due'` på den udgivne server.
+   **Ikke afprøvet:** den indloggede app, automationen i Genveje på
+   telefonen (åbner den Safari, når telefonen er låst?), og at det daglige
+   tjek sætter priserne og lukker fanen — se `spor` »vagt: dagligt tjek …«
+   og `puls` `prisvagt-dagligt`.
+
 000000000000. **Billedernes rækkefølge — træk og slip, synkroniseret med Vinted
    begge veje — 17. oktober (udgivelse 0084).** Regler i CLAUDE.md under
    »Billedernes rækkefølge«, målinger under »Vinted: billederne i en annonce«.
