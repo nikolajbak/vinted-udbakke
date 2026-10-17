@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0096 — 2026-10-17 14:15
+
+Commit `51f3177` — Solgt eller taget ned på en plads uden tilknyttet annonce (nr. 45)  
+App: `app.js?v=5db18218` · `style.css?v=71624179`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script | v103 | `7ac5efb4` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0095 — 2026-10-17 14:05
 
 Commit `bcc8075` — Redigér: alle markedspladsernes felter — kategori, farve, stand, køn m.m.  
