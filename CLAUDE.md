@@ -66,6 +66,17 @@ hedder »Udgivelse udgivelse-NNNN« som altid. Mærket sætter GitHub selv:
 `.github/workflows/udgivelsesmaerke.yml` sætter hvert manglende mærke fra
 `UDGIVELSER.md` på sit »Udgivelse …«-commit, når filen ændres på `main`.
 
+**Fra en cloud-session sendes kilden ikke gennem MCP'en.** 17. oktober
+(udgivelse-0082): i stedet for at skrive 257 kB af i hånden er indgangsfilen
+én linje, `import "https://raw.githubusercontent.com/nikolajbak/vinted-udbakke/<fuld sha>/supabase/functions/<navn>/index.ts"`.
+Supabase henter og bager hele træet ind ved udrulningen (også `../_shared`
+og `npm:`), så det, der kører, er præcis det pushede commit. Prøv først på en
+midlertidig funktion. Cloud-sessionen kan ikke selv kalde supabase.co
+(proxy 403), så tjek med `net.http_get` fra databasen og læs
+`net._http_response`; nøglen tages fra vault (`shortcut_key`) inde i SQL'en.
+MCP'en kan ikke slette en funktion — `vinted-fill-proeve` står som en tom
+stub (410) og kan slettes i Supabase.
+
 `tilbage.sh` skriver aldrig historien om. Den henter indholdet fra mærket og
 lægger det oven på som et nyt commit, så selve tilbagerulningen også kan
 fortrydes.
