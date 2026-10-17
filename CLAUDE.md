@@ -641,6 +641,11 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
 - **Solgt ét sted = tag den ned de andre steder.** DBA og Reshopper kan ikke
   tages ned af appen, så push-beskeden om salget siger »Slet den også på DBA«,
   og opgaven står, til du trykker **Taget ned** (`drafts.taget_ned`).
+- **Uden en annonce er »taget ned« det, der gør varen solgt** (17. oktober,
+  nr. 45: udfyldt på Vinted, aldrig tilknyttet, solgt — og stod som »ude«
+  uden en knap at trykke på). En sendt plads uden `listings`-række har
+  **Solgt eller taget ned** (`taget_ned`), og `fase()` giver »solgt«, når
+  hver sendt plads er taget ned.
 - **Varens side har én række pr. markedsplads**, med status, hjerter, dage
   og handlinger. Mærker til at pille af er væk; »Ikke sendt alligevel« retter
   en fejlmarkering. En vare, der er ude, kan ikke kasseres — den tages ned

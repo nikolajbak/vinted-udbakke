@@ -401,7 +401,11 @@
     if(l.some(function(x){ return x.status === 'solgt' || x.status === 'afsluttet'; }) &&
        !l.some(function(x){ return x.status === 'aktiv' || x.status === 'pause'; })) return 'solgt';
     if(l.length) return 'ude';
-    var s = sendtTil(d);
+    // Uden en annonce (DBA, Reshopper, en Vinted-annonce der aldrig blev
+    // tilknyttet) er "taget ned" det eneste, der siger, at varen er vaek.
+    var s = sendtTil(d), ned = d.taget_ned || {};
+    var sendteSteder = Object.keys(s).filter(function(k){ return s[k]; });
+    if(sendteSteder.length && sendteSteder.every(function(k){ return ned[k]; })) return 'solgt';
     if(s.vinted || s.dba || s.reshopper || d.status === 'afsendt') return 'ude';
     return 'klar';
   }
@@ -957,6 +961,10 @@
           '<button type="button" class="btn btn-primary" data-a="ned-' + m.k + '">Taget ned</button>';
       }
       if(m.k === 'vinted') krop += knytBlok();
+      // Uden en annonce kender appen ikke salget; det skal kunne siges her.
+      if(!solgtVinted){
+        krop += '<button type="button" class="btn btn-secondary" data-a="ned-' + m.k + '">Solgt eller taget ned</button>';
+      }
       if(f !== 'klar' && !solgtVinted){
         krop += '<button type="button" class="btn btn-secondary" data-a="' + m.a + '">' +
           (m.k === 'vinted' ? 'Udfyld igen' : 'Fortsæt på ' + esc(m.navn)) + '</button>';
