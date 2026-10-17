@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0094 — 2026-10-17 13:53
+
+Commit `0a7c544` — Temavalg i Mere: som enheden, lyst eller mørkt  
+App: `app.js?v=a8b7e5f0` · `style.css?v=ae9cae3c`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v87 | `66083c2e` |
+| dba-fill-script | v37 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v28 | `e05b374e` |
+| vinted-fill-script | v102 | `36699a3e` |
+| vinted-mail | v18 | `48755620` |
+
 ## udgivelse-0093 — 2026-10-17 13:47
 
 Commit `1c5f555` — Ny palet: varm hvid bund, hvide kort, petrol-accent og pille om den aktive fane  
