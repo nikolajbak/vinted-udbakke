@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0087 — 2026-10-17 12:50
+
+Commit `9f54d29` — Billedrækkefølgen: genkend billederne, når Vinted har lagt dem op på ny  
+App: `app.js?v=87d374be` · `style.css?v=9fb2cad4`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v87 | `66083c2e` |
+| dba-fill-script | v37 | `e4683a25` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v28 | `e05b374e` |
+| vinted-fill-script ← | v102 | `36699a3e` |
+| vinted-mail | v18 | `48755620` |
+
 ## udgivelse-0086 — 2026-10-17 12:41
 
 Commit `c0f2020` — Appen siger til, når en annonces billeder ikke kan følge med  
