@@ -212,8 +212,9 @@ i `function_logs`, beviser intet.
 | Erfaringerne lagt ind i prompterne (`hentErfaringer`, med tekstrettelserne `hentTekstRettelser`); rettelserne (`hentRettelser`); `noterTekstRettelse` | `supabase/functions/_shared/laering.ts` |
 | Vinteds bedømmelses-popup lukkes (`vagtPopup`); plaggets mål i Vinteds felter (`fillMaal`) | `…/vinted-fill-script/runner.ts` |
 | Varens fase, opgaverne på forsiden, varens side | `fase()`, `tegnOpgaver()`, `pladsRaekke()` i `app.js` |
-| »Virker det?« i Mere (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
-| »Konto« i Mere (`hentKonto`, `tegnKonto`) — omsætning, salg pr. måned, AI-udgifter; læser `listings` og `forbrug` direkte | `app.js` |
+| »Virker det?« i Mere og Opsætning (`tegnTjek`) — læser `puls` og `vinted_mails` | `app.js`; `puls` skrives af `?script=1` i begge fill-funktioner |
+| Fanerne i bunden (`skiftFane`, `flytFanebar`, `RODER`) | `app.js`, `#fanebar` i `index.html` |
+| Fanen »Konto« (`hentKonto`, `tegnKonto`) — omsætning, salg pr. måned, AI-udgifter; læser `listings` og `forbrug` direkte | `app.js` |
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 | Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
 | Hvad hvert modelkald koster (`noterForbrug`) → tabellen `forbrug` | `supabase/functions/_shared/forbrug.ts` |
@@ -635,8 +636,8 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
 - **Det, der venter på dig, står øverst på forsiden** som opgaver, vigtigst
   først: solgt på Vinted men stadig ude på DBA/Reshopper → analysen fejlede →
   rettelse venter → salgspris mangler → ikke tilknyttet (over en time efter
-  udfyldningen) → tjek mod markedet. Scan og Prisvagt ligger i forsidens fod;
-  menuen hedder »Mere«.
+  udfyldningen) → tjek mod markedet. Den vigtigste står fremme, resten bag
+  ét bånd »N ting mere venter på dig« (se »Appens opbygning«).
 - **Solgt ét sted = tag den ned de andre steder.** DBA og Reshopper kan ikke
   tages ned af appen, så push-beskeden om salget siger »Slet den også på DBA«,
   og opgaven står, til du trykker **Taget ned** (`drafts.taget_ned`).
@@ -649,8 +650,10 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   Mærke, størrelse, farve, stand og materiale kan rettes i udkastet, så længe
   varen er klar; derefter kun på Vinted.
 - **Salgsprisen tastes i et felt på siden**, aldrig i en `window.prompt`.
-- **»Virker det?«** øverst i Mere viser notifikationer, hvornår automatikken
-  til Vinted og DBA sidst blev hentet (`puls`), og den sidste mail fra Vinted.
+- **»Virker det?«** er én linje øverst i Mere (»Alt virker« / »N ting skal
+  ses på«); hvert trin — notifikationer, hvornår automatikken til Vinted og
+  DBA sidst blev hentet (`puls`), den sidste mail fra Vinted — står i
+  Opsætning med sin vejledning.
 - **Optagelsen kan tage flere varer i træk** (»Lav udkast · næste vare«) og
   flere billeder fra Fotos på én gang; de fordeles på trinene i rækkefølge.
 
@@ -694,6 +697,28 @@ stå. `vaagen(min)`/`slip()` i begge runnere (Screen Wake Lock API).
   Safari den uden et tryk, tages den ved første tryk.
 - `spor` »vaagen: …« siger, om den blev holdt, afvist eller ikke findes.
   **Ikke målt på telefonen endnu.**
+
+## Appens opbygning
+
+Bestemt af dig 17. oktober: Mere-menuen var »komplet uoverskuelig« —
+status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
+
+- **Fire faner i bunden**: Lager, Prisvagt, Konto, Mere (`skiftFane`). De er
+  rødder: ingen tilbagepil og ingen post i historien. Der er én
+  fanebjælke (`#fanebar`), og `flytFanebar` flytter den ind i den skærm,
+  der er fremme. Prisvagten har sit tal på fanen, Mere sit, når noget i
+  opsætningen er gået i stå.
+- **Nyt produkt** er en svævende knap over listen; Scan sidder øverst til
+  højre på Lager.
+- **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
+  Opsætning og Log ud. **Opsætning** er en tjekliste — hvert trin med
+  status og vejledningen foldet ind under sig; bogmærket under »Andre
+  måder«. Læg ikke vejledninger tilbage i Mere.
+- **Forsiden**: den vigtigste opgave står fremme, resten bag ét bånd.
+- **Varens side**: billeder, pris (med størrelse · farve · stand) og
+  markedspladserne først. »Tekst og detaljer« (det udfyldte, beskrivelsen,
+  prisnoten) er foldet ud, mens varen er klar, ellers sammen; dit valg
+  huskes pr. vare (`FOLD`).
 
 ## Kortene i listen
 
@@ -900,7 +925,7 @@ næste annonce. Sådan hænger det sammen:
 ## Konto
 
 Bestemt af dig 17. oktober: **en brugervenlig kontooversigt med omsætning og
-andet relevant**, øverst i Mere (`tegnKonto` i `app.js`). Regnes i appen,
+andet relevant**, fanen »Konto« (`tegnKonto` i `app.js`). Regnes i appen,
 hver gang skærmen åbnes; intet gemmes.
 
 - **Omsætningen er Vinteds salg**: `listings.sold_price`, ellers

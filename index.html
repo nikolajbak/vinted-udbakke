@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=54dad8ba">
+<link rel="stylesheet" href="style.css?v=6c251364">
 </head>
 <body>
 
@@ -43,13 +43,10 @@
 
   <section class="screen" id="s-queue" hidden>
     <header class="bar">
-      <div>
-        <div class="label">Vinted &middot; DBA &middot; Reshopper</div>
-        <h1>VintedAuto</h1>
-      </div>
+      <h1>Lager</h1>
       <div class="spacer"></div>
-      <button type="button" class="icon-btn" id="menu-btn" aria-label="Mere">
-        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <button type="button" class="icon-btn" id="fod-scan" aria-label="Scan etiket">
+        <svg viewBox="0 0 24 24"><path d="M4 9V5h4M16 5h4v4M20 15v4h-4M8 19H4v-4M8 12h8"/></svg>
       </button>
     </header>
     <div class="body">
@@ -81,16 +78,27 @@
         <div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>
       </div>
     </div>
-    <div class="footer fod-bund">
-      <button type="button" class="fod-knap" id="fod-scan" aria-label="Scan etiket">
-        <svg viewBox="0 0 24 24"><path d="M4 9V5h4M16 5h4v4M20 15v4h-4M8 19H4v-4M8 12h8"/></svg><span>Scan</span>
+    <!-- Det, man goer oftest, svaever over listen. Fanerne i bunden er appens
+         fire hovedsteder; de flyttes af app.js ind i den aktive skaerm. -->
+    <button type="button" class="ny-knap" id="new-btn">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nyt produkt
+    </button>
+    <nav class="footer fanebar" id="fanebar" aria-label="Hovedmenu">
+      <button type="button" class="fane-knap on" data-til="queue" aria-current="page">
+        <svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"/></svg><span>Lager</span>
       </button>
-      <button type="button" class="btn btn-primary" id="new-btn">Nyt produkt</button>
-      <button type="button" class="fod-knap" id="fod-vagt" aria-label="Prisvagt">
+      <button type="button" class="fane-knap" data-til="vagt">
         <svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg><span>Prisvagt</span>
         <span class="tal fod-tal" id="fod-vagt-tal" hidden></span>
       </button>
-    </div>
+      <button type="button" class="fane-knap" data-til="konto">
+        <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6"/></svg><span>Konto</span>
+      </button>
+      <button type="button" class="fane-knap" data-til="menu">
+        <svg viewBox="0 0 24 24"><path d="M6 12h.01M12 12h.01M18 12h.01"/></svg><span>Mere</span>
+        <span class="tal fod-tal" id="mere-tal" hidden></span>
+      </button>
+    </nav>
   </section>
 
   <section class="screen" id="s-detail" hidden>
@@ -135,73 +143,98 @@
 
   <section class="screen" id="s-menu" hidden>
     <header class="bar">
-      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
-        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
-      </button>
       <h2>Mere</h2>
     </header>
     <div class="body">
-      <!-- Virker opsaetningen? Hver linje siger det med et tidspunkt, ikke med
-           en vejledning. Vejledningerne ligger laengere nede. -->
-      <div class="sect tjek" id="tjek"></div>
-      <button type="button" class="menu-item" id="m-konto">
-        <span>Konto<small>Omsætning, salg og hvad det har kostet</small></span>
-        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
-      </button>
-      <button type="button" class="menu-item" id="m-labels">
-        <span>Etiketter<small>Løbenummer og QR-kode til udprintning</small></span>
-        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
-      </button>
-      <button type="button" class="menu-item" id="m-vagt">
-        <span>Prisvagt<small>Holder øje med det, der ikke er solgt</small></span>
-        <span class="tal" id="vagt-tal" hidden></span>
-        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
-      </button>
-      <button type="button" class="menu-item" id="m-indkob">
-        <span>Hvad skal jeg købe igen?<small>De ubrugte varer, dine salg viser er lette at sælge</small></span>
-        <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
-      </button>
-      <div class="sect setup">
-        <span class="label">Notifikationer</span>
-        <p class="note" id="notif-note">Få besked på telefonen, når et udkast er klar til at blive lagt op. Virker kun i appen på hjemmeskærmen — ikke i et browser-faneblad.</p>
-        <button type="button" class="btn btn-secondary" id="m-notif">Slå notifikationer til</button>
+      <!-- Virker opsaetningen? Én linje her; hvert trin staar under Opsaetning
+           med sit tidspunkt og sin vejledning. -->
+      <button type="button" class="tjek-kort" id="tjek"></button>
+      <div class="gruppe-navn">Værktøjer</div>
+      <div class="gruppe">
+        <button type="button" class="menu-item" id="m-labels">
+          <span>Etiketter<small>Løbenummer og QR-kode til udprintning</small></span>
+          <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+        </button>
+        <button type="button" class="menu-item" id="m-indkob">
+          <span>Hvad skal jeg købe igen?<small>De ubrugte varer, der er lette at sælge</small></span>
+          <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+        </button>
       </div>
-      <div class="sect setup">
-        <span class="label">Helt automatisk</span>
-        <p class="note">Sæt det op én gang, så udfylder annoncen sig selv — kategori, mærke, størrelse, stand, farve, materiale, titel, beskrivelse, pris og billeder — i samme øjeblik du vælger en markedsplads på udkastet. Du skal kun tjekke annoncen og lægge den op.</p>
-        <details>
-          <summary>Sådan sætter du det op</summary>
-        <p class="note">Safari må ikke lade én side køre kode på en anden. Derfor skal den gratis app <b>Userscripts</b> have lov — det er den, der giver markedspladsens side besked.</p>
-        <!-- iOS-trinene staar her; app.js bytter dem ud paa en Mac. -->
-        <ol id="ol-udvidelse">
-          <li>Hent <b>Userscripts</b> i App Store (gratis)</li>
-          <li><b>Indstillinger → Apps → Safari → Udvidelser → Userscripts</b>: slå til, og sæt <b>Alle websteder</b> til <b>Tillad</b></li>
-          <li>Tryk <b>Installér automatikken</b> herunder — koden åbner som ren tekst i Safari</li>
-          <li>Tryk på <b>ᴀA</b> i adresselinjen → <b>Userscripts</b> → tryk <b>Install</b></li>
-        </ol>
-        <p class="note" id="note-udvidelse">Trin 4 er let at overse: installationen sker inde i udvidelsens lille vindue, ikke på selve siden. Ser du kun kode og ingen knap, har udvidelsen ikke fået lov på det websted endnu.</p>
-        </details>
-        <button type="button" class="btn btn-primary" id="m-userscript">Installér automatikken (Vinted)</button>
-        <button type="button" class="btn btn-secondary" id="m-userscript-dba">Installér automatikken (DBA)</button>
-        <button type="button" class="btn btn-secondary" id="m-userscript-luk">Installér fanelukkeren</button>
-        <p class="note">Fanelukkeren lukker Safari-fanen, når et tjek, en opdatering eller en rettelse er færdig. Tilbage til appen kommer du med ◀ øverst til venstre.</p>
+      <div class="gruppe-navn">Opsætning</div>
+      <div class="gruppe">
+        <button type="button" class="menu-item" id="m-opsaet">
+          <span>Automatik og notifikationer<small id="opsaet-tal">Notifikationer, Vinted, DBA og mails</small></span>
+          <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+        </button>
       </div>
-      <div class="sect setup">
-        <span class="label">Eller med et bogmærke</span>
-        <p class="note">Vil du ikke installere noget, gør et bogmærke det samme — du skal bare trykke på det selv, når Vinted-siden er åben. Bogmærket virker kun til Vinted.</p>
-        <ol id="ol-bogmaerke">
-          <li>Tryk <b>Kopiér bogmærke-kode</b></li>
-          <li>I Safari: <b>Del</b> → <b>Tilføj bogmærke</b> → gem i <b>Favoritter</b> som <b>Udfyld Vinted</b></li>
-          <li><b>Bogmærker</b> → <b>Rediger</b> → tryk på det → slet adressen, <b>indsæt</b> koden → <b>Færdig</b></li>
-        </ol>
-        <button type="button" class="btn btn-secondary" id="m-copy">Kopiér bogmærke-kode</button>
-      </div>
-      <div class="sect">
-        <button type="button" class="btn btn-quiet" id="m-logout">Log ud</button>
+      <div class="gruppe">
+        <button type="button" class="menu-item menu-stille" id="m-logout"><span>Log ud</span></button>
       </div>
     </div>
   </section>
-
+  <section class="screen" id="s-opsaet" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>Opsætning</h2>
+    </header>
+    <div class="body">
+      <p class="note">Sættes op én gang. Hvert trin siger selv, om det virker — tryk på det for vejledningen.</p>
+      <div class="gruppe">
+        <details class="trin" data-tjek="notif">
+          <summary><span class="tjek-prik" aria-hidden="true"></span><span class="trin-navn">Notifikationer<small class="trin-status"></small></span></summary>
+          <div class="trin-krop setup">
+            <p class="note" id="notif-note">Få besked på telefonen, når et udkast er klar til at blive lagt op. Virker kun i appen på hjemmeskærmen — ikke i et browser-faneblad.</p>
+            <button type="button" class="btn btn-secondary" id="m-notif">Slå notifikationer til</button>
+          </div>
+        </details>
+        <details class="trin" data-tjek="vinted">
+          <summary><span class="tjek-prik" aria-hidden="true"></span><span class="trin-navn">Automatik, Vinted<small class="trin-status"></small></span></summary>
+          <div class="trin-krop setup">
+            <p class="note">Udfylder annoncen af sig selv — kategori, mærke, størrelse, stand, farve, materiale, titel, beskrivelse, pris og billeder — i samme øjeblik du vælger en markedsplads på udkastet. Du skal kun tjekke annoncen og lægge den op.</p>
+            <p class="note">Safari må ikke lade én side køre kode på en anden. Derfor skal den gratis app <b>Userscripts</b> have lov — det er den, der giver markedspladsens side besked.</p>
+            <!-- iOS-trinene staar her; app.js bytter dem ud paa en Mac. -->
+            <ol id="ol-udvidelse">
+              <li>Hent <b>Userscripts</b> i App Store (gratis)</li>
+              <li><b>Indstillinger → Apps → Safari → Udvidelser → Userscripts</b>: slå til, og sæt <b>Alle websteder</b> til <b>Tillad</b></li>
+              <li>Tryk <b>Installér automatikken</b> herunder — koden åbner som ren tekst i Safari</li>
+              <li>Tryk på <b>ᴀA</b> i adresselinjen → <b>Userscripts</b> → tryk <b>Install</b></li>
+            </ol>
+            <p class="note" id="note-udvidelse">Trin 4 er let at overse: installationen sker inde i udvidelsens lille vindue, ikke på selve siden. Ser du kun kode og ingen knap, har udvidelsen ikke fået lov på det websted endnu.</p>
+            <button type="button" class="btn btn-primary" id="m-userscript">Installér automatikken (Vinted)</button>
+            <button type="button" class="btn btn-secondary" id="m-userscript-luk">Installér fanelukkeren</button>
+            <p class="note">Fanelukkeren lukker Safari-fanen, når et tjek, en opdatering eller en rettelse er færdig. Tilbage til appen kommer du med ◀ øverst til venstre.</p>
+          </div>
+        </details>
+        <details class="trin" data-tjek="dba">
+          <summary><span class="tjek-prik" aria-hidden="true"></span><span class="trin-navn">Automatik, DBA<small class="trin-status"></small></span></summary>
+          <div class="trin-krop setup">
+            <p class="note">Bruger samme udvidelse, <b>Userscripts</b>, som Vinted — se trinene dér. Installér så DBA's egen automatik:</p>
+            <button type="button" class="btn btn-secondary" id="m-userscript-dba">Installér automatikken (DBA)</button>
+          </div>
+        </details>
+        <details class="trin" data-tjek="mail">
+          <summary><span class="tjek-prik" aria-hidden="true"></span><span class="trin-navn">Vinteds mails<small class="trin-status"></small></span></summary>
+          <div class="trin-krop setup">
+            <p class="note">En mailregel sender Vinteds mails videre til appen. Så ser den salg, bud, beskeder og hjerter uden telefonen. Kommer der ingen mails, er reglen ikke sat op.</p>
+          </div>
+        </details>
+      </div>
+      <details class="trin andre">
+        <summary><span class="trin-navn">Andre måder: et bogmærke<small>Uden at installere noget, kun til Vinted</small></span></summary>
+        <div class="trin-krop setup">
+          <p class="note">Et bogmærke gør det samme som automatikken — du skal bare trykke på det selv, når Vinted-siden er åben.</p>
+          <ol id="ol-bogmaerke">
+            <li>Tryk <b>Kopiér bogmærke-kode</b></li>
+            <li>I Safari: <b>Del</b> → <b>Tilføj bogmærke</b> → gem i <b>Favoritter</b> som <b>Udfyld Vinted</b></li>
+            <li><b>Bogmærker</b> → <b>Rediger</b> → tryk på det → slet adressen, <b>indsæt</b> koden → <b>Færdig</b></li>
+          </ol>
+          <button type="button" class="btn btn-secondary" id="m-copy">Kopiér bogmærke-kode</button>
+        </div>
+      </details>
+    </div>
+  </section>
   <section class="screen" id="s-edit" hidden>
     <header class="bar">
       <button type="button" class="icon-btn" data-back aria-label="Tilbage">
@@ -279,9 +312,6 @@
 
   <section class="screen" id="s-vagt" hidden>
     <header class="bar">
-      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
-        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
-      </button>
       <h2>Prisvagt</h2>
     </header>
     <div class="body" id="vagt-body"></div>
@@ -290,9 +320,6 @@
 
   <section class="screen" id="s-konto" hidden>
     <header class="bar">
-      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
-        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
-      </button>
       <h2>Konto</h2>
     </header>
     <div class="body" id="konto-body"></div>
@@ -334,6 +361,6 @@
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=815dcc46"></script>
+<script src="app.js?v=81d71dd9"></script>
 </body>
 </html>

@@ -111,6 +111,7 @@
     var cur = stack.length ? screenEl(stack[stack.length - 1]) : null;
     if(cur === next) return;
     if(opts.replace && stack.length) stack[stack.length-1] = name; else stack.push(name);
+    if(RODER[name] && stack.length === 1) flytFanebar(name);
     // Kun naar vi gaar DYBERE. Bundskaermen skal ikke have sin egen post -
     // ellers kunne man ikke forlade appen med tilbageknappen igen.
     if(stack.length > 1) skygge(!!opts.replace);
@@ -149,6 +150,46 @@
     cur.classList.add('enter-right');
     setTimeout(function(){ cur.hidden = true; cur.classList.remove('enter-right'); }, 280);
   }
+
+  /* ---- Fanerne i bunden ----------------------------------------------------
+     Lager, Prisvagt, Konto og Mere er rødder: et skift dem imellem lægger
+     ingen tilbagepil og ingen post i historien. Der er én fanebjælke; den
+     flyttes ind i den skærm, der er fremme. */
+  var RODER = { queue: 1, vagt: 1, konto: 1, menu: 1 };
+  function flytFanebar(name){
+    var nav = $('fanebar'), s = screenEl(name);
+    if(!nav || !s) return;
+    if(nav.parentNode !== s) s.appendChild(nav);
+    Array.prototype.forEach.call(nav.querySelectorAll('[data-til]'), function(b){
+      var on = b.getAttribute('data-til') === name;
+      b.classList.toggle('on', on);
+      if(on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+  }
+  function hentFane(name){
+    if(name === 'vagt') hentVagt();
+    else if(name === 'konto') hentKonto();
+    else if(name === 'menu') tegnTjek();
+  }
+  function skiftFane(name){
+    var s = screenEl(name);
+    if(stack.length === 1 && stack[0] === name){
+      var b = s.querySelector('.body');
+      if(b) b.scrollTop = 0;
+      return;
+    }
+    stopScan();
+    stack = [name];
+    Array.prototype.forEach.call(document.querySelectorAll('.screen'), function(el){
+      el.classList.remove('enter-right', 'exit-left', 'enter-fade');
+      el.hidden = el !== s;
+    });
+    flytFanebar(name);
+    hentFane(name);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#fanebar [data-til]'), function(b){
+    b.addEventListener('click', function(){ skiftFane(b.getAttribute('data-til')); });
+  });
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function(b){
     b.addEventListener('click', function(){ back(); });
@@ -538,6 +579,7 @@
   // En koeber, der venter paa svar, kommer lige efter en vare, der kan
   // saelges to gange.
   var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5, tjek:6 };
+  var OPG_AABEN = false;
   function opgaveKort(tekst, under, knapper, slags){
     return { o: OPGAVE_ORDEN[slags], h: '<div class="opgave' + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
       '<div class="opgave-tekst"><b>' + tekst + '</b>' + (under ? '<span>' + under + '</span>' : '') + '</div>' +
@@ -611,7 +653,18 @@
     }
     kort.sort(function(a, b){ return a.o - b.o; });
     var el = $('opgaver');
-    el.innerHTML = kort.map(function(k){ return k.h; }).join('');
+    // Den vigtigste staar altid fremme; resten ligger bag ét baand, saa
+    // forsiden ikke bliver en vaeg af opgaver foer lageret.
+    var h = kort.length ? kort[0].h : '';
+    if(kort.length > 1){
+      h += '<details class="opg-baand"' + (OPG_AABEN ? ' open' : '') + '><summary>' +
+        '<span>' + (kort.length - 1) + ' ting mere venter på dig</span>' +
+        '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></summary>' +
+        kort.slice(1).map(function(k){ return k.h; }).join('') + '</details>';
+    }
+    el.innerHTML = h;
+    var baand = el.querySelector('.opg-baand');
+    if(baand) baand.addEventListener('toggle', function(){ OPG_AABEN = baand.open; });
     Array.prototype.forEach.call(el.querySelectorAll('[data-op]'), function(b){
       b.addEventListener('click', function(){ opgave(b.getAttribute('data-op'), b); });
     });
@@ -667,6 +720,7 @@
   // Varens side: billeder, prisen den staar til NU, hvad modellen har udfyldt,
   // og en raekke pr. markedsplads. Hvor varen er, staar i raekken — ikke som
   // maerker, du selv skal pille af igen.
+  var FOLD = {};   // varens side: er »Tekst og detaljer« foldet ud, pr. vare
   function renderDetail(){
     var d = rows[currentId];
     if(!d) return;
@@ -696,8 +750,8 @@
           (faerdig ? '<b class="strip-nr">' + (i === 0 ? 'Forside' : i + 1) + '</b>' : '') + '</div>';
       }).join('') + '</div>';
       if(faerdig) html += '<div class="flyt-vis" id="d-flyt-vis" aria-live="polite"></div>';
-      html += '<div class="note">Swip i billedet for at bladre. Tryk på et lille billede for at beskære det' +
-        (faerdig ? '. <b>Hold fingeren på det</b>, til det løfter sig, og træk det for at flytte det — det første er forsidebilledet.' : '.') + '</div>';
+      html += '<div class="note">Tryk på et lille billede for at beskære det' +
+        (faerdig ? ' · hold fingeren på det og træk for at flytte det' : '') + '.</div>';
     }
 
     if(faerdig){
@@ -712,12 +766,22 @@
         (!live && f === 'klar' && d.price_grounded === false ? '<span class="chip chip-vent">Foreløbig</span>' : '') +
         (live && isFinite(udkast) && udkast !== n ? '<span class="pris-foer">udkast: ' + esc(kr(udkast)) + '</span>' : '') +
         '</div>';
+      var under = [d.size, d.color, d.condition].filter(Boolean).join(' · ');
+      if(under) html += '<div class="d-under">' + esc(under) + '</div>';
       if(!live && f === 'klar' && d.price_grounded === false){
         html += '<div class="note">Prisen er et skøn. Den tjekkes mod rigtige annoncer, når du udfylder på Vinted.</div>';
       }
-      if(d.price_note && f === 'klar') html += '<div class="note">' + esc(d.price_note) + '</div>';
-      html += faktaListe(d, f);
-      if(d.description) html += '<div class="desc">' + esc(d.description) + '</div>';
+      html += '<div class="sect plads-gruppe"><span class="label">Markedspladser</span>' +
+        MARKEDER.map(function(m){ return pladsRaekke(d, m, f); }).join('') + '</div>';
+      // Teksten og det udfyldte er til gennemsyn, foer varen sendes afsted:
+      // aaben, mens varen er klar, ellers klappet sammen. Dit valg huskes.
+      var aaben = FOLD[d.id] !== undefined ? FOLD[d.id] : f === 'klar';
+      html += '<details class="fold" id="d-fold"' + (aaben ? ' open' : '') + '><summary>Tekst og detaljer' +
+        '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></summary>' +
+        (d.price_note && f === 'klar' ? '<div class="note">' + esc(d.price_note) + '</div>' : '') +
+        faktaListe(d, f) +
+        (d.description ? '<div class="desc">' + esc(d.description) + '</div>' : '') +
+        '<div class="note note-luft">Oprettet ' + esc(relTime(d.created_at)) + '</div></details>';
     } else if(failed){
       html += '<div class="warn">' + esc(d.price_note) + '</div>';
     } else if(d.status === 'kladde'){
@@ -729,12 +793,7 @@
     if(d.personal_info){
       html += '<div class="warn">Der blev fundet personlige oplysninger på et af billederne — fx et påsyet navnemærke — og de er automatisk maskeret. Tjek billederne, før du uploader.</div>';
     }
-    html += '<div class="note note-luft">' + esc(relTime(d.created_at)) + '</div>';
-
-    if(faerdig){
-      html += '<div class="sect"><span class="label">Markedspladser</span>' +
-        MARKEDER.map(function(m){ return pladsRaekke(d, m, f); }).join('') + '</div>';
-    }
+    if(!faerdig) html += '<div class="note note-luft">' + esc(relTime(d.created_at)) + '</div>';
 
     // Hjaelpehandlingerne. "Kassér" kun, hvor varen ikke er ude: en aktiv
     // annonce skal tages ned, ikke glemmes i appen, mens den staar paa Vinted.
@@ -742,8 +801,8 @@
     if(faerdig){
       html += '<button type="button" class="btn btn-secondary" data-a="edit">' +
               (f === 'klar' ? 'Redigér udkast' : 'Redigér annonce') + '</button>' +
-              '<button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
-              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button>';
+              '<div class="knap-par"><button type="button" class="btn btn-quiet" data-a="save">Gem billeder i Fotos</button>' +
+              '<button type="button" class="btn btn-quiet" data-a="copy">Kopiér tekst</button></div>';
     }
     if(f === 'klar'){
       html += '<button type="button" class="btn btn-danger" data-a="discard">Kassér udkast</button>';
@@ -752,6 +811,8 @@
     }
     html += '</div>';
     $('d-body').innerHTML = html;
+    var fold = $('d-fold');
+    if(fold) fold.addEventListener('toggle', function(){ FOLD[d.id] = fold.open; });
 
     var track = $('d-track'), dots = $('d-dots');
     if(track && dots){
@@ -847,8 +908,8 @@
       [fk.laengde ? 'længde ' + fk.laengde + ' cm' : '', fk.skulderbredde ? 'skulderbredde ' + fk.skulderbredde + ' cm' : '']
         .filter(Boolean).join(' · '), fk.plagMaalKilde || '');
     if(!r) return '';
-    return '<details class="fakta"' + (f === 'klar' ? ' open' : '') + '><summary class="label">Det, der udfyldes</summary>' +
-      '<div class="udgivet-liste">' + r + '</div></details>';
+    return '<div class="fakta"><span class="label">Det, der udfyldes</span>' +
+      '<div class="udgivet-liste">' + r + '</div></div>';
   }
 
   // En raekke pr. markedsplads: hvor er varen, og hvad kan du goere dér.
@@ -2020,16 +2081,12 @@
   }
 
   /* ---- Menu og historik ------------------------------------------------- */
-  $('menu-btn').addEventListener('click', function(){ show('menu'); tegnTjek(); });
+  $('m-opsaet').addEventListener('click', function(){ show('opsaet'); tegnTjek(); });
+  $('tjek').addEventListener('click', function(){ show('opsaet'); tegnTjek(); });
 
   /* ---- Virker opsaetningen? ----------------------------------------------
      Hver del svarer med et tidspunkt. 2. oktober laa nr. 19-21 ude med en
      runner to udgivelser bagud, uden at det kunne ses nogen steder. */
-  function tjekRaekke(navn, ok, tekst){
-    return '<div class="tjek-rk"><span class="tjek-prik ' + (ok === true ? 'ok' : ok === false ? 'nej' : 'maaske') +
-      '" aria-hidden="true"></span><span class="tjek-navn">' + esc(navn) + '</span>' +
-      '<span class="tjek-tekst">' + esc(tekst) + '</span></div>';
-  }
   function friskhed(iso, dage){
     return iso && (Date.now() - new Date(iso).getTime()) < dage * 86400000;
   }
@@ -2053,11 +2110,33 @@
       var v = auto('vinted-runner'), db = auto('dba-runner');
       var m = mail ? [friskhed(mail.at, 30), 'sidste mail ' + relTime(mail.at)]
                    : [false, 'ingen mails modtaget — ikke sat op'];
-      el.innerHTML = '<span class="label">Virker det?</span>' +
-        tjekRaekke('Notifikationer', notif[0], notif[1]) +
-        tjekRaekke('Automatik, Vinted', v[0], v[1]) +
-        tjekRaekke('Automatik, DBA', db[0], db[1]) +
-        tjekRaekke('Vinteds mails', m[0], m[1]);
+      var res = { notif: notif, vinted: v, dba: db, mail: m };
+      var NAVN = { notif: 'Notifikationer', vinted: 'Vinted', dba: 'DBA', mail: 'mails' };
+      var gale = Object.keys(res).filter(function(k){ return res[k][0] === false; });
+      var ok = Object.keys(res).filter(function(k){ return res[k][0] === true; }).length;
+      Object.keys(res).forEach(function(k){
+        var t = document.querySelector('.trin[data-tjek="' + k + '"]');
+        if(!t) return;
+        t.querySelector('.tjek-prik').className = 'tjek-prik ' +
+          (!puls ? '' : res[k][0] === true ? 'ok' : res[k][0] === false ? 'nej' : 'maaske');
+        t.querySelector('.trin-status').textContent = puls ? res[k][1] : 'tjekker …';
+        t.classList.toggle('galt', !!puls && res[k][0] === false);
+      });
+      if(!puls){
+        el.className = 'tjek-kort';
+        el.innerHTML = '<span class="tjek-prik" aria-hidden="true"></span><span class="tjek-k">Tjekker opsætningen …</span>';
+        return;
+      }
+      el.className = 'tjek-kort ' + (gale.length ? 'nej' : 'ok');
+      el.innerHTML = '<span class="tjek-prik ' + (gale.length ? 'nej' : 'ok') + '" aria-hidden="true"></span>' +
+        '<span class="tjek-k">' + (gale.length
+          ? (gale.length === 1 ? '1 ting skal ses på' : gale.length + ' ting skal ses på') +
+            '<small>' + esc(gale.map(function(k){ return NAVN[k]; }).join(', ')) + '</small>'
+          : 'Alt virker<small>Notifikationer, automatik og mails</small>') + '</span>' +
+        '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>';
+      $('opsaet-tal').textContent = ok + ' af 4 virker';
+      var mt = $('mere-tal');
+      if(mt){ mt.textContent = String(gale.length); mt.hidden = !gale.length; }
     }
     tegn(null, null);
     Promise.all([
@@ -3393,11 +3472,8 @@
     };
   }
 
-  $('m-konto').addEventListener('click', function(){ show('konto'); hentKonto(); });
 
 
-  $('m-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
-  $('fod-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
 
   // Hele lageret hentes med annoncerne paa: fasen, prisen og hjerterne paa
   // kortet kommer fra annoncen, ikke fra udkastet.
@@ -3465,6 +3541,7 @@
 
     hentKoe();
     opdaterVagtTal();
+    tegnTjek();   // tallet paa Mere-fanen, hvis noget i opsaetningen er gaaet i staa
     aabnFraAdresse();
 
     sb.channel('drafts-live').on('postgres_changes',

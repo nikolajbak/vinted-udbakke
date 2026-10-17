@@ -982,10 +982,6 @@
 .kort-hjerter{ font-variant-numeric: tabular-nums; }
 .kort-vent{ color: var(--amber); font-weight: 600; }
 
-/* Foden paa forsiden: scan og prisvagt paa hver sin side af det, man goer
-   oftest. Foer laa begge i en menu, der hed Indstillinger. */
-.fod-bund{ flex-direction: row; align-items: center; gap: var(--s2); }
-.fod-bund .btn{ flex: 1 1 auto; }
 .fod-knap{
   position: relative; flex: 0 0 auto; min-width: 64px; min-height: var(--tap);
   border: 0; background: none; color: var(--ink-soft); cursor: pointer;
@@ -1038,3 +1034,109 @@
 .tjek-prik.nej{ background: var(--danger-tekst); }
 .tjek-navn{ font-weight: 600; }
 .tjek-tekst{ color: var(--ink-soft); min-width: 0; overflow-wrap: anywhere; }
+
+/* ---- Redesign 17. oktober: faner i bunden, grupperede lister ------------
+   Lager, Prisvagt, Konto og Mere er appens fire steder. Mere var en lang
+   side, hvor status, vaerktoejer og engangsvejledninger stod i flaeng. */
+.fanebar{
+  flex-direction: row; gap: 0;
+  padding-top: var(--s1); padding-bottom: calc(var(--s1) + env(safe-area-inset-bottom));
+}
+.fane-knap{
+  position: relative; flex: 1 1 0; min-height: 52px;
+  border: 0; background: none; color: var(--ink-soft); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font: inherit; font-size: var(--t-label); font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.fane-knap svg{ width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8;
+                stroke-linecap: round; stroke-linejoin: round; }
+.fane-knap[data-til="menu"] svg{ stroke-width: 3.2; }
+.fane-knap.on{ color: var(--accent); }
+.fane-knap .fod-tal{ top: 2px; right: calc(50% - 26px); }
+
+/* Nyt produkt svaever over listen, lige over fanerne. */
+.ny-knap{
+  position: absolute; z-index: 2;
+  right: max(var(--s4), calc((100% - var(--maal)) / 2));
+  bottom: calc(60px + var(--s4) + env(safe-area-inset-bottom));
+  height: 52px; padding: 0 var(--s5) 0 var(--s4); border: 0; border-radius: 26px;
+  background: var(--accent); color: var(--accent-ink); box-shadow: var(--skygge);
+  display: inline-flex; align-items: center; gap: var(--s2);
+  font: inherit; font-size: var(--t-body); font-weight: 600; cursor: pointer;
+  transition: transform 90ms ease;
+}
+.ny-knap:active{ transform: scale(0.96); }
+.ny-knap svg{ width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+#s-queue .body{ padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+/* Grupperede lister: hvide flader paa papiret, en linje mellem raekkerne. */
+.gruppe-navn{ font-size: var(--t-small); color: var(--ink-soft); margin: var(--s5) var(--s1) var(--s2); }
+.gruppe{ background: var(--raised); border: 1px solid var(--line); border-radius: 14px;
+         padding: 0 var(--s4); margin-top: var(--s3); }
+.gruppe-navn + .gruppe{ margin-top: 0; }
+.gruppe > .menu-item:last-child, .gruppe > .trin:last-child{ border-bottom: 0; }
+.menu-stille{ color: var(--ink-soft); font-weight: 500; }
+
+/* Status: én linje i Mere, hele tjeklisten under Opsaetning. */
+.tjek-kort{
+  width: 100%; display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4); border-radius: 14px; border: 1px solid var(--line);
+  background: var(--raised); color: var(--ink); font: inherit; font-size: var(--t-body);
+  font-weight: 600; text-align: left; cursor: pointer;
+}
+.tjek-kort.ok{ background: var(--moss-soft); border-color: transparent; }
+.tjek-kort.nej{ background: var(--amber-soft); border-color: transparent; }
+.tjek-kort .tjek-prik{ margin-top: 0; align-self: center; width: 10px; height: 10px; }
+.tjek-kort.nej .tjek-prik{ background: var(--amber); }
+.tjek-k{ flex: 1 1 auto; min-width: 0; }
+.tjek-k small, .trin-navn small, .trin.andre small{
+  display: block; color: var(--ink-soft); font-size: var(--t-small); font-weight: 400; overflow-wrap: anywhere; }
+
+.trin{ border-bottom: 1px solid var(--line); }
+.trin > summary{
+  display: flex; align-items: center; gap: var(--s3); min-height: var(--tap); padding: var(--s3) 0;
+  list-style: none; cursor: pointer; font-weight: 600;
+}
+.trin > summary::-webkit-details-marker{ display: none; }
+.trin > summary::after{ content: '›'; color: var(--ink-soft); font-size: 28px; line-height: 1; font-weight: 400;
+                        transition: transform 140ms ease; }
+.trin[open] > summary::after{ transform: rotate(90deg); }
+.trin > summary .tjek-prik{ margin-top: 0; align-self: center; flex: none; width: 10px; height: 10px; }
+.trin-navn{ flex: 1 1 auto; min-width: 0; }
+.trin.galt .trin-status{ color: var(--danger-tekst); }
+.trin-krop{ padding: 0 0 var(--s4); }
+.trin-krop > .note:first-child{ margin-top: 0; }
+.trin-krop > .btn{ margin-top: var(--s3); }
+.trin-krop > .btn + .btn{ margin-top: var(--s2); }
+.trin.andre{ margin-top: var(--s5); border: 1px solid var(--line); border-radius: 14px;
+             padding: 0 var(--s4); background: var(--raised); }
+
+/* Forsiden: den vigtigste opgave fremme, resten bag ét baand. */
+#opgaver{ display: flex; flex-direction: column; gap: var(--s2); }
+#opgaver:empty{ display: none; }
+.opg-baand{ display: flex; flex-direction: column; }
+.opg-baand > summary{
+  display: flex; align-items: center; gap: var(--s2); min-height: 40px; padding: 0 var(--s3);
+  border-radius: 10px; background: var(--amber-soft); color: var(--amber);
+  list-style: none; cursor: pointer; font-size: var(--t-small); font-weight: 600;
+}
+.opg-baand > summary::-webkit-details-marker{ display: none; }
+.opg-baand > summary span:first-child{ flex: 1; }
+.opg-baand > summary .chev{ color: inherit; transition: transform 140ms ease; }
+.opg-baand[open] > summary .chev{ transform: rotate(90deg); }
+.opg-baand > .opgave{ margin-top: var(--s2); }
+
+/* Varens side: pris og pladser foerst, tekst og detaljer klappet sammen. */
+.d-under{ color: var(--ink-soft); margin-top: var(--s1); }
+.fold{ margin-top: var(--s5); border-top: 1px solid var(--line); }
+.fold > summary{
+  display: flex; align-items: center; justify-content: space-between; min-height: var(--tap);
+  list-style: none; cursor: pointer; font-weight: 600;
+}
+.fold > summary::-webkit-details-marker{ display: none; }
+.fold > summary .chev{ transition: transform 140ms ease; }
+.fold[open] > summary .chev{ transform: rotate(90deg); }
+.fold > .fakta{ margin-top: var(--s2); }
+.knap-par{ display: flex; gap: var(--s2); margin-top: var(--s2); }
+.knap-par .btn{ flex: 1 1 0; }
