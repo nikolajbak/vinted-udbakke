@@ -2082,6 +2082,26 @@
 
   /* ---- Menu og historik ------------------------------------------------- */
   $('m-opsaet').addEventListener('click', function(){ show('opsaet'); tegnTjek(); });
+
+  // Temaet: som enheden, lyst eller moerkt. Gemmes kun paa denne telefon.
+  function tegnTema(){
+    var t = 'enhed';
+    try{ t = localStorage.getItem('udbakke-tema') || 'enhed'; }catch(e){}
+    Array.prototype.forEach.call(document.querySelectorAll('#tema [data-tema]'), function(b){
+      var on = b.getAttribute('data-tema') === t;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#tema [data-tema]'), function(b){
+    b.addEventListener('click', function(){
+      var t = b.getAttribute('data-tema');
+      try{ localStorage.setItem('udbakke-tema', t); }catch(e){}
+      if(window.saetTema) window.saetTema(t);
+      tegnTema();
+    });
+  });
+  tegnTema();
   $('tjek').addEventListener('click', function(){ show('opsaet'); tegnTjek(); });
 
   /* ---- Virker opsaetningen? ----------------------------------------------

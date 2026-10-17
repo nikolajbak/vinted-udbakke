@@ -1148,3 +1148,7 @@
 .fold > .fakta{ margin-top: var(--s2); }
 .knap-par{ display: flex; gap: var(--s2); margin-top: var(--s2); }
 .knap-par .btn{ flex: 1 1 0; }
+
+/* Temavalget i Mere genbruger fanernes segmenter. */
+.tema-valg{ margin-bottom: 0; }
+.tema-valg + .gruppe{ margin-top: var(--s5); }

@@ -711,7 +711,7 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
 - **Nyt produkt** er en svævende knap over listen; Scan sidder øverst til
   højre på Lager.
 - **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
-  Opsætning og Log ud. **Opsætning** er en tjekliste — hvert trin med
+  Opsætning, Udseende (temaet) og Log ud. **Opsætning** er en tjekliste — hvert trin med
   status og vejledningen foldet ind under sig; bogmærket under »Andre
   måder«. Læg ikke vejledninger tilbage i Mere.
 - **Forsiden**: den vigtigste opgave står fremme, resten bag ét bånd.
@@ -726,6 +726,13 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   rav = se på det, rød = galt. Hvert tekst/bund-par holder mindst 4,5:1 i
   begge temaer — mål kontrasten, før en farve rettes. Før var bunden
   grågrøn, kortene beige og accenten aubergine.
+- **Temaet kan vælges** (bestemt af dig 17. oktober): Mere → Udseende,
+  »Som enheden« / »Lyst« / »Mørkt«. Valget gemmes kun på telefonen
+  (`localStorage` `udbakke-tema`: `enhed`/`lys`/`moerk`) og sættes af
+  `saetTema()` i `<head>` i `index.html`, før siden tegnes — ellers blinker
+  den i det forkerte tema. Lyst/Mørkt sætter `data-theme` på `<html>` og
+  begge `theme-color`, så statuslinjen følger med. Knapperne: `tegnTema` i
+  `app.js`. Ret en temafarve to steder: `style.css` og `saetTema`.
 
 ## Kortene i listen
 

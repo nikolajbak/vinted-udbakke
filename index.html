@@ -8,6 +8,22 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121619" media="(prefers-color-scheme: dark)">
+<script>
+/* Temaet saettes, foer siden tegnes, saa den ikke blinker i det forkerte.
+   "enhed" (ingen data-theme) foelger telefonen; "lys"/"moerk" tvinger. */
+window.saetTema = function(t){
+  var r = document.documentElement;
+  if(t === 'lys' || t === 'moerk') r.setAttribute('data-theme', t === 'lys' ? 'light' : 'dark');
+  else r.removeAttribute('data-theme');
+  var m = document.querySelectorAll('meta[name="theme-color"]');
+  for(var i = 0; i < m.length; i++){
+    var lys = m[i].getAttribute('data-lys');
+    if(lys === null){ lys = m[i].getAttribute('media').indexOf('light') > -1 ? '1' : '0'; m[i].setAttribute('data-lys', lys); m[i].setAttribute('data-farve', m[i].content); }
+    m[i].content = t === 'lys' ? '#F6F4EF' : t === 'moerk' ? '#121619' : m[i].getAttribute('data-farve');
+  }
+};
+try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
+</script>
 <title>VintedAuto</title>
 <meta name="description" content="Tag billeder af en vare, og få annoncen skrevet og udfyldt på Vinted, DBA og Reshopper.">
 <link rel="manifest" href="manifest.webmanifest">
@@ -16,7 +32,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=beef3f1a">
+<link rel="stylesheet" href="style.css?v=ae9cae3c">
 </head>
 <body>
 
@@ -166,6 +182,12 @@
           <span>Automatik og notifikationer<small id="opsaet-tal">Notifikationer, Vinted, DBA og mails</small></span>
           <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
         </button>
+      </div>
+      <div class="gruppe-navn">Udseende</div>
+      <div class="faner tema-valg" role="radiogroup" aria-label="Tema" id="tema">
+        <button type="button" role="radio" data-tema="enhed">Som enheden</button>
+        <button type="button" role="radio" data-tema="lys">Lyst</button>
+        <button type="button" role="radio" data-tema="moerk">Mørkt</button>
       </div>
       <div class="gruppe">
         <button type="button" class="menu-item menu-stille" id="m-logout"><span>Log ud</span></button>
@@ -361,6 +383,6 @@
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=81d71dd9"></script>
+<script src="app.js?v=a8b7e5f0"></script>
 </body>
 </html>
