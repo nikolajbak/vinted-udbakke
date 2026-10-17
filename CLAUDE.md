@@ -236,7 +236,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Løbenumre: `drafts.nr` fra en sekvens | `sql/003-loebenummer.sql` |
 | Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
-| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`) | `sql/006-fakta.sql` |
+| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, køn sat af dig `koen`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` | `sql/009-lager.sql` |
@@ -647,8 +647,8 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   (»Taget ned uden salg« sætter annoncen til `afsluttet`).
 - **»Det, der udfyldes« viser kilden og det usikre**: farven »fra mærket« eller
   »skønnet ud fra billedet«, en ny vare uden nypris i rav, målenes kilde.
-  Mærke, størrelse, farve, stand og materiale kan rettes i udkastet, så længe
-  varen er klar; derefter kun på Vinted.
+  Alle markedspladsernes felter kan rettes i udkastet — se »Felterne til
+  markedspladserne«.
 - **Salgsprisen tastes i et felt på siden**, aldrig i en `window.prompt`.
 - **»Virker det?«** er én linje øverst i Mere (»Alt virker« / »N ting skal
   ses på«); hvert trin — notifikationer, hvornår automatikken til Vinted og
@@ -656,6 +656,33 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   Opsætning med sin vejledning.
 - **Optagelsen kan tage flere varer i træk** (»Lav udkast · næste vare«) og
   flere billeder fra Fotos på én gang; de fordeles på trinene i rækkefølge.
+
+## Felterne til markedspladserne
+
+Bestemt af dig 17. oktober: **i »Redigér« kan alle markedspladsernes felter
+rettes — intuitivt og let.** Vinted, DBA og Reshopper læser de samme felter
+i udkastet; DBA og Reshopper oversætter selv til deres ordlyd.
+
+- **Kategori** (Vinteds sti, `category_path`, skrevet »Kvinder › Tøj ›
+  Blazere«; forslag fra dine andre varer), **mærke**, **størrelse** og
+  **materiale** er tekstfelter med forslag (`<datalist>`). **Farve** (Vinteds
+  29 farver med farveprik), **stand** (Vinteds fem med en kort forklaring) og
+  **køn** (DBA og Reshopper: Ikke sat / Pige / Dreng / Unisex) er knapper.
+  Længde og skulderbredde står side om side nederst.
+- Listerne `FARVER`/`STANDE` i `app.js` er Vinteds ordlyd — ret dem sammen
+  med `VINTED_COLORS`/`VINTED_CONDITIONS` i `vinted-fill-script`.
+- Køn gemmes i `fakta.koen` og går forud for Reshoppers gæt på både DBA og
+  Reshopper; `faktaTekst` nævner det for tekstskriverne.
+- Rettes kategorien, bliver `category` dens sidste led. Rettes størrelsen,
+  sættes Vinteds fane (`size_scale`): bogstaver → »S/M/L«, to cifre → »EU«,
+  ellers som før. Rettes et felt, slettes Reshoppers gemte oversættelse
+  (`drafts.reshopper`), så den laves forfra.
+- **Felterne kan rettes, også når varen er ude** — de bruges, når varen
+  sendes til en ny markedsplads. En annonce, der allerede er på Vinted,
+  får dem ikke: Vinteds vælgere kan kun sættes i Vinteds egen formular, og
+  skærmen siger det med et link. (Ikke bygget: at runneren sætter dem på
+  redigeringssiden — Gem kan ikke afprøves fra browserruden.)
+- »Skriv beskrivelsen forfra« ser også rettet kategori og køn.
 
 ## Fanen lukker sig selv
 

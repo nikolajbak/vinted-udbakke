@@ -139,9 +139,11 @@ Deno.serve(async (req) => {
   const o = block.input as Record<string, unknown>;
   // Prisen regnes her. Reshopper regner i oere, og en model regner upaalideligt.
   const kr = helKroner(d.price);
+  // Koennet, du selv har sat i appen, er facit.
+  const koen = String(((d.fakta ?? {}) as Record<string, unknown>).koen ?? "");
   const out = {
     segment: clean(o.segment), category: clean(o.category), conditionType: clean(o.conditionType),
-    brandOrTitle: clean(o.brandOrTitle), age: clean(o.age), size: clean(o.size), gender: clean(o.gender),
+    brandOrTitle: clean(o.brandOrTitle), age: clean(o.age), size: clean(o.size), gender: koen === "Pige" ? "girl" : koen === "Dreng" ? "boy" : koen === "Unisex" ? "" : clean(o.gender),
     description: clean(o.description), extendedDescription: clean(o.extendedDescription),
     priceInKroner: kr, priceInHundreds: kr * 100,
   };

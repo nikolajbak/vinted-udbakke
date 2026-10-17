@@ -527,6 +527,46 @@
     outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus);
   }
 
+  /* Markedspladsernes felter. Faste valg (farve, stand, koen) er knapper,
+     ikke tekstfelter — et tryk i stedet for at huske Vinteds ordlyd. */
+  #e-vaelgere{
+    margin-top: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--line);
+  }
+  .ef-hoved .note{ margin: var(--s1) 0 0; }
+  .ef-hjaelp{ font-size: var(--t-small); color: var(--ink-soft); line-height: 1.4; }
+  .ef-valgt{ font-family: inherit; font-weight: 600; color: var(--ink); letter-spacing: 0; text-transform: none; }
+  .ef-par{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+  .ef-farver{
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px;
+  }
+  .ef-farve{
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    min-height: var(--tap); padding: 6px 2px 5px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--raised); color: var(--ink-soft);
+    font: inherit; font-size: 10.5px; line-height: 1.2; cursor: pointer;
+  }
+  .ef-farve i{
+    width: 22px; height: 22px; border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.14);
+  }
+  .ef-farve span{ max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ef-farve.on{
+    border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 600;
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .ef-stande{ display: flex; flex-direction: column; gap: var(--s2); }
+  .ef-stand{
+    display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+    min-height: var(--tap); padding: var(--s2) var(--s3); border-radius: 10px; text-align: left;
+    border: 1px solid var(--line); background: var(--raised); color: var(--ink);
+    font: inherit; font-size: var(--t-body); cursor: pointer;
+  }
+  .ef-stand b{ font-weight: 600; }
+  .ef-stand small{ font-size: var(--t-small); color: var(--ink-soft); text-align: right; }
+  .ef-stand.on{ border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+  .ef-farve:focus-visible, .ef-stand:focus-visible{ outline: 2px solid var(--focus); outline-offset: 1px; }
+  .ef-koen{ margin-bottom: 0; }
+
   /* ---- Scanner og etiketter ---------------------------------------------- */
   .link-btn{
     background: none; border: 0; padding: var(--s2);

@@ -73,6 +73,8 @@ export function ingenVersaler(titel: string, maerke?: unknown): string {
 // markedsrunden skrive den ud igen uden at vide, at den var slaaet op.
 export type Fakta = {
   ny?: boolean;
+  // Køn sat af dig i appen: »Pige«, »Dreng« eller »Unisex« (DBA og Reshopper).
+  koen?: string;
   nypris?: number;
   nyprisKilde?: string;
   maal?: string;
@@ -130,6 +132,7 @@ export function faktaTekst(f: unknown): string {
     k.egenskaber && `Står på mærkerne: ${k.egenskaber}`,
     (k.laengde || k.skulderbredde) && `Plaggets mål: ${[k.laengde && `længde ${k.laengde} cm`, k.skulderbredde && `skulderbredde ${k.skulderbredde} cm`].filter(Boolean).join(", ")}${k.plagMaalKilde ? ` (${k.plagMaalKilde})` : ""}`,
     k.fejl && `Fejl set ved billedanalysen: ${k.fejl}`,
+    k.koen && `Varen er til: ${k.koen === "Unisex" ? "begge køn (unisex)" : k.koen.toLowerCase()} (sat af sælgeren).`,
   ].filter(Boolean);
   return linjer.length ? "Fakta:\n" + linjer.join("\n") : "Fakta: ingen nypris eller mål slået op.";
 }

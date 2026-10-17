@@ -361,7 +361,7 @@ Deno.serve(async (req: Request) => {
 
     const { data, error } = await supabase
       .from("drafts")
-      .select("id, title, description, price, condition, brand, size, color, material, category_path, photos, reshopper")
+      .select("id, title, description, price, condition, brand, size, color, material, category_path, photos, reshopper, fakta")
       .eq("status", "ny")
       .gte(auto ? "selected_at" : "created_at", auto ? freshSince : "1970-01-01")
       .order("selected_at", { ascending: false, nullsFirst: false })
@@ -378,8 +378,11 @@ Deno.serve(async (req: Request) => {
 
     // Koennet er allerede udledt, hvis annoncen har vaeret klargjort til
     // Reshopper. Er den ikke det, vaelger modellen ud fra varen i stedet.
+    // Dit eget valg i appen (fakta.koen) gaar forud.
     const rs = (data.reshopper ?? {}) as Record<string, unknown>;
-    const gender = rs.gender === "boy" ? "Dreng" : rs.gender === "girl" ? "Pige" : "";
+    const egen = String(((data.fakta ?? {}) as Record<string, unknown>).koen ?? "");
+    const gender = /^(Pige|Dreng|Unisex)$/.test(egen) ? egen
+      : rs.gender === "boy" ? "Dreng" : rs.gender === "girl" ? "Pige" : "";
 
     return json({
       id: data.id,

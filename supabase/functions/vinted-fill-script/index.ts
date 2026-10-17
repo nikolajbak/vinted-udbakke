@@ -1440,7 +1440,8 @@ Deno.serve(async (req: Request) => {
         // De felter, du har rettet i appen, men ikke gemt endnu: de laegges
         // over udkastet i prompten og naevnes, saa det gamle forsvinder.
         const NAVNE: Record<string, string> = { brand: "Mærke", size: "Størrelse", color: "Farve",
-          condition: "Stand", material: "Materiale", laengde: "Længde (cm)", skulderbredde: "Skulderbredde (cm)" };
+          condition: "Stand", material: "Materiale", kategori: "Kategori", koen: "Køn",
+          laengde: "Længde (cm)", skulderbredde: "Skulderbredde (cm)" };
         const raa = (body.felter && typeof body.felter === "object") ? body.felter as Record<string, { fra?: unknown; til?: unknown }> : {};
         const kort = (v: unknown) => (typeof v === "string" || typeof v === "number") ? String(v).trim().slice(0, 120) : "";
         const rettet = { ...d, fakta: { ...((d.fakta as Record<string, unknown>) || {}) } } as Record<string, unknown>;
@@ -1449,6 +1450,13 @@ Deno.serve(async (req: Request) => {
           if (k === "laengde" || k === "skulderbredde") {
             const fk = rettet.fakta as Record<string, unknown>;
             if (f.til) { fk[k] = Number(f.til); fk.plagMaalKilde = "målt af dig"; } else delete fk[k];
+          } else if (k === "kategori") {
+            const sti = f.til.split(/\s*[›>]\s*/).filter(Boolean);
+            rettet.category_path = sti.length ? sti : null;
+            if (sti.length) rettet.category = sti[sti.length - 1];
+          } else if (k === "koen") {
+            const fk = rettet.fakta as Record<string, unknown>;
+            if (f.til) fk.koen = f.til; else delete fk.koen;
           } else rettet[k] = f.til || null;
           // Det, mærkerne eller produktsiden sagde om samme felt, er ikke
           // længere facit — dit er.
@@ -1461,7 +1469,7 @@ Deno.serve(async (req: Request) => {
         });
         // Titlen skrives kun forfra, naar du ikke selv har rettet den, og et
         // felt, der kan staa i den, er rettet. Laengde og skulderbredde kan ikke.
-        const iTitlen = ["brand", "size", "color", "condition", "material"].some((k) => raa[k]);
+        const iTitlen = ["brand", "size", "color", "condition", "material", "kategori"].some((k) => raa[k]);
         const nyTitel = iTitlen && body.titelRettet !== true;
         const ny = await omskriv(rettet, til.title || String(d.title ?? ""),
           til.description, forskel, felter, nyTitel);

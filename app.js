@@ -2272,6 +2272,125 @@
 
   var REDIGERES = null;
   var VAELGERE = ['brand', 'size', 'color', 'condition', 'material'];
+
+  // Vinteds egne vaerdier — samme ordlyd som VINTED_COLORS/VINTED_CONDITIONS
+  // i vinted-fill-script. DBA og Reshopper oversaetter selv fra dem. Ret
+  // listerne begge steder.
+  var FARVER = [
+    ['Sort','#1d1d1d'], ['Grå','#8d9195'], ['Hvid','#ffffff'], ['Flødefarvet','#f3ead3'],
+    ['Beige','#d9c4a0'], ['Abrikos','#f4b88a'], ['Orange','#ec7a2c'], ['Koral','#f2766b'],
+    ['Rød','#c8282d'], ['Bourgogne','#6e1a2b'], ['Lyserød','#f6b6c8'], ['Rosa','#e98aa6'],
+    ['Lilla','#7b3f9a'], ['Lyslilla','#c6a8dd'], ['Lyseblå','#9fc8ec'], ['Blå','#2c62c4'],
+    ['Marineblå','#1f2c4f'], ['Turkis','#2bb3b1'], ['Mintgrøn','#a8e0c4'], ['Grøn','#3c9a4a'],
+    ['Mørkegrøn','#24452f'], ['Khaki','#837c4f'], ['Brun','#6e4a2e'], ['Sennepsgul','#d1a32a'],
+    ['Gul','#f5d63d'], ['Sølv','linear-gradient(135deg,#eef0f2,#a5abb2)'],
+    ['Guld','linear-gradient(135deg,#f7e08a,#b88a2a)'],
+    ['Flerfarvet','conic-gradient(#e53935,#fbc02d,#43a047,#1e88e5,#8e24aa,#e53935)'],
+    ['Klar','repeating-linear-gradient(45deg,#fff 0 4px,#dfe5e8 4px 8px)']
+  ];
+  var STANDE = [
+    ['Ny med prismærker', 'Ubrugt, prismærket sidder på'],
+    ['Ny uden prismærker', 'Ubrugt, uden prismærke'],
+    ['Meget god', 'Brugt lidt, ingen fejl'],
+    ['God', 'Brugt, få tegn på brug'],
+    ['Tilfredsstillende', 'Tydeligt brugt, med fejl']
+  ];
+  var MATERIALER = ['Bomuld', 'Polyester', 'Uld', 'Merinould', 'Kashmir', 'Hør', 'Silke', 'Viskose',
+    'Lyocell', 'Modal', 'Nylon', 'Elastan', 'Akryl', 'Denim', 'Fleece', 'Strik', 'Dun', 'Læder',
+    'Ruskind', 'Kunstlæder', 'Fløjl', 'Satin', 'Gore-Tex', 'Softshell', 'Gummi', 'Træ', 'Metal', 'Plastik'];
+  var STOERRELSER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Én størrelse',
+    '34', '36', '38', '40', '42', '44', '46', '48',
+    '56 cm', '62 cm', '68 cm', '74 cm', '80 cm', '86 cm', '92 cm', '98 cm', '104 cm', '110 cm',
+    '116 cm', '122 cm', '128 cm', '134 cm', '140 cm', '146 cm', '152 cm', '158 cm', '164 cm', '170 cm'];
+
+  // Kategorien staar som Vinteds sti; i feltet skrives den »Kvinder › Tøj«.
+  function stiTekst(sti){ return Array.isArray(sti) ? sti.join(' › ') : ''; }
+  function stiAf(t){
+    return String(t || '').split(/\s*[›>\/]\s*/).map(function(x){ return x.trim(); }).filter(Boolean);
+  }
+
+  // Forslagene i felterne: Vinteds lister og det, dine andre varer har.
+  function fyldForslag(id, vaerdier){
+    var set = {}, ud = [];
+    vaerdier.forEach(function(v){
+      v = String(v || '').trim();
+      if(v && !set[v.toLowerCase()]){ set[v.toLowerCase()] = 1; ud.push(v); }
+    });
+    $(id).innerHTML = ud.map(function(v){ return '<option value="' + esc(v) + '">'; }).join('');
+  }
+  function forslag(){
+    var alle = Object.keys(rows).map(function(k){ return rows[k]; });
+    fyldForslag('dl-kategori', alle.map(function(r){ return stiTekst(r.category_path); }).sort());
+    fyldForslag('dl-brand', alle.map(function(r){ return r.brand; }).sort(function(a, b){
+      return String(a || '').localeCompare(String(b || ''), 'da'); }));
+    fyldForslag('dl-size', STOERRELSER.concat(alle.map(function(r){ return r.size; })));
+    fyldForslag('dl-material', MATERIALER.concat(alle.map(function(r){ return r.material; })));
+  }
+
+  // Farve og stand er Vinteds faste valg, saa de vaelges med et tryk i stedet
+  // for at blive tastet. En farve uden for listen (fra foer reglen) vises som
+  // sin egen knap, saa den ikke forsvinder i stilhed.
+  function tegnFarver(){
+    var v = $('e-color').value;
+    var liste = FARVER.slice();
+    if(v && !FARVER.some(function(f){ return f[0] === v; })) liste.push([v, 'var(--surface)']);
+    $('e-farver').innerHTML = liste.map(function(f){
+      var on = f[0] === v;
+      return '<button type="button" role="radio" class="ef-farve' + (on ? ' on' : '') + '" aria-checked="' + on +
+        '" data-farve="' + esc(f[0]) + '" title="' + esc(f[0]) + '"><i style="background:' + f[1] + '"></i>' +
+        '<span>' + esc(f[0]) + '</span></button>';
+    }).join('');
+    $('e-color-vist').textContent = v ? '· ' + v : '· ikke valgt';
+  }
+  function tegnStande(){
+    var v = $('e-condition').value;
+    var liste = STANDE.slice();
+    if(v && !STANDE.some(function(x){ return x[0] === v; })) liste.push([v, '']);
+    $('e-stande').innerHTML = liste.map(function(x){
+      var on = x[0] === v;
+      return '<button type="button" role="radio" class="ef-stand' + (on ? ' on' : '') + '" aria-checked="' + on +
+        '" data-stand="' + esc(x[0]) + '"><b>' + esc(x[0]) + '</b>' + (x[1] ? '<small>' + esc(x[1]) + '</small>' : '') + '</button>';
+    }).join('');
+  }
+  function tegnKoen(v){
+    Array.prototype.forEach.call(document.querySelectorAll('#e-koen [data-koen]'), function(b){
+      var on = b.getAttribute('data-koen') === (v || '');
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+  function valgtKoen(){
+    var b = document.querySelector('#e-koen .on');
+    return b ? b.getAttribute('data-koen') : '';
+  }
+  $('e-farver').addEventListener('click', function(e){
+    var b = e.target.closest('[data-farve]');
+    if(!b) return;
+    var f = b.getAttribute('data-farve');
+    // Et tryk paa den valgte farve fjerner den igen.
+    $('e-color').value = $('e-color').value === f ? '' : f;
+    tegnFarver();
+  });
+  $('e-stande').addEventListener('click', function(e){
+    var b = e.target.closest('[data-stand]');
+    if(!b) return;
+    $('e-condition').value = b.getAttribute('data-stand');
+    tegnStande();
+  });
+  $('e-koen').addEventListener('click', function(e){
+    var b = e.target.closest('[data-koen]');
+    if(b) tegnKoen(b.getAttribute('data-koen'));
+  });
+
+  // Vinteds stoerrelsesvaelger har faner (S/M/L, EU …). Retter du
+  // stoerrelsen, skal fanen passe til den nye — ellers leder runneren i den
+  // forkerte. Boernestoerrelser i cm regnes om af serveren selv.
+  function stoerrelsesSkala(size, gammel){
+    var t = String(size || '').trim();
+    if(/^(\d?X{0,3}[SL]|M|X{1,3}L|\dXL)$/i.test(t)) return 'S/M/L';
+    if(/^\d{2}([.,]5)?$/.test(t)) return 'EU';
+    return gammel || null;
+  }
   // Den Vinted-annonce, rettelsen skal ud i — og det, der står i den lige nu.
   var REDIGERES_ANNONCE = null;
   // Teksten, du startede fra paa redigeringsskaermen — eller den, modellen
@@ -2327,11 +2446,17 @@
     $('e-price').value = String(prisTal(d.price) || '');
     REDIGERES_GRUNDLAG = { title: d.title || '', description: d.description || '' };
     VAELGERE.forEach(function(k){ $('e-' + k).value = d[k] || ''; });
+    $('e-kategori').value = stiTekst(d.category_path);
     $('e-laengde').value = (d.fakta || {}).laengde || '';
     $('e-skulder').value = (d.fakta || {}).skulderbredde || '';
-    // Vinteds vaelgere kan kun saettes, naar annoncen oprettes. Er varen
-    // ude, rettes de paa Vinted — her ville det kun aendre udkastet.
-    $('e-vaelgere').hidden = fase(d) !== 'klar';
+    tegnFarver(); tegnStande(); tegnKoen((d.fakta || {}).koen || '');
+    forslag();
+    // Felterne kan altid rettes: de bruges hver gang varen sendes til en
+    // markedsplads. En annonce, der allerede er ude paa Vinted, faar dem dog
+    // ikke — Vinteds vaelgere kan kun saettes i Vinteds egen formular.
+    $('e-vaelgere-note').textContent = fase(d) === 'klar'
+      ? 'Bruges af Vinted, DBA og Reshopper, når varen sendes derhen.'
+      : 'Bruges, når varen sendes til en ny markedsplads.';
     $('e-save').textContent = 'Gem';
     $('edit-note').innerHTML = '';
     show('edit');
@@ -2354,6 +2479,9 @@
             $('e-price').value = String(nu.price);
           $('e-save').textContent = 'Gem og send til Vinted';
         }
+        if(vinted) $('e-vaelgere-note').innerHTML = 'Bruges, når varen sendes til DBA eller Reshopper. ' +
+          'Annoncen på Vinted har sine egne — dem retter du på <a href="x-safari-https://www.vinted.dk/items/' +
+          esc(vinted.external_id) + '/edit">Vinted</a>.';
         var p = l.map(function(x){ return markedsNavn(x.platform); });
         // Det, der i forvejen ligger i postkassen, gaar med ud ved samme tryk.
         // Det skal du vide, foer du trykker — ikke opdage paa Vinted.
@@ -2376,12 +2504,14 @@
   // gemt endnu, men beskrivelsen skal kunne skrives forfra ud fra dem.
   function feltRettelser(d){
     var ud = {};
-    if($('e-vaelgere').hidden) return ud;
     VAELGERE.forEach(function(k){
       var v = $('e-' + k).value.trim();
       if(!ensLyd(v, d[k])) ud[k] = { fra: d[k] || '', til: v };
     });
     var fk = d.fakta || {};
+    var kat = stiTekst(stiAf($('e-kategori').value));
+    if(kat !== stiTekst(d.category_path)) ud.kategori = { fra: stiTekst(d.category_path), til: kat };
+    if(valgtKoen() !== (fk.koen || '')) ud.koen = { fra: fk.koen || '', til: valgtKoen() };
     var lg = cmTal($('e-laengde').value), sk = cmTal($('e-skulder').value);
     if(lg !== (fk.laengde || null)) ud.laengde = { fra: fk.laengde || '', til: lg || '' };
     if(sk !== (fk.skulderbredde || null)) ud.skulderbredde = { fra: fk.skulderbredde || '', til: sk || '' };
@@ -2453,23 +2583,35 @@
     if(!ensLyd(nyTekst, nu.description)) aendret.description = nyTekst;
     if(isFinite(nyPrisTal) && nyPrisTal > 0 && nyPrisTal !== nu.price) aendret.price = nyPrisTal;
     var vaelg = {};
-    if(!$('e-vaelgere').hidden){
-      VAELGERE.forEach(function(k){
-        var v = $('e-' + k).value.trim();
-        if(!ensLyd(v, d[k])) vaelg[k] = v || null;
-      });
-      // Plaggets mål, du selv har målt, er de sikreste. De ligger i fakta,
-      // og Vinted-runneren skriver dem i »Længde« og »Skulderbredde«.
-      var fk = d.fakta || {};
-      var lg = cmTal($('e-laengde').value), sk = cmTal($('e-skulder').value);
-      if(lg !== (fk.laengde || null) || sk !== (fk.skulderbredde || null)){
-        var nyF = Object.assign({}, fk);
-        if(lg) nyF.laengde = lg; else delete nyF.laengde;
-        if(sk) nyF.skulderbredde = sk; else delete nyF.skulderbredde;
-        if(lg || sk) nyF.plagMaalKilde = 'målt af dig'; else delete nyF.plagMaalKilde;
-        vaelg.fakta = nyF;
-      }
+    VAELGERE.forEach(function(k){
+      var v = $('e-' + k).value.trim();
+      if(!ensLyd(v, d[k])) vaelg[k] = v || null;
+    });
+    if('size' in vaelg) vaelg.size_scale = stoerrelsesSkala(vaelg.size, d.size_scale);
+    var sti = stiAf($('e-kategori').value);
+    if(stiTekst(sti) !== stiTekst(d.category_path)){
+      vaelg.category_path = sti.length ? sti : null;
+      // Varetypen paa kortet er kategoriens sidste led.
+      if(sti.length) vaelg.category = sti[sti.length - 1];
     }
+    // Plaggets mål, du selv har målt, er de sikreste. De ligger i fakta,
+    // og Vinted-runneren skriver dem i »Længde« og »Skulderbredde«. Koennet
+    // (DBA og Reshopper) ligger ogsaa i fakta.
+    var fk = d.fakta || {};
+    var lg = cmTal($('e-laengde').value), sk = cmTal($('e-skulder').value);
+    var koen = valgtKoen();
+    if(lg !== (fk.laengde || null) || sk !== (fk.skulderbredde || null) || koen !== (fk.koen || '')){
+      var nyF = Object.assign({}, fk);
+      if(lg) nyF.laengde = lg; else delete nyF.laengde;
+      if(sk) nyF.skulderbredde = sk; else delete nyF.skulderbredde;
+      if(lg !== (fk.laengde || null) || sk !== (fk.skulderbredde || null)){
+        if(lg || sk) nyF.plagMaalKilde = 'målt af dig'; else delete nyF.plagMaalKilde;
+      }
+      if(koen) nyF.koen = koen; else delete nyF.koen;
+      vaelg.fakta = nyF;
+    }
+    // Reshoppers oversaettelse er gemt; er et felt rettet, laves den forfra.
+    if(Object.keys(vaelg).length && d.reshopper) vaelg.reshopper = null;
     var udkastAendret = !ensLyd(nyTitel, d.title) || !ensLyd(nyTekst, d.description) ||
       (isFinite(nyPrisTal) && nyPrisTal > 0 && nyPrisTal !== prisTal(d.price)) ||
       Object.keys(vaelg).length > 0;

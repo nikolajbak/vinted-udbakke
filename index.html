@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=ae9cae3c">
+<link rel="stylesheet" href="style.css?v=71624179">
 </head>
 <body>
 
@@ -272,21 +272,54 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
           <input type="number" id="e-price" inputmode="numeric" min="1" step="1"></label>
         <label class="felt"><span>Beskrivelse</span>
           <textarea id="e-desc" rows="8" maxlength="3000"></textarea></label>
-        <!-- Skriver beskrivelsen forfra ud fra det, du har rettet i titel og
-             tekst. Det, du fjernede eller tilfoejede, huskes til naeste vare. -->
-        <button type="button" class="btn btn-secondary" id="e-omskriv">Skriv beskrivelsen forfra ud fra mine rettelser</button>
-        <!-- Vinteds vaelgere. De bruges, naar annoncen udfyldes; paa en annonce,
-             der allerede er ude, kan de kun rettes paa Vinted. -->
+        <!-- Markedspladsernes felter. Vinted, DBA og Reshopper laeser alle
+             de samme: det, du saetter her, bruges, naar varen sendes derhen. -->
         <div id="e-vaelgere" class="felter">
-          <span class="label">Til udfyldningen</span>
-          <label class="felt"><span>Mærke</span><input type="text" id="e-brand" autocomplete="off"></label>
-          <label class="felt"><span>Størrelse</span><input type="text" id="e-size" autocomplete="off"></label>
-          <label class="felt"><span>Farve</span><input type="text" id="e-color" autocomplete="off"></label>
-          <label class="felt"><span>Stand</span><input type="text" id="e-condition" autocomplete="off"></label>
-          <label class="felt"><span>Materiale</span><input type="text" id="e-material" autocomplete="off"></label>
-          <label class="felt"><span>Længde (cm)</span><input type="text" inputmode="numeric" id="e-laengde" autocomplete="off" placeholder="plaggets længde"></label>
-          <label class="felt"><span>Skulderbredde (cm)</span><input type="text" inputmode="numeric" id="e-skulder" autocomplete="off" placeholder="målt over ryggen"></label>
+          <div class="ef-hoved">
+            <span class="label">Til markedspladserne</span>
+            <p class="note" id="e-vaelgere-note">Bruges af Vinted, DBA og Reshopper, når varen sendes derhen.</p>
+          </div>
+          <label class="felt"><span>Kategori</span>
+            <input type="text" id="e-kategori" list="dl-kategori" autocomplete="off" placeholder="fx Kvinder › Tøj › Blazere">
+            <small class="ef-hjaelp">Vinteds kategorier, fra øverst til nederst. DBA vælger sin egen ud fra den.</small></label>
+          <label class="felt"><span>Mærke</span>
+            <input type="text" id="e-brand" list="dl-brand" autocomplete="off" autocapitalize="words"></label>
+          <label class="felt"><span>Størrelse</span>
+            <input type="text" id="e-size" list="dl-size" autocomplete="off" autocapitalize="characters"
+                   placeholder="fx M, 38 eller 128 cm til børn"></label>
+          <div class="felt" role="group" aria-labelledby="ef-farve-t">
+            <span id="ef-farve-t">Farve <b class="ef-valgt" id="e-color-vist"></b></span>
+            <div class="ef-farver" id="e-farver" role="radiogroup" aria-label="Farve"></div>
+            <input type="hidden" id="e-color">
+          </div>
+          <div class="felt" role="group" aria-labelledby="ef-stand-t">
+            <span id="ef-stand-t">Stand</span>
+            <div class="ef-stande" id="e-stande" role="radiogroup" aria-label="Stand"></div>
+            <input type="hidden" id="e-condition">
+          </div>
+          <label class="felt"><span>Materiale</span>
+            <input type="text" id="e-material" list="dl-material" autocomplete="off" placeholder="fx Bomuld"></label>
+          <div class="felt" role="group" aria-labelledby="ef-koen-t">
+            <span id="ef-koen-t">Køn · DBA og Reshopper</span>
+            <div class="faner ef-koen" id="e-koen" role="radiogroup" aria-label="Køn">
+              <button type="button" role="radio" data-koen="">Ikke sat</button>
+              <button type="button" role="radio" data-koen="Pige">Pige</button>
+              <button type="button" role="radio" data-koen="Dreng">Dreng</button>
+              <button type="button" role="radio" data-koen="Unisex">Unisex</button>
+            </div>
+          </div>
+          <div class="ef-par">
+            <label class="felt"><span>Længde (cm)</span><input type="text" inputmode="numeric" id="e-laengde" autocomplete="off" placeholder="plaggets"></label>
+            <label class="felt"><span>Skulder (cm)</span><input type="text" inputmode="numeric" id="e-skulder" autocomplete="off" placeholder="over ryggen"></label>
+          </div>
+          <datalist id="dl-kategori"></datalist>
+          <datalist id="dl-brand"></datalist>
+          <datalist id="dl-size"></datalist>
+          <datalist id="dl-material"></datalist>
         </div>
+        <!-- Skriver beskrivelsen forfra ud fra det, du har rettet — i titel,
+             tekst eller felterne ovenfor. Staar nederst, lige over Gem. -->
+        <button type="button" class="btn btn-secondary" id="e-omskriv">Skriv beskrivelsen forfra ud fra mine rettelser</button>
       </form>
       <div id="edit-note"></div>
     </div>
@@ -383,6 +416,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=a8b7e5f0"></script>
+<script src="app.js?v=8abc3f74"></script>
 </body>
 </html>
