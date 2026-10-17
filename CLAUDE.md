@@ -373,7 +373,12 @@ markedspladsernes — og brug læringen fremover.**
   fra mine rettelser** en ny, komplet beskrivelse (`mode:'omskriv'`,
   `omskriv()` i `vinted-fill-script`): din titel står urørt, det du
   tilføjede skal med, det du fjernede kommer ikke igen. Teksten gemmes
-  først ved dit Gem.
+  først ved dit Gem. Knappen står nederst, lige over Gem (bestemt af dig
+  17. oktober), og virker, så snart et hvilket som helst felt er rettet:
+  titel, tekst, mærke, størrelse, farve, stand, materiale, længde eller
+  skulderbredde. De rettede felter (`felter`, ikke gemt endnu) lægges over
+  udkastet i prompten som facit, og det, mærkerne/produktsiden sagde om
+  samme felt (`maerkeFarve`, `materialer`, `produktMaerke`, `ny`), tages ud.
   - Læringen er kun DIN forskel: appen sender teksten, du startede fra
     (`REDIGERES_GRUNDLAG`), og efter en omskrivning er grundlaget modellens
     tekst. `noterTekstRettelse` gemmer en rettelse pr. gang: `title` (hele

@@ -1992,23 +1992,42 @@
       });
   }
 
+  // De felter, du har rettet i forhold til udkastet — maerke, stoerrelse,
+  // farve, stand, materiale og maal — som { felt: { fra, til } }. De er ikke
+  // gemt endnu, men beskrivelsen skal kunne skrives forfra ud fra dem.
+  function feltRettelser(d){
+    var ud = {};
+    if($('e-vaelgere').hidden) return ud;
+    VAELGERE.forEach(function(k){
+      var v = $('e-' + k).value.trim();
+      if(!ensLyd(v, d[k])) ud[k] = { fra: d[k] || '', til: v };
+    });
+    var fk = d.fakta || {};
+    var lg = cmTal($('e-laengde').value), sk = cmTal($('e-skulder').value);
+    if(lg !== (fk.laengde || null)) ud.laengde = { fra: fk.laengde || '', til: lg || '' };
+    if(sk !== (fk.skulderbredde || null)) ud.skulderbredde = { fra: fk.skulderbredde || '', til: sk || '' };
+    return ud;
+  }
+
   // Din rettelse af titel og tekst, sendt til serveren (mode:'omskriv'), som
   // noterer det fjernede og det tilfoejede i rettelser. Med skriv:true kommer
-  // en ny, komplet beskrivelse tilbage.
+  // en ny, komplet beskrivelse tilbage, skrevet ud fra felterne, som de staar.
   function sendTekstRettelse(d, skriv){
     return fetch(FILL_API, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ mode:'omskriv', id: d.id, skriv: !!skriv,
         fra: REDIGERES_GRUNDLAG,
-        title: $('e-title').value.trim(), description: $('e-desc').value.trim() })
+        title: $('e-title').value.trim(), description: $('e-desc').value.trim(),
+        felter: skriv ? feltRettelser(d) : undefined })
     }).then(function(r){ return r.json(); });
   }
 
   $('e-omskriv').addEventListener('click', function(){
     var d = REDIGERES, knap = $('e-omskriv');
     if(!d || !REDIGERES_GRUNDLAG) return;
-    if(ensLyd($('e-title').value, REDIGERES_GRUNDLAG.title) && ensLyd($('e-desc').value, REDIGERES_GRUNDLAG.description)){
-      toast('Ret først i titlen eller beskrivelsen'); return;
+    if(ensLyd($('e-title').value, REDIGERES_GRUNDLAG.title) && ensLyd($('e-desc').value, REDIGERES_GRUNDLAG.description) &&
+      !Object.keys(feltRettelser(d)).length){
+      toast('Ret først i et felt — titel, tekst, mærke, farve …'); return;
     }
     var tekst = knap.textContent;
     knap.disabled = true; knap.textContent = 'Skriver …';

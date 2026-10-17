@@ -213,9 +213,6 @@
           <input type="number" id="e-price" inputmode="numeric" min="1" step="1"></label>
         <label class="felt"><span>Beskrivelse</span>
           <textarea id="e-desc" rows="8" maxlength="3000"></textarea></label>
-        <!-- Skriver beskrivelsen forfra ud fra det, du har rettet i titel og
-             tekst. Det, du fjernede eller tilfoejede, huskes til naeste vare. -->
-        <button type="button" class="btn btn-secondary" id="e-omskriv">Skriv beskrivelsen forfra ud fra mine rettelser</button>
         <!-- Vinteds vaelgere. De bruges, naar annoncen udfyldes; paa en annonce,
              der allerede er ude, kan de kun rettes paa Vinted. -->
         <div id="e-vaelgere" class="felter">
@@ -232,6 +229,10 @@
       <div id="edit-note"></div>
     </div>
     <div class="footer">
+      <!-- Skriver beskrivelsen forfra ud fra alt, du har rettet: titel, tekst,
+           maerke, stoerrelse, farve, stand, materiale og maal. Det, du fjernede
+           eller tilfoejede i teksten, huskes til naeste vare. -->
+      <button type="button" class="btn btn-secondary" id="e-omskriv">Skriv beskrivelsen forfra ud fra mine rettelser</button>
       <button type="submit" form="edit-form" class="btn btn-primary" id="e-save">Gem</button>
     </div>
   </section>
@@ -320,6 +321,6 @@
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=0357ee15"></script>
+<script src="app.js?v=e979e471"></script>
 </body>
 </html>

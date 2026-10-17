@@ -569,12 +569,16 @@ async function omskriv(
   titel: string,
   tekst: string,
   forskel: { fjernet: string[]; tilfoejet: string[] },
+  felter: Array<{ navn: string; fra: string; til: string }> = [],
 ) {
   const images = await photoBlocks(draft.photos, ["forfra"], 1);
   const text =
     `Titel (skrevet af sælgeren, brug den som den er): ${titel}\n` +
     `Mærke: ${draft.brand ?? "ukendt"} · str. ${draft.size ?? "?"} · ${draft.condition ?? "?"} · ` +
     `${draft.material ?? "?"} · ${draft.color ?? "?"}\n${faktaTekst(draft.fakta)}\n\n` +
+    (felter.length ? "Sælgeren RETTEDE disse oplysninger (facit — går forud for billedet, fakta og den " +
+      "gamle tekst; det gamle må ikke stå nogen steder i beskrivelsen):\n" +
+      felter.map((f) => `- ${f.navn}: ${f.fra || "(intet)"} → ${f.til || "(fjernet)"}`).join("\n") + "\n\n" : "") +
     `Sælgerens rettede beskrivelse:\n${tekst}\n\n` +
     (forskel.fjernet.length ? "Sælgeren FJERNEDE (må ikke komme igen, heller ikke omskrevet):\n" +
       forskel.fjernet.map((x) => `- ${x}`).join("\n") + "\n\n" : "") +
@@ -1397,8 +1401,30 @@ Deno.serve(async (req: Request) => {
         const forskel = await noterTekstRettelse(d.id, d.nr ?? null,
           { title: tekst(fra.title), description: tekst(fra.description) }, til);
         if (!body.skriv) return json({ ok: true, ...forskel });
-        const description = await omskriv(d as Record<string, unknown>, til.title || String(d.title ?? ""),
-          til.description, forskel);
+        // De felter, du har rettet i appen, men ikke gemt endnu: de laegges
+        // over udkastet i prompten og naevnes, saa det gamle forsvinder.
+        const NAVNE: Record<string, string> = { brand: "Mærke", size: "Størrelse", color: "Farve",
+          condition: "Stand", material: "Materiale", laengde: "Længde (cm)", skulderbredde: "Skulderbredde (cm)" };
+        const raa = (body.felter && typeof body.felter === "object") ? body.felter as Record<string, { fra?: unknown; til?: unknown }> : {};
+        const kort = (v: unknown) => (typeof v === "string" || typeof v === "number") ? String(v).trim().slice(0, 120) : "";
+        const rettet = { ...d, fakta: { ...((d.fakta as Record<string, unknown>) || {}) } } as Record<string, unknown>;
+        const felter = Object.keys(NAVNE).filter((k) => raa[k]).map((k) => {
+          const f = { navn: NAVNE[k], fra: kort(raa[k].fra), til: kort(raa[k].til) };
+          if (k === "laengde" || k === "skulderbredde") {
+            const fk = rettet.fakta as Record<string, unknown>;
+            if (f.til) { fk[k] = Number(f.til); fk.plagMaalKilde = "målt af dig"; } else delete fk[k];
+          } else rettet[k] = f.til || null;
+          // Det, mærkerne eller produktsiden sagde om samme felt, er ikke
+          // længere facit — dit er.
+          const fk = rettet.fakta as Record<string, unknown>;
+          if (k === "color") delete fk.maerkeFarve;
+          if (k === "material") delete fk.materialer;
+          if (k === "brand") delete fk.produktMaerke;
+          if (k === "condition" && !/^ny/i.test(f.til)) delete fk.ny;
+          return f;
+        });
+        const description = await omskriv(rettet, til.title || String(d.title ?? ""),
+          til.description, forskel, felter);
         return json({ description, ...forskel });
       } catch (err) {
         return json({ error: err instanceof Error ? err.message : String(err) }, 500);
