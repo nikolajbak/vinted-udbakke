@@ -355,9 +355,11 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   og runneren gik selv til redigeringssiden, lagde rækkefølgen i Gem-kaldet
   (»12 af 12«), Vinted gemte (id'erne 342, 337, … i den nye orden), og
   kvitteringen ryddede `pending` på 9 s. Fra browserruden afviste DataDome
-  samme Gem (se »Vinted: billederne i en annonce«). **Vinted → appen er ikke
-  afprøvet**: flyt billederne på Vinted, og se efter `price_events`
-  »rettet på Vinted: billedrækkefølge«. Se `spor`
+  samme Gem (se »Vinted: billederne i en annonce«). **Vinted → appen virker
+  ikke, når Vinted lægger billederne op på ny** (målt samme dag, nr. 55):
+  så er der intet at parre på, og annoncen mærkes som udskiftet (se
+  »Vinted: billederne i en annonce«). Flytningen fra appen virker derefter
+  heller ikke for den annonce. Ret rækkefølgen i appen, ikke på Vinted. Se `spor`
   »fotos: rækkefølgen lagt i gem-kaldet …«, »fotos: gemt på Vinted …« og
   `price_events` »sat på Vinted: billedrækkefølge«.
 
@@ -1198,6 +1200,15 @@ Målt 17. oktober, logget ind i browserruden.
   Hentninger (GET) fra samme rude gik fint, og telefonen har gemt priser ad
   samme vej (16. oktober). Afprøv derfor alt, der GEMMER på Vinted, på
   telefonen, aldrig fra browserruden — og omgå aldrig captchaen.
+- **Flyttes billederne på Vinted, kan Vinted lægge dem ALLE op på ny**
+  (17. oktober, nr. 55): efter du flyttede to billeder tilbage og trykkede
+  Gem, havde alle 12 nye id'er (…728-…828) og nye adresser, stigende i den
+  NYE rækkefølge. Intet binder dem til de gamle, og runneren så ikke det
+  Gem (ingen kald fra telefonen). Derfor: en annonce, hvis billed-id'er
+  slet ikke overlapper med parringen, mærkes `listings.fotos =
+  {udskiftet}` og parres aldrig igen på pladsen — de nye id'er ville parre
+  de forkerte billeder. Hvornår Vinted gør det (Vinteds egen app, eller
+  hvert flyt i Safari), er ikke målt.
 - **Vinteds billeder har ingen CORS** (`access-control-allow-origin` mangler),
   så de kan ikke sammenlignes med appens på et canvas i siden.
 

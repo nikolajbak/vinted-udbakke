@@ -10,7 +10,9 @@
 -- upload-raekkefoelge. Vinteds billed-id'er stiger i den raekkefoelge, de
 -- blev lagt op (maalt 17. oktober paa seks annoncer), saa sorteret id
 -- svarer til fotos_sendt. Parret foerste gang telefonen laeser annoncens
--- billeder (/api/v2/item_upload/items/{id}).
+-- billeder (/api/v2/item_upload/items/{id}). {"udskiftet": tid} betyder,
+-- at Vinted har lagt alle billeder op paa ny (nye id'er og adresser), og
+-- at annoncen ikke kan parres igen.
 
 alter table public.drafts add column if not exists fotos_sendt jsonb;
 alter table public.listings add column if not exists fotos jsonb;

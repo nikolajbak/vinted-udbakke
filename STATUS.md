@@ -31,9 +31,11 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    DataDome afviste det (403, captcha). Intet blev ændret, og udkastet er sat
    tilbage. **Afprøvet på telefonen 12.35:** appen → Vinted på nr. 55
    virker hele vejen (gemt, kvitteret, `pending` tom; billede 1 og 2 er nu
-   byttet på Vinted). **Næste skridt:** den anden vej — flyt billederne på
-   Vinteds redigeringsside i Safari, og se efter `price_events` »rettet på
-   Vinted: billedrækkefølge«.
+   byttet på Vinted). **Den anden vej fejlede 12.37:** efter flytningen på
+   Vinted havde alle billeder nye id'er og adresser, og runneren så ikke
+   Gem. Serveren mærker nu sådan en annonce som udskiftet i stedet for at
+   parre forkert (udgivelse 0085). **Uafklaret:** var det i Safari eller i
+   Vinteds app, og hvorfor kørte runneren ikke?
 
 00000000000. **Klar-varerne analyseret forfra — 16. oktober (udgivelse 0078-0081).**
    Nr. 55-60 (62-69 var allerede efter de nye regler; 64 hang i »afventer«

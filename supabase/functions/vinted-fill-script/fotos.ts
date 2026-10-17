@@ -95,10 +95,35 @@ export async function fotoSynk(db: Db, listingId: string, idsInd: unknown, hvor:
 
   let kort = (Array.isArray(l.fotos) ? l.fotos : null) as Kort | null;
   const opd: Record<string, unknown> = {};
-  if (!kort || !ids.some((id) => kort!.some((k) => k.id === id))) {
+  if (kort && !ids.some((id) => kort!.some((k) => k.id === id))) {
+    // Vinted har lagt ALLE billeder op paa ny: nye id'er og nye adresser
+    // (17. oktober, nr. 55, efter billederne blev flyttet paa Vinted). De
+    // nye id'er stiger i den raekkefoelge, Vinted viser NU — ikke i den, vi
+    // sendte — saa de kan ikke parres paa pladsen. Hellere ingen
+    // synkronisering end de forkerte billeder.
+    const grund = "Vinted har lagt billederne op på ny — rækkefølgen kan ikke længere synkroniseres for denne annonce";
+    const rest = pending ? { ...pending } : null;
+    if (rest) delete rest.fotos;
+    const tom = !rest || !Object.keys(rest).length;
+    await db.from("listings").update({
+      fotos: { udskiftet: new Date().toISOString() },
+      published: { ...((l.published ?? {}) as Record<string, unknown>), fotos: null },
+      ...(pending && pending.fotos
+        ? { pending: tom ? null : rest, ...(tom ? { pending_note: null, pending_since: null } : {}) }
+        : {}),
+    }).eq("id", l.id);
+    await db.from("price_events").insert({ listing_id: l.id, kind: "rettet", note: grund });
+    return { kort: false, pending: pending && pending.fotos ? (tom ? null : rest) : pending, grund };
+  }
+  if (!kort) {
     // De billeder, der kom med op. Fra foer 17. oktober findes listen ikke;
     // dér er udkastets billeder med en adresse det bedste bud — de er alle
     // sendt, og ingen har kunnet flytte dem siden.
+    // Er billederne én gang udskiftet paa Vinted (listings.fotos =
+    // {udskiftet}), parres der aldrig igen paa pladsen.
+    if (l.fotos && !Array.isArray(l.fotos) && (l.fotos as Record<string, unknown>).udskiftet) {
+      return { kort: false, pending, grund: "Vinted har lagt billederne op på ny" };
+    }
     const sendtStier = (d.fotos_sendt as Record<string, unknown> | null)?.vinted;
     const efterSti = new Map(photos.map((p) => [String(p.path ?? ""), p]));
     const sendt = Array.isArray(sendtStier) && sendtStier.length
