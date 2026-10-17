@@ -39,6 +39,13 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    Nr. 55 er mærket udskiftet, og appens rækkefølge er sat i hånden til
    Vinteds. **Ikke målt:** om et flyt på redigeringssiden i Safari beholder
    id'erne.
+   **Rettet samme dag (udgivelse 0087): billederne genkendes på indholdet**
+   (`fotohash.ts`). Afprøvet på den udgivne server 12.51 med nr. 55's
+   rigtige Vinted-miniaturer (sendt som runneren gør, fra Mac'en): 12 af 12
+   parret, mærket `udskiftet` erstattet af et nyt kort, og udkastet flyttet
+   efter Vinted (appens 2, 3, 1, 4 …, set med øjnene). **Ikke afprøvet:**
+   telefonens runner med den nye `fotoIds` ({id, t}), og et nyt flyt i
+   Vinteds egen app hele vejen hjem.
 
 00000000000. **Klar-varerne analyseret forfra — 16. oktober (udgivelse 0078-0081).**
    Nr. 55-60 (62-69 var allerede efter de nye regler; 64 hang i »afventer«

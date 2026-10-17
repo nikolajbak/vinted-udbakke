@@ -362,7 +362,9 @@ slip i appen og synkroniseres til markedspladserne — og tilbage fra dem.**
   antallet ikke passer ved første parring. Lykkes det, skrives
   `listings.fotos` på ny, og udkastet flyttes efter Vinted;
   `price_events` »billederne genkendt på Vinted (…)«, og funktionens log
-  »fotos: genkendt …« med afstandene.
+  »fotos: genkendt …« med afstandene. Afprøvet på den udgivne server
+  17. oktober med nr. 55 (mærket udskiftet): 12 af 12 parret rigtigt og
+  udkastet flyttet efter Vinted.
 - **DBA og Reshopper**: en annonce, der allerede er ude dér, kan appen ikke
   nå (ingen `listings`-række, ingen runner på DBA's redigering). Rækkefølgen
   følger med, når varen sendes derhen.
