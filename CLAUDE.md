@@ -823,6 +823,12 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   rav = se på det, rød = galt. Hvert tekst/bund-par holder mindst 4,5:1 i
   begge temaer — mål kontrasten, før en farve rettes. Før var bunden
   grågrøn, kortene beige og accenten aubergine.
+- **Én skrift i hele appen: Libre Franklin** (18. oktober). Space Mono i
+  versaler var overskrifternes og prisernes stemme (»UDKAST: 85,00 KR«) og
+  er væk — også fra skrift-linket. Overskrifter over en gruppe (`.label`,
+  feltnavne i Redigér, `.chip`) er små, halvfede og skrevet som almindelig
+  tekst; tal har `tabular-nums` (`.mono` betyder nu kun det). Læg ikke
+  versaler eller en mono-skrift tilbage.
 - **Temaet kan vælges** (bestemt af dig 17. oktober): Mere → Udseende,
   »Som enheden« / »Lyst« / »Mørkt«. Valget gemmes kun på telefonen
   (`localStorage` `udbakke-tema`: `enhed`/`lys`/`moerk`) og sættes af

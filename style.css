@@ -100,12 +100,15 @@
   h1, h2, h3, .step-title, .empty h3{ text-wrap: balance; }
   p, .note, .desc, .step-hint, .rs-v{ text-wrap: pretty; }
 
-  .mono{ font-family: "Space Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  /* Tal staar i appens egen skrift med lige brede cifre, saa de flugter i
+     en kolonne. Space Mono i versaler var appens stemme i hver overskrift og
+     hver pris (»UDKAST: 85,00 KR«) og raabte, hvor der skulle staa en
+     etiket. Nu: almindelig skrift, lille og halvfed, som man skriver den. */
+  .mono{ font-variant-numeric: tabular-nums; }
   .label{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: var(--t-label);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: var(--t-small);
+    font-weight: 600;
+    letter-spacing: 0.005em;
     color: var(--ink-soft);
   }
 
@@ -279,8 +282,7 @@
              stroke-linecap: round; stroke-linejoin: round; }
 
   .chip{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: var(--t-label); font-weight: 600; letter-spacing: 0.01em;
     padding: 3px 8px; border-radius: 999px; white-space: nowrap;
     display: inline-block;
   }
@@ -378,7 +380,8 @@
     .strip-cel.flyt-landet img{ animation: none; }
   }
   .price-row{ display: flex; align-items: baseline; gap: var(--s2); margin-top: var(--s4); }
-  .price-big{ font-size: var(--t-display); font-weight: 700; letter-spacing: -0.02em; }
+  .price-big{ font-size: var(--t-display); font-weight: 700; letter-spacing: -0.03em;
+              font-variant-numeric: tabular-nums; }
   .note{ font-size: var(--t-small); color: var(--ink-soft); margin-top: var(--s1); line-height: 1.55; }
   .note-luft{ margin-top: var(--s4); }
   .desc{ font-size: var(--t-body); line-height: 1.6; white-space: pre-wrap; margin-top: var(--s4);
@@ -407,7 +410,7 @@
   .shots{ display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
   .shot{ width: 64px; }
   .shot img{ width: 64px; height: 64px; object-fit: contain; background: var(--surface); border-radius: 8px; border: 1px solid var(--line); display: block; }
-  .shot span{ display: block; font-family: "Space Mono", ui-monospace, monospace; font-size: 9px;
+  .shot span{ display: block; font-size: 10px; font-variant-numeric: tabular-nums;
               color: var(--ink-soft); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- Tom tilstand ------------------------------------------------------ */
@@ -420,7 +423,7 @@
   .login-inner h1{ font-size: var(--t-display); margin: var(--s2) 0 var(--s5); letter-spacing: -0.026em; }
   #pw, #user{
     width: 100%; min-height: var(--tap);
-    font-family: "Space Mono", ui-monospace, monospace; font-size: 16px;
+    font-size: 16px;
     padding: 0 var(--s3); border-radius: 10px;
     border: 1px solid var(--line); background: var(--surface); color: var(--ink);
     margin-bottom: var(--s2);
@@ -518,9 +521,8 @@
   .felter{ display: flex; flex-direction: column; gap: var(--s4); }
   .felt{ display: flex; flex-direction: column; gap: var(--s2); }
   .felt > span{
-    font-family: "Space Mono", ui-monospace, monospace;
-    font-size: var(--t-label); letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--ink-soft);
+    font-size: var(--t-small); font-weight: 600; letter-spacing: 0.005em;
+    color: var(--ink-soft);
   }
   .felt input, .felt textarea{
     width: 100%; padding: var(--s3);
@@ -600,7 +602,7 @@
     padding: 0 var(--s3); height: var(--tap);
     border: 1px solid var(--line); border-radius: 10px;
     background: var(--raised); color: var(--ink);
-    font-family: 'Space Mono', ui-monospace, monospace; font-size: var(--t-body);
+    font-size: var(--t-body); font-variant-numeric: tabular-nums;
   }
   .scan-form .btn{ width: auto; margin: 0; flex: 0 0 auto; padding: 0 var(--s4); }
 
@@ -631,8 +633,7 @@
   .lbl-tekst .nr{ font-size: var(--t-small); font-weight: 700; }
   .lbl-tekst .t{ font-size: var(--t-small); overflow: hidden;
                  text-overflow: ellipsis; white-space: nowrap; }
-  .lbl-tekst .s{ font-size: var(--t-label); color: var(--ink-soft);
-                 text-transform: uppercase; letter-spacing: .04em; }
+  .lbl-tekst .s{ font-size: var(--t-label); color: var(--ink-soft); font-weight: 500; }
 
   /* ---- Prisvagt ----------------------------------------------------------
      Raekken skal kunne skimmes: prisen til hoejre, hvor laenge og hvor varmt
@@ -670,8 +671,8 @@
   /* "aendret" hoerer til vaerdien, ikke til raekken: den skal staa UNDER
      teksten, ogsaa naar beskrivelsen fylder seks linjer. */
   .ud-rk .ud-h{
-    grid-column: 2; font-size: var(--t-label); color: var(--amber);
-    text-transform: uppercase; letter-spacing: .06em; margin-top: 2px;
+    grid-column: 2; font-size: var(--t-small); font-weight: 500; color: var(--amber);
+    font-variant-numeric: tabular-nums; margin-top: 2px;
   }
   .pris-foer{ font-size: var(--t-small); color: var(--ink-soft); }
   /* Adressefeltet, der knytter en annonce til et udkast. Bredt, fordi det er
@@ -866,7 +867,7 @@
 /* Et flueben i hjørnet frem for at dæmpe teksten: du skal stadig kunne læse
    det, du lige har kopieret, hvis appen spørger om det igen. */
 .rs-row.is-done .rs-k::after{ content: ' ✓'; color: var(--accent); font-weight: 700; }
-.rs-k{ font-size: var(--t-label); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
+.rs-k{ font-size: var(--t-small); font-weight: 600; color: var(--ink-soft); }
 .rs-v{ font-size: var(--t-body); color: var(--ink); line-height: 1.4; white-space: pre-wrap; }
 
 /* De korte felter staar som EN tabel, ikke som otte knapper. De skal laeses i
@@ -1018,8 +1019,8 @@
   .etiket-qr svg{ width: 100%; height: 100%; display: block; }
   .etiket-tekst{ min-width: 0; flex: 1 1 auto; }
   .etiket-nr{
-    font-family: 'Space Mono', ui-monospace, monospace;
-    font-size: 13pt; font-weight: 700; line-height: 1.1; color: #000;
+    font-size: 14pt; font-weight: 700; line-height: 1.1; color: #000;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
   }
   /* To linjer titel, og saa er der ikke mere plads. Klippet tekst er bedre end
      en etiket, hvor nummeret bliver skubbet ud. */
