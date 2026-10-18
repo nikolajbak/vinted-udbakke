@@ -451,13 +451,17 @@
   });
 
   // Hoejre side af raekken: det tal, der betyder noget i fasen, og en linje
-  // under det. rav = noget mangler.
+  // under det. rav = noget mangler; lille = et ord i stedet for et tal, saa
+  // det ikke klemmer varens tekst.
   function raekkePris(d){
     var f = fase(d), dage = function(n){ return n === null ? '' : n + ' d'; };
     if(f === 'klar'){
-      return d.status === 'ny' || d.status === 'afsendt'
-        ? { pris: kortPris(d.price), under: '', rav: false }
-        : { pris: koeStatus(d), under: '', rav: false };
+      if(d.status === 'ny' || d.status === 'afsendt'){
+        var kp = kortPris(d.price);
+        return kp ? { pris: kp, under: '', rav: false } : { pris: 'ingen pris', under: '', rav: true, lille: true };
+      }
+      var st = koeStatus(d);
+      return { pris: st, under: '', rav: st === 'Analysen mislykkedes', lille: true };
     }
     var l = vintedAnnonce(d), n = nuPris(d);
     if(f === 'ude'){
@@ -467,8 +471,8 @@
       return { pris: p, under: '♥ ' + (l.favourites || 0) + (dg === null ? '' : ' · ' + dage(dg)), rav: false };
     }
     var sl = annoncer(d).filter(function(x){ return x.status === 'solgt'; })[0];
-    if(!sl) return { pris: 'taget ned', under: '', rav: false };
-    if(sl.sold_price == null) return { pris: 'tast salgsprisen', under: dage(dageUde(sl)), rav: true };
+    if(!sl) return { pris: 'taget ned', under: '', rav: false, lille: true };
+    if(sl.sold_price == null) return { pris: 'tast salgsprisen', under: dage(dageUde(sl)), rav: true, lille: true };
     return { pris: kr(sl.sold_price), under: dage(dageUde(sl)), rav: false };
   }
 
@@ -541,7 +545,7 @@
       var pr = raekkePris(d);
       var indre = (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
         '<span class="lr-tekst">' + raekkeTekst(d) + '</span>' +
-        '<span class="lr-hoejre"><b class="lr-pris' + (pr.rav ? ' rav' : '') + '">' + esc(pr.pris) + '</b>' +
+        '<span class="lr-hoejre"><b class="lr-pris' + (pr.rav ? ' rav' : '') + (pr.lille ? ' lille' : '') + '">' + esc(pr.pris) + '</b>' +
           (pr.under ? '<small>' + esc(pr.under) + '</small>' : '') + '</span>';
       // Kun det, der endnu ikke er ude, kan kasseres med et swipe. En vare
       // med en aktiv annonce skal tages ned, ikke glemmes.
