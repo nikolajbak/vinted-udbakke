@@ -1235,6 +1235,15 @@
       vent.then(iosGaa, iosGaa);
       return;
     }
+    // Som webapp paa en Mac (Safari → Foej til Dock) bliver about:blank i
+    // webappens EGET vindue, og adressen bagefter afleveres til Safari: det
+    // tomme vindue blev staaende (18. oktober). Dér forlader en adresse uden
+    // for appen den aldrig — macOS sender den selv videre til browseren.
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){
+      var macGaa = function(v){ if(v !== false) window.location.href = url; };
+      vent.then(macGaa, macGaa);
+      return;
+    }
     var vindue = window.open('about:blank', '_blank');
     var gaa = function(v){
       if(v === false){ if(vindue && !vindue.closed) vindue.close(); return; }
