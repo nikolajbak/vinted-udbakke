@@ -35,6 +35,14 @@
     if(url.indexOf('supabase.co') < 0) return ægte.apply(this, arguments);
     var m = url.match(/\/rest\/v1\/([a-z_]+)\??(.*)$/), body = [];
     var method = (opt && opt.method) || 'GET';
+    // Til fejltest fra konsollen: window.__proeveFejl = { url: /listings/, method: 'GET', status: 0 }
+    // (status 0 = netvaerket svarer ikke). once: true rammer kun det foerste kald.
+    var f = window.__proeveFejl;
+    if(f && f.url.test(url) && (!f.method || f.method === method)){
+      if(f.once) window.__proeveFejl = null;
+      if(!f.status) return Promise.reject(new TypeError('Failed to fetch'));
+      return Promise.resolve(new Response(JSON.stringify({ message: 'prøvefejl' }), { status: f.status, headers: { 'Content-Type': 'application/json' } }));
+    }
     // »Køb igen« regnes af serveren (og kalder en model) - her et fast
     // eksempel i samme form, saa skaermen kan ses uden at koste noget.
     var mode = ''; try { mode = JSON.parse(opt && opt.body || '{}').mode || ''; } catch(e){}

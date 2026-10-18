@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=1ba22546">
+<link rel="stylesheet" href="style.css?v=c32d6f0c">
 </head>
 <body>
 
@@ -66,9 +66,8 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
       </button>
     </header>
     <div class="body">
-      <!-- Det, der venter paa dig, staar foerst. Listen nedenunder er lageret:
-           klar til at blive lagt op, ude, og solgt. -->
-      <div id="opgaver"></div>
+      <!-- Lageret: klar til at blive lagt op, ude, og solgt. Det, der venter
+           paa dig, staar under Opgaver. -->
       <div class="faner" role="tablist" id="faner">
         <button type="button" role="tab" data-fane="klar">Klar<span class="fane-tal" id="tal-klar"></span></button>
         <button type="button" role="tab" data-fane="ude">Ude<span class="fane-tal" id="tal-ude"></span></button>
@@ -455,6 +454,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=e32d081e"></script>
+<script src="app.js?v=bea72986"></script>
 </body>
 </html>

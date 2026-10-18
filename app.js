@@ -499,8 +499,7 @@
   }
 
   function renderQueue(){
-    var alle = Object.keys(rows).map(function(k){ return rows[k]; })
-      .filter(function(d){ return ['ny','afventer','kladde','afsendt'].indexOf(d.status) > -1; });
+    var alle = aktuelleUdkast();
     var tal = { klar:0, ude:0, solgt:0 };
     alle.forEach(function(d){ tal[fase(d)]++; });
     if(!FANE_VALGT && !tal[FANE] && alle.length){
@@ -514,7 +513,8 @@
       b.classList.toggle('on', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    tegnOpgaver(alle);
+    opdaterOpgaveTal();
+    if(!screenEl('opgaver').hidden) tegnOpgaveSkaerm();
 
     var list = alle.filter(function(d){ return fase(d) === FANE; }).sort(sorterFase(FANE));
 
@@ -597,13 +597,22 @@
   // En koeber, der venter paa svar, kommer lige efter en vare, der kan
   // saelges to gange.
   var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5 };
-  var OPG_AABEN = false;
+  // Kanten siger, hvor galt det er: roed kan saelges to gange, rav venter paa
+  // dig. En manglende salgspris er stille.
+  var OPGAVE_KANT = { ned:' opg-kant-rod', svar:' opg-kant-rav', fejl:' opg-kant-rav', send:' opg-kant-rav', knyt:' opg-kant-rav', salg:'' };
   function opgaveKort(tekst, under, knapper, slags){
-    return { o: OPGAVE_ORDEN[slags], h: '<div class="opgave' + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
+    return { o: OPGAVE_ORDEN[slags], s: slags, h: '<div class="opgave' + OPGAVE_KANT[slags] + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
       '<div class="opgave-tekst"><b>' + tekst + '</b>' + (under ? '<span>' + under + '</span>' : '') + '</div>' +
       '<div class="opgave-knapper">' + knapper + '</div></div>' };
   }
-  function tegnOpgaver(alle){
+  // Udkastene, der hoerer til lageret (ikke kasserede).
+  function aktuelleUdkast(){
+    return Object.keys(rows).map(function(k){ return rows[k]; })
+      .filter(function(d){ return ['ny','afventer','kladde','afsendt'].indexOf(d.status) > -1; });
+  }
+
+  // Det, der venter paa dig, samlet og sorteret. Tegner intet.
+  function samlOpgaver(alle){
     var kort = [];
     alle.forEach(function(d){
       var nr = esc(fmtNr(d.nr));
@@ -664,24 +673,98 @@
         (k.samtale ? '<button type="button" class="btn btn-secondary" data-op="svar-aabn"' + id + '>Åbn samtalen</button>' : '') +
         '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + id + '>Klaret</button>', 'svar'));
     });
-    // Prisforslagene staar IKKE her — kun paa Prisvagt-skaermen og som tal
-    // paa fanen (bestemt af dig 18. oktober).
     kort.sort(function(a, b){ return a.o - b.o; });
-    var el = $('opgaver');
-    // Den vigtigste staar altid fremme; resten ligger bag ét baand, saa
-    // forsiden ikke bliver en vaeg af opgaver foer lageret.
-    var h = kort.length ? kort[0].h : '';
-    if(kort.length > 1){
-      h += '<details class="opg-baand"' + (OPG_AABEN ? ' open' : '') + '><summary>' +
-        '<span>' + (kort.length - 1) + ' ting mere venter på dig</span>' +
-        '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></summary>' +
-        kort.slice(1).map(function(k){ return k.h; }).join('') + '</details>';
+    return kort;
+  }
+
+  /* ---- Opgaver ------------------------------------------------------------
+     Alt, der kraever et tryk fra dig, staar ét sted: det akutte foerst, saa
+     prisvagtens forslag, saa salgspriserne. Forslagene ligger i listings og
+     hentes for sig; null = ikke hentet, 'fejl' = kunne ikke hentes. */
+  var OPG_FORSLAG = null;
+  function hentOpgaver(){
+    return sb.from('listings').select('*').eq('status', 'aktiv').not('forslag', 'is', null)
+      .then(function(res){
+        OPG_FORSLAG = res.error ? 'fejl' : (res.data || []).filter(harForslag);
+      }, function(){ OPG_FORSLAG = 'fejl'; })
+      .then(function(){
+        if(!screenEl('opgaver').hidden) tegnOpgaveSkaerm();
+        opdaterOpgaveTal();
+      });
+  }
+
+  function opdaterOpgaveTal(){
+    var n = samlOpgaver(aktuelleUdkast()).length + (Array.isArray(OPG_FORSLAG) ? OPG_FORSLAG.length : 0);
+    var el = $('fod-opg-tal');
+    if(!el) return;
+    el.textContent = String(n);
+    el.hidden = !n;
+  }
+
+  function forslagRaekke(l){
+    var d = rows[l.draft_id];
+    return '<div class="opg-forslag" data-l="' + esc(l.id) + '">' +
+      (d && d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
+      '<span class="opg-forslag-tekst"><b>' + esc(l.title || (d && d.title) || 'Uden titel') + '</b>' +
+        '<span><s>' + esc(kr(l.price)) + '</s>' + (l.forslag.note ? ' · ' + esc(l.forslag.note) : '') + '</span></span>' +
+      '<span class="opg-forslag-knapper">' +
+        '<button type="button" class="opg-afvis" data-f="afvis" aria-label="Afvis">×</button>' +
+        '<button type="button" class="btn btn-primary" data-f="godkend">' + esc(kr(l.forslag.price)) + '</button>' +
+      '</span></div>';
+  }
+
+  function tegnOpgaveSkaerm(){
+    var el = $('opgaver-body');
+    var kort = samlOpgaver(aktuelleUdkast());
+    var akut = kort.filter(function(k){ return k.s !== 'salg'; });
+    var stille = kort.filter(function(k){ return k.s === 'salg'; });
+    var fo = Array.isArray(OPG_FORSLAG) ? OPG_FORSLAG : [];
+    var h = '';
+    if(akut.length) h += '<div class="opg-liste">' + akut.map(function(k){ return k.h; }).join('') + '</div>';
+    if(fo.length){
+      h += '<div class="opg-grp"><span class="label">Prisforslag · ' + fo.length + '</span>' +
+        (fo.length > 1 ? '<button type="button" class="opg-alle" id="opg-godkend-alle">Godkend alle</button>' : '') + '</div>' +
+        fo.map(forslagRaekke).join('');
+    } else if(OPG_FORSLAG === 'fejl'){
+      h += '<div class="opg-grp opg-fejl"><span>Prisforslagene kunne ikke hentes.</span>' +
+        '<button type="button" class="opg-alle" id="opg-igen">Prøv igen</button></div>';
+    }
+    if(stille.length) h += '<div class="opg-liste opg-stille">' + stille.map(function(k){ return k.h; }).join('') + '</div>';
+    if(!h){
+      h = '<div class="empty"><svg class="empty-mark" viewBox="0 0 72 56" aria-hidden="true">' +
+        '<path d="M22 29l10 10 18-20"/></svg>' +
+        '<h3>Intet venter på dig</h3><p>Nye opgaver dukker op her, fx når en vare er solgt eller en køber skriver.</p></div>';
     }
     el.innerHTML = h;
-    var baand = el.querySelector('.opg-baand');
-    if(baand) baand.addEventListener('toggle', function(){ OPG_AABEN = baand.open; });
+
     Array.prototype.forEach.call(el.querySelectorAll('[data-op]'), function(b){
       b.addEventListener('click', function(){ opgave(b.getAttribute('data-op'), b); });
+    });
+    var igen = $('opg-igen');
+    if(igen) igen.addEventListener('click', hentOpgaver);
+    var alle = $('opg-godkend-alle');
+    if(alle) alle.addEventListener('click', function(){
+      alle.disabled = true;
+      Promise.all(fo.map(function(l){ return godkendForslag(l).catch(function(){ return false; }); })).then(function(r){
+        var ok = r.filter(Boolean).length;
+        toast(ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — sættes, næste gang Vinted er åben');
+        hentOpgaver();
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('.opg-forslag'), function(r){
+      var l = fo.filter(function(x){ return String(x.id) === r.getAttribute('data-l'); })[0];
+      if(!l) return;
+      r.addEventListener('click', function(e){
+        var b = e.target.closest('[data-f]');
+        if(!b){ if(l.draft_id && rows[l.draft_id]) openDetail(l.draft_id); return; }
+        var godkend = b.getAttribute('data-f') === 'godkend';
+        b.disabled = true;
+        (godkend ? godkendForslag(l) : afvisForslag(l)).catch(function(){ return false; }).then(function(ok){
+          if(ok) toast(godkend ? 'Godkendt — sættes, næste gang Vinted er åben' : 'Afvist — prisen bliver, hvor den er');
+          else b.disabled = false;
+          hentOpgaver();
+        });
+      });
     });
   }
 
@@ -2762,7 +2845,7 @@
       toast(sendUd ? 'Gemt — Vinted åbner og skriver ændringen ind'
           : antal ? 'Gemt — og lagt klar til markedspladsen' : 'Gemt');
       if(currentId === d.id){ renderDetail(); hentAnnoncer(d.id); }
-      opdaterVagtTal();
+      opdaterOpgaveTal();
     }).catch(function(err){
       knap.disabled = false; knap.textContent = tekst;
       toast('Kunne ikke gemme: ' + (err && err.message ? err.message : 'ukendt fejl'));
@@ -3092,7 +3175,7 @@
   // Maerket ryddes med det samme, saa en genindlaesning ikke haevder, at du
   // lige har scannet noget.
   function aabnFraAdresse(){
-    // #fane-vagt: runneren sender Mac-webappens vindue tilbage hertil, naar
+    // #fane-<fane>: runneren sender Mac-webappens vindue tilbage hertil, naar
     // den er faerdig paa Vinted (aabnUdad, &tilbage=).
     // Prisvagt er ikke laengere en fane; den bor i Mere.
     var fane = /^#fane-(queue|opgaver|vagt|konto|menu)$/.exec(location.hash || '');
@@ -3204,11 +3287,8 @@
     var venter = venterFelter(l);
     if(harForslag(l)){
       var fo = l.forslag;
-      h += '<div class="vagt-forslag godkend"><b>Foreslår ' + esc(kr(fo.price)) + ' <s>' + esc(kr(l.price)) + '</s></b>' +
-           (fo.note ? '<span>' + esc(fo.note) + '</span>' : '') +
-           (venter.length ? '<span>Venter også: ' + esc(venter.join(', ')) + '</span>' : '') +
-           '<div class="vagt-knapper"><button type="button" class="btn btn-secondary" data-v="afvis">Afvis</button>' +
-           '<button type="button" class="btn btn-primary" data-v="godkend">Godkend ' + esc(kr(fo.price)) + '</button></div></div>';
+      h += '<div class="vagt-forslag"><b>Foreslår ' + esc(kr(fo.price)) + ' <s>' + esc(kr(l.price)) + '</s></b>' +
+           '<span>Venter på dit ja under Opgaver.</span></div>';
     } else if(venter.length){
       var pv = l.pending && l.pending.price;
       var andre = venter.filter(function(x){ return x !== 'pris'; });
@@ -3355,20 +3435,15 @@
       return;
     }
 
-    var tilGodkendelse = aktive.filter(harForslag);
+    // Forslagene godkendes i Opgaver; her staar de under »Holder øje«.
     var paaVej = aktive.filter(function(l){ return !harForslag(l) && venterFelter(l).length; });
     var fri = aktive.filter(function(l){ return !harForslag(l) && !venterFelter(l).length && (l.status === 'pause' || !l.auto); });
-    var oeje = aktive.filter(function(l){ return tilGodkendelse.indexOf(l) < 0 && paaVej.indexOf(l) < 0 && fri.indexOf(l) < 0; });
+    var oeje = aktive.filter(function(l){ return paaVej.indexOf(l) < 0 && fri.indexOf(l) < 0; });
     // Den, der er tjekket senest, er mindst interessant; den, der snart
     // tjekkes, oeverst.
     oeje.sort(function(a, b){ return String(a.next_check_at).localeCompare(String(b.next_check_at)); });
 
     var h = vagtStatus(aktive);
-    h += vagtAfsnit('Til godkendelse', 'Prisvagten sætter ingen pris ned, før du har sagt ja. Det godkendte sættes af sig selv, næste gang Vinted er åben i Safari.', tilGodkendelse);
-    if(tilGodkendelse.length > 1){
-      h += '<div class="vagt-knapper vagt-alle"><button type="button" class="btn btn-primary" id="vagt-godkend-alle">Godkend alle ' +
-        tilGodkendelse.length + '</button></div>';
-    }
     h += vagtAfsnit('Ny pris på vej', '', paaVej);
     h += vagtAfsnit('Holder øje', 'Prisen sammenlignes med lignende varer på Vinted. Står den for højt, foreslås en lavere pris til din godkendelse — aldrig under mindsteprisen.', oeje);
     h += vagtAfsnit('Rører ikke prisen', '', fri);
@@ -3389,16 +3464,6 @@
     if(dk) dk.addEventListener('click', aabnDagligt);
     var vn = $('vagt-nu');
     if(vn) vn.addEventListener('click', function(){ aabnUdad(VAGT_NU_URL); });
-    var ga = $('vagt-godkend-alle');
-    if(ga) ga.addEventListener('click', function(){
-      ga.disabled = true;
-      Promise.all(tilGodkendelse.map(godkendForslag)).then(function(r){
-        var ok = r.filter(Boolean).length;
-        toast(ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — sættes, næste gang Vinted er åben');
-        hentVagt(); opdaterVagtTal();
-      });
-    });
-
     Array.prototype.forEach.call(krop.querySelectorAll('.vagt-row [data-v]'), function(el){
       var raekke = el.closest('.vagt-row');
       var l = alle.filter(function(x){ return x.id === raekke.getAttribute('data-l'); })[0];
@@ -3441,7 +3506,7 @@
       (v === 'godkend' ? godkendForslag(l) : afvisForslag(l)).then(function(ok){
         if(ok) toast(v === 'godkend' ? 'Godkendt — sættes, næste gang Vinted er åben' : 'Afvist — prisen bliver, hvor den er');
         else btn.disabled = false;
-        hentVagt(); opdaterVagtTal();
+        hentVagt(); hentOpgaver();
       });
       return;
     }
@@ -3611,20 +3676,6 @@
     });
   }
 
-  // Tallet i menuen: hvor mange varer venter paa dig lige nu.
-  function opdaterVagtTal(){
-    sb.from('listings').select('id, pending, pending_since, status, forslag')
-      .in('status', ['aktiv', 'pause']).then(function(res){
-        var n = (res.data || []).filter(function(l){ return sidderFast(l) || harForslag(l); }).length;
-        ['vagt-tal'].forEach(function(id){
-          var el = $(id);
-          if(!el) return;
-          el.textContent = String(n);
-          el.hidden = !n;
-        });
-      });
-  }
-
   /* ---- Hvad skal jeg koebe igen? ---------------------------------------
      Kun dine egne salg, ikke Vinted som helhed. Serveren (mode:'indkob')
      regner tallene pr. kategori og pr. produkt - maerke + varetype - for de
@@ -3741,11 +3792,6 @@
 
   // Kurs til at vise modelforbruget i kroner. Et skoen, derfor »ca.«.
   var USD_KR = 6.9;
-
-  // Opgaver-skaermen. Tegnes rigtigt i naeste trin; indtil da tom.
-  function hentOpgaver(){
-    $('opgaver-body').innerHTML = '';
-  }
 
   function hentKonto(){
     var krop = $('konto-body');
@@ -3941,7 +3987,7 @@
         (res.data || []).forEach(function(d){ rows[d.id] = d; });
         KOE_HENTET = true;
         renderQueue();
-        opdaterVagtTal();
+        hentOpgaver();
       });
   }
   // Annoncerne skifter tit flere ad gangen (et tilsyn, et salg). Én
@@ -3972,7 +4018,7 @@
     started = true;
 
     hentKoe();
-    opdaterVagtTal();
+    hentOpgaver();
     tegnTjek();   // tallet paa Mere-fanen, hvis noget i opsaetningen er gaaet i staa
     aabnFraAdresse();
 

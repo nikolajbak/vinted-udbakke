@@ -1048,7 +1048,6 @@
 .fane-tal{ font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ink-soft); }
 .fane-tal:empty{ display: none; }
 
-#opgaver:not(:empty){ display: flex; flex-direction: column; gap: var(--s1); margin-bottom: var(--s4); }
 /* Kompakt: tekst til venstre, knap til hoejre. Fem kort maa ikke skubbe
    lageret ud af skaermen. */
 .opgave{
@@ -1205,20 +1204,32 @@
 .trin.andre{ margin-top: var(--s5); border: 1px solid var(--line); border-radius: 14px;
              padding: 0 var(--s4); background: var(--raised); }
 
-/* Forsiden: den vigtigste opgave fremme, resten bag ét baand. */
-#opgaver{ display: flex; flex-direction: column; gap: var(--s2); }
-#opgaver:empty{ display: none; }
-.opg-baand{ display: flex; flex-direction: column; }
-.opg-baand > summary{
-  display: flex; align-items: center; gap: var(--s2); min-height: 40px; padding: 0 var(--s3);
-  border-radius: 10px; background: var(--amber-soft); color: var(--amber);
-  list-style: none; cursor: pointer; font-size: var(--t-small); font-weight: 600;
-}
-.opg-baand > summary::-webkit-details-marker{ display: none; }
-.opg-baand > summary span:first-child{ flex: 1; }
-.opg-baand > summary .chev{ color: inherit; transition: transform 140ms ease; }
-.opg-baand[open] > summary .chev{ transform: rotate(90deg); }
-.opg-baand > .opgave{ margin-top: var(--s2); }
+/* Opgaver: det akutte med en farvet kant, saa prisforslagene som en liste
+   med streger, saa det stille. Kanten er den eneste farve, der raaber. */
+.opg-liste{ display: flex; flex-direction: column; gap: var(--s2); }
+.opg-liste + .opg-grp, .opg-grp + .opg-liste, .opg-forslag + .opg-liste{ margin-top: var(--s5); }
+.opgave.opg-kant-rod{ box-shadow: inset 3px 0 0 var(--danger-tekst); }
+.opgave.opg-kant-rav{ box-shadow: inset 3px 0 0 var(--amber); }
+.opg-stille .opgave{ background: var(--raised); }
+.opg-grp{ display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+          padding-bottom: var(--s2); border-bottom: 1px solid var(--line); }
+.opg-alle{ background: none; border: 0; padding: var(--s1) 0; color: var(--accent);
+           font: inherit; font-size: var(--t-small); font-weight: 600; cursor: pointer; }
+.opg-fejl{ color: var(--ink-soft); font-size: var(--t-small); }
+.opg-forslag{ display: grid; grid-template-columns: 44px 1fr auto; gap: var(--s3); align-items: center;
+              padding: var(--s2) 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.opg-forslag img, .opg-forslag .ph{ width: 44px; height: 58px; object-fit: contain; border-radius: 7px;
+              background: var(--surface); display: block; }
+.opg-forslag-tekst{ min-width: 0; display: flex; flex-direction: column; }
+.opg-forslag-tekst b{ font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opg-forslag-tekst span{ font-size: var(--t-small); color: var(--ink-soft); font-variant-numeric: tabular-nums;
+              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opg-forslag-knapper{ display: flex; align-items: center; gap: var(--s1); }
+.opg-forslag-knapper .btn{ width: auto; min-width: 96px; min-height: 40px; padding: 0 var(--s3); font-size: var(--t-small);
+              font-variant-numeric: tabular-nums; }
+.opg-afvis{ width: 40px; height: 40px; border: 0; border-radius: 10px; background: none;
+            color: var(--ink-soft); font-size: 22px; line-height: 1; cursor: pointer; }
+.opg-afvis:active{ background: var(--surface); }
 
 /* Varens side: pris og pladser foerst, tekst og detaljer klappet sammen. */
 .d-under{ color: var(--ink-soft); margin-top: var(--s1); }
@@ -1280,7 +1291,6 @@
   #s-queue{ --maal: 1120px; }
   #queue-list, #queue-loading{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--s3); }
   #s-queue .faner{ max-width: 480px; }
-  #opgaver:not(:empty){ max-width: 680px; }
 
   /* Varens side: billederne til venstre, staaende fast, mens resten rulles.
      Kolonnen er saa bred, at et 3:4-billede passer i hoejden - saa vises
