@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0115 — 2026-10-19 00:59
+
+Commit `caaeba1` — Notér trin 2 af redesignet  
+App: `app.js?v=d6e78b87` · `style.css?v=76310292`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script | v111 | `5996313e` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0114 — 2026-10-19 00:46
 
 Commit `90d1664` — Notér trin 1 af redesignet  
