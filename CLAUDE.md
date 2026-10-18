@@ -710,6 +710,15 @@ intet på dig, lukkes den, når runneren er færdig.**
   **»Udbakke luk«**, installeret fra Mere: det sætter `data-udbakke-luk` på
   `<html>` og lukker fanen på hændelsen `udbakke-luk`. Uden det står et
   bånd med »Luk selv næste gang«. Læg aldrig andet ind i det.
+- **På Mac'en (appen som Safari-webapp) åbner Vinted i et nyt vindue i
+  webappen selv**, ikke i Safari — med Userscripts, så runneren kører
+  (målt 18. oktober: »Tjek priserne nu« gav 15 tjekket). Dér tømte
+  GM.closeTab kun vinduet, som stod tomt tilbage. Derfor åbner appen
+  adressen med `window.open(url)` direkte (`aabnUdad` uden `foerst`), og
+  `lukFanen` prøver `window.close()` først — et vindue, siden selv har
+  åbnet, må lukke sig — og sender først `udbakke-luk`, hvis det stadig er
+  åbent. Ikke målt, om Safari tillader lukningen, når runneren har skiftet
+  side undervejs.
 - **Tilbage til appen kan ikke gøres fra Safari.** iOS har ingen adresse,
   der åbner en hjemmeskærms-webapp; det er »◀ Udbakke« øverst til venstre.
   Prøvet 8. oktober: Genvejes »Åbn app« viser ikke Udbakke, så en genvej
