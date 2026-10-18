@@ -823,6 +823,13 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   rav = se på det, rød = galt. Hvert tekst/bund-par holder mindst 4,5:1 i
   begge temaer — mål kontrasten, før en farve rettes. Før var bunden
   grågrøn, kortene beige og accenten aubergine.
+- **Redesign besluttet 19. oktober, bygges i tre trin** (spec:
+  `docs/superpowers/specs/2026-10-19-redesign-faner-design.md`): fire
+  faner Lager · Opgaver · Konto · Mere; prisforslag godkendes i Opgaver;
+  Prisvagt bliver en underskærm fra Mere; Lager får tal-felter og rolige
+  rækker uden kasser (erstatter »Kortene i listen«, når trin 2 er ude).
+  Indtil et trin er udgivet, gælder beskrivelsen her i filen. Ret
+  afsnittene, efterhånden som trinnene kommer ud.
 - **Én skrift i hele appen: Libre Franklin** (18. oktober). Space Mono i
   versaler var overskrifternes og prisernes stemme (»UDKAST: 85,00 KR«) og
   er væk — også fra skrift-linket. Overskrifter over en gruppe (`.label`,
