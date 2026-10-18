@@ -710,18 +710,25 @@ intet på dig, lukkes den, når runneren er færdig.**
   **»Udbakke luk«**, installeret fra Mere: det sætter `data-udbakke-luk` på
   `<html>` og lukker fanen på hændelsen `udbakke-luk`. Uden det står et
   bånd med »Luk selv næste gang«. Læg aldrig andet ind i det.
-- **På Mac'en (appen som Safari-webapp) åbner `window.open` Vinted i et
-  nyt vindue i webappen selv**, ikke i Safari — med Userscripts, så
-  runneren kører (»Tjek priserne nu« gav 15 tjekket), men uden forbindelse
-  tilbage: `spor` »luk: … [opener: nej, historik 1]«. Dér tømte
-  GM.closeTab kun vinduet, `window.close()` blev afvist, og appen kunne
-  heller ikke lukke det (målt 18. oktober, udgivelse-0102 til 0105).
-  Appen åbner derfor som webapp på Mac'en med `x-safari-https://…` som på
-  iPhonen (`aabnUdad`): Safari på Mac'en er registreret til den adresse.
-  **Webappen er ikke `display-mode: standalone`**, når »Vis
-  navigationsknapper« er slået til — en betingelse på standalone ramte
-  aldrig, så 0102-0107 kørte alle den gamle vej. Betingelsen er nu
-  »ikke `browser`« (`VISNING`), og versionslinjen i Mere viser tilstanden.
+- **På Mac'en (appen som Safari-webapp) vender vinduet tilbage til appen**
+  (bestemt af dig 18. oktober). Målt samme dag:
+  - `window.open` og et link-klik åbner Vinted i et nyt vindue i webappen
+    selv — med Userscripts, så runneren kører — men uden forbindelse
+    tilbage (`spor` »luk: … [opener: nej, historik 1]«). GM.closeTab tømte
+    det kun, `window.close()` blev afvist, og det stod tomt.
+  - `x-safari-https://…` virker på Mac'en og lander i rigtig Safari, hvor
+    »Udbakke luk« lukker fanen (udgivelse-0108). Men en side i Safari kan
+    ikke åbne webappen: `x-webkit-app-launch` er ikke registreret hos
+    macOS, og appens egen adresse åbner i Safari.
+  - Derfor går appen som webapp på Mac'en til Vinted i sit **eget vindue**
+    med `&tilbage=<fane>` efter `#udbakke=…` (`aabnUdad`), og `lukFanen`
+    sender vinduet til `…/vinted-udbakke/#fane-<fane>` (`tilbageTil`,
+    `aabnFraAdresse`). Adresser uden `#udbakke=` (installationer) går
+    stadig til Safari med `x-safari-`.
+  - **Webappen er ikke `display-mode: standalone`**, når »Vis
+    navigationsknapper« er slået til — en betingelse på standalone ramte
+    aldrig, så 0102-0107 kørte alle den gamle vej. Betingelsen er »ikke
+    `browser`« (`VISNING`), og versionslinjen i Mere viser tilstanden.
 - **Tilbage til appen kan ikke gøres fra Safari.** iOS har ingen adresse,
   der åbner en hjemmeskærms-webapp; det er »◀ Udbakke« øverst til venstre.
   Prøvet 8. oktober: Genvejes »Åbn app« viser ikke Udbakke, så en genvej

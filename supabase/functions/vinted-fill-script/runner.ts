@@ -650,7 +650,19 @@ function koeSkriv(k){
 // ret, send). Det huskes for FANEN: flaget er væk, så snart Vinted skifter
 // side, og en fane, du selv har åbnet, skal aldrig lukke under dig.
 var FRA_APP='udbakke_fra_app';
+// Mac-webappen: appen kom hertil i sit eget vindue med &tilbage=<fane>, og
+// vinduet skal tilbage til appen i stedet for at lukkes (lukFanen).
+var TILBAGE='udbakke_tilbage';
+var APP_URL='https://nikolajbak.github.io/vinted-udbakke/';
+function tilbageTil(){
+ try{
+  var m=/[?&#]tilbage=(queue|vagt|konto|menu)(?:&|$)/.exec(location.search+location.hash);
+  if(m)sessionStorage.setItem(TILBAGE,m[1]);
+  return sessionStorage.getItem(TILBAGE);
+ }catch(e){return null}
+}
 function fraApp(){
+ tilbageTil();
  try{
   if(/[?&#]udbakke=/.test(location.search+location.hash))sessionStorage.setItem(FRA_APP,'1');
   return sessionStorage.getItem(FRA_APP)==='1';
@@ -670,6 +682,13 @@ function lukFanen(tekst){
  var kan=function(){return document.documentElement.hasAttribute('data-udbakke-luk')};
  var aabner=null;try{aabner=window.opener}catch(e){}
  spor('luk: '+tekst+(kan()?'':' (uden Udbakke luk)')+' [opener: '+(aabner?'ja':'nej')+', historik '+history.length+']');
+ var hjem=tilbageTil();
+ if(hjem){
+  try{sessionStorage.removeItem(TILBAGE)}catch(e){}
+  baand(tekst+' Tilbage til appen …',null,null);
+  setTimeout(function(){location.href=APP_URL+'#fane-'+hjem},1500);
+  return;
+ }
  var b=baand(tekst+' Lukker fanen …',null,null);
  setTimeout(function(){
   // Et vindue, appen selv har aabnet, lukker sig selv. Paa Mac'en (appen som

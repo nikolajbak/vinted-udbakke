@@ -1246,6 +1246,16 @@
     // Ikke »standalone«: med »Vis navigationsknapper« slaaet til melder
     // webappen sig som noget andet, og betingelsen ramte aldrig (0102-0107).
     var tilSafari = PAA_IOS || VISNING !== 'browser';
+    // Som Mac-webapp kan Safari ikke sende dig tilbage til appen (der findes
+    // ingen adresse, der aabner webappen). Men webappen koerer selv
+    // Userscripts: saa gaar appen til Vinted i sit EGET vindue, og runneren
+    // sender vinduet tilbage til fanen, du stod paa (&tilbage=, lukFanen).
+    if(!PAA_IOS && tilSafari && /#udbakke=/.test(url)){
+      var hjem = url + '&tilbage=' + (stack[0] || 'queue');
+      var macGaa = function(v){ if(v !== false) window.location.href = hjem; };
+      vent.then(macGaa, macGaa);
+      return;
+    }
     if(tilSafari){
       var iosGaa = function(v){ if(v !== false) window.location.href = 'x-safari-' + url; };
       vent.then(iosGaa, iosGaa);
@@ -3065,6 +3075,14 @@
   // Maerket ryddes med det samme, saa en genindlaesning ikke haevder, at du
   // lige har scannet noget.
   function aabnFraAdresse(){
+    // #fane-vagt: runneren sender Mac-webappens vindue tilbage hertil, naar
+    // den er faerdig paa Vinted (aabnUdad, &tilbage=).
+    var fane = /^#fane-(queue|vagt|konto|menu)$/.exec(location.hash || '');
+    if(fane){
+      try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
+      skiftFane(fane[1]);
+      return;
+    }
     var nr = nummerFra(location.hash || '');
     if(!nr) return;
     try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
