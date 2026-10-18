@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=c32d6f0c">
+<link rel="stylesheet" href="style.css?v=d66c72b1">
 </head>
 <body>
 
@@ -68,10 +68,11 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
     <div class="body">
       <!-- Lageret: klar til at blive lagt op, ude, og solgt. Det, der venter
            paa dig, staar under Opgaver. -->
-      <div class="faner" role="tablist" id="faner">
-        <button type="button" role="tab" data-fane="klar">Klar<span class="fane-tal" id="tal-klar"></span></button>
-        <button type="button" role="tab" data-fane="ude">Ude<span class="fane-tal" id="tal-ude"></span></button>
-        <button type="button" role="tab" data-fane="solgt">Solgt<span class="fane-tal" id="tal-solgt"></span></button>
+      <!-- Tre tal, der ogsaa er fanerne: hvor mange og for hvor meget. -->
+      <div class="lager-felter" role="tablist" id="faner">
+        <button type="button" role="tab" class="lager-felt" data-fane="klar"><span class="lager-felt-n" id="tal-klar"></span><span class="lager-felt-t">Klar</span><span class="lager-felt-s" id="sum-klar"></span></button>
+        <button type="button" role="tab" class="lager-felt" data-fane="ude"><span class="lager-felt-n" id="tal-ude"></span><span class="lager-felt-t">Ude</span><span class="lager-felt-s" id="sum-ude"></span></button>
+        <button type="button" role="tab" class="lager-felt" data-fane="solgt"><span class="lager-felt-n" id="tal-solgt"></span><span class="lager-felt-t">Solgt</span><span class="lager-felt-s" id="sum-solgt"></span></button>
       </div>
       <div id="queue-list"></div>
       <div class="empty" id="queue-empty" hidden>
@@ -454,6 +455,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=78d29618"></script>
+<script src="app.js?v=32d5e9ba"></script>
 </body>
 </html>

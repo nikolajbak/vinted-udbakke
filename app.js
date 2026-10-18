@@ -483,6 +483,19 @@
       (dg2 !== null ? ' · lå ' + esc(dg2 + (dg2 === 1 ? ' dag' : ' dage')) : '');
   }
 
+  // Summen under tal-feltet: klar = de foreloebige priser, ude = prisen nu,
+  // solgt = salgsprisen (udbudsprisen, hvis den mangler - som paa Konto).
+  function faseSum(f, alle){
+    return alle.filter(function(d){ return fase(d) === f; }).reduce(function(s, d){
+      var n;
+      if(f === 'klar') n = prisTal(d.price);
+      else if(f === 'ude') n = nuPris(d);
+      else n = annoncer(d).filter(function(l){ return l.status === 'solgt'; })
+        .reduce(function(t, l){ return t + (Number(l.sold_price != null ? l.sold_price : l.price) || 0); }, 0);
+      return s + (isFinite(n) ? n : 0);
+    }, 0);
+  }
+
   function sorterFase(f){
     return function(a, b){
       var ka, kb;
@@ -506,7 +519,9 @@
       FANE = ['klar','ude','solgt'].filter(function(f){ return tal[f]; })[0] || 'klar';
     }
     ['klar','ude','solgt'].forEach(function(f){
-      $('tal-' + f).textContent = tal[f] ? String(tal[f]) : '';
+      $('tal-' + f).textContent = String(tal[f]);
+      var sum = faseSum(f, alle);
+      $('sum-' + f).textContent = sum ? krSum(sum) : '';
     });
     Array.prototype.forEach.call(document.querySelectorAll('#faner [data-fane]'), function(b){
       var on = b.getAttribute('data-fane') === FANE;

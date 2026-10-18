@@ -1046,6 +1046,18 @@
 }
 .faner button.on{ background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px rgba(29,35,39,.12); }
 .fane-tal{ font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ink-soft); }
+
+/* Lagerets tal-felter: antal, fase og sum. Det valgte er moerkt. */
+.lager-felter{ display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); margin-bottom: var(--s3); }
+.lager-felt{ display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  min-height: var(--tap); padding: var(--s3); border: 0; border-radius: 12px; text-align: left;
+  background: var(--raised); color: var(--ink); box-shadow: 0 1px 0 var(--line); cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease; }
+.lager-felt.on{ background: var(--ink); color: var(--paper); box-shadow: none; }
+.lager-felt-n{ font-size: 22px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.lager-felt-t{ font-size: var(--t-small); font-weight: 600; }
+.lager-felt-s{ font-size: var(--t-label); opacity: .75; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lager-felt-s:empty{ display: none; }
 .fane-tal:empty{ display: none; }
 
 /* Kompakt: tekst til venstre, knap til hoejre. Fem kort maa ikke skubbe
@@ -1290,7 +1302,6 @@
   /* Lageret: varerne side om side, saa en skaerm viser mere end fem. */
   #s-queue{ --maal: 1120px; }
   #queue-list, #queue-loading{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--s3); }
-  #s-queue .faner{ max-width: 480px; }
 
   /* Varens side: billederne til venstre, staaende fast, mens resten rulles.
      Kolonnen er saa bred, at et 3:4-billede passer i hoejden - saa vises
