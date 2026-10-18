@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0105 — 2026-10-18 21:45
+
+Commit `d7b7167` — Mac-webapp: appen lukker Vinted-vinduet, når runneren melder færdig  
+App: `app.js?v=d2dd816f` · `style.css?v=1e4dbfe2`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script ← | v108 | `603a4e0f` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0104 — 2026-10-18 21:40
 
 Commit `a152457` — Mac-webapp: Vinted-vinduet lukker sig selv efter prisvagten  
