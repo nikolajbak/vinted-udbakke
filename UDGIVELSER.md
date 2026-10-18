@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0106 — 2026-10-18 21:50
+
+Commit `650ea30` — Mac-webapp: åbn Vinted med et link-klik, så det lander i Safari  
+App: `app.js?v=ccda48c1` · `style.css?v=1e4dbfe2`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script ← | v109 | `f282d50e` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0105 — 2026-10-18 21:45
 
 Commit `d7b7167` — Mac-webapp: appen lukker Vinted-vinduet, når runneren melder færdig  
