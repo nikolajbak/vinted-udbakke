@@ -1231,3 +1231,61 @@
 /* Temavalget i Mere genbruger fanernes segmenter. */
 .tema-valg{ margin-bottom: 0; }
 .tema-valg + .gruppe{ margin-top: var(--s5); }
+
+/* ---- Computerskaermen ----------------------------------------------------
+   Fra 960 px bred: fanerne bliver en sidebjaelke til venstre, der staar
+   fast, mens skaermene skifter ved siden af den (app.js flytter den ind i
+   #app, BRED). Lageret laegger varerne i et gitter, varens side har
+   billederne til venstre og resten til hoejre. Under 960 px er intet
+   aendret - telefonen og iPad'en paa hoejkant ser ud som foer. */
+.fane-navn{ display: none; }
+@media (min-width: 960px){
+  :root{ --side: 232px; --maal: 680px; }
+  #app > .screen{ left: var(--side); }
+  #app > #s-login{ left: 0; }
+  #app:has(> #s-login:not([hidden])) > .fanebar{ display: none; }
+
+  #app > .fanebar{
+    position: absolute; left: 0; top: 0; bottom: 0; width: var(--side); z-index: 5;
+    flex-direction: column; justify-content: flex-start; gap: 2px;
+    padding: calc(var(--s5) + env(safe-area-inset-top)) var(--s3) var(--s4);
+    border-top: 0; border-right: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .fane-navn{
+    display: block; font-size: var(--t-title); font-weight: 700; letter-spacing: -0.02em;
+    padding: 0 var(--s3) var(--s4);
+  }
+  .fane-knap{
+    flex: none; flex-direction: row; justify-content: flex-start; gap: var(--s3);
+    min-height: 44px; padding: 0 var(--s3); border-radius: 10px;
+    font-size: var(--t-body); font-weight: 500; color: var(--ink-soft);
+    transition: background-color 140ms ease, color 140ms ease;
+  }
+  .fane-knap svg{ width: 20px; height: 20px; padding: 0; }
+  .fane-knap.on{ background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .fane-knap.on svg{ background: none; }
+  .fane-knap .fod-tal{ position: static; margin-left: auto; }
+
+  /* Uden fanerne i bunden er der intet at svaeve over. */
+  .ny-knap{ bottom: calc(var(--s5) + env(safe-area-inset-bottom)); }
+
+  /* Lageret: varerne side om side, saa en skaerm viser mere end fem. */
+  #s-queue{ --maal: 1120px; }
+  #queue-list, #queue-loading{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--s3); }
+  #s-queue .faner{ max-width: 480px; }
+  #opgaver:not(:empty){ max-width: 680px; }
+
+  /* Varens side: billederne til venstre, staaende fast, mens resten rulles.
+     Kolonnen er saa bred, at et 3:4-billede passer i hoejden - saa vises
+     filen stadig helt, uden at blive presset ned i et format. */
+  #s-detail{ --maal: 1120px; }
+  #d-body{ display: grid; grid-template-columns: minmax(0, min(46%, 56vh)) minmax(0, 1fr);
+           gap: var(--s6); align-items: start; }
+  .d-medier{ position: sticky; top: 0; }
+  .d-info > :first-child{ margin-top: 0; }
+  #s-detail .footer > *{ max-width: 680px; margin-inline: auto; width: 100%; }
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 960px){
+  .fane-knap:not(.on):hover{ background: var(--raised); color: var(--ink); }
+}

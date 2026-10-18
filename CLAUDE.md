@@ -168,6 +168,12 @@ Browserruden throttler timere, når den er skjult: et gennemløb, der tager 40 s
 på telefonen, kan tage flere minutter her. Tiderne i loggen er derfor ikke
 retvisende — kun rækkefølgen og udfaldet er.
 
+**Appen indlogget i browserruden uden adgangskoden: `sh tools/proeve.sh`**
+og så `http://localhost:8765/proeve.html` (preview »app«). Den henter
+rigtige rækker (kun læst) og svarer selv på alle kald til Supabase, så
+intet sendes og intet gemmes. Appens service worker serverer gammel CSS på
+localhost: afregistrér den i ruden, hvis en ændring ikke slår igennem.
+
 `window.__UDBAKKE_LOG__` i browseren viser hvert trin. Kør automatikken sådan:
 
 ```js
@@ -771,6 +777,14 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   ventet over et døgn), Mere sit, når noget i opsætningen er gået i stå.
 - **Nyt produkt** er en svævende knap over listen; Scan sidder øverst til
   højre på Lager.
+- **På en computerskærm (fra 960 px bred) er fanerne en sidebjælke**
+  (bestemt af dig 18. oktober: »responsivt, så det også passer til en
+  computerskærm«). `flytFanebar` lægger `#fanebar` i `#app` i stedet for i
+  skærmen (`BRED`), så den står fast — også på varens side og i Redigér.
+  Lageret viser varerne i et gitter (op til 1120 px), varens side har
+  billederne til venstre (stående fast) og resten til højre (`.d-medier`/
+  `.d-info`), de øvrige skærme en spalte på 680 px. Under 960 px er intet
+  ændret. Reglerne står sidst i `style.css` (»Computerskaermen«).
 - **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
   Opsætning, Udseende (temaet) og Log ud. **Nederst står versionen**
   (bestemt af dig 18. oktober, `tegnVersion`): »udgivelse-NNNN · App

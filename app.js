@@ -165,8 +165,12 @@
      ingen tilbagepil og ingen post i historien. Der er én fanebjælke; den
      flyttes ind i den skærm, der er fremme. */
   var RODER = { queue: 1, vagt: 1, konto: 1, menu: 1 };
+  // Paa en bred skaerm er fanerne en sidebjaelke, der staar fast, mens
+  // skaermene skifter ved siden af den — ogsaa paa en vares side. Saa bor
+  // den i #app og ikke i den skaerm, der er fremme. Bredden: style.css.
+  var BRED = window.matchMedia('(min-width: 960px)');
   function flytFanebar(name){
-    var nav = $('fanebar'), s = screenEl(name);
+    var nav = $('fanebar'), s = BRED.matches ? $('app') : screenEl(name);
     if(!nav || !s) return;
     if(nav.parentNode !== s) s.appendChild(nav);
     Array.prototype.forEach.call(nav.querySelectorAll('[data-til]'), function(b){
@@ -175,6 +179,7 @@
       if(on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
+  if(BRED.addEventListener) BRED.addEventListener('change', function(){ flytFanebar(stack[0] || 'queue'); });
   function hentFane(name){
     if(name === 'vagt') hentVagt();
     else if(name === 'konto') hentKonto();
@@ -740,7 +745,9 @@
     var f = fase(d);
     var faerdig = d.status === 'ny' || d.status === 'afsendt';
 
-    var html = '';
+    // To dele: billederne og resten. Paa telefonen staar de under hinanden;
+    // paa en bred skaerm side om side (.d-medier/.d-info i style.css).
+    var html = '<div class="d-medier">';
     var gal = photos.length ? photos : (d.image_url ? [{ url: d.image_url, kind: '' }] : []);
     if(gal.length){
       html += '<div class="gallery"><div class="hero-track" id="d-track">' +
@@ -762,6 +769,7 @@
       html += '<div class="note">Tryk på et lille billede for at beskære det' +
         (faerdig ? ' · hold fingeren på det og træk for at flytte det' : '') + '.</div>';
     }
+    html += '</div><div class="d-info">';
 
     if(faerdig){
       // Det store tal er det, varen koster NU. Staar der 175 i udkastet og
@@ -818,7 +826,7 @@
     } else if(f === 'solgt'){
       html += '<button type="button" class="btn btn-danger" data-a="discard">Fjern fra listen</button>';
     }
-    html += '</div>';
+    html += '</div></div>';
     $('d-body').innerHTML = html;
     var fold = $('d-fold');
     if(fold) fold.addEventListener('toggle', function(){ FOLD[d.id] = fold.open; });
