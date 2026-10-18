@@ -3861,10 +3861,9 @@
   // reglen for priser, men tallene her er summer.
   function krSum(n){ return tusind(n) + ',00 kr'; }
 
-  function kontoFelt(tal, navn, under){
-    return '<div class="konto-felt"><span class="konto-tal">' + esc(tal) + '</span>' +
-      '<span class="konto-navn">' + esc(navn) + '</span>' +
-      (under ? '<span class="konto-under">' + esc(under) + '</span>' : '') + '</div>';
+  // En raekke i noegletallene: navnet til venstre, tallet til hoejre.
+  function kontoRk(navn, vaerdi, cls){
+    return '<div class="konto-kv-r' + (cls ? ' ' + cls : '') + '"><span>' + esc(navn) + '</span><b>' + esc(vaerdi) + '</b></div>';
   }
 
   function tegnKonto(ann, forbrug, tagetNed){
@@ -3897,24 +3896,20 @@
     var udeVaerdi = aktive.reduce(function(s, l){ return s + (Number(l.price) || 0); }, 0);
     var hjerter = aktive.reduce(function(s, l){ return s + (Number(l.favourites) || 0); }, 0);
 
-    var h = '';
+    var usd = forbrug.reduce(function(s, f){ return s + (Number(f.usd) || 0); }, 0);
+    var varer = {};
+    forbrug.forEach(function(f){ if(f.draft_id) varer[f.draft_id] = 1; });
+    var nVarer = Object.keys(varer).length, udgift = usd * USD_KR;
 
-    // Det store tal foerst - det er det, man kommer for.
-    var sammen = '';
-    if(forrigeMd.length || denneMd.length){
-      sammen = 'denne måned ' + krSum(sum(denneMd)) + ' · sidste måned ' + krSum(sum(forrigeMd));
-    }
-    h += '<div class="konto-top"><span class="label">Omsætning i alt</span>' +
+    // Det store tal foerst - det er det, man kommer for - og under det de
+    // seks maaneder. Ingen kasser: tallet og soejlerne er skaermen.
+    var linje = solgte.length + (solgte.length === 1 ? ' salg' : ' salg') +
+      (solgte.length ? ' · i snit ' + krSum(omsaetning / solgte.length) : '') +
+      (forbrug.length ? ' · ca. ' + krSum(udgift) + ' brugt på AI' : '');
+    var h = '<div class="konto-venstre"><div class="konto-top"><span class="label">Omsætning i alt</span>' +
       '<div class="konto-stor">' + esc(krSum(omsaetning)) + '</div>' +
-      '<div class="konto-under">' + esc(solgte.length + (solgte.length === 1 ? ' vare solgt' : ' varer solgt') +
-        (sammen ? ' · ' + sammen : '')) + '</div></div>';
-
-    h += '<div class="konto-gitter">' +
-      kontoFelt(solgte.length ? krSum(omsaetning / solgte.length) : '–', 'Gns. salgspris') +
-      kontoFelt(medDage != null ? dageTekst(Math.round(medDage * 10) / 10) : '–', 'Tid til salg', 'median') +
-      kontoFelt(String(aktive.length), 'Ude nu', 'til ' + krSum(udeVaerdi)) +
-      kontoFelt(andel != null ? Math.round(andel) + ' %' : '–', 'Af udbudsprisen', 'det, køberne betalte') +
-      '</div>';
+      '<div class="konto-linje">' + esc(linje) +
+        (udenPris ? ' · <span class="konto-adv">' + udenPris + ' uden salgspris</span>' : '') + '</div></div>';
 
     // Omsaetning pr. maaned, de seneste seks. Soejlerne er relative til den
     // stoerste maaned; tallet staar over, saa intet skal aflaeses af hoejden.
@@ -3925,7 +3920,7 @@
                  kr: sum(liste), n: liste.length, nu: i === 0 });
     }
     var maks = Math.max.apply(null, mdr.map(function(x){ return x.kr; })) || 1;
-    h += '<div class="sect konto-maaned"><span class="label">Pr. måned</span><div class="konto-graf" role="img" aria-label="' +
+    h += '<div class="konto-graf" role="img" aria-label="Omsætning pr. måned: ' +
       esc(mdr.map(function(x){ return x.navn + ' ' + Math.round(x.kr) + ' kr'; }).join(', ')) + '">' +
       mdr.map(function(x){
         return '<div class="konto-md' + (x.nu ? ' nu' : '') + '">' +
@@ -3933,36 +3928,34 @@
           '<span class="konto-soejle" style="height:' + Math.max(x.kr ? 4 : 1, Math.round(x.kr / maks * 110)) + 'px"></span>' +
           '<span class="konto-md-navn">' + esc(x.navn) + '</span>' +
           '<span class="konto-md-n">' + (x.n ? x.n + ' stk' : '') + '</span></div>';
-      }).join('') + '</div><p class="note">Beløb i kroner, solgt på Vinted.</p></div>';
+      }).join('') + '</div></div>';
 
-    // Hvad det har kostet. Kun modelkaldene kendes - indkoebsprisen gemmes ikke.
-    var usd = forbrug.reduce(function(s, f){ return s + (Number(f.usd) || 0); }, 0);
-    var varer = {};
-    forbrug.forEach(function(f){ if(f.draft_id) varer[f.draft_id] = 1; });
-    var nVarer = Object.keys(varer).length, udgift = usd * USD_KR;
-    h += '<div class="sect konto-udgift"><span class="label">Udgifter</span>' +
-      '<div class="konto-linje"><span>Analyse og tekster (AI)</span><b>ca. ' + esc(krSum(udgift)) + '</b></div>' +
-      (nVarer ? '<div class="konto-linje s"><span>Pr. vare analyseret (' + nVarer + ')</span><span>ca. ' + esc(kr(udgift / nVarer)) + '</span></div>' : '') +
-      '<div class="konto-linje sum"><span>Tilbage efter AI</span><b>' + esc(krSum(omsaetning - udgift)) + '</b></div>' +
-      '<p class="note">' + esc(usd.toFixed(2).replace('.', ',') + ' $ regnet om til ca. ' + String(USD_KR).replace('.', ',') +
-        ' kr pr. dollar. Indkøbsprisen kender appen ikke, så den er ikke trukket fra.') + '</p></div>';
+    // Noegletallene paa raekker. Udgiften er kun modelkaldene - indkoebsprisen
+    // kender appen ikke.
+    h += '<div class="konto-kv">' +
+      kontoRk('Ude nu', aktive.length + ' · ' + krSum(udeVaerdi)) +
+      kontoRk('Tid til salg', medDage != null ? dageTekst(Math.round(medDage * 10) / 10) : '–') +
+      kontoRk('Salgspris af udbud', andel != null ? Math.round(andel) + ' %' : '–') +
+      kontoRk('Denne måned', krSum(sum(denneMd))) +
+      kontoRk('Sidste måned', krSum(sum(forrigeMd))) +
+      kontoRk('Hjerter på det, der er ude', hjerter + ' ♥') +
+      kontoRk('AI til analyse og tekster', 'ca. ' + krSum(udgift)) +
+      (nVarer ? kontoRk('AI pr. vare (' + nVarer + ')', 'ca. ' + kr(udgift / nVarer), 's') : '') +
+      kontoRk('Tilbage efter AI', krSum(omsaetning - udgift), 'sum') +
+      '</div>';
 
-    // Det, der ligger ude: hjerterne viser, hvad der er tæt paa et salg.
-    if(aktive.length){
-      var top = aktive.filter(function(l){ return l.favourites; })
-        .sort(function(a, b){ return b.favourites - a.favourites; }).slice(0, 3);
-      h += '<div class="sect konto-ude"><span class="label">Ude nu</span>' +
-        '<div class="konto-linje"><span>Annoncer på Vinted</span><b>' + aktive.length + '</b></div>' +
-        '<div class="konto-linje"><span>Samlet udbudspris</span><b>' + esc(krSum(udeVaerdi)) + '</b></div>' +
-        '<div class="konto-linje"><span>Hjerter i alt</span><b>' + hjerter + ' ♥</b></div>' +
-        (top.length ? '<p class="note note-luft">Flest hjerter</p>' + top.map(kontoVare(function(l){
-          return l.favourites + ' ♥ · ' + kr(l.price) + ' · ude ' + dageTekst(Math.round(dageMellem(l.listed_at || nu, nu)));
-        })).join('') : '') + '</div>';
+    // Det, der ligger ude: hjerterne viser, hvad der er taet paa et salg.
+    var top = aktive.filter(function(l){ return l.favourites; })
+      .sort(function(a, b){ return b.favourites - a.favourites; }).slice(0, 3);
+    if(top.length){
+      h += '<div class="sect konto-liste"><span class="label">Flest hjerter</span>' + top.map(kontoVare(function(l){
+        return l.favourites + ' ♥ · ' + kr(l.price) + ' · ude ' + dageTekst(Math.round(dageMellem(l.listed_at || nu, nu)));
+      })).join('') + '</div>';
     }
 
     if(solgte.length){
       var seneste = solgte.slice().sort(function(a, b){ return new Date(b.sold_at || 0) - new Date(a.sold_at || 0); });
-      h += '<div class="sect konto-salg"><span class="label">Salg</span>' + seneste.map(kontoVare(function(l){
+      h += '<div class="sect konto-liste"><span class="label">Salg</span>' + seneste.map(kontoVare(function(l){
         var d = l.listed_at && l.sold_at ? Math.round(dageMellem(l.listed_at, l.sold_at)) : null;
         var bud = l.sold_price != null && Number(l.start_price) > Number(l.sold_price) ? ' (udbudt ' + kr(l.start_price) + ')' : '';
         return (l.sold_price != null ? kr(l.sold_price) : 'salgspris mangler') + bud +
@@ -3971,11 +3964,12 @@
       })).join('') + '</div>';
     }
 
-    var noter = [];
-    if(udenPris) noter.push(udenPris + ' salg mangler salgsprisen og tæller med udbudsprisen.');
-    if(tagetNed) noter.push(tagetNed + (tagetNed === 1 ? ' vare er' : ' varer er') + ' taget ned på DBA/Reshopper; salg dér kender appen ikke beløbet på.');
-    noter.push('DBA og Reshopper er ikke med i tallene — kun Vinted har annoncer, appen kan følge.');
-    h += '<p class="note note-luft konto-noter">' + esc(noter.join(' ')) + '</p>';
+    // Én daempet linje om det, tallene ikke daekker.
+    var noter = ['Kun Vinted — DBA og Reshopper tæller ikke med' +
+      (tagetNed ? ' (' + tagetNed + ' taget ned dér)' : '') + '.'];
+    if(udenPris) noter.push('Salg uden salgspris tæller med udbudsprisen.');
+    noter.push('AI: ' + usd.toFixed(2).replace('.', ',') + ' $ à ca. ' + String(USD_KR).replace('.', ',') + ' kr.');
+    h += '<p class="note konto-noter">' + esc(noter.join(' ')) + '</p>';
 
     krop.innerHTML = h;
   }
