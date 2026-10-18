@@ -1453,8 +1453,8 @@ laver en liste til godkendelse.** Erstatter beslutningen fra 16. oktober
   venter på din godkendelse«.
 - **Appen**: Prisvagt-skærmen har gruppen **Til godkendelse** øverst med
   »Foreslår X kr ~~Y kr~~«, begrundelsen, **Afvis** og **Godkend X kr**, og
-  »Godkend alle N«. Forsiden har én opgave »N prisforslag venter på din
-  godkendelse« → Prisvagt. Fanens tal tæller forslagene med. Varens side:
+  »Godkend alle N«. **Ingen opgave eller bånd om forslagene på forsiden
+  (Lager)** (bestemt af dig 18. oktober) — kun fanens tal tæller dem med. Varens side:
   »Prisvagt: foreslår X kr — venter på din godkendelse«.
 - **Godkend** (`godkendForslag`): prisen lægges i `pending` med
   `pending_note` »Godkendt af dig: …«, `forslag` ryddes, `price_events`

@@ -582,7 +582,7 @@
   // der mangler.
   // En koeber, der venter paa svar, kommer lige efter en vare, der kan
   // saelges to gange.
-  var OPGAVE_ORDEN = { ned:0, svar:1, forslag:2, fejl:3, send:4, salg:5, knyt:6 };
+  var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5 };
   var OPG_AABEN = false;
   function opgaveKort(tekst, under, knapper, slags){
     return { o: OPGAVE_ORDEN[slags], h: '<div class="opgave' + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
@@ -650,15 +650,8 @@
         (k.samtale ? '<button type="button" class="btn btn-secondary" data-op="svar-aabn"' + id + '>Åbn samtalen</button>' : '') +
         '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + id + '>Klaret</button>', 'svar'));
     });
-    // Prisvagten foreslaar kun (bestemt af dig 18. oktober). Én opgave for
-    // dem alle — selve listen staar paa Prisvagt-skaermen.
-    var nf = 0;
-    alle.forEach(function(d){ annoncer(d).forEach(function(l){ if(harForslag(l)) nf++; }); });
-    if(nf){
-      kort.push(opgaveKort(nf + (nf === 1 ? ' prisforslag venter' : ' prisforslag venter') + ' på din godkendelse',
-        'Prisvagten sætter ingen pris ned, før du har sagt ja.',
-        '<button type="button" class="btn btn-primary" data-op="forslag">Se forslagene</button>', 'forslag'));
-    }
+    // Prisforslagene staar IKKE her — kun paa Prisvagt-skaermen og som tal
+    // paa fanen (bestemt af dig 18. oktober).
     kort.sort(function(a, b){ return a.o - b.o; });
     var el = $('opgaver');
     // Den vigtigste staar altid fremme; resten ligger bag ét baand, saa
@@ -697,7 +690,6 @@
       return;
     }
     if(op === 'vis' && d){ openDetail(d.id); return; }
-    if(op === 'forslag'){ skiftFane('vagt'); return; }
     if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit#udbakke=send'); return; }
     if(op.indexOf('aabn-') === 0){
       var k = op.slice(5);
