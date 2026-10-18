@@ -666,8 +666,8 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   Alle markedspladsernes felter kan rettes i udkastet — se »Felterne til
   markedspladserne«.
 - **Salgsprisen tastes i et felt på siden**, aldrig i en `window.prompt`.
-- **»Virker det?«** er én linje øverst i Mere (»Alt virker« / »N ting skal
-  ses på«); hvert trin — notifikationer, hvornår automatikken til Vinted og
+- **»Virker det?«** er underteksten på Opsætning i Mere (»Alt virker« /
+  »N ting skal ses på · …« i rav, `#opsaet-tal`); hvert trin — notifikationer, hvornår automatikken til Vinted og
   DBA sidst blev hentet (`puls`), den sidste mail fra Vinted — står i
   Opsætning med sin vejledning.
 - **Optagelsen kan tage flere varer i træk** (»Lav udkast · næste vare«) og
@@ -794,10 +794,11 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   - **Prisvagt**: statuskortet på én linje (`.vagt-status-tekst` |
     `.vagt-status-knapper`), hver gruppe et gitter af lige høje kort, og
     erfaringerne side om side.
-  - **Konto**: et instrumentbræt i 12 spalter — omsætningen og de fire tal
-    øverst, »Pr. måned« ved »Udgifter«, »Ude nu« ved »Salg«
-    (`.konto-maaned`/`-udgift`/`-ude`/`-salg`; 6+6 under 1240 px).
-  - **Mere**: blokkene (`.mere-blok`) side om side.
+  - **Konto**: to spalter — omsætningen og søjlerne til venstre
+    (`.konto-venstre`), nøgletalsrækkerne til højre (`.konto-kv`).
+  - **Opgaver** og **Mere**: én spalte på 680 px, venstrestillet i den
+    samme 1120 px-ramme — så overskriften står samme sted som på Lager og
+    Konto (målt x=248 på alle fire, 19. oktober).
   - **Redigér**: teksten til venstre, markedspladsernes felter i et panel
     til højre; »Skriv beskrivelsen forfra« står stadig nederst over Gem.
   - **Etiketter** og **Køb igen**: gitter/to spalter. Opsætning er en
@@ -808,8 +809,13 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   Under 960 px er intet ændret — målt pixel for pixel mod forrige udgave
   på Mere, Prisvagt, Konto og Redigér (18. oktober). Reglerne står sidst
   i `style.css` (»Computerskaermen«).
-- **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
-  Opsætning, Udseende (temaet) og Log ud. **Nederst står versionen**
+- **Mere** (19. oktober, redesignets trin 3), ovenfra: **prisvagtens kort**
+  (`hentMereVagt`: »Holder øje med N«, pillen »Kører« grøn / »Forsinket«
+  rav — regnet af `vagtTilstand`, samme som Prisvagt-skærmen, og skjult,
+  hvis `puls` ikke kunne hentes — sidste tjek, dagligt tjek, og **Tjek
+  priserne nu**); et tryk på kortet åbner Prisvagt. Så rækker: Opsætning
+  (med »Virker det?« som undertekst), Etiketter, Køb igen; Udseende
+  (temaets tre knapper); Log ud i rødt. Kun én accent-knap. **Nederst står versionen**
   (bestemt af dig 18. oktober, `tegnVersion`): »udgivelse-NNNN · App
   <stempel> · <visning> · hentet kl. …«. Stemplet er `app.js?v=` i den rude, der kører;
   nummeret er den nyeste udgivelse i `UDGIVELSER.md` (udleveret af Pages)
@@ -834,13 +840,12 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   rav = se på det, rød = galt. Hvert tekst/bund-par holder mindst 4,5:1 i
   begge temaer — mål kontrasten, før en farve rettes. Før var bunden
   grågrøn, kortene beige og accenten aubergine.
-- **Redesign besluttet 19. oktober, bygges i tre trin** (spec:
-  `docs/superpowers/specs/2026-10-19-redesign-faner-design.md`): fire
-  faner Lager · Opgaver · Konto · Mere; prisforslag godkendes i Opgaver;
-  Prisvagt bliver en underskærm fra Mere; Lager får tal-felter og rolige
-  rækker uden kasser (»Rækkerne i lageret«).
-  **Trin 1 (faner, Opgaver) og trin 2 (Lager) er ude** og beskrevet her i
-  filen; trin 3 (Mere, Konto) gælder endnu den gamle beskrivelse.
+- **Redesignet 19. oktober** (spec:
+  `docs/superpowers/specs/2026-10-19-redesign-faner-design.md`): hver fane
+  ét formål; alt, der kræver dit tryk, står i Opgaver. Kort med skygge kun
+  dér, hvor noget skal løftes frem (prisvagtens kort, tal-felterne, en
+  opgave med farvet kant), ellers lister med tynde streger; højst én
+  accent-knap pr. skærm; forklaringer på én linje.
 - **Én skrift i hele appen: Libre Franklin** (18. oktober). Space Mono i
   versaler var overskrifternes og prisernes stemme (»UDKAST: 85,00 KR«) og
   er væk — også fra skrift-linket. Overskrifter over en gruppe (`.label`,
@@ -1078,10 +1083,14 @@ hver gang skærmen åbnes; intet gemmes.
 - **Omsætningen er Vinteds salg**: `listings.sold_price`, ellers
   udbudsprisen (og det siges). DBA og Reshopper har ingen `listings`-række,
   så deres salg kendes ikke — skærmen siger det, og tæller »taget ned«.
-- Tallene: omsætning i alt, denne og sidste måned, gns. salgspris, median
-  tid til salg, ude nu (antal og samlet udbudspris), salgspris i % af
-  udbudsprisen, søjler for de seneste seks måneder, de mest favoritmarkerede
-  og alle salg (med link til varen).
+- Opbygningen (19. oktober): **Omsætning i alt** som ét stort tal, under
+  det én linje med antal salg, snit og »ca. N kr brugt på AI« (og i rav,
+  hvis salg mangler salgspris); søjler for seks måneder (indeværende i
+  accent); så rækker med streger (`kontoRk`): Ude nu (antal · kr), Tid til
+  salg, Salgspris af udbud, Denne og Sidste måned, Hjerter, AI i alt, AI
+  pr. vare, Tilbage efter AI; så Flest hjerter og alle salg (med link til
+  varen); noten om DBA/Reshopper er én dæmpet linje. Intet tal fra før
+  er forsvundet.
 - **Udgifter er kun modelkaldene** (`forbrug.usd`, regnet om med `USD_KR`
   = 6,9 og skrevet »ca.«). Indkøbsprisen kendes ikke og trækkes ikke fra.
 
@@ -1590,8 +1599,8 @@ og Prisvagt-skærmen.
   det kører i din egen Safari. **Ikke målt:** om Genveje åbner Safari, mens
   telefonen er låst — vejledningen siger at vælge et tidspunkt, hvor
   telefonen er i brug.
-- **Manuelt: »Tjek priserne nu«** (bestemt af dig 18. oktober) i
-  statuskortet på Prisvagt-skærmen. Appen kan ikke selv nå Vinted, så
+- **Manuelt: »Tjek priserne nu«** (bestemt af dig 18. oktober) på
+  prisvagtens kort i Mere og i statuskortet på Prisvagt-skærmen. Appen kan ikke selv nå Vinted, så
   knappen åbner `https://www.vinted.dk/#udbakke=vagt-nu` i Safari
   (`VAGT_NU_URL`). Runneren kører det daglige tjek, men `mode:'due'` med
   `nu` tager de 15 længst utjekkede aktive annoncer (`last_check_at`),

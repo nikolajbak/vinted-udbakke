@@ -19,6 +19,14 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+000000000000000000. **Redesign trin 3: Mere, Konto og Prisvagt — 19. oktober.** Regler i
+   CLAUDE.md »Appens opbygning« og »Konto«. **Afprøvet** på prøvesiden:
+   prisvagtens kort i Mere (Kører/Forsinket, skjult ved puls-fejl), »Tjek
+   priserne nu«, Opsætning i rav, Konto med alle tal fra før (1.043,00 kr),
+   overskriften samme sted på alle fire faner i 1280 px, 375 px, lyst og
+   mørkt; review-agent pr. trin. **Ikke afprøvet:** på telefonen, og
+   »Tjek priserne nu« fra Mere hele vejen til Safari og tilbage.
+
 00000000000000000. **Redesign trin 2: Lager — 19. oktober.** Regler i CLAUDE.md
    »Rækkerne i lageret«. **Afprøvet** på prøvesiden: tal-felterne (Solgt =
    Konto, 1.043,00 kr), rækkerne i alle faner inkl. »tast salgsprisen«,
