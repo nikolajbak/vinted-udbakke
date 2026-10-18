@@ -733,12 +733,6 @@
   .vagt-forslag b{ font-variant-numeric: tabular-nums; }
   .vagt-forslag span{ font-size: var(--t-small); color: var(--ink-soft); }
   .vagt-forslag .btn{ margin: 0; }
-  .vagt-forslag.godkend{ background: var(--accent-soft); }
-  .vagt-forslag.godkend .vagt-knapper{ display: flex; gap: var(--s2); justify-content: flex-end; }
-  /* Afvis er kort; Godkend baerer beloebet og maa ikke braekke over to linjer. */
-  .vagt-forslag.godkend .vagt-knapper .btn{ white-space: nowrap; }
-  .vagt-forslag.godkend .vagt-knapper [data-v="afvis"]{ flex: 0 0 auto; padding: 0 var(--s4); }
-  .vagt-alle{ display: flex; justify-content: flex-end; margin: calc(-1 * var(--s2)) 0 var(--s4); }
 
   .vagt-stop{
     margin-top: var(--s3); padding: var(--s3);
@@ -1182,7 +1176,6 @@
 .gruppe{ background: var(--raised); border: 1px solid var(--line); border-radius: 14px;
          padding: 0 var(--s4); margin-top: var(--s3); }
 .gruppe > .menu-item:last-child, .gruppe > .trin:last-child{ border-bottom: 0; }
-.menu-stille{ color: var(--ink-soft); font-weight: 500; }
 .mere-version{ font-size: var(--t-small); color: var(--ink-soft); text-align: center; margin: var(--s4) var(--s2) var(--s5); }
 
 /* Mere: prisvagtens kort oeverst - det eneste loeftede element paa
@@ -1201,7 +1194,7 @@
 .mv-gruppe{ background: none; border: 0; border-radius: 0; padding: 0; margin-top: 0; }
 .mv-tema{ margin: var(--s5) 0; }
 .mv-tema .label{ display: block; margin-bottom: var(--s2); }
-.mv-adv{ color: var(--amber); }
+#opsaet-tal.mv-adv{ color: var(--amber); }
 .menu-fare{ color: var(--danger-tekst); }
 .tjek-k{ flex: 1 1 auto; min-width: 0; }
 .tjek-k small, .trin-navn small, .trin.andre small{
@@ -1331,9 +1324,10 @@
   body:has(#s-login:not([hidden])) .toast{ left: var(--s4); }
 
   /* Fanerne har samme bredde, saa overskriften ikke hopper ved et skift. */
-  #s-vagt, #s-konto, #s-menu{ --maal: 1120px; }
-  /* Opgaverne er en liste, der skal laeses - som Opsaetning. */
-  #s-opgaver{ --maal: 680px; }
+  #s-vagt, #s-konto, #s-opgaver, #s-menu{ --maal: 1120px; }
+  /* Opgaverne og Mere er lister, der skal laeses - som Opsaetning. Rammen
+     er 1120 px som de andre faner, kun indholdet holder 680 px. */
+  #opgaver-body > *, #s-menu > .body > *{ max-width: 680px; }
 
   /* Prisvagten: statuskortet paa én linje - teksten til venstre, knapperne
      til hoejre - og hver gruppe som et gitter af kort. Kortene i en raekke
@@ -1355,8 +1349,6 @@
     border: 1px solid var(--line); border-radius: 14px;
   }
   .vagt-row > .vagt-mere{ margin-top: auto; padding-top: var(--s3); }
-  .vagt-alle{ margin: var(--s3) 0 0; }
-  .vagt-alle .btn{ flex: 0 0 auto; width: auto; padding: 0 var(--s5); }
   #vagt-body > details.sect{ margin-top: var(--s6); }
   /* Erfaringerne: to-tre side om side i stedet for én lang spalte. */
   .laer{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); column-gap: var(--s5); margin-top: var(--s6); }
@@ -1374,12 +1366,6 @@
   .konto-graf{ height: 200px; }
   .konto-soejle{ max-width: 48px; }
 
-  /* Mere: blokkene side om side - to eller tre, efter hvad der er plads til. */
-  #s-menu .body{
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    column-gap: var(--s5); align-content: start; align-items: start;
-  }
-  #s-menu .body > .mv-vagt, #s-menu .body > .mere-version{ grid-column: 1 / -1; }
 
   /* Etiketterne: et gitter af varer at vaelge imellem; vejledningen holder
      laesebredden. */

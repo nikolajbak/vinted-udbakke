@@ -3812,8 +3812,10 @@
             ? 'Holder øje med ' + t.vagter.length + (t.vagter.length === 1 ? ' annonce' : ' annoncer')
             : 'Ingen annoncer at holde øje med') : 'Prisvagten kunne ikke hentes') + '</b>' +
           (t ? '<span>' + (t.sidst ? 'Sidste tjek ' + esc(relTime(t.sidst)) : 'Ikke tjekket endnu') +
-            ' · dagligt tjek ' + (t.dagligOk ? 'slået til' : 'ikke slået til') + '</span>' : '') + '</span>' +
-        (t ? '<span class="mv-pille ' + (t.galt ? 'adv' : 'ok') + '">' + (t.galt ? 'Forsinket' : 'Kører') + '</span>' : '') +
+            (t.pulsUkendt ? '' : ' · dagligt tjek ' + (t.dagligOk ? 'slået til' : 'ikke slået til')) + '</span>' : '') + '</span>' +
+        // Kunne pulsen ikke hentes, ved vi ikke, om det daglige tjek koerer -
+        // saa siger kortet hverken »Kører« eller »Forsinket«.
+        (t && !t.pulsUkendt ? '<span class="mv-pille ' + (t.galt ? 'adv' : 'ok') + '">' + (t.galt ? 'Forsinket' : 'Kører') + '</span>' : '') +
         '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></button>' +
         (t && t.vagter.length ? '<button type="button" class="btn btn-primary" id="mv-vagt-nu">Tjek priserne nu</button>' : '');
       $('mv-vagt-aabn').addEventListener('click', function(){ show('vagt'); hentVagt(); });
@@ -3829,7 +3831,9 @@
       var puls = {};
       (r[1].data || []).forEach(function(x){ puls[x.navn] = x; });
       var aktive = (r[0].data || []).filter(function(l){ return l.status === 'aktiv' || l.status === 'pause'; });
-      tegn(vagtTilstand(aktive, puls));
+      var t = vagtTilstand(aktive, puls);
+      t.pulsUkendt = !!r[1].error;
+      tegn(t);
     }, function(){ tegn(null); });
   }
 
@@ -3903,7 +3907,7 @@
 
     // Det store tal foerst - det er det, man kommer for - og under det de
     // seks maaneder. Ingen kasser: tallet og soejlerne er skaermen.
-    var linje = solgte.length + (solgte.length === 1 ? ' salg' : ' salg') +
+    var linje = solgte.length + ' salg' +
       (solgte.length ? ' · i snit ' + krSum(omsaetning / solgte.length) : '') +
       (forbrug.length ? ' · ca. ' + krSum(udgift) + ' brugt på AI' : '');
     var h = '<div class="konto-venstre"><div class="konto-top"><span class="label">Omsætning i alt</span>' +
