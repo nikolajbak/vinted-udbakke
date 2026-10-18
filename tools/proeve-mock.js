@@ -45,6 +45,13 @@
         var e = v.match(/^eq\.(.*)$/);
         if(e && k !== 'select') body = body.filter(function(r){ return String(r[k]) === e[1]; });
       });
+      // drafts hentes med listings(...) indlejret; det kan mock'en ikke af
+      // sig selv, saa annoncerne laegges paa ud fra draft_id.
+      if(m[1] === 'drafts' && /listings%28|listings\(/.test(m[2])){
+        body = body.map(function(d){
+          return Object.assign({}, d, { listings: (data.listings || []).filter(function(l){ return l.draft_id === d.id; }) });
+        });
+      }
       var h = opt && opt.headers; var acc = h && (h.get ? h.get('Accept') : h.Accept || h.accept);
       if(acc && /pgrst\.object/.test(acc)) body = body[0] || null;
     }
