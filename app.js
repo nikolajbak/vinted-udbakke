@@ -183,7 +183,7 @@
   function hentFane(name){
     if(name === 'opgaver') hentOpgaver();
     else if(name === 'konto') hentKonto();
-    else if(name === 'menu'){ tegnTjek(); tegnVersion(); }
+    else if(name === 'menu'){ hentMereVagt(); tegnTjek(); tegnVersion(); }
   }
   function skiftFane(name){
     var s = screenEl(name);
@@ -1360,7 +1360,8 @@
     // Userscripts: saa gaar appen til Vinted i sit EGET vindue, og runneren
     // sender vinduet tilbage til fanen, du stod paa (&tilbage=, lukFanen).
     if(!PAA_IOS && tilSafari && /#udbakke=/.test(url)){
-      var hjem = url + '&tilbage=' + (stack[0] || 'queue');
+      // Paa Prisvagt-skaermen (under Mere) skal vinduet tilbage til den.
+      var hjem = url + '&tilbage=' + (stack[stack.length - 1] === 'vagt' ? 'vagt' : (stack[0] || 'queue'));
       // Et klik paa et link uden target bliver i webappens vindue; en
       // location.href fra koden sendte macOS ud til Safari (udgivelse-0109).
       if(!foerst){
@@ -2292,7 +2293,6 @@
     }, function(){});
   }
   tegnVersion();
-  $('tjek').addEventListener('click', function(){ show('opsaet'); tegnTjek(); });
 
   /* ---- Virker opsaetningen? ----------------------------------------------
      Hver del svarer med et tidspunkt. 2. oktober laa nr. 19-21 ude med en
@@ -2301,7 +2301,6 @@
     return iso && (Date.now() - new Date(iso).getTime()) < dage * 86400000;
   }
   function tegnTjek(){
-    var el = $('tjek');
     var notif = !pushMuligt() ? [null, 'kun i appen på hjemmeskærmen']
       : Notification.permission === 'granted' ? [true, 'slået til']
       : Notification.permission === 'denied' ? [false, 'blokeret i telefonens indstillinger']
@@ -2336,19 +2335,14 @@
         t.querySelector('.trin-status').textContent = puls ? res[k][1] : 'tjekker …';
         t.classList.toggle('galt', !!puls && res[k][0] === false);
       });
-      if(!puls){
-        el.className = 'tjek-kort';
-        el.innerHTML = '<span class="tjek-prik" aria-hidden="true"></span><span class="tjek-k">Tjekker opsætningen …</span>';
-        return;
-      }
-      el.className = 'tjek-kort ' + (gale.length ? 'nej' : 'ok');
-      el.innerHTML = '<span class="tjek-prik ' + (gale.length ? 'nej' : 'ok') + '" aria-hidden="true"></span>' +
-        '<span class="tjek-k">' + (gale.length
-          ? (gale.length === 1 ? '1 ting skal ses på' : gale.length + ' ting skal ses på') +
-            '<small>' + esc(gale.map(function(k){ return NAVN[k]; }).join(', ')) + '</small>'
-          : 'Alt virker<small>Notifikationer, automatik og mails</small>') + '</span>' +
-        '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>';
-      $('opsaet-tal').textContent = ok + ' af ' + Object.keys(res).length + ' virker';
+      // Mere viser kun svaret, som undertekst paa Opsaetning.
+      var st = $('opsaet-tal');
+      if(!puls){ st.textContent = 'Tjekker opsætningen …'; st.className = ''; return; }
+      st.textContent = gale.length
+        ? (gale.length === 1 ? '1 ting skal ses på' : gale.length + ' ting skal ses på') + ' · ' +
+          gale.map(function(k){ return NAVN[k]; }).join(', ')
+        : 'Alt virker';
+      st.className = gale.length ? 'mv-adv' : '';
       var mt = $('mere-tal');
       if(mt){ mt.textContent = String(gale.length); mt.hidden = !gale.length; }
     }
@@ -3185,7 +3179,6 @@
     }, 60);
   }
 
-  $('m-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
   $('m-labels').addEventListener('click', function(){ show('labels'); hentEtiketter(); });
 
   // Telefonens indbyggede kamera aabner bare adressen fra QR-koden. Den
@@ -3199,7 +3192,8 @@
     var fane = /^#fane-(queue|opgaver|vagt|konto|menu)$/.exec(location.hash || '');
     if(fane){
       try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
-      skiftFane(fane[1] === 'vagt' ? 'menu' : fane[1]);
+      if(fane[1] === 'vagt'){ skiftFane('menu'); show('vagt'); hentVagt(); }
+      else skiftFane(fane[1]);
       return;
     }
     var nr = nummerFra(location.hash || '');
@@ -3389,17 +3383,23 @@
 
   // Øverst: virker prisvagten? Ét kort, der svarer paa det, du vil vide —
   // hvornaar den sidst kiggede, og om noget staar i stampe.
-  function vagtStatus(aktive){
+  // Virker prisvagten? Bruges af Prisvagt-skaermen og kortet i Mere.
+  function vagtTilstand(aktive, puls){
     var vagter = aktive.filter(function(l){ return l.status === 'aktiv' && l.auto; });
     var sidst = null;
     aktive.forEach(function(l){ if(l.last_check_at && (!sidst || l.last_check_at > sidst)) sidst = l.last_check_at; });
-    var p = VAGT_PULS.prisvagt, dagligt = VAGT_PULS['prisvagt-dagligt'];
+    var p = puls.prisvagt, dagligt = puls['prisvagt-dagligt'];
     if(p && (!sidst || p.sidst > sidst)) sidst = p.sidst;
     var forsinket = vagter.filter(function(l){
       return new Date(l.next_check_at).getTime() < Date.now() - 86400000;
     }).length;
-    var dagligOk = dagligt && friskhed(dagligt.sidst, 2);
-    var galt = forsinket > 0 && !dagligOk;
+    var dagligOk = !!(dagligt && friskhed(dagligt.sidst, 2));
+    return { vagter: vagter, sidst: sidst, forsinket: forsinket, dagligOk: dagligOk, galt: forsinket > 0 && !dagligOk };
+  }
+
+  function vagtStatus(aktive){
+    var t = vagtTilstand(aktive, VAGT_PULS);
+    var vagter = t.vagter, sidst = t.sidst, forsinket = t.forsinket, dagligOk = t.dagligOk, galt = t.galt;
 
     var h = '<div class="vagt-status' + (galt ? ' galt' : '') + '">' +
       '<span class="tjek-prik ' + (galt ? 'maaske' : 'ok') + '" aria-hidden="true"></span><div>' +
@@ -3426,7 +3426,7 @@
     if(vagter.length){
       h += '<button type="button" class="btn btn-secondary" id="vagt-nu">Tjek priserne nu</button>' +
         '<span class="vagt-nu-note">Åbner Vinted i Safari og tjekker op til 15 annoncer, de længst utjekkede først. ' +
-        'Nye priser kommer her til godkendelse.</span>';
+        'Nye priser kommer under Opgaver.</span>';
     }
     h += '</div></div></div>';
     return h;
@@ -3462,9 +3462,9 @@
     oeje.sort(function(a, b){ return String(a.next_check_at).localeCompare(String(b.next_check_at)); });
 
     var h = vagtStatus(aktive);
-    h += vagtAfsnit('Ny pris på vej', '', paaVej);
-    h += vagtAfsnit('Holder øje', 'Prisen sammenlignes med lignende varer på Vinted. Står den for højt, foreslås en lavere pris til din godkendelse — aldrig under mindsteprisen.', oeje);
-    h += vagtAfsnit('Rører ikke prisen', '', fri);
+    h += vagtAfsnit('Ny pris på vej', 'Sættes af sig selv, næste gang Vinted er åben.', paaVej);
+    h += vagtAfsnit('Holder øje', 'Foreslår en lavere pris, når den står højt mod lignende varer.', oeje);
+    h += vagtAfsnit('Rører ikke prisen', 'På pause eller stoppet.', fri);
     if(solgte.length){
       h += '<details class="sect"><summary class="label">Solgt eller taget ned · ' + solgte.length + '</summary>' +
         solgte.map(function(l){
@@ -3516,15 +3516,6 @@
       sb.from('listings').update({ auto: true, next_check_at: new Date().toISOString() }).eq('id', l.id).then(function(){
         toast('Tjekkes, næste gang Vinted er åben');
         hentVagt();
-      });
-      return;
-    }
-    if(v === 'godkend' || v === 'afvis'){
-      btn.disabled = true;
-      (v === 'godkend' ? godkendForslag(l) : afvisForslag(l)).then(function(ok){
-        if(ok) toast(v === 'godkend' ? 'Godkendt — sættes, næste gang Vinted er åben' : 'Afvist — prisen bliver, hvor den er');
-        else btn.disabled = false;
-        hentVagt(); hentOpgaver();
       });
       return;
     }
@@ -3810,6 +3801,37 @@
 
   // Kurs til at vise modelforbruget i kroner. Et skoen, derfor »ca.«.
   var USD_KR = 6.9;
+
+  // Kortet oeverst i Mere: virker prisvagten, og »Tjek priserne nu«. Et tryk
+  // paa kortet aabner Prisvagt-skaermen.
+  function hentMereVagt(){
+    var el = $('mv-vagt');
+    function tegn(t){
+      el.innerHTML = '<button type="button" class="mv-vagt-top" id="mv-vagt-aabn">' +
+        '<span class="mv-vagt-tekst"><b>' + (t ? (t.vagter.length
+            ? 'Holder øje med ' + t.vagter.length + (t.vagter.length === 1 ? ' annonce' : ' annoncer')
+            : 'Ingen annoncer at holde øje med') : 'Prisvagten kunne ikke hentes') + '</b>' +
+          (t ? '<span>' + (t.sidst ? 'Sidste tjek ' + esc(relTime(t.sidst)) : 'Ikke tjekket endnu') +
+            ' · dagligt tjek ' + (t.dagligOk ? 'slået til' : 'ikke slået til') + '</span>' : '') + '</span>' +
+        (t ? '<span class="mv-pille ' + (t.galt ? 'adv' : 'ok') + '">' + (t.galt ? 'Forsinket' : 'Kører') + '</span>' : '') +
+        '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></button>' +
+        (t && t.vagter.length ? '<button type="button" class="btn btn-primary" id="mv-vagt-nu">Tjek priserne nu</button>' : '');
+      $('mv-vagt-aabn').addEventListener('click', function(){ show('vagt'); hentVagt(); });
+      var nu = $('mv-vagt-nu');
+      if(nu) nu.addEventListener('click', function(){ aabnUdad(VAGT_NU_URL); });
+    }
+    if(!el.innerHTML) el.innerHTML = '<div class="mv-vagt-top"><span class="mv-vagt-tekst"><b>Prisvagten</b><span>Henter …</span></span></div>';
+    Promise.all([
+      sb.from('listings').select('id, status, auto, next_check_at, last_check_at').in('status', ['aktiv', 'pause']),
+      sb.from('puls').select('navn, sidst, detalje').in('navn', ['prisvagt', 'prisvagt-dagligt'])
+    ]).then(function(r){
+      if(r[0].error){ tegn(null); return; }
+      var puls = {};
+      (r[1].data || []).forEach(function(x){ puls[x.navn] = x; });
+      var aktive = (r[0].data || []).filter(function(l){ return l.status === 'aktiv' || l.status === 'pause'; });
+      tegn(vagtTilstand(aktive, puls));
+    }, function(){ tegn(null); });
+  }
 
   function hentKonto(){
     var krop = $('konto-body');

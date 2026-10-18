@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=76310292">
+<link rel="stylesheet" href="style.css?v=da69887a">
 </head>
 <body>
 
@@ -163,16 +163,13 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
       <h2>Mere</h2>
     </header>
     <div class="body">
-      <!-- Virker opsaetningen? Én linje her; hvert trin staar under Opsaetning
-           med sit tidspunkt og sin vejledning. -->
-      <button type="button" class="tjek-kort" id="tjek"></button>
-      <!-- Hver blok staar for sig, saa computerskaermen kan saette dem side
-           om side. Paa telefonen er de bare en liste. -->
-      <div class="mere-blok">
-      <div class="gruppe-navn">Værktøjer</div>
-      <div class="gruppe">
-        <button type="button" class="menu-item" id="m-vagt">
-          <span>Prisvagt<small>Annoncerne, den holder øje med</small></span>
+      <!-- Prisvagten oeverst: virker den, og et tryk tjekker priserne nu. Saa
+           de faste steder som raekker. Om opsaetningen virker, staar under
+           Opsaetning. -->
+      <div class="mv-vagt" id="mv-vagt"></div>
+      <div class="gruppe mv-gruppe">
+        <button type="button" class="menu-item" id="m-opsaet">
+          <span>Opsætning<small id="opsaet-tal">Notifikationer, Vinted, DBA og mails</small></span>
           <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
         </button>
         <button type="button" class="menu-item" id="m-labels">
@@ -180,30 +177,20 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
           <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
         </button>
         <button type="button" class="menu-item" id="m-indkob">
-          <span>Hvad skal jeg købe igen?<small>De ubrugte varer, der er lette at sælge</small></span>
+          <span>Køb igen<small>De ubrugte varer, der er lette at sælge</small></span>
           <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
         </button>
       </div>
+      <div class="mv-tema">
+        <span class="label">Udseende</span>
+        <div class="faner tema-valg" role="radiogroup" aria-label="Tema" id="tema">
+          <button type="button" role="radio" data-tema="enhed">Som enheden</button>
+          <button type="button" role="radio" data-tema="lys">Lyst</button>
+          <button type="button" role="radio" data-tema="moerk">Mørkt</button>
+        </div>
       </div>
-      <div class="mere-blok">
-      <div class="gruppe-navn">Opsætning</div>
-      <div class="gruppe">
-        <button type="button" class="menu-item" id="m-opsaet">
-          <span>Automatik og notifikationer<small id="opsaet-tal">Notifikationer, Vinted, DBA og mails</small></span>
-          <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
-        </button>
-      </div>
-      </div>
-      <div class="mere-blok">
-      <div class="gruppe-navn">Udseende</div>
-      <div class="faner tema-valg" role="radiogroup" aria-label="Tema" id="tema">
-        <button type="button" role="radio" data-tema="enhed">Som enheden</button>
-        <button type="button" role="radio" data-tema="lys">Lyst</button>
-        <button type="button" role="radio" data-tema="moerk">Mørkt</button>
-      </div>
-      <div class="gruppe">
-        <button type="button" class="menu-item menu-stille" id="m-logout"><span>Log ud</span></button>
-      </div>
+      <div class="gruppe mv-gruppe">
+        <button type="button" class="menu-item menu-fare" id="m-logout"><span>Log ud</span></button>
       </div>
       <p class="mere-version" id="mere-version"></p>
     </div>
@@ -455,6 +442,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=d6e78b87"></script>
+<script src="app.js?v=f7077f97"></script>
 </body>
 </html>

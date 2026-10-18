@@ -1175,25 +1175,30 @@
 #s-queue .body{ padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 
 /* Grupperede lister: hvide flader paa papiret, en linje mellem raekkerne. */
-.gruppe-navn{ font-size: var(--t-small); color: var(--ink-soft); margin: var(--s5) var(--s1) var(--s2); }
 .gruppe{ background: var(--raised); border: 1px solid var(--line); border-radius: 14px;
          padding: 0 var(--s4); margin-top: var(--s3); }
-.gruppe-navn + .gruppe{ margin-top: 0; }
 .gruppe > .menu-item:last-child, .gruppe > .trin:last-child{ border-bottom: 0; }
 .menu-stille{ color: var(--ink-soft); font-weight: 500; }
 .mere-version{ font-size: var(--t-small); color: var(--ink-soft); text-align: center; margin: var(--s4) var(--s2) var(--s5); }
 
-/* Status: én linje i Mere, hele tjeklisten under Opsaetning. */
-.tjek-kort{
-  width: 100%; display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s3) var(--s4); border-radius: 14px; border: 1px solid var(--line);
-  background: var(--raised); color: var(--ink); font: inherit; font-size: var(--t-body);
-  font-weight: 600; text-align: left; cursor: pointer;
-}
-.tjek-kort.ok{ background: var(--moss-soft); border-color: transparent; }
-.tjek-kort.nej{ background: var(--amber-soft); border-color: transparent; }
-.tjek-kort .tjek-prik{ margin-top: 0; align-self: center; width: 10px; height: 10px; }
-.tjek-kort.nej .tjek-prik{ background: var(--amber); }
+/* Mere: prisvagtens kort oeverst - det eneste loeftede element paa
+   skaermen, med den eneste farvede knap. */
+.mv-vagt{ background: var(--raised); border-radius: 14px; padding: var(--s2) var(--s4) var(--s4);
+          box-shadow: 0 1px 0 var(--line); margin-bottom: var(--s5); }
+.mv-vagt-top{ width: 100%; display: flex; align-items: center; gap: var(--s3); padding: var(--s2) 0;
+              background: none; border: 0; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.mv-vagt-tekst{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.mv-vagt-tekst b{ font-size: var(--t-body); }
+.mv-vagt-tekst span{ font-size: var(--t-small); color: var(--ink-soft); }
+.mv-pille{ flex: none; font-size: var(--t-label); font-weight: 600; border-radius: 6px; padding: 2px 8px; }
+.mv-pille.ok{ background: var(--moss-soft); color: var(--moss); }
+.mv-pille.adv{ background: var(--amber-soft); color: var(--amber); }
+.mv-vagt .btn{ margin-top: var(--s2); }
+.mv-gruppe{ background: none; border: 0; border-radius: 0; padding: 0; margin-top: 0; }
+.mv-tema{ margin: var(--s5) 0; }
+.mv-tema .label{ display: block; margin-bottom: var(--s2); }
+.mv-adv{ color: var(--amber); }
+.menu-fare{ color: var(--danger-tekst); }
 .tjek-k{ flex: 1 1 auto; min-width: 0; }
 .tjek-k small, .trin-navn small, .trin.andre small{
   display: block; color: var(--ink-soft); font-size: var(--t-small); font-weight: 400; overflow-wrap: anywhere; }
@@ -1260,7 +1265,6 @@
 
 /* Temavalget i Mere genbruger fanernes segmenter. */
 .tema-valg{ margin-bottom: 0; }
-.tema-valg + .gruppe{ margin-top: var(--s5); }
 
 /* ---- Computerskaermen ----------------------------------------------------
    Fra 960 px bred: fanerne bliver en sidebjaelke til venstre, der staar
@@ -1386,7 +1390,7 @@
     display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     column-gap: var(--s5); align-content: start; align-items: start;
   }
-  #s-menu .body > .tjek-kort, #s-menu .body > .mere-version{ grid-column: 1 / -1; }
+  #s-menu .body > .mv-vagt, #s-menu .body > .mere-version{ grid-column: 1 / -1; }
 
   /* Etiketterne: et gitter af varer at vaelge imellem; vejledningen holder
      laesebredden. */
