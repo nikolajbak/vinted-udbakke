@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0099 — 2026-10-18 12:35
+
+Commit `5d2261a` — Runner: ingen parentes efter »appen« i kommentaren (check-runner)  
+App: `app.js?v=3fbf8904` · `style.css?v=9047eedf`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script ← | v105 | `4b6f6795` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0098 — 2026-10-18 00:38
 
 Commit `87444e3` — Runner: ingen backtick i kommentaren (String.raw)  
