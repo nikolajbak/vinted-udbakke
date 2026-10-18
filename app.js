@@ -161,10 +161,10 @@
   }
 
   /* ---- Fanerne i bunden ----------------------------------------------------
-     Lager, Prisvagt, Konto og Mere er rødder: et skift dem imellem lægger
+     Lager, Opgaver, Konto og Mere er rødder: et skift dem imellem lægger
      ingen tilbagepil og ingen post i historien. Der er én fanebjælke; den
      flyttes ind i den skærm, der er fremme. */
-  var RODER = { queue: 1, vagt: 1, konto: 1, menu: 1 };
+  var RODER = { queue: 1, opgaver: 1, konto: 1, menu: 1 };
   // Paa en bred skaerm er fanerne en sidebjaelke, der staar fast, mens
   // skaermene skifter ved siden af den — ogsaa paa en vares side. Saa bor
   // den i #app og ikke i den skaerm, der er fremme. Bredden: style.css.
@@ -181,7 +181,7 @@
   }
   if(BRED.addEventListener) BRED.addEventListener('change', function(){ flytFanebar(stack[0] || 'queue'); });
   function hentFane(name){
-    if(name === 'vagt') hentVagt();
+    if(name === 'opgaver') hentOpgaver();
     else if(name === 'konto') hentKonto();
     else if(name === 'menu'){ tegnTjek(); tegnVersion(); }
   }
@@ -3084,6 +3084,7 @@
     }, 60);
   }
 
+  $('m-vagt').addEventListener('click', function(){ show('vagt'); hentVagt(); });
   $('m-labels').addEventListener('click', function(){ show('labels'); hentEtiketter(); });
 
   // Telefonens indbyggede kamera aabner bare adressen fra QR-koden. Den
@@ -3093,10 +3094,11 @@
   function aabnFraAdresse(){
     // #fane-vagt: runneren sender Mac-webappens vindue tilbage hertil, naar
     // den er faerdig paa Vinted (aabnUdad, &tilbage=).
-    var fane = /^#fane-(queue|vagt|konto|menu)$/.exec(location.hash || '');
+    // Prisvagt er ikke laengere en fane; den bor i Mere.
+    var fane = /^#fane-(queue|opgaver|vagt|konto|menu)$/.exec(location.hash || '');
     if(fane){
       try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
-      skiftFane(fane[1]);
+      skiftFane(fane[1] === 'vagt' ? 'menu' : fane[1]);
       return;
     }
     var nr = nummerFra(location.hash || '');
@@ -3614,7 +3616,7 @@
     sb.from('listings').select('id, pending, pending_since, status, forslag')
       .in('status', ['aktiv', 'pause']).then(function(res){
         var n = (res.data || []).filter(function(l){ return sidderFast(l) || harForslag(l); }).length;
-        ['vagt-tal', 'fod-vagt-tal'].forEach(function(id){
+        ['vagt-tal'].forEach(function(id){
           var el = $(id);
           if(!el) return;
           el.textContent = String(n);
@@ -3739,6 +3741,11 @@
 
   // Kurs til at vise modelforbruget i kroner. Et skoen, derfor »ca.«.
   var USD_KR = 6.9;
+
+  // Opgaver-skaermen. Tegnes rigtigt i naeste trin; indtil da tom.
+  function hentOpgaver(){
+    $('opgaver-body').innerHTML = '';
+  }
 
   function hentKonto(){
     var krop = $('konto-body');

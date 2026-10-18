@@ -1301,6 +1301,8 @@
 
   /* Fanerne har samme bredde, saa overskriften ikke hopper ved et skift. */
   #s-vagt, #s-konto, #s-menu{ --maal: 1120px; }
+  /* Opgaverne er en liste, der skal laeses - som Opsaetning. */
+  #s-opgaver{ --maal: 680px; }
 
   /* Prisvagten: statuskortet paa én linje - teksten til venstre, knapperne
      til hoejre - og hver gruppe som et gitter af kort. Kortene i en raekke

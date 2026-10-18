@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=0ea11b2a">
+<link rel="stylesheet" href="style.css?v=1ba22546">
 </head>
 <body>
 
@@ -104,9 +104,9 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
       <button type="button" class="fane-knap on" data-til="queue" aria-current="page">
         <svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"/></svg><span>Lager</span>
       </button>
-      <button type="button" class="fane-knap" data-til="vagt">
-        <svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg><span>Prisvagt</span>
-        <span class="tal fod-tal" id="fod-vagt-tal" hidden></span>
+      <button type="button" class="fane-knap" data-til="opgaver">
+        <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span>Opgaver</span>
+        <span class="tal fod-tal" id="fod-opg-tal" hidden></span>
       </button>
       <button type="button" class="fane-knap" data-til="konto">
         <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6"/></svg><span>Konto</span>
@@ -171,6 +171,10 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
       <div class="mere-blok">
       <div class="gruppe-navn">Værktøjer</div>
       <div class="gruppe">
+        <button type="button" class="menu-item" id="m-vagt">
+          <span>Prisvagt<small>Annoncerne, den holder øje med</small></span>
+          <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
+        </button>
         <button type="button" class="menu-item" id="m-labels">
           <span>Etiketter<small>Løbenummer og QR-kode til udprintning</small></span>
           <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>
@@ -389,8 +393,19 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
     <div class="footer" id="lbl-footer" hidden></div>
   </section>
 
+  <!-- Alt, der kraever et tryk fra dig, staar her - ogsaa prisforslagene. -->
+  <section class="screen" id="s-opgaver" hidden>
+    <header class="bar">
+      <h1>Opgaver</h1>
+    </header>
+    <div class="body" id="opgaver-body"></div>
+  </section>
+
   <section class="screen" id="s-vagt" hidden>
     <header class="bar">
+      <button type="button" class="icon-btn" data-back aria-label="Tilbage">
+        <svg viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      </button>
       <h2>Prisvagt</h2>
     </header>
     <div class="body" id="vagt-body"></div>
@@ -440,6 +455,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=373dfdce"></script>
+<script src="app.js?v=e32d081e"></script>
 </body>
 </html>

@@ -656,7 +656,7 @@ var TILBAGE='udbakke_tilbage';
 var APP_URL='https://nikolajbak.github.io/vinted-udbakke/';
 function tilbageTil(){
  try{
-  var m=/[?&#]tilbage=(queue|vagt|konto|menu)(?:&|$)/.exec(location.search+location.hash);
+  var m=/[?&#]tilbage=(queue|opgaver|vagt|konto|menu)(?:&|$)/.exec(location.search+location.hash);
   if(m)sessionStorage.setItem(TILBAGE,m[1]);
   return sessionStorage.getItem(TILBAGE);
  }catch(e){return null}
