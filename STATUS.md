@@ -19,6 +19,13 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+00000000000000000. **Redesign trin 2: Lager — 19. oktober.** Regler i CLAUDE.md
+   »Rækkerne i lageret«. **Afprøvet** på prøvesiden: tal-felterne (Solgt =
+   Konto, 1.043,00 kr), rækkerne i alle faner inkl. »tast salgsprisen«,
+   »ingen pris« og »Analysen mislykkedes«, swipe-til-kassér, 375 og 1280
+   px, lyst og mørkt; review-agent pr. task. **Ikke afprøvet:** på
+   telefonen (swipe med fingeren).
+
 0000000000000000. **Redesign trin 1: fire faner og Opgaver — 19. oktober.** Spec og
    plan i `docs/superpowers/`; regler i CLAUDE.md »Appens opbygning« og
    »Prisvagten → Kun forslag«. **Afprøvet** på prøvesiden (rigtige rækker,

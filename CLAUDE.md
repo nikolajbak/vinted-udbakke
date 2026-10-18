@@ -629,7 +629,7 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   aldrig en status, du selv flytter: **klar** (kladde, under analyse, eller
   ikke sendt nogen steder hen), **ude** (en aktiv annonce, eller sendt til en
   plads), **solgt** (annoncen solgt eller taget ned). Forsiden er lageret med
-  de tre faner. »Markér som postet«, »Flyt tilbage til køen« og skærmen
+  de tre tal-felter. »Markér som postet«, »Flyt tilbage til køen« og skærmen
   »Afsendte annoncer« er væk. `drafts.status` bruges kun til kladde /
   afventer / ny / kasseret; `afsendt` sættes stadig af serveren, når alle tre
   pladser er sat, og tæller som »ude«. Trykkes Vinted eller DBA på et
@@ -788,7 +788,7 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   computerskærm«). `flytFanebar` lægger `#fanebar` i `#app` i stedet for i
   skærmen (`BRED`), så den står fast — også på varens side og i Redigér.
   Alle fire faner er 1120 px brede, så overskriften ikke hopper:
-  - **Lager**: varerne i et gitter.
+  - **Lager**: rækkerne i to spalter (se »Rækkerne i lageret«).
   - **Varens side**: billederne til venstre (stående fast), resten til
     højre (`.d-medier`/`.d-info`).
   - **Prisvagt**: statuskortet på én linje (`.vagt-status-tekst` |
@@ -838,9 +838,9 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   `docs/superpowers/specs/2026-10-19-redesign-faner-design.md`): fire
   faner Lager · Opgaver · Konto · Mere; prisforslag godkendes i Opgaver;
   Prisvagt bliver en underskærm fra Mere; Lager får tal-felter og rolige
-  rækker uden kasser (erstatter »Kortene i listen«, når trin 2 er ude).
-  **Trin 1 (faner, Opgaver) er ude** og beskrevet her i filen; trin 2-3
-  (Lager, Mere, Konto) gælder endnu den gamle beskrivelse.
+  rækker uden kasser (»Rækkerne i lageret«).
+  **Trin 1 (faner, Opgaver) og trin 2 (Lager) er ude** og beskrevet her i
+  filen; trin 3 (Mere, Konto) gælder endnu den gamle beskrivelse.
 - **Én skrift i hele appen: Libre Franklin** (18. oktober). Space Mono i
   versaler var overskrifternes og prisernes stemme (»UDKAST: 85,00 KR«) og
   er væk — også fra skrift-linket. Overskrifter over en gruppe (`.label`,
@@ -855,20 +855,29 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   begge `theme-color`, så statuslinjen følger med. Knapperne: `tegnTema` i
   `app.js`. Ret en temafarve to steder: `style.css` og `saetTema`.
 
-## Kortene i listen
+## Rækkerne i lageret
 
-Bestemt af dig 2. oktober, tredje linje rettet 3. oktober. Lageret bygger
-kortet med `kortLinjer()` og `linjeTre()` i `app.js`.
+Bestemt af dig 19. oktober (redesignet, trin 2; erstatter »Kortene i
+listen« fra 2.-3. oktober). `raekkeTekst()` og `raekkePris()` i `app.js`.
 
-- **Altid tre linjer, på alle kort**, så de er lige høje. En tom linje får et
-  hårdt mellemrum. Hver linje er én linje; resten forkortes med »…«.
-  1. Mærke · varetype — og løbenummeret helt til højre. Intet andet.
-  2. Størrelse · farve · stand · materiale.
-  3. Klar: prisen, eller hvor langt udkastet er (»Analyserer …«,
-     »Kladde«). Ude: pris nu · ♥ hjerter · dage ude (· »rettelse venter«).
-     Solgt: »solgt for X kr« eller »tast salgsprisen« · dage den lå.
-- **Én skrift og én størrelse** på kortet (`.kort-l`). Ingen mono, ingen
-  chips — kun vægt og farve skiller linjerne ad.
+- **Tal-felterne øverst er fanerne**: Klar · Ude · Solgt med antal og en
+  sum under (`faseSum`): klar = de foreløbige priser, ude = prisen nu,
+  solgt = salgsprisen (udbudsprisen, hvis den mangler — som på Konto).
+  Det valgte felt er mørkt.
+- **Rækker uden kasser**: en tynd streg imellem, billedet 72×96 (`contain`
+  på papirfarven), rækken gennemsigtig over kornet. Kassér-knappen bag en
+  Klar-række er skjult, til rækken trækkes.
+- **Tre linjer til venstre**, hver forkortet med »…«:
+  1. Mærke · varetype.
+  2. Størrelse · farve · stand — **materialet står kun på varens side**.
+  3. Løbenummeret · markedspladsernes prikker · »rettelse venter«.
+- **Til højre det tal, der betyder noget**, med en linje under: Klar —
+  prisen (ellers »Analyserer …«, »Kladde«, eller »ingen pris« /
+  »Analysen mislykkedes« i rav); Ude — prisen nu, under: »♥ 4 · 3 d«;
+  Solgt — salgsprisen, under: »12 d« (mangler den: »tast salgsprisen« i
+  rav; uden annonce: »taget ned«). Ord i stedet for et tal står mindre
+  (`.lille`), så de ikke klemmer varens tekst.
+- På computerskærmen står rækkerne i to spalter.
 - Løbenummeret står også i toppen af udkastet, i titlens skrift og størrelse.
 
 ## Ingen zoom i appen
