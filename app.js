@@ -169,7 +169,7 @@
   function hentFane(name){
     if(name === 'vagt') hentVagt();
     else if(name === 'konto') hentKonto();
-    else if(name === 'menu') tegnTjek();
+    else if(name === 'menu'){ tegnTjek(); tegnVersion(); }
   }
   function skiftFane(name){
     var s = screenEl(name);
@@ -2126,6 +2126,38 @@
     });
   });
   tegnTema();
+
+  // Versionen nederst i Mere: hvilken udgivelse koerer DENNE rude. Stemplet i
+  // app.js-adressen er facit (build.sh); udgivelsens nummer slaas op i
+  // UDGIVELSER.md, som Pages udleverer — den nyeste udgivelse med samme stempel.
+  // Er der en nyere app ude, siges det, saa du ved, du tester paa en gammel.
+  var APP_STEMPEL = (function(){
+    var el = document.querySelector('script[src*="app.js?v="]');
+    var m = el && /app\.js\?v=([0-9a-f]+)/.exec(el.getAttribute('src'));
+    return m ? m[1] : '';
+  })();
+  var INDLAEST = new Date();
+  function tegnVersion(){
+    var el = $('mere-version');
+    if(!el) return;
+    var kl = INDLAEST.toLocaleTimeString('da-DK', { hour:'2-digit', minute:'2-digit' });
+    var grund = 'App ' + (APP_STEMPEL || 'ukendt') + ' · hentet kl. ' + kl;
+    el.textContent = grund;
+    fetch('UDGIVELSER.md', { cache:'no-store' }).then(function(r){ return r.ok ? r.text() : ''; }).then(function(t){
+      var dele = t.split(/^## /m).slice(1), egen = '', nyeste = '';
+      dele.forEach(function(d){
+        var navn = d.split(/[\s—]/)[0];
+        var m = /app\.js\?v=([0-9a-f]+)/.exec(d);
+        if(!m) return;
+        if(!nyeste) nyeste = m[1];
+        if(!egen && m[1] === APP_STEMPEL) egen = navn;
+      });
+      var tekst = (egen ? egen + ' · ' : '') + grund;
+      if(nyeste && APP_STEMPEL && nyeste !== APP_STEMPEL) tekst += ' — en nyere udgave er ude, luk og åbn appen';
+      el.textContent = tekst;
+    }, function(){});
+  }
+  tegnVersion();
   $('tjek').addEventListener('click', function(){ show('opsaet'); tegnTjek(); });
 
   /* ---- Virker opsaetningen? ----------------------------------------------

@@ -746,7 +746,11 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
 - **Nyt produkt** er en svævende knap over listen; Scan sidder øverst til
   højre på Lager.
 - **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
-  Opsætning, Udseende (temaet) og Log ud. **Opsætning** er en tjekliste — hvert trin med
+  Opsætning, Udseende (temaet) og Log ud. **Nederst står versionen**
+  (bestemt af dig 18. oktober, `tegnVersion`): »udgivelse-NNNN · App
+  <stempel> · hentet kl. …«. Stemplet er `app.js?v=` i den rude, der kører;
+  nummeret er den nyeste udgivelse i `UDGIVELSER.md` (udleveret af Pages)
+  med samme stempel. Er en nyere app ude, siger linjen det. **Opsætning** er en tjekliste — hvert trin med
   status og vejledningen foldet ind under sig; bogmærket under »Andre
   måder«. Læg ikke vejledninger tilbage i Mere.
 - **Forsiden**: den vigtigste opgave står fremme, resten bag ét bånd.

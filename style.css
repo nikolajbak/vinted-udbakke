@@ -1163,6 +1163,7 @@
 .gruppe-navn + .gruppe{ margin-top: 0; }
 .gruppe > .menu-item:last-child, .gruppe > .trin:last-child{ border-bottom: 0; }
 .menu-stille{ color: var(--ink-soft); font-weight: 500; }
+.mere-version{ font-size: var(--t-small); color: var(--ink-soft); text-align: center; margin: var(--s4) var(--s2) var(--s5); }
 
 /* Status: én linje i Mere, hele tjeklisten under Opsaetning. */
 .tjek-kort{
