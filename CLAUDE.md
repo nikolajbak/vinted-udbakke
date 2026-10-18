@@ -171,7 +171,8 @@ retvisende — kun rækkefølgen og udfaldet er.
 **Appen indlogget i browserruden uden adgangskoden: `sh tools/proeve.sh`**
 og så `http://localhost:8765/proeve.html` (preview »app«). Den henter
 rigtige rækker (kun læst) og svarer selv på alle kald til Supabase, så
-intet sendes og intet gemmes. Appens service worker serverer gammel CSS på
+intet sendes og intet gemmes. »Køb igen« får et fast eksempel
+(`INDKOB` i `tools/proeve-mock.js`) — serverens svar kalder en model. Appens service worker serverer gammel CSS på
 localhost: afregistrér den i ruden, hvis en ændring ikke slår igennem.
 
 `window.__UDBAKKE_LOG__` i browseren viser hvert trin. Kør automatikken sådan:
@@ -781,10 +782,27 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   (bestemt af dig 18. oktober: »responsivt, så det også passer til en
   computerskærm«). `flytFanebar` lægger `#fanebar` i `#app` i stedet for i
   skærmen (`BRED`), så den står fast — også på varens side og i Redigér.
-  Lageret viser varerne i et gitter (op til 1120 px), varens side har
-  billederne til venstre (stående fast) og resten til højre (`.d-medier`/
-  `.d-info`), de øvrige skærme en spalte på 680 px. Under 960 px er intet
-  ændret. Reglerne står sidst i `style.css` (»Computerskaermen«).
+  Alle fire faner er 1120 px brede, så overskriften ikke hopper:
+  - **Lager**: varerne i et gitter.
+  - **Varens side**: billederne til venstre (stående fast), resten til
+    højre (`.d-medier`/`.d-info`).
+  - **Prisvagt**: statuskortet på én linje (`.vagt-status-tekst` |
+    `.vagt-status-knapper`), hver gruppe et gitter af lige høje kort, og
+    erfaringerne side om side.
+  - **Konto**: et instrumentbræt i 12 spalter — omsætningen og de fire tal
+    øverst, »Pr. måned« ved »Udgifter«, »Ude nu« ved »Salg«
+    (`.konto-maaned`/`-udgift`/`-ude`/`-salg`; 6+6 under 1240 px).
+  - **Mere**: blokkene (`.mere-blok`) side om side.
+  - **Redigér**: teksten til venstre, markedspladsernes felter i et panel
+    til højre; »Skriv beskrivelsen forfra« står stadig nederst over Gem.
+  - **Etiketter** og **Køb igen**: gitter/to spalter. Opsætning er en
+    tjekliste med vejledninger og holder 680 px; Scan holder kameraet
+    inden for skærmens højde.
+  - Knapperne i bunden og beskeden nederst (`.toast`) holder 680 px og
+    står midt i indholdet, ikke i vinduet.
+  Under 960 px er intet ændret — målt pixel for pixel mod forrige udgave
+  på Mere, Prisvagt, Konto og Redigér (18. oktober). Reglerne står sidst
+  i `style.css` (»Computerskaermen«).
 - **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
   Opsætning, Udseende (temaet) og Log ud. **Nederst står versionen**
   (bestemt af dig 18. oktober, `tegnVersion`): »udgivelse-NNNN · App

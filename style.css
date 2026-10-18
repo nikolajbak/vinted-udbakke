@@ -693,7 +693,8 @@
   }
   .vagt-status.galt{ background: var(--amber-soft); border-color: transparent; }
   .vagt-status.galt .tjek-prik{ background: var(--amber); }
-  .vagt-status > div{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
+  .vagt-status > div, .vagt-status-tekst, .vagt-status-knapper{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
+  .vagt-status-knapper:empty{ display: none; }
   .vagt-status span:not(.tjek-prik){ font-size: var(--t-small); color: var(--ink-soft); }
   .vagt-status .btn{ margin: var(--s2) 0 0; }
   .vagt-link{
@@ -730,6 +731,9 @@
   .vagt-forslag .btn{ margin: 0; }
   .vagt-forslag.godkend{ background: var(--accent-soft); }
   .vagt-forslag.godkend .vagt-knapper{ display: flex; gap: var(--s2); justify-content: flex-end; }
+  /* Afvis er kort; Godkend baerer beloebet og maa ikke braekke over to linjer. */
+  .vagt-forslag.godkend .vagt-knapper .btn{ white-space: nowrap; }
+  .vagt-forslag.godkend .vagt-knapper [data-v="afvis"]{ flex: 0 0 auto; padding: 0 var(--s4); }
   .vagt-alle{ display: flex; justify-content: flex-end; margin: calc(-1 * var(--s2)) 0 var(--s4); }
 
   .vagt-stop{
@@ -820,6 +824,7 @@
   .konto-md.nu .konto-md-navn{ font-weight: 700; }
   .konto-md-n{ font-size: var(--t-label); color: var(--ink-soft); min-height: 1.3em; }
   .konto-linje{ display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .konto-linje > :last-child{ white-space: nowrap; }
   .konto-linje.s{ font-size: var(--t-small); color: var(--ink-soft); }
   .konto-linje.sum{ border-bottom: 0; border-top: 2px solid var(--ink); margin-top: -1px; }
 
@@ -1284,7 +1289,128 @@
            gap: var(--s6); align-items: start; }
   .d-medier{ position: sticky; top: 0; }
   .d-info > :first-child{ margin-top: 0; }
-  #s-detail .footer > *{ max-width: 680px; margin-inline: auto; width: 100%; }
+
+  /* Knapperne i bunden holder laesebredden, ogsaa naar skaermen er bred:
+     en Gem-knap paa 1100 px er ikke en knap, men en bjaelke. */
+  #app > .screen > .footer > *{ max-width: 680px; margin-inline: auto; width: 100%; }
+
+  /* Beskeden nederst staar midt i indholdet, ikke midt i hele vinduet. */
+  .toast{ left: calc(var(--side) + var(--s4)); }
+  body:has(#s-login:not([hidden])) .toast{ left: var(--s4); }
+
+  /* Fanerne har samme bredde, saa overskriften ikke hopper ved et skift. */
+  #s-vagt, #s-konto, #s-menu{ --maal: 1120px; }
+
+  /* Prisvagten: statuskortet paa én linje - teksten til venstre, knapperne
+     til hoejre - og hver gruppe som et gitter af kort. Kortene i en raekke
+     er lige hoeje, og foldet »Mindstepris …« staar nederst i hvert. */
+  .vagt-status{ padding: var(--s4) var(--s5); margin-bottom: var(--s2); }
+  .vagt-status > div{ flex-direction: row; align-items: flex-start; gap: var(--s6); }
+  .vagt-status-knapper{ flex: 0 0 300px; }
+  .vagt-status-knapper > .btn{ margin: 0; }
+  .vagt-status-knapper > .btn + .btn, .vagt-status-knapper > .vagt-link + .btn{ margin-top: var(--s2); }
+  .vagt-afsnit{
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--s3); margin-top: var(--s6);
+  }
+  .vagt-afsnit > .label, .vagt-afsnit > .note{ grid-column: 1 / -1; margin: 0; }
+  .vagt-afsnit > .note{ max-width: 680px; margin-top: calc(-1 * var(--s2)); }
+  .vagt-row, .vagt-row:last-child{
+    display: flex; flex-direction: column; min-width: 0;
+    padding: var(--s4); background: var(--raised);
+    border: 1px solid var(--line); border-radius: 14px;
+  }
+  .vagt-row > .vagt-mere{ margin-top: auto; padding-top: var(--s3); }
+  .vagt-alle{ margin: var(--s3) 0 0; }
+  .vagt-alle .btn{ flex: 0 0 auto; width: auto; padding: 0 var(--s5); }
+  #vagt-body > details.sect{ margin-top: var(--s6); }
+  /* Erfaringerne: to-tre side om side i stedet for én lang spalte. */
+  .laer{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); column-gap: var(--s5); margin-top: var(--s6); }
+  .laer > :not(.laer-row){ grid-column: 1 / -1; }
+  .laer > .note{ max-width: 680px; }
+
+  /* Konto: et instrumentbraet. Omsaetningen og de fire tal oeverst, saa
+     maanederne ved siden af udgifterne og det, der er ude, ved salgene.
+     Gitteret slaar kun til, naar tallene er tegnet - ikke paa skelettet. */
+  #konto-body:has(> .konto-top){
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--s4); align-content: start;
+  }
+  #konto-body > *{ grid-column: span 12; margin: 0; }
+  #konto-body > .sect{
+    padding: var(--s4) var(--s5); background: var(--raised);
+    border: 1px solid var(--line); border-radius: 14px;
+  }
+  #konto-body > .konto-top{ grid-column: span 5; display: flex; flex-direction: column; justify-content: center; padding: var(--s5); }
+  #konto-body > .konto-gitter{ grid-column: span 7; grid-auto-rows: 1fr; gap: var(--s3); }
+  #konto-body > .konto-gitter .konto-felt{ display: flex; flex-direction: column; justify-content: center; padding: var(--s4);
+                                            background: var(--raised); border-radius: 14px; }
+  #konto-body > .konto-maaned{ grid-column: span 7; }
+  #konto-body > .konto-udgift{ grid-column: span 5; }
+  #konto-body > .konto-ude{ grid-column: span 5; align-self: start; }
+  #konto-body > .konto-salg{ grid-column: span 7; align-self: start; }
+  /* Mangler den ene af de to, faar den anden hele bredden. */
+  #konto-body > .konto-udgift + .konto-salg,
+  #konto-body > .konto-ude:has(+ .konto-noter){ grid-column: span 12; }
+  .konto-graf{ height: 200px; }
+  .konto-soejle{ max-width: 48px; }
+
+  /* Mere: blokkene side om side - to eller tre, efter hvad der er plads til. */
+  #s-menu .body{
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    column-gap: var(--s5); align-content: start; align-items: start;
+  }
+  #s-menu .body > .tjek-kort, #s-menu .body > .mere-version{ grid-column: 1 / -1; }
+
+  /* Etiketterne: et gitter af varer at vaelge imellem; vejledningen holder
+     laesebredden. */
+  #s-labels{ --maal: 1120px; }
+  #lbl-body > .note, #lbl-body > .lbl-start{ max-width: 680px; }
+  #lbl-body > .sect{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); column-gap: var(--s5); }
+
+  /* Koeb igen: helheden ved siden af anbefalingen, kategorierne ved
+     siden af produkterne. */
+  #s-indkob{ --maal: 1120px; }
+  #indkob-body:has(> .ind-liste){
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--s6); align-content: start; align-items: start;
+  }
+  #indkob-body > *{ grid-column: 1 / -1; }
+  #indkob-body > .note:first-child{ max-width: 680px; }
+  #indkob-body > .ind-hel, #indkob-body > .ind-liste{ grid-column: 1; }
+  #indkob-body > .ind-anbef, #indkob-body > .ind-liste + .ind-liste{ grid-column: 2; }
+
+  /* Redigér: teksten til venstre - beskrivelsen saa hoej, som vinduet tillader - og
+     markedspladsernes felter i et panel til hoejre. »Skriv beskrivelsen
+     forfra« staar stadig nederst, lige over Gem. */
+  #s-edit{ --maal: 1120px; }
+  #edit-form{
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr auto; column-gap: var(--s6); row-gap: var(--s4);
+  }
+  #edit-form > *{ grid-column: 1; }
+  #edit-form > .felt:has(#e-desc){ align-self: start; }
+  #edit-form > .felt:has(#e-desc) textarea{ height: max(260px, calc(100vh - 400px)); }
+  #edit-form > #e-vaelgere{
+    grid-column: 2; grid-row: 1 / 4; margin: 0;
+    padding: var(--s4) var(--s5); border: 1px solid var(--line); border-radius: 14px;
+    background: var(--raised);
+  }
+  #edit-form > #e-omskriv{ grid-column: 1 / -1; max-width: 680px; justify-self: center; margin-top: var(--s2); }
+  #edit-note{ max-width: 680px; margin-inline: auto; }
+
+  /* Scan: kameraet maa ikke vaere hoejere end skaermen. */
+  #s-scan{ --maal: 520px; }
+  .scan-stage{ max-width: calc(58vh * 3 / 4); margin-inline: auto; }
+  #scan-note{ text-align: center; }
+}
+/* En smal computerskaerm: kortene paa Konto deler lige, saa beloebene
+   ikke presses ned i en spalte paa 260 px. */
+@media (min-width: 960px) and (max-width: 1239px){
+  #konto-body > .konto-maaned, #konto-body > .konto-udgift,
+  #konto-body > .konto-ude, #konto-body > .konto-salg{ grid-column: span 6; }
+  #konto-body > .konto-udgift + .konto-salg,
+  #konto-body > .konto-ude:has(+ .konto-noter){ grid-column: span 12; }
 }
 @media (hover: hover) and (pointer: fine) and (min-width: 960px){
   .fane-knap:not(.on):hover{ background: var(--raised); color: var(--ink); }

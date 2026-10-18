@@ -3303,17 +3303,23 @@
 
     var h = '<div class="vagt-status' + (galt ? ' galt' : '') + '">' +
       '<span class="tjek-prik ' + (galt ? 'maaske' : 'ok') + '" aria-hidden="true"></span><div>' +
-      '<b>' + (vagter.length
+      '<div class="vagt-status-tekst"><b>' + (vagter.length
         ? 'Holder øje med ' + vagter.length + (vagter.length === 1 ? ' annonce' : ' annoncer')
         : 'Ingen annoncer at holde øje med lige nu') + '</b>' +
       '<span>' + (sidst ? 'Sidste tjek ' + esc(relTime(sidst)) : 'Ikke tjekket endnu') +
         (dagligOk ? ' · dagligt tjek slået til' : '') + '</span>';
+    // Teksten og knapperne i hver sin del: paa telefonen under hinanden, paa
+    // computerskaermen side om side.
     if(galt){
       h += '<span>' + forsinket + (forsinket === 1 ? ' annonce venter' : ' annoncer venter') +
         ' på et tjek. Prisvagten kan kun se Vinted gennem din Safari — med det daglige tjek sker det af sig selv.</span>' +
+        '</div><div class="vagt-status-knapper">' +
         '<button type="button" class="btn btn-primary" id="vagt-dagligt">Slå dagligt tjek til</button>';
     } else if(!dagligOk){
-      h += '<button type="button" class="vagt-link" id="vagt-dagligt">Tjek hver dag af sig selv →</button>';
+      h += '</div><div class="vagt-status-knapper">' +
+        '<button type="button" class="vagt-link" id="vagt-dagligt">Tjek hver dag af sig selv →</button>';
+    } else {
+      h += '</div><div class="vagt-status-knapper">';
     }
     // Manuelt tjek: appen kan ikke selv naa Vinted, saa knappen aabner
     // Vinted i Safari med #udbakke=vagt-nu, og runneren maaler dér.
@@ -3322,7 +3328,7 @@
         '<span class="vagt-nu-note">Åbner Vinted i Safari og tjekker op til 15 annoncer, de længst utjekkede først. ' +
         'Nye priser kommer her til godkendelse.</span>';
     }
-    h += '</div></div>';
+    h += '</div></div></div>';
     return h;
   }
 
@@ -3677,7 +3683,7 @@
          'eller har været ude i ' + r.regler.stilleDage + ' dage; solgt inden for ' + r.regler.hurtigDage +
          ' dage tæller som let.</p>';
 
-    h += '<div class="sect"><span class="label">Ubrugte varer i alt</span>' +
+    h += '<div class="sect ind-hel"><span class="label">Ubrugte varer i alt</span>' +
          '<div class="ind-row"><div class="ind-top"><b>' + hel.varer + ' varer</b>' + indDomChip(hel) + '</div>' +
          '<div class="s">' + esc(indTal(hel)) + '</div>' +
          (r.sammenligning.varer ? '<div class="s">Brugte til sammenligning: ' + esc(indTal(r.sammenligning)) + '</div>' : '') +
@@ -3685,7 +3691,7 @@
 
     var a = r.anbefaling;
     if(a && (a.overblik || a.koebIgen.length || a.ladVaere.length)){
-      h += '<div class="sect"><span class="label">Anbefaling</span>';
+      h += '<div class="sect ind-anbef"><span class="label">Anbefaling</span>';
       if(a.overblik) h += '<p class="ind-overblik">' + esc(a.overblik) + '</p>';
       if(a.koebIgen.length) h += '<div class="ind-anb"><b>Køb igen</b>' + a.koebIgen.map(function(x){
         return '<p><span class="ind-navn">' + esc(x.navn) + '</span> — ' + esc(x.hvorfor) + '</p>';
@@ -3695,17 +3701,17 @@
       }).join('') + '</div>';
       h += '</div>';
     } else if(!hel.vurderbare){
-      h += '<p class="note">Ingen af de ubrugte varer kan bedømmes endnu, så der er ingen anbefaling. ' +
+      h += '<p class="note ind-anbef">Ingen af de ubrugte varer kan bedømmes endnu, så der er ingen anbefaling. ' +
            'Tallene nedenfor viser, hvor de står lige nu.</p>';
     }
 
-    h += '<div class="sect"><span class="label">Kategorier</span>' + r.kategorier.map(function(g){
+    h += '<div class="sect ind-liste"><span class="label">Kategorier</span>' + r.kategorier.map(function(g){
       return '<div class="ind-row"><div class="ind-top"><b>' + esc(g.navn) + '</b>' + indDomChip(g) + '</div>' +
         '<div class="s">' + esc(indTal(g)) + '</div>' +
         '<div class="s">' + esc(g.sikkerhed) + ' · nr. ' + esc(g.nr.join(', ')) + '</div></div>';
     }).join('') + '</div>';
 
-    h += '<div class="sect"><span class="label">Produkter</span>' + r.produkter.map(function(g){
+    h += '<div class="sect ind-liste"><span class="label">Produkter</span>' + r.produkter.map(function(g){
       return '<details class="ind-row"><summary><div class="ind-top"><b>' + esc(g.navn) + '</b>' + indDomChip(g) + '</div>' +
         '<div class="s">' + esc(indTal(g)) + '</div></summary>' +
         g.enkelte.map(function(v){
@@ -3826,7 +3832,7 @@
                  kr: sum(liste), n: liste.length, nu: i === 0 });
     }
     var maks = Math.max.apply(null, mdr.map(function(x){ return x.kr; })) || 1;
-    h += '<div class="sect"><span class="label">Pr. måned</span><div class="konto-graf" role="img" aria-label="' +
+    h += '<div class="sect konto-maaned"><span class="label">Pr. måned</span><div class="konto-graf" role="img" aria-label="' +
       esc(mdr.map(function(x){ return x.navn + ' ' + Math.round(x.kr) + ' kr'; }).join(', ')) + '">' +
       mdr.map(function(x){
         return '<div class="konto-md' + (x.nu ? ' nu' : '') + '">' +
@@ -3841,7 +3847,7 @@
     var varer = {};
     forbrug.forEach(function(f){ if(f.draft_id) varer[f.draft_id] = 1; });
     var nVarer = Object.keys(varer).length, udgift = usd * USD_KR;
-    h += '<div class="sect"><span class="label">Udgifter</span>' +
+    h += '<div class="sect konto-udgift"><span class="label">Udgifter</span>' +
       '<div class="konto-linje"><span>Analyse og tekster (AI)</span><b>ca. ' + esc(krSum(udgift)) + '</b></div>' +
       (nVarer ? '<div class="konto-linje s"><span>Pr. vare analyseret (' + nVarer + ')</span><span>ca. ' + esc(kr(udgift / nVarer)) + '</span></div>' : '') +
       '<div class="konto-linje sum"><span>Tilbage efter AI</span><b>' + esc(krSum(omsaetning - udgift)) + '</b></div>' +
@@ -3852,7 +3858,7 @@
     if(aktive.length){
       var top = aktive.filter(function(l){ return l.favourites; })
         .sort(function(a, b){ return b.favourites - a.favourites; }).slice(0, 3);
-      h += '<div class="sect"><span class="label">Ude nu</span>' +
+      h += '<div class="sect konto-ude"><span class="label">Ude nu</span>' +
         '<div class="konto-linje"><span>Annoncer på Vinted</span><b>' + aktive.length + '</b></div>' +
         '<div class="konto-linje"><span>Samlet udbudspris</span><b>' + esc(krSum(udeVaerdi)) + '</b></div>' +
         '<div class="konto-linje"><span>Hjerter i alt</span><b>' + hjerter + ' ♥</b></div>' +
@@ -3863,7 +3869,7 @@
 
     if(solgte.length){
       var seneste = solgte.slice().sort(function(a, b){ return new Date(b.sold_at || 0) - new Date(a.sold_at || 0); });
-      h += '<div class="sect"><span class="label">Salg</span>' + seneste.map(kontoVare(function(l){
+      h += '<div class="sect konto-salg"><span class="label">Salg</span>' + seneste.map(kontoVare(function(l){
         var d = l.listed_at && l.sold_at ? Math.round(dageMellem(l.listed_at, l.sold_at)) : null;
         var bud = l.sold_price != null && Number(l.start_price) > Number(l.sold_price) ? ' (udbudt ' + kr(l.start_price) + ')' : '';
         return (l.sold_price != null ? kr(l.sold_price) : 'salgspris mangler') + bud +
@@ -3876,7 +3882,7 @@
     if(udenPris) noter.push(udenPris + ' salg mangler salgsprisen og tæller med udbudsprisen.');
     if(tagetNed) noter.push(tagetNed + (tagetNed === 1 ? ' vare er' : ' varer er') + ' taget ned på DBA/Reshopper; salg dér kender appen ikke beløbet på.');
     noter.push('DBA og Reshopper er ikke med i tallene — kun Vinted har annoncer, appen kan følge.');
-    h += '<p class="note note-luft">' + esc(noter.join(' ')) + '</p>';
+    h += '<p class="note note-luft konto-noter">' + esc(noter.join(' ')) + '</p>';
 
     krop.innerHTML = h;
   }

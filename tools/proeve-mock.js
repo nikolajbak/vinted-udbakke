@@ -6,16 +6,39 @@
     expires_in: 86400, expires_at: now, user: { id: '00000000-0000-0000-0000-000000000000', aud: 'authenticated', role: 'authenticated', email: 'proeve@local' }
   }));
   var data = {};
-  ['drafts','listings','price_events','puls','forbrug'].forEach(function(t){
+  ['drafts','listings','price_events','puls','forbrug','laerdomme'].forEach(function(t){
     var x = new XMLHttpRequest(); x.open('GET', 'proeve/' + t + '.json', false); x.send();
     data[t] = JSON.parse(x.responseText || '[]');
   });
+
+  function gr(navn, dom, solgt, vb, varer, ekstra){
+    return Object.assign({ navn: navn, dom: dom, solgt: solgt, vurderbare: vb, varer: varer,
+      medianDageTilSalg: solgt ? 4 : null, medianSalgspris: solgt ? 149 : null, medianAfNypris: solgt ? 46 : null,
+      hjerterPrDag: 0.6, sikkerhed: vb >= 3 ? 'bygger på ' + vb + ' bedømte varer' : 'et fingerpeg, ikke et mønster',
+      nr: [12, 19, 23] }, ekstra || {});
+  }
+  var INDKOB = {
+    regler: { stilleDage: 14, hurtigDage: 7 },
+    helhed: gr('Alle', 'saelger', 5, 9, 14),
+    sammenligning: gr('Brugte', 'traeg', 3, 20, 31),
+    anbefaling: { overblik: 'Nye jakker og skjorter fra Teeshoppen sælger hurtigt og tæt på halvdelen af nyprisen. Børnetøj går trægt.',
+      koebIgen: [{ navn: 'Teeshoppen · Jakker', hvorfor: 'tre af fire solgt på under en uge' }],
+      ladVaere: [{ navn: 'Børnetøj', hvorfor: 'intet solgt af fem bedømte' }] },
+    kategorier: [gr('Jakker', 'let', 3, 4, 5), gr('Skjorter', 'saelger', 2, 3, 4), gr('Børnetøj', 'traeg', 0, 5, 5), gr('Kjoler', 'tidligt', 0, 0, 2)],
+    produkter: [gr('Teeshoppen · Jakker', 'let', 3, 4, 4), gr('Teeshoppen · Skjorter', 'saelger', 2, 3, 3), gr('Nike · Børnetøj', 'traeg', 0, 3, 3), gr('Name It · Børnetøj', 'lovende', 0, 1, 2)]
+      .map(function(g){ g.enkelte = [{ nr: 54, titel: 'Teeshoppen Hooded Let Puffer Jakke', udfald: 'solgt efter 3 dage', hjerter: 4, nypris: 1000, andelAfNypris: 45, nedsaettelser: 0 },
+        { nr: 56, titel: 'Roly softshell jakke str. L', udfald: 'ude i 16 dage', hjerter: 1, nedsaettelser: 1 }]; return g; })
+  };
   var ægte = window.fetch;
   window.fetch = function(url, opt){
     url = String(url && url.url || url);
     if(url.indexOf('supabase.co') < 0) return ægte.apply(this, arguments);
     var m = url.match(/\/rest\/v1\/([a-z_]+)\??(.*)$/), body = [];
     var method = (opt && opt.method) || 'GET';
+    // »Køb igen« regnes af serveren (og kalder en model) - her et fast
+    // eksempel i samme form, saa skaermen kan ses uden at koste noget.
+    var mode = ''; try { mode = JSON.parse(opt && opt.body || '{}').mode || ''; } catch(e){}
+    if(/\/functions\//.test(url) && mode === 'indkob') body = INDKOB;
     if(m && method === 'GET'){
       body = (data[m[1]] || []).slice();
       new URLSearchParams(m[2]).forEach(function(v, k){
