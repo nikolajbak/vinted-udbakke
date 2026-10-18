@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0111 — 2026-10-18 22:44
+
+Commit `d4835bd` — Computerskærm: faner som sidebjælke, lager i gitter, varens side i to spalter  
+App: `app.js?v=14ab29c3` · `style.css?v=15db00dd`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script | v110 | `8f779f9d` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0110 — 2026-10-18 22:23
 
 Commit `1a2fb2c` — Mac-webapp: Vinted via link-klik i samme vindue, så Safari ikke åbner  
