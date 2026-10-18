@@ -682,6 +682,13 @@
      prisvagtens forslag, saa salgspriserne. Forslagene ligger i listings og
      hentes for sig; null = ikke hentet, 'fejl' = kunne ikke hentes. */
   var OPG_FORSLAG = null;
+  // Forslag, der er sendt afsted, men ikke svaret paa: de kan ikke trykkes
+  // igen, heller ikke naar skaermen tegnes om imens (realtid).
+  var OPG_I_GANG = {};
+  function forslagSendt(l){
+    delete OPG_I_GANG[l.id];
+    if(Array.isArray(OPG_FORSLAG)) OPG_FORSLAG = OPG_FORSLAG.filter(function(x){ return x.id !== l.id; });
+  }
   function hentOpgaver(){
     return sb.from('listings').select('*').eq('status', 'aktiv').not('forslag', 'is', null)
       .then(function(res){
@@ -708,8 +715,8 @@
       '<span class="opg-forslag-tekst"><b>' + esc(l.title || (d && d.title) || 'Uden titel') + '</b>' +
         '<span><s>' + esc(kr(l.price)) + '</s>' + (l.forslag.note ? ' · ' + esc(l.forslag.note) : '') + '</span></span>' +
       '<span class="opg-forslag-knapper">' +
-        '<button type="button" class="opg-afvis" data-f="afvis" aria-label="Afvis">×</button>' +
-        '<button type="button" class="btn btn-primary" data-f="godkend">' + esc(kr(l.forslag.price)) + '</button>' +
+        '<button type="button" class="opg-afvis" data-f="afvis" aria-label="Afvis"' + (OPG_I_GANG[l.id] ? ' disabled' : '') + '>×</button>' +
+        '<button type="button" class="btn btn-primary" data-f="godkend"' + (OPG_I_GANG[l.id] ? ' disabled' : '') + '>' + esc(kr(l.forslag.price)) + '</button>' +
       '</span></div>';
   }
 
@@ -723,7 +730,8 @@
     if(akut.length) h += '<div class="opg-liste">' + akut.map(function(k){ return k.h; }).join('') + '</div>';
     if(fo.length){
       h += '<div class="opg-grp"><span class="label">Prisforslag · ' + fo.length + '</span>' +
-        (fo.length > 1 ? '<button type="button" class="opg-alle" id="opg-godkend-alle">Godkend alle</button>' : '') + '</div>' +
+        (fo.length > 1 ? '<button type="button" class="opg-alle" id="opg-godkend-alle"' +
+          (Object.keys(OPG_I_GANG).length ? ' disabled' : '') + '>Godkend alle</button>' : '') + '</div>' +
         fo.map(forslagRaekke).join('');
     } else if(OPG_FORSLAG === 'fejl'){
       h += '<div class="opg-grp opg-fejl"><span>Prisforslagene kunne ikke hentes.</span>' +
@@ -744,8 +752,12 @@
     if(igen) igen.addEventListener('click', hentOpgaver);
     var alle = $('opg-godkend-alle');
     if(alle) alle.addEventListener('click', function(){
-      alle.disabled = true;
-      Promise.all(fo.map(function(l){ return godkendForslag(l).catch(function(){ return false; }); })).then(function(r){
+      var vent = fo.filter(function(l){ return !OPG_I_GANG[l.id]; });
+      vent.forEach(function(l){ OPG_I_GANG[l.id] = 1; });
+      tegnOpgaveSkaerm();
+      Promise.all(vent.map(function(l){
+        return godkendForslag(l).catch(function(){ return false; }).then(function(ok){ forslagSendt(l); return ok; });
+      })).then(function(r){
         var ok = r.filter(Boolean).length;
         toast(ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — sættes, næste gang Vinted er åben');
         hentOpgaver();
@@ -757,11 +769,13 @@
       r.addEventListener('click', function(e){
         var b = e.target.closest('[data-f]');
         if(!b){ if(l.draft_id && rows[l.draft_id]) openDetail(l.draft_id); return; }
+        if(b.disabled || OPG_I_GANG[l.id]) return;
         var godkend = b.getAttribute('data-f') === 'godkend';
-        b.disabled = true;
+        OPG_I_GANG[l.id] = 1;
+        Array.prototype.forEach.call(r.querySelectorAll('[data-f]'), function(k){ k.disabled = true; });
         (godkend ? godkendForslag(l) : afvisForslag(l)).catch(function(){ return false; }).then(function(ok){
           if(ok) toast(godkend ? 'Godkendt — sættes, næste gang Vinted er åben' : 'Afvist — prisen bliver, hvor den er');
-          else b.disabled = false;
+          forslagSendt(l);
           hentOpgaver();
         });
       });
@@ -4017,8 +4031,7 @@
     if(started) return;
     started = true;
 
-    hentKoe();
-    hentOpgaver();
+    hentKoe();   // henter ogsaa opgaverne, naar koeen er der
     tegnTjek();   // tallet paa Mere-fanen, hvis noget i opsaetningen er gaaet i staa
     aabnFraAdresse();
 
