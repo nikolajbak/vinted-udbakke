@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0117 — 2026-10-19 01:19
+
+Commit `e48cc10` — Opgaver: kun det nyeste svar tæller, ingen falsk »Intet venter«, »Godkend alle« siger hvad der fejlede  
+App: `app.js?v=6f68530f` · `style.css?v=a97f58d2`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script | v111 | `5996313e` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0116 — 2026-10-19 01:12
 
 Commit `2102d3a` — Notér trin 3 af redesignet  
