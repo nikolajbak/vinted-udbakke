@@ -1494,6 +1494,15 @@ og Prisvagt-skærmen.
   det kører i din egen Safari. **Ikke målt:** om Genveje åbner Safari, mens
   telefonen er låst — vejledningen siger at vælge et tidspunkt, hvor
   telefonen er i brug.
+- **Manuelt: »Tjek priserne nu«** (bestemt af dig 18. oktober) i
+  statuskortet på Prisvagt-skærmen. Appen kan ikke selv nå Vinted, så
+  knappen åbner `https://www.vinted.dk/#udbakke=vagt-nu` i Safari
+  (`VAGT_NU_URL`). Runneren kører det daglige tjek, men `mode:'due'` med
+  `nu` tager de 15 længst utjekkede aktive annoncer (`last_check_at`),
+  **forfaldne eller ej**, og skriver kun `puls` `prisvagt` — det tæller
+  ikke som det daglige tjek. Nedsættelser bliver forslag til godkendelse
+  som altid, og fanen lukkes bagefter. `prisvagt.ts`' spærrer (5 dage
+  mellem ændringer, loft over springet) gælder stadig.
 - **Prisvagt-skærmen** (`tegnVagt`): et statuskort øverst (»Holder øje med N
   annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede uden et
   dagligt tjek — »Slå dagligt tjek til«). Så fire grupper med overskrift:

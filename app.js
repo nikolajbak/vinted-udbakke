@@ -2196,6 +2196,7 @@
   // Adressen, Genvejes automation aabner hver dag. #-flaget overlever Vinteds
   // omdirigeringer (maalt 8. oktober), og runneren tager saa alt forfaldent.
   var DAGLIGT_URL = 'https://www.vinted.dk/#udbakke=vagt';
+  var VAGT_NU_URL = 'https://www.vinted.dk/#udbakke=vagt-nu';
   $('m-dagligt-kopier').addEventListener('click', function(){
     if(navigator.clipboard) navigator.clipboard.writeText(DAGLIGT_URL).then(function(){ toast('Adressen er kopieret'); },
       function(){ toast(DAGLIGT_URL); });
@@ -3240,6 +3241,13 @@
     } else if(!dagligOk){
       h += '<button type="button" class="vagt-link" id="vagt-dagligt">Tjek hver dag af sig selv →</button>';
     }
+    // Manuelt tjek: appen kan ikke selv naa Vinted, saa knappen aabner
+    // Vinted i Safari med #udbakke=vagt-nu, og runneren maaler dér.
+    if(vagter.length){
+      h += '<button type="button" class="btn btn-secondary" id="vagt-nu">Tjek priserne nu</button>' +
+        '<span class="vagt-nu-note">Åbner Vinted i Safari og tjekker op til 15 annoncer, de længst utjekkede først. ' +
+        'Nye priser kommer her til godkendelse.</span>';
+    }
     h += '</div></div>';
     return h;
   }
@@ -3297,6 +3305,8 @@
 
     var dk = $('vagt-dagligt');
     if(dk) dk.addEventListener('click', aabnDagligt);
+    var vn = $('vagt-nu');
+    if(vn) vn.addEventListener('click', function(){ aabnUdad(VAGT_NU_URL); });
     var ga = $('vagt-godkend-alle');
     if(ga) ga.addEventListener('click', function(){
       ga.disabled = true;

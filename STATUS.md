@@ -19,6 +19,12 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+000000000000000. **»Tjek priserne nu« — 18. oktober.** Regler i CLAUDE.md under
+   »Prisvagten → Ingen tjek-knap« (manuelt). **Afprøvet:** knappen på
+   Prisvagt-skærmen på en prøveside. **Ikke afprøvet:** at runneren på
+   telefonen tjekker med `#udbakke=vagt-nu` og lukker fanen — se `spor`
+   »vagt: dagligt tjek, N tjekket …«.
+
 00000000000000. **Prisvagten foreslår kun — 18. oktober.** Regler i CLAUDE.md
    under »Prisvagten → Kun forslag«. Nedsættelser står i `listings.forslag`
    og skal godkendes på Prisvagt-skærmen; de 10 fra kl. 10.25 er flyttet

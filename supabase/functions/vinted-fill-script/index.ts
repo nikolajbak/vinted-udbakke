@@ -1065,14 +1065,17 @@ async function efterloeb(varer: unknown) {
   return { ok: true, fundet };
 }
 
-async function hentForfaldne(maks = 3) {
-  const { data } = await supabase.from("listings")
+// tving: »Tjek priserne nu« fra appen — alle aktive, ikke kun de forfaldne,
+// de længst utjekkede først.
+async function hentForfaldne(maks = 3, tving = false) {
+  let q = supabase.from("listings")
     .select("id, external_id, url, title, search_query, price, platform, next_check_at")
     .eq("status", "aktiv").eq("auto", true).eq("platform", "vinted")
-    .not("external_id", "is", null)
-    .lte("next_check_at", new Date().toISOString())
-    .order("next_check_at", { ascending: true })
-    .limit(maks);
+    .not("external_id", "is", null);
+  q = tving
+    ? q.order("last_check_at", { ascending: true, nullsFirst: true })
+    : q.lte("next_check_at", new Date().toISOString()).order("next_check_at", { ascending: true });
+  const { data } = await q.limit(maks);
   return data ?? [];
 }
 
@@ -1531,12 +1534,15 @@ Deno.serve(async (req: Request) => {
       // I baggrunden (en Vinted-side er aaben) maales hoejst tre ad gangen:
       // det koster data paa telefonen. Det daglige tjek (Genvejes automation
       // aabner vinted.dk/#udbakke=vagt, `alle`) tager alt det forfaldne.
-      const alle = body.alle === true;
-      const raekker = await hentForfaldne(alle ? 15 : 3);
+      // »Tjek priserne nu« (`nu`) tager de 15 længst utjekkede, forfaldne
+      // eller ej, og tæller ikke som det daglige tjek.
+      const tving = body.nu === true;
+      const alle = body.alle === true || tving;
+      const raekker = await hentForfaldne(alle ? 15 : 3, tving);
       const nu = new Date().toISOString();
       const detalje = raekker.length + (raekker.length === 1 ? " vare" : " varer") + " til tjek";
       await supabase.from("puls").upsert(
-        alle ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-dagligt", sidst: nu, detalje }]
+        alle && !tving ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-dagligt", sidst: nu, detalje }]
              : [{ navn: "prisvagt", sidst: nu, detalje }],
       ).then(() => {}, () => {});
       return json({

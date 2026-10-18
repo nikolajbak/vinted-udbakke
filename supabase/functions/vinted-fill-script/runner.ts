@@ -857,11 +857,11 @@ function laesAnnonceside(t,id){
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.
 // alle: det daglige tjek tager alt det forfaldne, ellers højst tre.
 // Intet forfaldent er {tom:true} — ikke det samme som en fejl (null).
-async function tilsynsrunde(alle){
+async function tilsynsrunde(alle,nu){
  var forfaldne=[];
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'due',alle:!!alle})},20000);
+   body:JSON.stringify({mode:'due',alle:!!alle,nu:!!nu})},20000);
   forfaldne=((await r.json())||{}).forfaldne||[];
  }catch(e){log('vagt: kunne ikke hente forfaldne');return null}
  if(!forfaldne.length){log('vagt: intet forfaldent');return {tom:true,beslutninger:[],poster:[]}}
@@ -1339,7 +1339,10 @@ async function stilleSynk(){
 async function prisvagt(){
  // Det daglige tjek: Genvejes automation åbner vinted.dk/#udbakke=vagt.
  // Så måles alt det forfaldne, uden timegrænsen, og fanen lukker bagefter.
- var bedt=flag('vagt');
+ // »Tjek priserne nu« i appen åbner #udbakke=vagt-nu: det samme, men uden at
+ // vente på, at annoncerne er forfaldne — de længst utjekkede først.
+ var nu=flag('vagt-nu');
+ var bedt=nu||flag('vagt');
 
  rundeAktiv();
  // 1) Lige gemt en pris? Så skal den bekræftes, før noget andet.
@@ -1411,8 +1414,8 @@ async function prisvagt(){
 
  // Du har trykket i appen: vis, at der sker noget. Maalingen tager et par
  // sekunder pr. vare, og uden baand saa det ud, som om intet skete.
- var vb=bedt?baand('Prisvagt: dagligt tjek af dine annoncer …',null,null):null;
- var res=await tilsynsrunde(bedt);
+ var vb=bedt?baand(nu?'Prisvagt: tjekker dine annoncer mod markedet …':'Prisvagt: dagligt tjek af dine annoncer …',null,null):null;
+ var res=await tilsynsrunde(bedt,nu);
  if(vb)vb.remove();
  if(!res){
   if(bedt){
