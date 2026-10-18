@@ -1228,6 +1228,17 @@
   //
   // Svarer `foerst` med false, er turen aflyst: det, der skulle derud, blev
   // aldrig gemt. Saa lukkes det tomme faneblad igen.
+  // Vinduer appen har aabnet. Runnerens lukFanen sender {udbakke:'luk'}, og
+  // kun appen selv kan lukke vinduet paa Mac'en (window.close() og
+  // GM.closeTab efterlod det tomt, 18. oktober).
+  var UDAD = [];
+  window.addEventListener('message', function(e){
+    if(e.origin !== 'https://www.vinted.dk' || !e.data || e.data.udbakke !== 'luk') return;
+    UDAD = UDAD.filter(function(w){
+      if(w === e.source){ try{ w.close(); }catch(x){} return false; }
+      return !w.closed;
+    });
+  });
   function aabnUdad(url, foerst){
     var vent = foerst || Promise.resolve();
     if(PAA_IOS){
@@ -1240,7 +1251,9 @@
     // og kun et vindue, siden selv har aabnet, kan runneren lukke med
     // window.close() bagefter — GM.closeTab toemmer det kun (18. oktober).
     if(!foerst){
-      if(!window.open(url, '_blank')) window.location.href = url;
+      var aabnet = window.open(url, '_blank');
+      if(aabnet) UDAD.push(aabnet);
+      else window.location.href = url;
       return;
     }
     var vindue = window.open('about:blank', '_blank');

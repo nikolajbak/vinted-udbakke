@@ -713,12 +713,12 @@ intet på dig, lukkes den, når runneren er færdig.**
 - **På Mac'en (appen som Safari-webapp) åbner Vinted i et nyt vindue i
   webappen selv**, ikke i Safari — med Userscripts, så runneren kører
   (målt 18. oktober: »Tjek priserne nu« gav 15 tjekket). Dér tømte
-  GM.closeTab kun vinduet, som stod tomt tilbage. Derfor åbner appen
-  adressen med `window.open(url)` direkte (`aabnUdad` uden `foerst`), og
-  `lukFanen` prøver `window.close()` først — et vindue, siden selv har
-  åbnet, må lukke sig — og sender først `udbakke-luk`, hvis det stadig er
-  åbent. Ikke målt, om Safari tillader lukningen, når runneren har skiftet
-  side undervejs.
+  GM.closeTab kun vinduet, som stod tomt tilbage, og `window.close()` fra
+  siden blev afvist (målt 18. oktober, udgivelse-0104). Derfor åbner appen
+  adressen med `window.open(url)` (`aabnUdad` uden `foerst`) og husker
+  vinduet (`UDAD`); `lukFanen` sender `{udbakke:'luk'}` til
+  `window.opener`, og appen lukker vinduet selv. `spor` »luk: … [opener:
+  ja/nej, historik N]« siger, om forbindelsen fandtes.
 - **Tilbage til appen kan ikke gøres fra Safari.** iOS har ingen adresse,
   der åbner en hjemmeskærms-webapp; det er »◀ Udbakke« øverst til venstre.
   Prøvet 8. oktober: Genvejes »Åbn app« viser ikke Udbakke, så en genvej
