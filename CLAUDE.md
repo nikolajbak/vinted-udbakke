@@ -730,6 +730,8 @@ intet på dig, lukkes den, når runneren er færdig.**
     sender vinduet til `…/vinted-udbakke/#fane-<fane>` (`tilbageTil`,
     `aabnFraAdresse`). Adresser uden `#udbakke=` (installationer) går
     stadig til Safari med `x-safari-`.
+    **Bekræftet af dig 18. oktober (udgivelse-0110)**: tjekket blev i
+    appen og vendte tilbage til Prisvagt.
   - **Webappen er ikke `display-mode: standalone`**, når »Vis
     navigationsknapper« er slået til — en betingelse på standalone ramte
     aldrig, så 0102-0107 kørte alle den gamle vej. Betingelsen er »ikke

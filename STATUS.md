@@ -21,9 +21,10 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 000000000000000. **»Tjek priserne nu« — 18. oktober.** Regler i CLAUDE.md under
    »Prisvagten → Ingen tjek-knap« (manuelt). **Afprøvet:** knappen på
-   Prisvagt-skærmen på en prøveside. **Ikke afprøvet:** at runneren på
-   telefonen tjekker med `#udbakke=vagt-nu` og lukker fanen — se `spor`
-   »vagt: dagligt tjek, N tjekket …«.
+   Prisvagt-skærmen på en prøveside, og på Mac'en (webappen, udgivelse-0110):
+   tjekket kører i appens eget vindue og vender tilbage til Prisvagt (se
+   CLAUDE.md »Fanen lukker sig selv«). **Ikke afprøvet:** på telefonen —
+   se `spor` »vagt: dagligt tjek, N tjekket …«.
 
 00000000000000. **Prisvagten foreslår kun — 18. oktober.** Regler i CLAUDE.md
    under »Prisvagten → Kun forslag«. Nedsættelser står i `listings.forslag`
