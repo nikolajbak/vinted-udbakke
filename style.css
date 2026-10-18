@@ -212,52 +212,53 @@
   .btn-danger{ background: none; color: var(--danger-tekst); font-weight: 500; }
   .btn[disabled]{ opacity: 0.55; }
 
-  /* ---- Kø: kompakte rækker. Alt detaljestof ligger på detaljeskærmen. ---- */
-  #queue-list{ display: flex; flex-direction: column; gap: var(--s3); }
+  /* ---- Lager: rolige raekker. Ingen kasser, en tynd streg imellem, billedet
+     stort nok til at genkende varen og prisen til hoejre, hvor oejet leder.
+     Raekken er gennemsigtig, saa kornet i bunden loeber igennem; kun mens den
+     traekkes til side, faar den papirets farve over kassér-knappen. ---- */
+  #queue-list{ display: flex; flex-direction: column; }
   .row{
     display: grid;
     grid-template-columns: 72px 1fr auto;
     align-items: center;
     gap: var(--s3);
-    padding: var(--s3);
-    background: var(--raised);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 1px 2px rgba(29,35,39,.05), 0 2px 8px rgba(29,35,39,.04);
+    padding: var(--s3) 0;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
     cursor: pointer;
     text-align: left;
     width: 100%;
     color: var(--ink);
+    font: inherit;
     transition: transform 90ms ease, background-color 140ms ease;
   }
-  .row:active{ transform: scale(0.99); background: var(--raised); }
-  /* Kvadratisk. Billedet vises stadig helt (contain), men en kvadratisk kasse
-     spilder mindst plads, naar serien kan vaere baade liggende og staaende —
-     en hoej kasse lod et liggende billede sidde som en stribe i tomrum. */
+  .row:active{ transform: scale(0.99); }
   .row img, .row .ph{
-    width: 72px; height: 72px;
+    width: 72px; height: 96px;
     object-fit: contain; background: var(--surface); border-radius: 8px;
-    border: 1px solid var(--line); background: var(--paper);
     display: block;
   }
-  .row-main{ min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  /* Kortet: tre linjer, én skrift, én stoerrelse — se kortLinjer() i app.js.
-     Hver linje er én linje; det, der ikke kan vaere der, faar "…". Tabeltal,
-     saa kroner og numre ikke danser fra kort til kort. */
-  .kort-l{ display: block; font-size: var(--t-body); line-height: 1.35;
-           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-           font-variant-numeric: tabular-nums; color: var(--ink-soft); }
-  .kort-l1{ display: flex; gap: var(--s2); color: var(--ink); font-weight: 600; }
-  .kort-navn{ flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .kort-nr{ flex: none; }
-  .kort-pris{ color: var(--ink); font-weight: 600; }
-  .row.is-muted .kort-l1{ color: var(--ink-soft); }
+  .lr-tekst{ min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .lr-l{ display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+         font-size: var(--t-small); line-height: 1.35; color: var(--ink-soft); }
+  .lr-l:first-child{ font-size: var(--t-body); font-weight: 600; color: var(--ink); }
+  .lr-nr{ font-variant-numeric: tabular-nums; }
+  .lr-hoejre{ text-align: right; white-space: nowrap; }
+  .lr-pris{ display: block; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lr-pris.rav{ color: var(--amber); font-size: var(--t-small); }
+  .lr-hoejre small{ display: block; font-size: var(--t-label); color: var(--ink-soft);
+                    font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .row.is-muted .lr-l:first-child{ color: var(--ink-soft); }
   /* Swipe-til-slet, som i Mail: knappen ligger bag rækken og kommer til syne,
      når rækken trækkes til side. touch-action: pan-y lader browseren beholde
      den lodrette scroll for sig selv, så vi kun får de vandrette træk at
      forholde os til — og siden aldrig går i stå under fingeren. */
-  .swipe{ position: relative; border-radius: 12px; overflow: hidden; }
+  .swipe{ position: relative; overflow: hidden; }
   .swipe .row{ position: relative; touch-action: pan-y; }
+  .swipe:not(.is-open):not(.is-dragging) .swipe-del{ visibility: hidden; }
+  .swipe.is-open .row, .swipe.is-dragging .row{ background: var(--paper); }
   .swipe.is-dragging .row{ transition: none; }
   .swipe.is-going{ opacity: 0; transition: opacity 180ms ease; }
   .swipe-del{
@@ -941,7 +942,7 @@
   .btn-quiet:not([disabled]):hover{ color: var(--ink); }
   .btn-danger:not([disabled]):hover{ color: var(--danger); background: var(--amber-soft); }
   .icon-btn:hover{ background: var(--surface); }
-  .row:hover{ background: var(--raised); border-color: var(--ink-soft); }
+  .row:hover{ background: var(--raised); }
   .menu-item:hover{ color: var(--accent); }
   .rs-row:hover,
   .strip:not(.flytter) img:hover{ border-color: var(--ink-soft); }
@@ -953,13 +954,12 @@
 /* ---- Indlaesning: skelettet har listens form ------------------------------
    En cirkel, der snurrer, siger kun "vent". Skelettet siger ogsaa hvad der
    kommer, og listen hopper ikke, naar den lander. */
-.skel{ display: flex; flex-direction: column; gap: var(--s3); }
+.skel{ display: flex; flex-direction: column; }
 .skel-row{
   display: grid; grid-template-columns: 72px 1fr; gap: var(--s3);
-  padding: var(--s3);
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: var(--s3) 0; border-bottom: 1px solid var(--line);
 }
-.skel-row > i{ width: 72px; height: 72px; border-radius: 8px; background: var(--line); display: block; }
+.skel-row > i{ width: 72px; height: 96px; border-radius: 8px; background: var(--line); display: block; }
 .skel-tekst{ display: flex; flex-direction: column; gap: 9px; justify-content: center; }
 .skel-tekst i{ height: 11px; border-radius: 999px; background: var(--line); display: block; }
 .skel-tekst i:nth-child(1){ width: 78%; }
@@ -1079,7 +1079,6 @@
                             background: var(--raised); color: var(--ink); }
 .opgave-svar .opgave-knapper{ flex-wrap: wrap; }
 
-.kort-hjerter{ font-variant-numeric: tabular-nums; }
 .kort-vent{ color: var(--amber); font-weight: 600; }
 
 .fod-knap{
@@ -1301,7 +1300,8 @@
 
   /* Lageret: varerne side om side, saa en skaerm viser mere end fem. */
   #s-queue{ --maal: 1120px; }
-  #queue-list, #queue-loading{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--s3); }
+  /* To spalter med raekker; stregen mellem raekkerne baerer stadig. */
+  #queue-list, #queue-loading{ display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--s6); }
 
   /* Varens side: billederne til venstre, staaende fast, mens resten rulles.
      Kolonnen er saa bred, at et 3:4-billede passer i hoejden - saa vises

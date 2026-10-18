@@ -38,7 +38,7 @@
     // Til fejltest fra konsollen: window.__proeveFejl = { url: /listings/, method: 'GET', status: 0 }
     // (status 0 = netvaerket svarer ikke). once: true rammer kun det foerste kald.
     // Hver skrivning noteres, saa en test kan taelle dem.
-    if(method !== 'GET') (window.__proeveKald = window.__proeveKald || []).push(method + ' ' + url.replace(/^.*\/rest\/v1\//, ''));
+    if(method !== 'GET' || window.__proeveAlle) (window.__proeveKald = window.__proeveKald || []).push(method + ' ' + url.replace(/^.*\/rest\/v1\//, ''));
     var f = window.__proeveFejl;
     if(f && f.url.test(url) && (!f.method || f.method === method)){
       if(f.once) window.__proeveFejl = null;

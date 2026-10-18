@@ -235,24 +235,24 @@
     }).join('') + '</span>';
   }
 
-  // Et kort i listen har altid tre linjer, i samme skrift og stoerrelse:
-  //   1  maerke · varetype           loebenummer
-  //   2  stoerrelse · farve · stand · materiale
-  //   3  pris (eller hvor langt udkastet er)
-  // En linje uden indhold faar et haardt mellemrum, saa alle kort er lige hoeje.
-  function kortLinjer(d, linje3){
+  // En raekke i lageret: tre linjer til venstre, prisen til hoejre.
+  //   1  maerke · varetype
+  //   2  stoerrelse · farve · stand        (materialet staar paa varens side)
+  //   3  loebenummer · markedspladser · »rettelse venter«
+  // Hver linje er én linje; resten faar »…«.
+  function raekkeTekst(d){
     var navn = [d.brand, d.category].filter(Boolean).join(' · ') || d.title ||
       (d.status === 'kladde' ? 'Ufærdig billedserie' : 'Nyt udkast');
-    var detaljer = [d.size ? 'Str. ' + d.size : '', d.color, d.condition, d.material]
-      .filter(Boolean).join(' · ');
+    var detaljer = [d.size ? 'Str. ' + d.size : '', d.color, d.condition].filter(Boolean).join(' · ');
     if(!detaljer){
       detaljer = d.status === 'kladde' ? (d.photos || []).length + ' billeder taget'
                : d.status === 'afventer' ? relTime(d.created_at) : '';
     }
-    return '<span class="kort-l kort-l1"><span class="kort-navn">' + esc(navn) + '</span>' +
-             '<span class="kort-nr">' + esc(fmtNr(d.nr)) + '</span></span>' +
-           '<span class="kort-l kort-l2">' + (esc(detaljer) || '&nbsp;') + '</span>' +
-           '<span class="kort-l kort-l3">' + (linje3 || '&nbsp;') + '</span>';
+    var l = vintedAnnonce(d);
+    return '<span class="lr-l">' + esc(navn) + '</span>' +
+      '<span class="lr-l">' + (esc(detaljer) || '&nbsp;') + '</span>' +
+      '<span class="lr-l"><span class="lr-nr">' + esc(fmtNr(d.nr)) + '</span>' + markedsMaerker(d) +
+        (l && venterFelter(l).length ? ' · <span class="kort-vent">rettelse venter</span>' : '') + '</span>';
   }
 
   function kortPris(v){
@@ -450,37 +450,26 @@
     });
   });
 
-  // Tredje linje paa kortet: hvad der er vigtigt i netop den fase.
-  function linjeTre(d){
-    var f = fase(d);
+  // Hoejre side af raekken: det tal, der betyder noget i fasen, og en linje
+  // under det. rav = noget mangler.
+  function raekkePris(d){
+    var f = fase(d), dage = function(n){ return n === null ? '' : n + ' d'; };
     if(f === 'klar'){
       return d.status === 'ny' || d.status === 'afsendt'
-        ? '<span class="kort-pris">' + esc(kortPris(d.price)) + '</span>' + markedsMaerker(d)
-        : esc(koeStatus(d));
+        ? { pris: kortPris(d.price), under: '', rav: false }
+        : { pris: koeStatus(d), under: '', rav: false };
     }
-    var l = vintedAnnonce(d);
-    var n = nuPris(d);
+    var l = vintedAnnonce(d), n = nuPris(d);
     if(f === 'ude'){
-      var dele = [];
-      if(l){
-        if(isFinite(n)) dele.push('<span class="kort-pris">' + esc(kr(n)) + '</span>');
-        dele.push('<span class="kort-hjerter">♥ ' + esc(String(l.favourites || 0)) + '</span>');
-        var dg = dageUde(l);
-        if(dg !== null) dele.push(esc(dg + (dg === 1 ? ' dag' : ' dage')));
-        if(venterFelter(l).length) dele.push('<span class="kort-vent">rettelse venter</span>');
-        return dele.join(' · ') + markedsMaerker(d);
-      }
-      return (isFinite(n) ? '<span class="kort-pris">' + esc(kr(n)) + '</span> · ' : '') +
-        'ikke bekræftet' + markedsMaerker(d);
+      var p = isFinite(n) ? kr(n) : '';
+      if(!l) return { pris: p, under: 'ikke bekræftet', rav: false };
+      var dg = dageUde(l);
+      return { pris: p, under: '♥ ' + (l.favourites || 0) + (dg === null ? '' : ' · ' + dage(dg)), rav: false };
     }
-    // solgt
     var sl = annoncer(d).filter(function(x){ return x.status === 'solgt'; })[0];
-    if(!sl) return 'taget ned';
-    var dg2 = dageUde(sl);
-    return (sl.sold_price != null
-        ? '<span class="kort-pris">solgt for ' + esc(kr(sl.sold_price)) + '</span>'
-        : '<span class="kort-vent">solgt · tast salgsprisen</span>') +
-      (dg2 !== null ? ' · lå ' + esc(dg2 + (dg2 === 1 ? ' dag' : ' dage')) : '');
+    if(!sl) return { pris: 'taget ned', under: '', rav: false };
+    if(sl.sold_price == null) return { pris: 'tast salgsprisen', under: dage(dageUde(sl)), rav: true };
+    return { pris: kr(sl.sold_price), under: dage(dageUde(sl)), rav: false };
   }
 
   // Summen under tal-feltet: klar = de foreloebige priser, ude = prisen nu,
@@ -549,28 +538,24 @@
 
     var el = $('queue-list');
     el.innerHTML = list.map(function(d){
-      var linje3 = linjeTre(d);
+      var pr = raekkePris(d);
+      var indre = (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
+        '<span class="lr-tekst">' + raekkeTekst(d) + '</span>' +
+        '<span class="lr-hoejre"><b class="lr-pris' + (pr.rav ? ' rav' : '') + '">' + esc(pr.pris) + '</b>' +
+          (pr.under ? '<small>' + esc(pr.under) + '</small>' : '') + '</span>';
       // Kun det, der endnu ikke er ude, kan kasseres med et swipe. En vare
       // med en aktiv annonce skal tages ned, ikke glemmes.
       if(FANE !== 'klar'){
         return '<div class="swipe" data-id="' + esc(d.id) + '">' +
-          '<button type="button" class="row" data-id="' + esc(d.id) + '">' +
-          (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
-          '<span class="row-main">' + kortLinjer(d, linje3) + '</span>' +
-          '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>' +
-          '</button></div>';
+          '<button type="button" class="row lr" data-id="' + esc(d.id) + '">' + indre + '</button></div>';
       }
       return '<div class="swipe" data-id="' + esc(d.id) + '">' +
         '<button type="button" class="swipe-del" tabindex="-1" aria-label="Kassér udkastet">' +
           '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M7 7l1 12h8l1-12"/></svg>' +
           '<span>Kassér</span>' +
         '</button>' +
-        '<button type="button" class="row' + (d.status !== 'ny' ? ' is-muted' : '') +
-             '" data-id="' + esc(d.id) + '">' +
-        (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
-        '<span class="row-main">' + kortLinjer(d, linje3) + '</span>' +
-        '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span>' +
-        '</button>' +
+        '<button type="button" class="row lr' + (d.status !== 'ny' ? ' is-muted' : '') +
+             '" data-id="' + esc(d.id) + '">' + indre + '</button>' +
       '</div>';
     }).join('');
 
