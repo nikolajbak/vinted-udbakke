@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0101 — 2026-10-18 14:38
+
+Commit `436937c` — Lager: ingen opgave om prisforslag på forsiden  
+App: `app.js?v=6ad08f7b` · `style.css?v=9047eedf`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script | v106 | `cd768946` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0100 — 2026-10-18 13:32
 
 Commit `688f3b4` — Prisvagt: »Tjek priserne nu« — manuelt tjek via #udbakke=vagt-nu  
