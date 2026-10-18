@@ -1236,7 +1236,7 @@ function videre(itemId,kv){
  return false;
 }
 
-/* Prisvagten sætter selv det, du har godkendt eller rettet i appen (16. og 18. oktober). Står der en
+/* Prisvagten sætter selv det, du har godkendt eller rettet i appen — 16. og 18. oktober. Står der en
    ændring og venter, og er du på en Vinted-side, hvor et sideskift ikke
    afbryder noget, går runneren til redigeringssiden, gemmer, kvitterer og
    sender dig tilbage. Aldrig fra opret-siden, beskeder, betaling eller
