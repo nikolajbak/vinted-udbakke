@@ -1228,17 +1228,6 @@
   //
   // Svarer `foerst` med false, er turen aflyst: det, der skulle derud, blev
   // aldrig gemt. Saa lukkes det tomme faneblad igen.
-  // Vinduer appen har aabnet. Runnerens lukFanen sender {udbakke:'luk'}, og
-  // kun appen selv kan lukke vinduet paa Mac'en (window.close() og
-  // GM.closeTab efterlod det tomt, 18. oktober).
-  var UDAD = [];
-  window.addEventListener('message', function(e){
-    if(e.origin !== 'https://www.vinted.dk' || !e.data || e.data.udbakke !== 'luk') return;
-    UDAD = UDAD.filter(function(w){
-      if(w === e.source){ try{ w.close(); }catch(x){} return false; }
-      return !w.closed;
-    });
-  });
   function aabnUdad(url, foerst){
     var vent = foerst || Promise.resolve();
     if(PAA_IOS){
@@ -1246,14 +1235,15 @@
       vent.then(iosGaa, iosGaa);
       return;
     }
-    // Uden noget at vente paa aabnes adressen direkte. Som webapp paa en Mac
-    // (Safari → Foej til Dock) aabner Vinted i et nyt vindue i webappen selv,
-    // og kun et vindue, siden selv har aabnet, kan runneren lukke med
-    // window.close() bagefter — GM.closeTab toemmer det kun (18. oktober).
-    if(!foerst){
-      var aabnet = window.open(url, '_blank');
-      if(aabnet) UDAD.push(aabnet);
-      else window.location.href = url;
+    // Som webapp paa en Mac (Safari → Foej til Dock) aabner window.open et
+    // vindue i webappen selv, uden forbindelse tilbage (opener: nej): dér
+    // toemte GM.closeTab det kun, og det stod tomt (18. oktober). Et klik paa
+    // et link til et andet site sender macOS i stedet til Safari, hvor
+    // »Udbakke luk« lukker fanen helt.
+    if(!foerst && window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){
+      var a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
       return;
     }
     var vindue = window.open('about:blank', '_blank');

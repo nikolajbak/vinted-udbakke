@@ -670,8 +670,6 @@ function lukFanen(tekst){
  var kan=function(){return document.documentElement.hasAttribute('data-udbakke-luk')};
  var aabner=null;try{aabner=window.opener}catch(e){}
  spor('luk: '+tekst+(kan()?'':' (uden Udbakke luk)')+' [opener: '+(aabner?'ja':'nej')+', historik '+history.length+']');
- // Appen, der aabnede vinduet, kan altid lukke det igen (Mac-webappen).
- if(aabner){try{aabner.postMessage({udbakke:'luk'},'https://nikolajbak.github.io')}catch(e){}}
  var b=baand(tekst+' Lukker fanen …',null,null);
  setTimeout(function(){
   // Et vindue, appen selv har aabnet, lukker sig selv. Paa Mac'en (appen som
