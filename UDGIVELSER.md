@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0102 — 2026-10-18 21:22
+
+Commit `6f261f7` — Mac-webapp: åbn udadgående adresser uden et tomt vindue først  
+App: `app.js?v=fee13bf7` · `style.css?v=9047eedf`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script | v106 | `cd768946` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0101 — 2026-10-18 14:38
 
 Commit `436937c` — Lager: ingen opgave om prisforslag på forsiden  
