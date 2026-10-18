@@ -716,8 +716,9 @@ intet på dig, lukkes den, når runneren er færdig.**
   tilbage: `spor` »luk: … [opener: nej, historik 1]«. Dér tømte
   GM.closeTab kun vinduet, `window.close()` blev afvist, og appen kunne
   heller ikke lukke det (målt 18. oktober, udgivelse-0102 til 0105).
-  Derfor åbner appen som webapp adressen med et klik på et link
-  (`aabnUdad` uden `foerst`), som macOS sender til Safari.
+  Et klik på et link landede samme sted (0106). Derfor åbner appen som
+  webapp på Mac'en med `x-safari-https://…` som på iPhonen (`aabnUdad`):
+  Safari på Mac'en er registreret til den adresse.
 - **Tilbage til appen kan ikke gøres fra Safari.** iOS har ingen adresse,
   der åbner en hjemmeskærms-webapp; det er »◀ Udbakke« øverst til venstre.
   Prøvet 8. oktober: Genvejes »Åbn app« viser ikke Udbakke, så en genvej

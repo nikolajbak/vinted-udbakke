@@ -1230,20 +1230,15 @@
   // aldrig gemt. Saa lukkes det tomme faneblad igen.
   function aabnUdad(url, foerst){
     var vent = foerst || Promise.resolve();
-    if(PAA_IOS){
+    // Som webapp paa en Mac (Safari → Foej til Dock) aabner baade window.open
+    // og et link-klik Vinted i et vindue i webappen selv, uden forbindelse
+    // tilbage: dér toemte GM.closeTab det kun, og det stod tomt (18. oktober).
+    // x-safari- virker ogsaa paa Mac'en og lander i rigtig Safari.
+    var tilSafari = PAA_IOS ||
+      !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if(tilSafari){
       var iosGaa = function(v){ if(v !== false) window.location.href = 'x-safari-' + url; };
       vent.then(iosGaa, iosGaa);
-      return;
-    }
-    // Som webapp paa en Mac (Safari → Foej til Dock) aabner window.open et
-    // vindue i webappen selv, uden forbindelse tilbage (opener: nej): dér
-    // toemte GM.closeTab det kun, og det stod tomt (18. oktober). Et klik paa
-    // et link til et andet site sender macOS i stedet til Safari, hvor
-    // »Udbakke luk« lukker fanen helt.
-    if(!foerst && window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){
-      var a = document.createElement('a');
-      a.href = url; a.target = '_blank'; a.rel = 'noopener';
-      document.body.appendChild(a); a.click(); a.remove();
       return;
     }
     var vindue = window.open('about:blank', '_blank');
