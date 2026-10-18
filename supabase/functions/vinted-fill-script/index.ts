@@ -1102,7 +1102,7 @@ async function tilsyn(maalinger: Maaling[]) {
     if (m.gone) {
       await supabase.from("listings").update({
         status: "solgt", sold_at: new Date().toISOString(),
-        last_check_at: new Date().toISOString(), pending: null, pending_note: null,
+        last_check_at: new Date().toISOString(), pending: null, pending_note: null, forslag: null,
       }).eq("id", r.id);
       await supabase.from("price_events").insert({
         listing_id: r.id, kind: "solgt", price: r.price,
@@ -1156,12 +1156,9 @@ async function tilsyn(maalinger: Maaling[]) {
       opd.published = { ...snap, fotos: (r.published as Record<string, unknown> | null)?.fotos ?? null };
       opd.synced_at = new Date().toISOString();
     }
-    // Prisvagten raader kun over prisen. En titel eller en billedraekkefoelge,
-    // der venter, skal blive staaende, uanset hvad vagten beslutter.
-    const andetVenter = { ...((r.pending ?? {}) as Record<string, unknown>) };
-    delete andetVenter.price;
-    const harAndet = Object.keys(andetVenter).length > 0;
-
+    // Prisvagten foreslaar kun (bestemt af dig 18. oktober): en nedsaettelse
+    // staar i listings.forslag, til du godkender den i appen. Det, der venter
+    // i pending, er dine egne rettelser og roeres ikke.
     await supabase.from("price_events").insert({
       listing_id: r.id, kind: "maalt", price: nuPris, favourites: hjerter,
       comparables: b.sammenlignelige, median: b.median,
@@ -1169,11 +1166,10 @@ async function tilsyn(maalinger: Maaling[]) {
     });
 
     if (b.handling === "saenk" && b.nyPris > 0 && b.nyPris < nuPris) {
-      // Samme postkasse som appens egne rettelser: ét sted at kigge, naar
-      // spoergsmaalet er "hvad mangler at blive skrevet ind i annoncen".
-      opd.pending = { ...andetVenter, price: b.nyPris };
-      opd.pending_note = b.begrundelse;
-      opd.pending_since = new Date().toISOString();
+      opd.forslag = {
+        price: b.nyPris, fra: nuPris, note: b.begrundelse, at: new Date().toISOString(),
+        median: b.median, sammenlignelige: b.sammenlignelige,
+      };
       await supabase.from("price_events").insert({
         listing_id: r.id, kind: "forslag", price: b.nyPris, from_price: nuPris,
         favourites: hjerter, median: b.median, comparables: b.sammenlignelige,
@@ -1181,8 +1177,8 @@ async function tilsyn(maalinger: Maaling[]) {
       });
       aendringer++;
     } else {
-      opd.pending = harAndet ? andetVenter : null;
-      if (!harAndet) { opd.pending_note = null; opd.pending_since = null; }
+      // Markedet siger nu noget andet: et gammelt forslag gaelder ikke laengere.
+      opd.forslag = null;
       opd.note = b.begrundelse;
       if (b.handling === "stop") {
         // Prisen er ikke laengere haandtaget. Vagten holder op med at saenke,
@@ -1210,8 +1206,8 @@ async function tilsyn(maalinger: Maaling[]) {
   }
   if (aendringer) {
     await puf("Prisvagt", aendringer === 1
-      ? "1 vare er klar til en ny pris"
-      : aendringer + " varer er klar til en ny pris");
+      ? "1 prisforslag venter på din godkendelse"
+      : aendringer + " prisforslag venter på din godkendelse");
   }
   return { beslutninger: ud };
 }

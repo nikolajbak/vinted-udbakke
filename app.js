@@ -582,7 +582,7 @@
   // der mangler.
   // En koeber, der venter paa svar, kommer lige efter en vare, der kan
   // saelges to gange.
-  var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5 };
+  var OPGAVE_ORDEN = { ned:0, svar:1, forslag:2, fejl:3, send:4, salg:5, knyt:6 };
   var OPG_AABEN = false;
   function opgaveKort(tekst, under, knapper, slags){
     return { o: OPGAVE_ORDEN[slags], h: '<div class="opgave' + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
@@ -650,6 +650,15 @@
         (k.samtale ? '<button type="button" class="btn btn-secondary" data-op="svar-aabn"' + id + '>Åbn samtalen</button>' : '') +
         '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + id + '>Klaret</button>', 'svar'));
     });
+    // Prisvagten foreslaar kun (bestemt af dig 18. oktober). Én opgave for
+    // dem alle — selve listen staar paa Prisvagt-skaermen.
+    var nf = 0;
+    alle.forEach(function(d){ annoncer(d).forEach(function(l){ if(harForslag(l)) nf++; }); });
+    if(nf){
+      kort.push(opgaveKort(nf + (nf === 1 ? ' prisforslag venter' : ' prisforslag venter') + ' på din godkendelse',
+        'Prisvagten sætter ingen pris ned, før du har sagt ja.',
+        '<button type="button" class="btn btn-primary" data-op="forslag">Se forslagene</button>', 'forslag'));
+    }
     kort.sort(function(a, b){ return a.o - b.o; });
     var el = $('opgaver');
     // Den vigtigste staar altid fremme; resten ligger bag ét baand, saa
@@ -688,6 +697,7 @@
       return;
     }
     if(op === 'vis' && d){ openDetail(d.id); return; }
+    if(op === 'forslag'){ skiftFane('vagt'); return; }
     if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit#udbakke=send'); return; }
     if(op.indexOf('aabn-') === 0){
       var k = op.slice(5);
@@ -912,6 +922,7 @@
 
   // En raekke pr. markedsplads: hvor er varen, og hvad kan du goere dér.
   function pladsVagt(l){
+    if(harForslag(l)) return 'Prisvagt: foreslår ' + kr(l.forslag.price) + ' — venter på din godkendelse under Prisvagt';
     var pv = l.pending && l.pending.price;
     if(pv) return 'Prisvagt: ny pris ' + kr(pv) + ' på vej — ' +
       (sidderFast(l) ? 'Vinted har ikke været åben i Safari' : 'sættes, næste gang Vinted er åben');
@@ -3098,6 +3109,11 @@
     return !t || Date.now() - t > 86400000;
   }
 
+  // Prisvagtens nedsaettelse, der venter paa dit ja (listings.forslag).
+  function harForslag(l){
+    return !!(l && l.status === 'aktiv' && l.forslag && Number(l.forslag.price) > 0);
+  }
+
   function vagtRaekke(l){
     var dage = dageSiden(l.listed_at);
     var n = nedsat(l);
@@ -3109,7 +3125,14 @@
          (n ? ' · pris ' + esc(prisKaede(l)) : '') + '</div>';
 
     var venter = venterFelter(l);
-    if(venter.length){
+    if(harForslag(l)){
+      var fo = l.forslag;
+      h += '<div class="vagt-forslag godkend"><b>Foreslår ' + esc(kr(fo.price)) + ' <s>' + esc(kr(l.price)) + '</s></b>' +
+           (fo.note ? '<span>' + esc(fo.note) + '</span>' : '') +
+           (venter.length ? '<span>Venter også: ' + esc(venter.join(', ')) + '</span>' : '') +
+           '<div class="vagt-knapper"><button type="button" class="btn btn-secondary" data-v="afvis">Afvis</button>' +
+           '<button type="button" class="btn btn-primary" data-v="godkend">Godkend ' + esc(kr(fo.price)) + '</button></div></div>';
+    } else if(venter.length){
       var pv = l.pending && l.pending.price;
       var andre = venter.filter(function(x){ return x !== 'pris'; });
       h += '<div class="vagt-forslag' + (sidderFast(l) ? ' fast' : '') + '"><b>' +
@@ -3242,16 +3265,22 @@
       return;
     }
 
-    var paaVej = aktive.filter(function(l){ return venterFelter(l).length; });
-    var fri = aktive.filter(function(l){ return !venterFelter(l).length && (l.status === 'pause' || !l.auto); });
-    var oeje = aktive.filter(function(l){ return paaVej.indexOf(l) < 0 && fri.indexOf(l) < 0; });
+    var tilGodkendelse = aktive.filter(harForslag);
+    var paaVej = aktive.filter(function(l){ return !harForslag(l) && venterFelter(l).length; });
+    var fri = aktive.filter(function(l){ return !harForslag(l) && !venterFelter(l).length && (l.status === 'pause' || !l.auto); });
+    var oeje = aktive.filter(function(l){ return tilGodkendelse.indexOf(l) < 0 && paaVej.indexOf(l) < 0 && fri.indexOf(l) < 0; });
     // Den, der er tjekket senest, er mindst interessant; den, der snart
     // tjekkes, oeverst.
     oeje.sort(function(a, b){ return String(a.next_check_at).localeCompare(String(b.next_check_at)); });
 
     var h = vagtStatus(aktive);
+    h += vagtAfsnit('Til godkendelse', 'Prisvagten sætter ingen pris ned, før du har sagt ja. Det godkendte sættes af sig selv, næste gang Vinted er åben i Safari.', tilGodkendelse);
+    if(tilGodkendelse.length > 1){
+      h += '<div class="vagt-knapper vagt-alle"><button type="button" class="btn btn-primary" id="vagt-godkend-alle">Godkend alle ' +
+        tilGodkendelse.length + '</button></div>';
+    }
     h += vagtAfsnit('Ny pris på vej', '', paaVej);
-    h += vagtAfsnit('Holder øje', 'Prisen sammenlignes med lignende varer på Vinted. Står den for højt, sættes den ned — aldrig under mindsteprisen.', oeje);
+    h += vagtAfsnit('Holder øje', 'Prisen sammenlignes med lignende varer på Vinted. Står den for højt, foreslås en lavere pris til din godkendelse — aldrig under mindsteprisen.', oeje);
     h += vagtAfsnit('Rører ikke prisen', '', fri);
     if(solgte.length){
       h += '<details class="sect"><summary class="label">Solgt eller taget ned · ' + solgte.length + '</summary>' +
@@ -3268,6 +3297,15 @@
 
     var dk = $('vagt-dagligt');
     if(dk) dk.addEventListener('click', aabnDagligt);
+    var ga = $('vagt-godkend-alle');
+    if(ga) ga.addEventListener('click', function(){
+      ga.disabled = true;
+      Promise.all(tilGodkendelse.map(godkendForslag)).then(function(r){
+        var ok = r.filter(Boolean).length;
+        toast(ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — sættes, næste gang Vinted er åben');
+        hentVagt(); opdaterVagtTal();
+      });
+    });
 
     Array.prototype.forEach.call(krop.querySelectorAll('.vagt-row [data-v]'), function(el){
       var raekke = el.closest('.vagt-row');
@@ -3306,6 +3344,15 @@
       });
       return;
     }
+    if(v === 'godkend' || v === 'afvis'){
+      btn.disabled = true;
+      (v === 'godkend' ? godkendForslag(l) : afvisForslag(l)).then(function(ok){
+        if(ok) toast(v === 'godkend' ? 'Godkendt — sættes, næste gang Vinted er åben' : 'Afvist — prisen bliver, hvor den er');
+        else btn.disabled = false;
+        hentVagt(); opdaterVagtTal();
+      });
+      return;
+    }
     if(v === 'saet'){
       aabnUdad('https://www.vinted.dk/items/' + l.external_id + '/edit#udbakke=send');
       return;
@@ -3330,6 +3377,32 @@
       btn.disabled = true;
       markerSolgt(l, kr).then(function(){ btn.disabled = false; });
     }
+  }
+
+  // Godkendt: prisen lægges i pending som en rettelse fra dig, og runneren
+  // sætter den, næste gang Vinted er åben. Forslaget ryddes.
+  function godkendForslag(l){
+    var fo = l.forslag, nu = Object.assign({}, l.pending || {}, { price: Number(fo.price) });
+    return sb.from('listings').update({
+      pending: nu, pending_note: 'Godkendt af dig: ' + (fo.note || 'prisvagtens forslag'),
+      pending_since: new Date().toISOString(), forslag: null
+    }).eq('id', l.id).then(function(res){
+      if(res.error){ toast('Kunne ikke gemme: ' + res.error.message); return false; }
+      return sb.from('price_events').insert({ listing_id: l.id, kind: 'godkendt', price: Number(fo.price),
+        from_price: Number(l.price), note: 'godkendt af dig' }).then(function(){ return true; });
+    });
+  }
+  // Afvist: prisen bliver, og vagten kigger først igen om en uge. Prisvagten
+  // ser afvisningen i historikken og foreslår ikke bare det samme igen.
+  function afvisForslag(l){
+    var fo = l.forslag;
+    return sb.from('listings').update({
+      forslag: null, next_check_at: new Date(Date.now() + 7 * 86400000).toISOString()
+    }).eq('id', l.id).then(function(res){
+      if(res.error){ toast('Kunne ikke gemme: ' + res.error.message); return false; }
+      return sb.from('price_events').insert({ listing_id: l.id, kind: 'afvist', price: Number(fo.price),
+        from_price: Number(l.price), note: 'afvist af dig' }).then(function(){ return true; });
+    });
   }
 
   function svarKoeber(l, btn){
@@ -3448,9 +3521,9 @@
 
   // Tallet i menuen: hvor mange varer venter paa dig lige nu.
   function opdaterVagtTal(){
-    sb.from('listings').select('id, pending, pending_since, status')
+    sb.from('listings').select('id, pending, pending_since, status, forslag')
       .in('status', ['aktiv', 'pause']).then(function(res){
-        var n = (res.data || []).filter(sidderFast).length;
+        var n = (res.data || []).filter(function(l){ return sidderFast(l) || harForslag(l); }).length;
         ['vagt-tal', 'fod-vagt-tal'].forEach(function(id){
           var el = $(id);
           if(!el) return;
@@ -3740,7 +3813,7 @@
   // Hele lageret hentes med annoncerne paa: fasen, prisen og hjerterne paa
   // kortet kommer fra annoncen, ikke fra udkastet.
   var ANNONCE_FELTER = 'id, platform, url, external_id, title, price, start_price, status, favourites, ' +
-    'listed_at, sold_at, sold_price, pending, pending_note, pending_since, last_check_at, next_check_at, auto, note, published, synced_at, fotos';
+    'listed_at, sold_at, sold_price, pending, pending_note, pending_since, forslag, last_check_at, next_check_at, auto, note, published, synced_at, fotos';
   // Koeberbeskeder fra Vinteds mails, der venter paa dit svar.
   var SVAR = [], KOE_HENTET = false;
   function hentSvar(){

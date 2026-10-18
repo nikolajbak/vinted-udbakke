@@ -247,6 +247,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Din tekst skal stå: `drafts.tekst_rettet`; tekstrettelser i `rettelser` (felt `title`/`beskrivelse`) | `sql/015-tekstrettelser.sql` |
 | Billedernes rækkefølge: `drafts.fotos_sendt` (de billeder, der kom med op, pr. plads), `listings.fotos` (Vinteds billed-id'er parret med appens, `[{id, rod}]`) og `listings.published.fotos`; `pending.fotos` er en ventende rækkefølge | `sql/016-billedraekkefoelge.sql` |
 | Appen må læse `forbrug` (til »Konto«) | `sql/017-forbrug-laeses.sql` |
+| Prisvagtens forslag til godkendelse: `listings.forslag` | `sql/018-prisforslag.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -822,8 +823,9 @@ har ingen række i `listings` endnu.
   ud — en titel rettet på Vinted skrives ikke tilbage, fordi du bagefter rettede
   prisen i appen. Gem lægger ændringen i `pending` og åbner straks
   redigeringssiden, hvor runneren skriver den ind og gemmer. Trykket på Gem ER
-  trykket. Prisvagtens egne nedsættelser sættes selv, næste gang telefonen
-  har en Vinted-side åben (se »Prisvagten«); ligger der en i forvejen, siger
+  trykket. Prisvagtens nedsættelser er forslag, til du godkender dem; det
+  godkendte sættes selv, næste gang telefonen har en Vinted-side åben (se
+  »Prisvagten → Kun forslag«); ligger der en i forvejen, siger
   redigeringsskærmen, at den går med ud.
 - **Udkastet overskrives stadig aldrig af en synkronisering** — kun af dit eget
   Gem. Forskellen mellem udkast og annonce er det, appen viser. Eneste
@@ -1437,6 +1439,38 @@ Målt 17. oktober, logget ind i browserruden.
 
 Delingen mellem server og telefon: se »Telefonen og serveren«.
 
+### Kun forslag — du godkender hver ny pris
+
+Bestemt af dig 18. oktober: **prisvagten må ikke selv ændre priser, men
+laver en liste til godkendelse.** Erstatter beslutningen fra 16. oktober
+(»sætter selv priserne«).
+
+- Tilsynet (`tilsyn` i `vinted-fill-script/index.ts`) lægger en nedsættelse
+  i **`listings.forslag`** (`{price, fra, note, at, median,
+  sammenlignelige}`), ALDRIG i `pending`. `pending` er kun dit: rettelser
+  fra appen og godkendte priser. Tilsynet rører ikke `pending`, og siger
+  et nyt tilsyn »behold«, ryddes et gammelt forslag. Push: »N prisforslag
+  venter på din godkendelse«.
+- **Appen**: Prisvagt-skærmen har gruppen **Til godkendelse** øverst med
+  »Foreslår X kr ~~Y kr~~«, begrundelsen, **Afvis** og **Godkend X kr**, og
+  »Godkend alle N«. Forsiden har én opgave »N prisforslag venter på din
+  godkendelse« → Prisvagt. Fanens tal tæller forslagene med. Varens side:
+  »Prisvagt: foreslår X kr — venter på din godkendelse«.
+- **Godkend** (`godkendForslag`): prisen lægges i `pending` med
+  `pending_note` »Godkendt af dig: …«, `forslag` ryddes, `price_events`
+  `godkendt`. Så sætter runneren den selv, næste gang en Vinted-side er
+  åben (`selvTil`) — dit ja er trykket.
+- **Afvis** (`afvisForslag`): `forslag` ryddes, næste tjek om 7 dage,
+  `price_events` `afvist`. `historikLinjer` i `prisvagt.ts` viser modellen
+  afvisningen, så den ikke bare foreslår det samme igen.
+- **Runneren går aldrig selv til redigeringssiden efter et tilsyn.** Den
+  viser et bånd »N prisforslag venter på din godkendelse i appen«; det
+  daglige tjek lukker fanen med samme besked. Den lokale kø (`VAGT_KOE`),
+  der bar prisvagtens nedsættelser, bruges ikke længere og ryddes på
+  redigeringssiden — kun serverens `pending` sættes.
+- De 10 nedsættelser, der lå i `pending` 18. oktober kl. 10.25, er flyttet
+  til `forslag` (`sql/018-prisforslag.sql`) og blev aldrig sat.
+
 ### Ingen tjek-knap — prisvagten tjekker selv
 
 Bestemt af dig 18. oktober: banneret og knappen »Tjek N varer mod markedet«
@@ -1451,9 +1485,9 @@ og Prisvagt-skærmen.
 - **Dagligt**: en personlig automation i iPhonens **Genveje** (Tidspunkt på
   dagen → Kør straks → Åbn URL'er) åbner `https://www.vinted.dk/#udbakke=vagt`.
   Flaget `vagt` betyder nu kun »dagligt tjek«: runneren tager ALLE
-  forfaldne (`mode:'due'` med `alle`, op til 15), uden timegrænsen, sætter
-  nedsættelserne, sætter en ventende ændring fra før, og lukker fanen
-  (»intet at tjekke i dag« / »N annoncer tjekket — ingen priser skal ned«).
+  forfaldne (`mode:'due'` med `alle`, op til 15), uden timegrænsen, laver
+  forslag, sætter en godkendt ændring, og lukker fanen
+  (»intet at tjekke i dag« / »N annoncer tjekket — N prisforslag venter …«).
   Vejledningen står i Opsætning → **Dagligt pristjek** (`DAGLIGT_URL` i
   `app.js`), og serveren skriver `puls` `prisvagt-dagligt`, så trinnet kan
   vise, hvornår det sidst kørte. Det er det eneste ur, der rører Vinted, og
@@ -1462,8 +1496,8 @@ og Prisvagt-skærmen.
   telefonen er i brug.
 - **Prisvagt-skærmen** (`tegnVagt`): et statuskort øverst (»Holder øje med N
   annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede uden et
-  dagligt tjek — »Slå dagligt tjek til«). Så tre grupper med overskrift:
-  **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »sættes
+  dagligt tjek — »Slå dagligt tjek til«). Så fire grupper med overskrift:
+  **Til godkendelse** (se »Kun forslag«), **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »sættes
   af sig selv, næste gang Vinted er åben«; rav og en primær knap, når den
   har ventet over et døgn), **Holder øje** (seneste dom: »Tjekket for 2
   dage siden · 40 lignende til ca. 150,00 kr« og »Næste tjek: om 3 dage«),
@@ -1486,9 +1520,9 @@ og Prisvagt-skærmen.
   pris og hjerter læses af annoncen selv ved hvert tilsyn, og en prisændring
   kvitteres først, når den nye pris er læst TILBAGE fra annoncen. Samme lære
   som fra DBA: DOM'en lyver, kilden gør ikke.
-- **Prisvagten sætter selv priserne — uden et tryk** (bestemt af dig
-  16. oktober; før krævede hver ændring et tryk fra appen). Står der en
-  ændring i `pending`, eller beslutter tilsynet en nedsættelse, går runneren
+- **Det godkendte sætter prisvagten selv — uden et tryk mere** (bestemt af
+  dig 16. oktober, indskrænket 18. oktober: tilsynets nedsættelser er kun
+  forslag, se »Kun forslag«). Står der en ændring i `pending`, går runneren
   selv til redigeringssiden, gemmer, kvitterer, tager den næste og sender dig
   tilbage til siden, du stod på (`selvTil`, `mode:'ventende'`). Den rører
   aldrig opret-siden, beskeder, betaling eller indstillinger (`maaSkifteSide`),

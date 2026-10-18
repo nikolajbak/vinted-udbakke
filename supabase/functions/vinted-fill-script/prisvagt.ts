@@ -150,12 +150,17 @@ const VAGT_TOOL = {
 };
 
 function historikLinjer(v: Vagt): string {
-  const h = v.historik.filter((e) => e.kind === "aendret" || e.kind === "maalt").slice(0, 8);
+  const h = v.historik.filter((e) => e.kind === "aendret" || e.kind === "maalt" || e.kind === "afvist").slice(0, 8);
   if (!h.length) return "Ingen tidligere runder — det her er første tjek.";
   return h.map((e) => {
     const d = dage(e.at);
     if (e.kind === "aendret") {
       return `- for ${d} dage siden: pris ${e.from_price} → ${e.price} kr`;
+    }
+    // Sælgeren godkender hver nedsættelse (bestemt 18. oktober). Et nej er et
+    // argument mod at foreslå det samme igen.
+    if (e.kind === "afvist") {
+      return `- for ${d} dage siden: sælgeren AFVISTE en nedsættelse ${e.from_price} → ${e.price} kr`;
     }
     return `- for ${d} dage siden: målt, ${e.favourites ?? 0} hjerter`;
   }).join("\n");
@@ -266,7 +271,7 @@ export async function beslutPris(
   // og modsige hinanden paa skaermen.
   let begrundelse = String(out.begrundelse ?? "").trim().slice(0, 400);
   if (handling === "saenk" && pris !== modelPris) {
-    begrundelse += ` Prisvagten sætter den til ${pris},00 kr denne gang — ${spaerret}. ` +
+    begrundelse += ` Prisvagten foreslår ${pris},00 kr denne gang — ${spaerret}. ` +
       "Resten kan komme næste runde.";
   } else if (handling === "behold" && modelPris < nu) {
     begrundelse += ` Prisen bliver stående på ${nu},00 kr: ${spaerret}.`;

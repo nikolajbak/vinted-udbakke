@@ -728,6 +728,9 @@
   .vagt-forslag b{ font-variant-numeric: tabular-nums; }
   .vagt-forslag span{ font-size: var(--t-small); color: var(--ink-soft); }
   .vagt-forslag .btn{ margin: 0; }
+  .vagt-forslag.godkend{ background: var(--accent-soft); }
+  .vagt-forslag.godkend .vagt-knapper{ display: flex; gap: var(--s2); justify-content: flex-end; }
+  .vagt-alle{ display: flex; justify-content: flex-end; margin: calc(-1 * var(--s2)) 0 var(--s4); }
 
   .vagt-stop{
     margin-top: var(--s3); padding: var(--s3);

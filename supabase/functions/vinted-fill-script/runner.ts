@@ -623,10 +623,11 @@ var bedre={title:null,description:null};
    Serveren husker, hvad der ligger ude, og beslutter hvad det skal koste. Men
    den kan hverken se Vinted eller skrive i Vinteds formular — det kan kun din
    egen session. Så her er telefonens halvdel: mål varen, mål feltet, og sæt
-   den nye pris ind, når du har bedt om det.
+   den nye pris ind, når du har godkendt den.
 
-   At MÅLE sker stille, når der alligevel er en annonceside åben. At ÆNDRE en
-   pris sker også uden et tryk, se selvTil — bestemt af dig 16. oktober. */
+   At MÅLE sker stille, når der alligevel er en annonceside åben. En ny pris
+   er et forslag, til du godkender den i appen — bestemt af dig 18. oktober;
+   det godkendte sættes uden et tryk mere, se selvTil. */
 
 var VAGT_KOE='udbakke_prisvagt_koe';
 var VAGT_SIDST='udbakke_prisvagt_sidst';
@@ -889,10 +890,9 @@ async function tilsynsrunde(alle){
   var poster=[];
   for(var k=0;k<b.length;k++){
    if(b[k].handling==='saenk'&&b[k].nyPris>0&&b[k].externalId)
-    poster.push({listing:b[k].id,itemId:String(b[k].externalId),
-                 felter:{price:b[k].nyPris},pris:b[k].nyPris,fra:b[k].fraPris});
+    poster.push({listing:b[k].id,itemId:String(b[k].externalId),pris:b[k].nyPris,fra:b[k].fraPris});
   }
-  log('vagt: '+b.length+' afgjort, '+poster.length+' prisændring(er)');
+  log('vagt: '+b.length+' afgjort, '+poster.length+' prisforslag');
   return {beslutninger:b,poster:poster};
  }catch(e){log('vagt: tilsynet fejlede');return null}
 }
@@ -1236,7 +1236,7 @@ function videre(itemId,kv){
  return false;
 }
 
-/* Prisvagten sætter selv priserne — bestemt af dig 16. oktober. Står der en
+/* Prisvagten sætter selv det, du har godkendt eller rettet i appen (16. og 18. oktober). Står der en
    ændring og venter, og er du på en Vinted-side, hvor et sideskift ikke
    afbryder noget, går runneren til redigeringssiden, gemmer, kvitterer og
    sender dig tilbage. Aldrig fra opret-siden, beskeder, betaling eller
@@ -1364,10 +1364,9 @@ async function prisvagt(){
    if(svj.fotoOmordnet)spor('fotos: '+red[1]+' — appen flyttet efter Vinted');
    if(pj&&Object.keys(pj.felter||{}).length)post={listing:pj.listing,itemId:red[1],felter:pj.felter,fra:pj.fra};
   }catch(e){}
-  if(!post){
-   var k=koeLaes();
-   post=k&&k.poster.filter(function(p){return String(p.itemId)===red[1]})[0];
-  }
+  // Kun serveren tæller: den lokale kø bar prisvagtens egne nedsættelser,
+  // og de skal godkendes i appen først (18. oktober). Den ryddes her.
+  try{localStorage.removeItem(VAGT_KOE)}catch(e){}
   if(post){
    var kv=await anvend(post);
    if(kv&&kv.ok)videre(red[1],kv);
@@ -1422,27 +1421,25 @@ async function prisvagt(){
   }
   return false;
  }
- if(!res.poster.length){
-  if(!bedt)return false;
-  // Venter en ændring fra før (en rettelse fra appen, en pris, der ikke gik
-  // igennem), sættes den med det samme. Bagefter føres fanen hertil igen,
-  // og så er der intet tilbage at måle.
+ // Prisvagten sætter ingen priser selv (bestemt af dig 18. oktober): en
+ // nedsættelse er et forslag, der står i appen til godkendelse. Kun det, du
+ // har godkendt (eller rettet i appen), ligger i pending og sættes herfra.
+ var n=res.beslutninger.length,nf=res.poster.length;
+ if(bedt){
+  // Venter en godkendt ændring, sættes den med det samme. Bagefter føres
+  // fanen hertil igen, og så er der intet tilbage at måle.
   var vd=await ventende();
   if(vd&&selvTil(vd,'dagligt tjek'))return true;
-  var n=res.beslutninger.length;
-  spor('vagt: dagligt tjek, '+(res.tom?'intet forfaldent':n+' tjekket, ingen ned'));
+  spor('vagt: dagligt tjek, '+(res.tom?'intet forfaldent':n+' tjekket, '+nf+' forslag'));
   lukFanen(res.tom?'Prisvagt: intet at tjekke i dag.'
-   :'Prisvagt: '+n+(n===1?' annonce':' annoncer')+' tjekket — ingen priser skal ned.');
+   :'Prisvagt: '+n+(n===1?' annonce':' annoncer')+' tjekket — '+
+    (nf?nf+' prisforslag venter på din godkendelse i appen.':'ingen priser skal ned.'));
   return false;
  }
- koeSkriv({tid:Date.now(),poster:res.poster});
- var f1=res.poster[0];
- var tekst='Prisvagt: '+res.poster.length+
-  (res.poster.length===1?' vare skal ned i pris':' varer skal ned i pris')+
-  ' ('+f1.fra+' → '+f1.pris+' kr'+(res.poster.length>1?' først':'')+').';
- if(bedt){location.href='/items/'+f1.itemId+'/edit';return true}
- if(selvTil(f1.itemId,'tilsyn'))return true;
- baand(tekst,'Sæt priserne',function(){location.href='/items/'+f1.itemId+'/edit'});
+ if(nf){
+  spor('vagt: '+nf+' prisforslag til godkendelse');
+  baand('Prisvagt: '+nf+(nf===1?' prisforslag venter':' prisforslag venter')+' på din godkendelse i appen.',null,null);
+ }
  return false;
 }
 

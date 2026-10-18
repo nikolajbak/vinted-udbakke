@@ -19,6 +19,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+00000000000000. **Prisvagten foreslår kun — 18. oktober.** Regler i CLAUDE.md
+   under »Prisvagten → Kun forslag«. Nedsættelser står i `listings.forslag`
+   og skal godkendes på Prisvagt-skærmen; de 10 fra kl. 10.25 er flyttet
+   dertil. **Afprøvet:** skærmen, forsidens opgave, Godkend og Afvis på en
+   prøveside med de rigtige annoncer (skrivningerne set). **Ikke afprøvet:**
+   den indloggede app, at et godkendt forslag sættes af runneren på
+   telefonen, og et nyt tilsyn, der skriver `forslag` (se `spor` »vagt: N
+   prisforslag til godkendelse«).
+
 0000000000000. **Prisvagten tjekker selv — 18. oktober (udgivelse 0098).** Regler i
    CLAUDE.md under »Prisvagten → Ingen tjek-knap«. Tjek-knappen og
    forsidens »tjek mod markedet« er væk; nyt dagligt tjek via Genveje
