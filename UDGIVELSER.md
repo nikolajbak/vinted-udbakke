@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0114 — 2026-10-19 00:46
+
+Commit `90d1664` — Notér trin 1 af redesignet  
+App: `app.js?v=78d29618` · `style.css?v=c32d6f0c`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script ← | v111 | `5996313e` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0113 — 2026-10-18 23:58
 
 Commit `f690a71` — Én skrift: Space Mono og versal-etiketter væk, tal med tabular-nums  
