@@ -720,8 +720,13 @@ intet på dig, lukkes den, når runneren er færdig.**
     »Udbakke luk« lukker fanen (udgivelse-0108). Men en side i Safari kan
     ikke åbne webappen: `x-webkit-app-launch` er ikke registreret hos
     macOS, og appens egen adresse åbner i Safari.
+  - `location.href` fra koden til Vinted sendte macOS ud til Safari
+    (udgivelse-0109) — tjekket kørte, og Safari gav appens adresse
+    tilbage til webappen, men Safari åbnede. Ønsket er, at alt bliver i
+    appen (bestemt af dig 18. oktober).
   - Derfor går appen som webapp på Mac'en til Vinted i sit **eget vindue**
-    med `&tilbage=<fane>` efter `#udbakke=…` (`aabnUdad`), og `lukFanen`
+    med et klik på et link uden `target` og `&tilbage=<fane>` efter
+    `#udbakke=…` (`aabnUdad`), og `lukFanen`
     sender vinduet til `…/vinted-udbakke/#fane-<fane>` (`tilbageTil`,
     `aabnFraAdresse`). Adresser uden `#udbakke=` (installationer) går
     stadig til Safari med `x-safari-`.

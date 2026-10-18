@@ -1252,6 +1252,14 @@
     // sender vinduet tilbage til fanen, du stod paa (&tilbage=, lukFanen).
     if(!PAA_IOS && tilSafari && /#udbakke=/.test(url)){
       var hjem = url + '&tilbage=' + (stack[0] || 'queue');
+      // Et klik paa et link uden target bliver i webappens vindue; en
+      // location.href fra koden sendte macOS ud til Safari (udgivelse-0109).
+      if(!foerst){
+        var a = document.createElement('a');
+        a.href = hjem;
+        document.body.appendChild(a); a.click(); a.remove();
+        return;
+      }
       var macGaa = function(v){ if(v !== false) window.location.href = hjem; };
       vent.then(macGaa, macGaa);
       return;
