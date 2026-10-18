@@ -19,6 +19,16 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0000000000000000. **Redesign trin 1: fire faner og Opgaver — 19. oktober.** Spec og
+   plan i `docs/superpowers/`; regler i CLAUDE.md »Appens opbygning« og
+   »Prisvagten → Kun forslag«. **Afprøvet** på prøvesiden (rigtige rækker,
+   mock'en svarer): fanerne, `#fane-vagt` → Mere, `#fane-opgaver`, 13
+   forslag = 13 i data, godkend/afvis/»Godkend alle« (også med én fejl og
+   dobbelttryk), listings der ikke kan hentes, realtid mens Opgaver er
+   fremme; gennemgået af en review-agent pr. task. **Ikke afprøvet:** på
+   telefonen, og at Mac-webappen kommer tilbage til Opgaver fra Vinted
+   (`&tilbage=opgaver`). Trin 2 (Lager) og 3 (Mere, Konto) følger.
+
 000000000000000. **»Tjek priserne nu« — 18. oktober.** Regler i CLAUDE.md under
    »Prisvagten → Ingen tjek-knap« (manuelt). **Afprøvet:** knappen på
    Prisvagt-skærmen på en prøveside, og på Mac'en (webappen, udgivelse-0110):

@@ -641,12 +641,13 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   `posted_to` og `listings`. Et tryk på en markedsplads noterer, at varen er
   sendt DERHEN — ikke at den er lagt op; kun Vinted-scriptet kan bekræfte det
   sidste.
-- **Det, der venter på dig, står øverst på forsiden** som opgaver, vigtigst
-  først: solgt på Vinted men stadig ude på DBA/Reshopper → køber skriver →
-  analysen fejlede → en ny pris/rettelse, der har ventet over et døgn
-  (`sidderFast`) → salgspris mangler → ikke tilknyttet (over en time efter
-  udfyldningen). Den vigtigste står fremme, resten bag ét bånd »N ting mere
-  venter på dig« (se »Appens opbygning«). **Intet »tjek mod markedet«** —
+- **Det, der venter på dig, står under fanen Opgaver** (19. oktober; før
+  øverst på forsiden), vigtigst først: solgt på Vinted men stadig ude på
+  DBA/Reshopper (rød kant) → køber skriver → analysen fejlede → en ny
+  pris/rettelse, der har ventet over et døgn (`sidderFast`) → ikke
+  tilknyttet (over en time efter udfyldningen) (rav kant) → prisforslag →
+  salgspris mangler (uden kant). `samlOpgaver()` finder dem,
+  `tegnOpgaveSkaerm()` tegner dem som én liste; Lager viser kun varerne. **Intet »tjek mod markedet«** —
   prisvagten tjekker selv (se »Prisvagten → Ingen tjek-knap«).
 - **Solgt ét sted = tag den ned de andre steder.** DBA og Reshopper kan ikke
   tages ned af appen, så push-beskeden om salget siger »Slet den også på DBA«,
@@ -771,11 +772,15 @@ stå. `vaagen(min)`/`slip()` i begge runnere (Screen Wake Lock API).
 Bestemt af dig 17. oktober: Mere-menuen var »komplet uoverskuelig« —
 status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
 
-- **Fire faner i bunden**: Lager, Prisvagt, Konto, Mere (`skiftFane`). De er
-  rødder: ingen tilbagepil og ingen post i historien. Der er én
-  fanebjælke (`#fanebar`), og `flytFanebar` flytter den ind i den skærm,
-  der er fremme. Prisvagten har sit tal på fanen (ændringer, der har
-  ventet over et døgn), Mere sit, når noget i opsætningen er gået i stå.
+- **Fire faner i bunden**: Lager, Opgaver, Konto, Mere (`skiftFane`,
+  `RODER`; 19. oktober — før var Prisvagt en fane). De er rødder: ingen
+  tilbagepil og ingen post i historien. Der er én fanebjælke (`#fanebar`),
+  og `flytFanebar` flytter den ind i den skærm, der er fremme. Opgaver har
+  sit tal på fanen (`opdaterOpgaveTal`: opgaverne + prisforslagene), Mere
+  sit, når noget i opsætningen er gået i stå. **Prisvagt er en underskærm**
+  med tilbagepil, åbnet fra Mere. `#fane-vagt` (runnerens vej tilbage på
+  Mac'en) lander i Mere; runneren og `aabnFraAdresse` kender også
+  `opgaver` — ret de to regex sammen.
 - **Nyt produkt** er en svævende knap over listen; Scan sidder øverst til
   højre på Lager.
 - **På en computerskærm (fra 960 px bred) er fanerne en sidebjælke**
@@ -811,7 +816,13 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   med samme stempel. Er en nyere app ude, siger linjen det. **Opsætning** er en tjekliste — hvert trin med
   status og vejledningen foldet ind under sig; bogmærket under »Andre
   måder«. Læg ikke vejledninger tilbage i Mere.
-- **Forsiden**: den vigtigste opgave står fremme, resten bag ét bånd.
+- **Opgaver**: det akutte med en farvet kant øverst, så »Prisforslag · N«
+  med »Godkend alle« og én række pr. forslag (billede, titel, gammel pris
+  overstreget · begrundelsen, × afviser, prisen godkender; et tryk på
+  rækken åbner varen), så salgspriserne. Et forslag, der er sendt afsted,
+  er låst, til svaret er kommet (`OPG_I_GANG`) — også hvis skærmen tegnes
+  om imens. Kan forslagene ikke hentes, står opgaverne stadig, med »Prøv
+  igen«.
 - **Varens side**: billeder, pris (med størrelse · farve · stand) og
   markedspladserne først. »Tekst og detaljer« (det udfyldte, beskrivelsen,
   prisnoten) er foldet ud, mens varen er klar, ellers sammen; dit valg
@@ -828,8 +839,8 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   faner Lager · Opgaver · Konto · Mere; prisforslag godkendes i Opgaver;
   Prisvagt bliver en underskærm fra Mere; Lager får tal-felter og rolige
   rækker uden kasser (erstatter »Kortene i listen«, når trin 2 er ude).
-  Indtil et trin er udgivet, gælder beskrivelsen her i filen. Ret
-  afsnittene, efterhånden som trinnene kommer ud.
+  **Trin 1 (faner, Opgaver) er ude** og beskrevet her i filen; trin 2-3
+  (Lager, Mere, Konto) gælder endnu den gamle beskrivelse.
 - **Én skrift i hele appen: Libre Franklin** (18. oktober). Space Mono i
   versaler var overskrifternes og prisernes stemme (»UDKAST: 85,00 KR«) og
   er væk — også fra skrift-linket. Overskrifter over en gruppe (`.label`,
@@ -1526,11 +1537,12 @@ laver en liste til godkendelse.** Erstatter beslutningen fra 16. oktober
   fra appen og godkendte priser. Tilsynet rører ikke `pending`, og siger
   et nyt tilsyn »behold«, ryddes et gammelt forslag. Push: »N prisforslag
   venter på din godkendelse«.
-- **Appen**: Prisvagt-skærmen har gruppen **Til godkendelse** øverst med
-  »Foreslår X kr ~~Y kr~~«, begrundelsen, **Afvis** og **Godkend X kr**, og
-  »Godkend alle N«. **Ingen opgave eller bånd om forslagene på forsiden
-  (Lager)** (bestemt af dig 18. oktober) — kun fanens tal tæller dem med. Varens side:
-  »Prisvagt: foreslår X kr — venter på din godkendelse«.
+- **Appen**: forslagene godkendes under fanen **Opgaver** (19. oktober; før
+  en gruppe på Prisvagt-skærmen): »Prisforslag · N« med × (afvis), prisen
+  (godkend) og »Godkend alle«. Prisvagt-skærmen viser kun »Foreslår X kr —
+  venter på dit ja under Opgaver«. **Ingen opgave om forslagene på Lager**
+  (bestemt af dig 18. oktober). Varens side: »Prisvagt: foreslår X kr —
+  venter på din godkendelse«.
 - **Godkend** (`godkendForslag`): prisen lægges i `pending` med
   `pending_note` »Godkendt af dig: …«, `forslag` ryddes, `price_events`
   `godkendt`. Så sætter runneren den selv, næste gang en Vinted-side er
@@ -1580,8 +1592,8 @@ og Prisvagt-skærmen.
   mellem ændringer, loft over springet) gælder stadig.
 - **Prisvagt-skærmen** (`tegnVagt`): et statuskort øverst (»Holder øje med N
   annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede uden et
-  dagligt tjek — »Slå dagligt tjek til«). Så fire grupper med overskrift:
-  **Til godkendelse** (se »Kun forslag«), **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »sættes
+  dagligt tjek — »Slå dagligt tjek til«). Så tre grupper med overskrift
+  (forslagene står under Opgaver, se »Kun forslag«): **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »sættes
   af sig selv, næste gang Vinted er åben«; rav og en primær knap, når den
   har ventet over et døgn), **Holder øje** (seneste dom: »Tjekket for 2
   dage siden · 40 lignende til ca. 150,00 kr« og »Næste tjek: om 3 dage«),
