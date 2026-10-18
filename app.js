@@ -181,7 +181,7 @@
   }
   if(BRED.addEventListener) BRED.addEventListener('change', function(){ flytFanebar(stack[0] || 'queue'); });
   function hentFane(name){
-    if(name === 'opgaver') hentOpgaver();
+    if(name === 'opgaver'){ tegnOpgaveSkaerm(); hentOpgaver(); }
     else if(name === 'konto') hentKonto();
     else if(name === 'menu'){ hentMereVagt(); tegnTjek(); tegnVersion(); }
   }
@@ -689,16 +689,21 @@
   // Forslag, der er sendt afsted, men ikke svaret paa: de kan ikke trykkes
   // igen, heller ikke naar skaermen tegnes om imens (realtid).
   var OPG_I_GANG = {};
+  // Kun det nyeste svar tæller: et langsomt, ældre svar må ikke lægge et
+  // forslag tilbage, der er godkendt imens.
+  var OPG_SEQ = 0;
   function forslagSendt(l){
     delete OPG_I_GANG[l.id];
     if(Array.isArray(OPG_FORSLAG)) OPG_FORSLAG = OPG_FORSLAG.filter(function(x){ return x.id !== l.id; });
   }
   function hentOpgaver(){
+    var seq = ++OPG_SEQ;
     return sb.from('listings').select('*').eq('status', 'aktiv').not('forslag', 'is', null)
       .then(function(res){
-        OPG_FORSLAG = res.error ? 'fejl' : (res.data || []).filter(harForslag);
-      }, function(){ OPG_FORSLAG = 'fejl'; })
+        if(seq === OPG_SEQ) OPG_FORSLAG = res.error ? 'fejl' : (res.data || []).filter(harForslag);
+      }, function(){ if(seq === OPG_SEQ) OPG_FORSLAG = 'fejl'; })
       .then(function(){
+        if(seq !== OPG_SEQ) return;
         if(!screenEl('opgaver').hidden) tegnOpgaveSkaerm();
         opdaterOpgaveTal();
       });
@@ -742,7 +747,10 @@
         '<button type="button" class="opg-alle" id="opg-igen">Prøv igen</button></div>';
     }
     if(stille.length) h += '<div class="opg-liste opg-stille">' + stille.map(function(k){ return k.h; }).join('') + '</div>';
-    if(!h){
+    if(!h && (!KOE_HENTET || OPG_FORSLAG === null)){
+      // Endnu ikke hentet: »Intet venter« ville være usandt.
+      h = '<div class="skel" aria-hidden="true">' + new Array(4).join('<div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>') + '</div>';
+    } else if(!h){
       h = '<div class="empty"><svg class="empty-mark" viewBox="0 0 72 56" aria-hidden="true">' +
         '<path d="M22 29l10 10 18-20"/></svg>' +
         '<h3>Intet venter på dig</h3><p>Nye opgaver dukker op her, fx når en vare er solgt eller en køber skriver.</p></div>';
@@ -762,8 +770,9 @@
       Promise.all(vent.map(function(l){
         return godkendForslag(l).catch(function(){ return false; }).then(function(ok){ forslagSendt(l); return ok; });
       })).then(function(r){
-        var ok = r.filter(Boolean).length;
-        toast(ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — sættes, næste gang Vinted er åben');
+        var ok = r.filter(Boolean).length, galt = r.length - ok;
+        toast(ok ? ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — sættes, næste gang Vinted er åben' +
+          (galt ? ' · ' + galt + ' kunne ikke gemmes' : '') : 'Ingen af priserne kunne gemmes — prøv igen');
         hentOpgaver();
       });
     });

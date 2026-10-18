@@ -49,6 +49,12 @@
     // eksempel i samme form, saa skaermen kan ses uden at koste noget.
     var mode = ''; try { mode = JSON.parse(opt && opt.body || '{}').mode || ''; } catch(e){}
     if(/\/functions\//.test(url) && mode === 'indkob') body = INDKOB;
+    // En PATCH laegges ind i hukommelsen, saa en genhentning ser den (intet sendes).
+    if(m && method === 'PATCH'){
+      var ret = {}; try { ret = JSON.parse(opt.body || '{}'); } catch(e){}
+      var filt = []; new URLSearchParams(m[2]).forEach(function(v, k){ var e = v.match(/^eq\.(.*)$/); if(e) filt.push([k, e[1]]); });
+      (data[m[1]] || []).forEach(function(r){ if(filt.length && filt.every(function(f){ return String(r[f[0]]) === f[1]; })) Object.assign(r, ret); });
+    }
     if(m && method === 'GET'){
       body = (data[m[1]] || []).slice();
       new URLSearchParams(m[2]).forEach(function(v, k){
@@ -64,6 +70,14 @@
       }
       var h = opt && opt.headers; var acc = h && (h.get ? h.get('Accept') : h.Accept || h.accept);
       if(acc && /pgrst\.object/.test(acc)) body = body[0] || null;
+    }
+    // Langsomt net: window.__proeveVent = { url: /listings/, ms: 1500, once: true }
+    // - eller localStorage 'proeveVent' = '{"url":"listings","ms":1500}' til en genindlaesning.
+    var v = window.__proeveVent; try { if(!v && localStorage.getItem('proeveVent')){ v = JSON.parse(localStorage.getItem('proeveVent')); v.url = new RegExp(v.url); } } catch(e){}
+    var svar = new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', 'Content-Range': '0-0/' + (Array.isArray(body) ? body.length : 1) } });
+    if(v && v.url.test(url) && method === 'GET'){
+      if(v.once) window.__proeveVent = null;
+      return new Promise(function(r){ setTimeout(function(){ r(svar); }, v.ms); });
     }
     return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', 'Content-Range': '0-0/' + (Array.isArray(body) ? body.length : 1) } }));
   };
