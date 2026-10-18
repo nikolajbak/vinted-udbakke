@@ -23,6 +23,15 @@
   var PAA_IOS = /iPad|iPhone|iPod/.test(UA) ||
                 (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
 
+  // Hvordan appen vises: 'browser' i en almindelig fane, ellers som webapp.
+  // Staar i versionslinjen i Mere, saa den kan aflaeses.
+  var VISNING = (function(){
+    var m = ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay'];
+    for(var i = 0; i < m.length; i++){
+      if(window.matchMedia && window.matchMedia('(display-mode: ' + m[i] + ')').matches) return m[i];
+    }
+    return 'browser';
+  })();
   var $ = function(id){ return document.getElementById(id); };
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -1234,8 +1243,9 @@
     // og et link-klik Vinted i et vindue i webappen selv, uden forbindelse
     // tilbage: dér toemte GM.closeTab det kun, og det stod tomt (18. oktober).
     // x-safari- virker ogsaa paa Mac'en og lander i rigtig Safari.
-    var tilSafari = PAA_IOS ||
-      !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    // Ikke »standalone«: med »Vis navigationsknapper« slaaet til melder
+    // webappen sig som noget andet, og betingelsen ramte aldrig (0102-0107).
+    var tilSafari = PAA_IOS || VISNING !== 'browser';
     if(tilSafari){
       var iosGaa = function(v){ if(v !== false) window.location.href = 'x-safari-' + url; };
       vent.then(iosGaa, iosGaa);
@@ -2138,7 +2148,7 @@
     var el = $('mere-version');
     if(!el) return;
     var kl = INDLAEST.toLocaleTimeString('da-DK', { hour:'2-digit', minute:'2-digit' });
-    var grund = 'App ' + (APP_STEMPEL || 'ukendt') + ' · hentet kl. ' + kl;
+    var grund = 'App ' + (APP_STEMPEL || 'ukendt') + ' · ' + VISNING + ' · hentet kl. ' + kl;
     el.textContent = grund;
     fetch('UDGIVELSER.md', { cache:'no-store' }).then(function(r){ return r.ok ? r.text() : ''; }).then(function(t){
       var dele = t.split(/^## /m).slice(1), egen = '', nyeste = '';

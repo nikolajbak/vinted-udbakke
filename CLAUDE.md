@@ -716,9 +716,12 @@ intet på dig, lukkes den, når runneren er færdig.**
   tilbage: `spor` »luk: … [opener: nej, historik 1]«. Dér tømte
   GM.closeTab kun vinduet, `window.close()` blev afvist, og appen kunne
   heller ikke lukke det (målt 18. oktober, udgivelse-0102 til 0105).
-  Et klik på et link landede samme sted (0106). Derfor åbner appen som
-  webapp på Mac'en med `x-safari-https://…` som på iPhonen (`aabnUdad`):
-  Safari på Mac'en er registreret til den adresse.
+  Appen åbner derfor som webapp på Mac'en med `x-safari-https://…` som på
+  iPhonen (`aabnUdad`): Safari på Mac'en er registreret til den adresse.
+  **Webappen er ikke `display-mode: standalone`**, når »Vis
+  navigationsknapper« er slået til — en betingelse på standalone ramte
+  aldrig, så 0102-0107 kørte alle den gamle vej. Betingelsen er nu
+  »ikke `browser`« (`VISNING`), og versionslinjen i Mere viser tilstanden.
 - **Tilbage til appen kan ikke gøres fra Safari.** iOS har ingen adresse,
   der åbner en hjemmeskærms-webapp; det er »◀ Udbakke« øverst til venstre.
   Prøvet 8. oktober: Genvejes »Åbn app« viser ikke Udbakke, så en genvej
@@ -757,7 +760,7 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
 - **Mere har fem linjer**: statuslinjen, Værktøjer (Etiketter, Køb igen),
   Opsætning, Udseende (temaet) og Log ud. **Nederst står versionen**
   (bestemt af dig 18. oktober, `tegnVersion`): »udgivelse-NNNN · App
-  <stempel> · hentet kl. …«. Stemplet er `app.js?v=` i den rude, der kører;
+  <stempel> · <visning> · hentet kl. …«. Stemplet er `app.js?v=` i den rude, der kører;
   nummeret er den nyeste udgivelse i `UDGIVELSER.md` (udleveret af Pages)
   med samme stempel. Er en nyere app ude, siger linjen det. **Opsætning** er en tjekliste — hvert trin med
   status og vejledningen foldet ind under sig; bogmærket under »Andre
