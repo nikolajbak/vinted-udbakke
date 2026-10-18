@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0112 — 2026-10-18 23:02
+
+Commit `7764f7d` — Computerskærm: Prisvagt, Konto, Mere, Redigér, Etiketter og Køb igen  
+App: `app.js?v=373dfdce` · `style.css?v=b11ed07a`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script | v110 | `8f779f9d` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0111 — 2026-10-18 22:44
 
 Commit `d4835bd` — Computerskærm: faner som sidebjælke, lager i gitter, varens side i to spalter  
