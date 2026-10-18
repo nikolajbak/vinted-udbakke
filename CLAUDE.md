@@ -172,7 +172,11 @@ retvisende — kun rækkefølgen og udfaldet er.
 og så `http://localhost:8765/proeve.html` (preview »app«). Den henter
 rigtige rækker (kun læst) og svarer selv på alle kald til Supabase, så
 intet sendes og intet gemmes. »Køb igen« får et fast eksempel
-(`INDKOB` i `tools/proeve-mock.js`) — serverens svar kalder en model. Appens service worker serverer gammel CSS på
+(`INDKOB` i `tools/proeve-mock.js`) — serverens svar kalder en model.
+Mock'en kan fejle (`window.__proeveFejl`), være langsom
+(`window.__proeveVent`, eller `localStorage` `proeveVent` til en
+genindlæsning), og en PATCH lægges i dens hukommelse, så en genhentning
+ser den. Appens service worker serverer gammel CSS på
 localhost: afregistrér den i ruden, hvis en ændring ikke slår igennem.
 
 `window.__UDBAKKE_LOG__` i browseren viser hvert trin. Kør automatikken sådan:
@@ -828,7 +832,9 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   rækken åbner varen), så salgspriserne. Et forslag, der er sendt afsted,
   er låst, til svaret er kommet (`OPG_I_GANG`) — også hvis skærmen tegnes
   om imens. Kan forslagene ikke hentes, står opgaverne stadig, med »Prøv
-  igen«.
+  igen«. Kun det nyeste svar på hentningen tæller (`OPG_SEQ`): et
+  langsomt, ældre svar lagde et forslag, der var godkendt imens, tilbage
+  som trykbart (fundet ved den sidste gennemgang 19. oktober).
 - **Varens side**: billeder, pris (med størrelse · farve · stand) og
   markedspladserne først. »Tekst og detaljer« (det udfyldte, beskrivelsen,
   prisnoten) er foldet ud, mens varen er klar, ellers sammen; dit valg
