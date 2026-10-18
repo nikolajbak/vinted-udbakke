@@ -671,8 +671,12 @@ function lukFanen(tekst){
  spor('luk: '+tekst+(kan()?'':' (uden Udbakke luk)'));
  var b=baand(tekst+' Lukker fanen …',null,null);
  setTimeout(function(){
+  // Et vindue, appen selv har aabnet, lukker sig selv. Paa Mac'en (appen som
+  // webapp) toemte GM.closeTab kun vinduet, og det stod tomt tilbage.
+  try{window.close()}catch(e){}
+  setTimeout(function(){
+  if(window.closed)return;
   if(kan())document.dispatchEvent(new CustomEvent('udbakke-luk'));
-  else{try{window.close()}catch(e){}}
   setTimeout(function(){
    if(b)b.remove();
    if(kan())baand(tekst+' Luk fanen, og gå tilbage til appen.',null,null);
@@ -680,6 +684,7 @@ function lukFanen(tekst){
     location.href=API.replace('?key=','/udbakke-luk.user.js?key=');
    });
   },1500);
+  },400);
  },2500);
 }
 

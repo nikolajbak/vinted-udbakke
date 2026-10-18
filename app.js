@@ -1235,13 +1235,12 @@
       vent.then(iosGaa, iosGaa);
       return;
     }
-    // Som webapp paa en Mac (Safari → Foej til Dock) bliver about:blank i
-    // webappens EGET vindue, og adressen bagefter afleveres til Safari: det
-    // tomme vindue blev staaende (18. oktober). Dér forlader en adresse uden
-    // for appen den aldrig — macOS sender den selv videre til browseren.
-    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){
-      var macGaa = function(v){ if(v !== false) window.location.href = url; };
-      vent.then(macGaa, macGaa);
+    // Uden noget at vente paa aabnes adressen direkte. Som webapp paa en Mac
+    // (Safari → Foej til Dock) aabner Vinted i et nyt vindue i webappen selv,
+    // og kun et vindue, siden selv har aabnet, kan runneren lukke med
+    // window.close() bagefter — GM.closeTab toemmer det kun (18. oktober).
+    if(!foerst){
+      if(!window.open(url, '_blank')) window.location.href = url;
       return;
     }
     var vindue = window.open('about:blank', '_blank');
