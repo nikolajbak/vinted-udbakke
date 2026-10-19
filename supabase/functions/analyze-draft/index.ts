@@ -534,6 +534,9 @@ Deno.serve(async (req: Request) => {
 
     const wanted = only === null ? photos : (photos[only] ? [photos[only]] : []);
     if (!wanted.length) throw new Error("photo_index_out_of_range");
+    // Originalens sti, foer optimeringen giver billedet en ny: delkaldet
+    // skriver tilbage paa den, ikke paa pladsen (se herunder).
+    const foerSti = only !== null ? wanted[0].path : undefined;
 
     // Kun delkaldet har brug for selve bytes - det skal behandle billedet.
     // Orkestreringen noejes med adresserne og lader modellen hente dem.
@@ -770,9 +773,19 @@ Deno.serve(async (req: Request) => {
     // Delkaldet skriver sit ene foto tilbage i listen og stopper her.
     if (only !== null) {
       if (loaded[0].photo.optimized) {
-        await supabase.rpc("set_draft_photo", {
-          p_id: id, p_index: only, p_photo: loaded[0].photo,
-        });
+        // Paa stien, ikke paa pladsen (sql/020): fjernes et billede i appen,
+        // mens dette optimeres, flytter de andre en plads, og saa ville det
+        // optimerede lande paa et andet billedes plads. Er stien vaek (billedet
+        // er fjernet), skrives intet.
+        if (foerSti) {
+          await supabase.rpc("set_draft_photo_paa_sti", {
+            p_id: id, p_path: foerSti, p_photo: loaded[0].photo,
+          });
+        } else {
+          await supabase.rpc("set_draft_photo", {
+            p_id: id, p_index: only, p_photo: loaded[0].photo,
+          });
+        }
         // Foerste billede laegger fremkaldelsen OG formatet frem til resten af
         // serien. Begge dele maales paa hovedbilledet, saa annoncen staar ens.
         const felter: Record<string, unknown> = {};

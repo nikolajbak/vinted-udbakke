@@ -334,6 +334,18 @@
     display: flex; gap: var(--s2); overflow-x: auto; margin-top: var(--s2);
     position: relative; padding: var(--s1) 2px var(--s2);
   }
+  /* »+« ved siden af striben (billeder lagt til, 19. oktober): uden for
+     selve striben, saa traek og slip kun ser billederne. */
+  .strip-rad{ display: flex; align-items: flex-start; gap: var(--s2); margin-top: var(--s2); }
+  .strip-rad .strip{ flex: 1; min-width: 0; margin-top: 0; }
+  .strip-ny{
+    flex: none; width: 64px; height: 64px; margin-top: var(--s1);
+    display: grid; place-items: center; border-radius: 8px;
+    border: 1.5px dashed var(--ink-soft); background: none;
+    color: var(--ink-soft); font: inherit; font-size: 28px; line-height: 1; cursor: pointer;
+  }
+  .strip-ny:disabled{ cursor: default; }
+  .strip-ny-travl{ font-size: var(--t-small); font-variant-numeric: tabular-nums; }
   .strip-cel{ position: relative; flex: none; width: 64px; height: 64px; transition: transform 200ms cubic-bezier(.2,.8,.2,1); }
   .strip img{
     width: 64px; height: 64px; display: block; object-fit: contain;
@@ -463,6 +475,8 @@
   .crop-btns{ display: flex; gap: var(--s2); }
   .crop-btns .btn{ flex: 1; }
   .crop-btns .btn-secondary{ background: none; color: #EDE8DE; border-color: rgba(255,255,255,0.35); }
+  /* Fjern staar paa den moerke beskaeringsskaerm: lys roed, 7:1 mod #1b1b1b. */
+  .crop-btns .btn-secondary.crop-fjern{ color: #FFA594; border-color: rgba(255,165,148,0.5); }
 
   /* ---- Menu -------------------------------------------------------------- */
   .menu-item{

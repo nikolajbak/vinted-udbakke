@@ -24,7 +24,7 @@ import { noterForbrug } from "../_shared/forbrug.ts";
 import { laer } from "./laering.ts";
 import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
 import { indkob } from "./indkob.ts";
-import { fotoSynk } from "./fotos.ts";
+import { fotoSynk, OP_FEJL } from "./fotos.ts";
 import { erNy, erNyAnnonce, helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1424,19 +1424,21 @@ Deno.serve(async (req: Request) => {
     // skriv:true skrives beskrivelsen forfra ud fra den. `fra` er teksten, du
     // startede fra - ikke modellens omskrivning - saa kun dine egne rettelser
     // bliver til laering.
-    // »Tag dit eget som dette«: appen har lagt billedet i Storage; her
-    // laegges det sidst i udkastet og optimeres alene med seriens tone og
-    // format (det eksisterende delkald i analyze-draft). Tilfoejelsen sker i
-    // én saetning (append_draft_photo, sql/019), som ogsaa tjekker, at varen er
-    // faerdiganalyseret (status ny) og ikke sendt afsted - appen PATCHede
-    // foer hele listen ud fra sin egen kopi, og saa kunne en optimering eller
-    // et billede gaa tabt. Appens knap kraever det samme - ret dem sammen.
+    // Et nyt billede (»Tag dit eget som dette« og »+« i billedstriben): appen
+    // har lagt det i Storage; her laegges det sidst i udkastet og optimeres
+    // alene med seriens tone og format (det eksisterende delkald i
+    // analyze-draft). Tilfoejelsen sker i én saetning (append_draft_photo,
+    // sql/020), som ogsaa tjekker, at varen er faerdiganalyseret (ny eller
+    // afsendt), ikke solgt og har under 20 billeder - appen PATCHede foer hele
+    // listen ud fra sin egen kopi, og saa kunne en optimering eller et billede
+    // gaa tabt. Appens knapper kraever det samme - ret dem sammen. Ligger
+    // varen ude paa Vinted, laegger appen bagefter listen i pending.fotos.
     // Appen kan ikke selv kalde analyze-draft (webhook-hemmeligheden).
     if (body.mode === "nytFoto") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
       const path = typeof body.path === "string" ? body.path : "";
       if (!/^draft-[A-Za-z0-9._-]+\.jpg$/.test(path)) return json({ error: "bad_path" }, 400);
-      const kind = body.kind === "detalje" ? "detalje" : "paa-kroppen";
+      const kind = body.kind === "detalje" || body.kind === "ekstra" ? body.kind : "paa-kroppen";
       // Adressen bygges her, ikke laest fra appen: kun appens egen Storage.
       const url = `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`;
       // En sti, der ikke findes, maa ikke ende i udkastet - den ville komme
@@ -1458,9 +1460,60 @@ Deno.serve(async (req: Request) => {
       // efter, og giv listen med, saa appen ikke skal vente paa realtid.
       const { data: efter } = await supabase.from("drafts").select("photos").eq("id", body.id).single();
       const photos = Array.isArray(efter?.photos) ? efter!.photos : [];
-      const nu = photos[n] as { optimized?: boolean } | undefined;
+      // Paa stien, ikke paa pladsen: et billede fjernet imens flytter de andre.
+      const opt = path.replace(/\.jpg$/i, "") + "-opt.jpg";
+      const nu = (photos as Array<{ path?: string; optimized?: boolean }>).find((p) => p && p.path === opt);
       if (!res.ok) return json({ error: "fejl", status: res.status, photos }, 502);
       return nu?.optimized ? json({ ok: true, photo: n, photos }) : json({ error: "ikke_optimeret", photos }, 502);
+    }
+    // Et billede fjernet i appen (bestemt af dig 19. oktober), i én saetning
+    // paa sin rod (remove_draft_photo, sql/020) - eller lagt tilbage paa sin
+    // plads, naar du trykker Fortryd. Filen bliver i Storage. Det sidste
+    // billede kan ikke fjernes. Svaret har den friske liste.
+    if (body.mode === "fjernFoto") {
+      if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
+      const f = body.fortryd as { foto?: Record<string, unknown>; plads?: unknown } | undefined;
+      if (f && typeof f === "object") {
+        const foto = f.foto && typeof f.foto === "object" ? f.foto : null;
+        const sti = foto ? String(foto.path ?? "") : "";
+        if (!foto || !/^draft-[A-Za-z0-9._-]+\.jpg$/.test(sti)) return json({ error: "bad_path" }, 400);
+        // Adressen bygges her, ikke laest fra appen: kun appens egen Storage.
+        const ren: Record<string, unknown> = {
+          path: sti, url: `${SUPABASE_URL}/storage/v1/object/public/photos/${sti}`,
+        };
+        for (const k of ["kind", "org", "optimized"]) if (foto[k] !== undefined) ren[k] = foto[k];
+        if (ren.org !== undefined && !/^draft-[A-Za-z0-9._-]+\.jpg$/.test(String(ren.org))) delete ren.org;
+        const { data, error: e } = await supabase.rpc("restore_draft_photo", {
+          p_id: body.id, p_photo: ren, p_plads: Math.max(0, Math.floor(Number(f.plads) || 0)),
+        });
+        if (e) return json({ error: e.message }, 500);
+        if (!data) return json({ error: "ikke_klar" }, 409);
+        return json({ ok: true, photos: data });
+      }
+      const r = typeof body.rod === "string" ? body.rod : "";
+      if (!r) return json({ error: "mangler" }, 400);
+      const { data, error: e } = await supabase.rpc("remove_draft_photo", { p_id: body.id, p_rod: r });
+      if (e) return json({ error: e.message }, 500);
+      if (!data) return json({ error: "ikke_klar" }, 409);
+      return json({ ok: true, ...(data as Record<string, unknown>) });
+    }
+    // Din beskaering erstatter billedet paa dets sti i én saetning
+    // (replace_draft_photo, sql/021). Appen PATCHede foer hele listen ud fra
+    // den kopi, den havde, da skaermen blev aabnet - saa kunne et billede,
+    // der var lagt til eller fjernet imens, forsvinde eller komme igen.
+    if (body.mode === "erstatFoto") {
+      if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
+      const sti = String(body.sti ?? ""), ny = String(body.path ?? ""), org = String(body.org ?? "");
+      const ok = (x: string) => /^draft-[A-Za-z0-9._-]+\.jpg$/.test(x);
+      if (!ok(sti) || !ok(ny) || (org && !ok(org))) return json({ error: "bad_path" }, 400);
+      const foto: Record<string, unknown> = {
+        path: ny, url: `${SUPABASE_URL}/storage/v1/object/public/photos/${ny}`, optimized: true, org: org || sti,
+      };
+      if (typeof body.kind === "string") foto.kind = body.kind.slice(0, 40);
+      const { data, error: e } = await supabase.rpc("replace_draft_photo", { p_id: body.id, p_path: sti, p_photo: foto });
+      if (e) return json({ error: e.message }, 500);
+      if (!data) return json({ error: "vaek" }, 409);
+      return json({ ok: true, photos: data });
     }
     if (body.mode === "omskriv") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
@@ -1628,7 +1681,11 @@ Deno.serve(async (req: Request) => {
       }
       const felter = { ...p };
       if (felter.fotos) {
-        if (fs?.oenske?.length) felter.fotos = fs.oenske;
+        if (fs?.oenske?.length) {
+          felter.fotos = fs.oenske;
+          // Billeder, du har fjernet i appen (fotoplan.ts).
+          if (fs.fjern?.length) felter.fotoFjern = fs.fjern;
+        }
         else {
           delete felter.fotos;
           if (fs && !fs.kort) console.log("fotos: kan ikke parres", it, fs.grund);
@@ -1636,6 +1693,27 @@ Deno.serve(async (req: Request) => {
       }
       return json({ pending: { listing: r.id, felter,
         fra: Number(r.price), note: r.pending_note, fotoGrund: fs?.grund ?? null } });
+    }
+
+    // Runneren har lagt et nyt billede op paa redigeringssiden (eller kunne
+    // ikke). Id'et gemmes straks, foer Gem, i listings.fotos_op - gaar
+    // kvitteringen tabt, ved fotoSynk alligevel, hvilket billede det er. En
+    // fejl noteres; to for samme billede, og det tages ud af listen (fotos.ts).
+    if (body.mode === "fotoOp") {
+      const it = String(body.item_id ?? ""), r = String(body.rod ?? "");
+      if (!it || !/^draft-[A-Za-z0-9._-]+\.jpg$/.test(r)) return json({ error: "mangler" }, 400);
+      const { data: l } = await supabase.from("listings")
+        .select("id, fotos_op").eq("platform", "vinted").eq("external_id", it).maybeSingle();
+      if (!l) return json({ ukendt: true });
+      if (body.fejl) {
+        await supabase.from("price_events").insert({ listing_id: l.id, kind: "rettet", note: OP_FEJL + r });
+        return json({ ok: true });
+      }
+      const id = String(body.id ?? "");
+      if (!/^\d{5,}$/.test(id)) return json({ error: "bad_id" }, 400);
+      const op = (Array.isArray(l.fotos_op) ? l.fotos_op : []) as Array<Record<string, unknown>>;
+      await supabase.from("listings").update({ fotos_op: [...op, { rod: r, id }].slice(-40) }).eq("id", l.id);
+      return json({ ok: true });
     }
 
     // Du har gemt annoncen paa Vinteds redigeringsside, og Gem-kaldet bar
@@ -1778,7 +1856,7 @@ Deno.serve(async (req: Request) => {
         if (passer) gemt.push(k); else rest[k] = v;
       }
       const tom = !Object.keys(rest).length;
-      const navne: Record<string, string> = { price: "pris", title: "titel", description: "beskrivelse", fotos: "billedrækkefølge" };
+      const navne: Record<string, string> = { price: "pris", title: "titel", description: "beskrivelse", fotos: "billeder" };
 
       const ny = Math.round(Number(snap?.price) || Number(body.price) || 0);
       const opd: Record<string, unknown> = {
@@ -1796,7 +1874,8 @@ Deno.serve(async (req: Request) => {
       await supabase.from("listings").update(opd).eq("id", id);
       // Billedernes raekkefoelge kvitteres paa annoncens billed-id'er, laest
       // frisk efter Gem — ikke paa det, runneren lagde i kaldet.
-      const fs = body.fotos ? await fotoSynk(supabase, id, body.fotos, "efter gem") : null;
+      // fotoNye: de billeder, runneren lagde op, parret med Vinteds id'er.
+      const fs = body.fotos ? await fotoSynk(supabase, id, body.fotos, "efter gem", body.fotoNye) : null;
       if (fs?.gemt) delete rest.fotos;
 
       if (gemt.length || prisSat) {

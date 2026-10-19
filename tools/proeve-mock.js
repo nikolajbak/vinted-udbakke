@@ -59,6 +59,31 @@
       if(dd){ dd.photos = (dd.photos || []).concat([{ path: nb.path, url: 'proeve/' + nb.path, kind: nb.kind, optimized: true }]); }
       body = { ok: true, photo: dd ? dd.photos.length - 1 : 0, photos: dd ? dd.photos : [] };
     }
+    // Et billede fjernet eller lagt tilbage (fjernFoto), som serveren goer det.
+    if(/\/functions\//.test(url) && mode === 'fjernFoto'){
+      var fb = JSON.parse(opt.body), fd = (data.drafts || []).find(function(r){ return r.id === fb.id; });
+      var rodAf = function(p){ return String((p && (p.org || p.path)) || ''); };
+      if(!fd) body = { error: 'ikke_klar' };
+      else if(fb.fortryd){
+        fd.photos = fd.photos.slice(); fd.photos.splice(fb.fortryd.plads, 0, fb.fortryd.foto);
+        body = { ok: true, photos: fd.photos };
+      } else {
+        var fi = fd.photos.findIndex(function(p){ return rodAf(p) === fb.rod; });
+        if(fi < 0 || fd.photos.length < 2) body = { error: 'ikke_klar' };
+        else { var fo = fd.photos[fi]; fd.photos = fd.photos.filter(function(_, k){ return k !== fi; });
+          body = { ok: true, plads: fi, foto: fo, photos: fd.photos }; }
+      }
+      if(body.error) return Promise.resolve(new Response(JSON.stringify(body), { status: 409, headers: { 'Content-Type': 'application/json' } }));
+    }
+    // En beskaering erstatter billedet paa dets sti (erstatFoto).
+    if(/\/functions\//.test(url) && mode === 'erstatFoto'){
+      var eb = JSON.parse(opt.body), ed = (data.drafts || []).find(function(r){ return r.id === eb.id; });
+      var ei = ed ? ed.photos.findIndex(function(p){ return p.path === eb.sti; }) : -1;
+      if(ei < 0) return Promise.resolve(new Response(JSON.stringify({ error: 'vaek' }), { status: 409, headers: { 'Content-Type': 'application/json' } }));
+      ed.photos = ed.photos.slice();
+      ed.photos[ei] = { path: eb.path, url: ed.photos[ei].url, kind: eb.kind, optimized: true, org: eb.org || eb.sti };
+      body = { ok: true, photos: ed.photos };
+    }
     // En PATCH laegges ind i hukommelsen, saa en genhentning ser den (intet sendes).
     if(m && method === 'PATCH'){
       var ret = {}; try { ret = JSON.parse(opt.body || '{}'); } catch(e){}

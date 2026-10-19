@@ -932,9 +932,9 @@
     var pb = (d.fakta && d.fakta.producentBilleder) || [];
     if(!pb.length) return '';
     var vaert = producentVaert(d);
-    // Et eget billede kan kun laegges til en faerdiganalyseret vare, der ikke
-    // er sendt afsted (samme regel som mode nytFoto paa serveren).
-    var kanTage = f === 'klar' && d.status === 'ny';
+    // Et eget billede kan laegges til en faerdiganalyseret vare, der ikke er
+    // solgt (samme regel som mode nytFoto paa serveren, sql/020).
+    var kanTage = kanRetteFotos(d) && (d.photos || []).length < MAKS_FOTOS;
     return '<div class="pb-blok sect"><span class="label">Sådan ser den ud på</span>' +
       '<div class="pb-stribe">' + pb.map(function(b, i){
         return '<button type="button" class="pb-kort" data-pb-i="' + i + '">' +
@@ -1007,6 +1007,7 @@
     // En upload i gang (fx efter tilbage midt i den) vises igen i stedet for
     // at starte en til oven i.
     if(PBTAG && PBTAG.travl){ if(currentTop() !== 'pbtag') show('pbtag'); return; }
+    if(FOTO_TRAVL[d.id]){ toast('Vent, til billederne er lagt til'); return; }
     PBTAG = { id: d.id, pose: b.pose, travl: false };
     $('pbtag-titel').textContent = POSE_NAVN[b.pose] || 'Tag dit eget';
     $('pbtag-ramme').innerHTML = '<span class="pb-forlaeg-ind"><img class="pb-forlaeg" src="' + esc(b.url) + '" alt="" referrerpolicy="no-referrer">' +
@@ -1050,9 +1051,10 @@
       // Kun hvis det stadig er denne upload, og skaermen stadig staar fremme
       // - ellers lukker back() en anden skaerm.
       if(PBTAG === mit){ PBTAG = null; if(currentTop() === 'pbtag') back(); }
-      if(udfald === 'ok') toast('Billedet er lagt til');
-      else if(udfald === 'ikke_klar') toast('Varen er sendt afsted — billeder lægges kun til, mens den er klar');
-      else toast('Billedet er gemt, men ikke optimeret');
+      if(udfald === 'ikke_klar') toast('Billedet kunne ikke lægges til — varen er solgt, eller den har 20 billeder');
+      else if(rows[id]) fotosTilVinted(rows[id], rows[id].photos, 'billederne').then(function(ude){
+        toast((udfald === 'ok' ? 'Billedet er lagt til' : 'Billedet er gemt, men ikke optimeret') + (ude ? ' · ' + ude : ''));
+      });
       try { if(currentId === id && currentTop() === 'detail') renderDetail(); } catch(e){}
     }).catch(function(){
       mit.travl = false;
@@ -1091,13 +1093,20 @@
     if(photos.length){
       // Numrene og »Forside« staar kun fremme, naar billederne kan flyttes
       // — saa kan man se, hvor et billede lander (flytbarStribe).
-      html += '<div class="strip' + (faerdig ? ' flytbar' : '') + '" id="d-strip">' + photos.map(function(p, i){
+      // »+« staar uden for striben, saa traek og slip kun ser billederne.
+      var plus = kanRetteFotos(d) && photos.length < MAKS_FOTOS;
+      html += '<div class="strip-rad"><div class="strip' + (faerdig ? ' flytbar' : '') + '" id="d-strip">' + photos.map(function(p, i){
         return '<div class="strip-cel" data-i="' + i + '"><img src="' + esc(p.url) + '" alt="' + esc(p.kind || '') + '" draggable="false">' +
           (faerdig ? '<b class="strip-nr">' + (i === 0 ? 'Forside' : i + 1) + '</b>' : '') + '</div>';
-      }).join('') + '</div>';
+      }).join('') + '</div>' +
+        (plus ? '<button type="button" class="strip-ny" id="d-foto-ny" aria-label="Læg billeder til"' +
+          (FOTO_TRAVL[d.id] ? ' disabled' : '') + '>' +
+          (FOTO_TRAVL[d.id] ? '<span class="strip-ny-travl">' + esc(FOTO_TRAVL[d.id]) + '</span>' : '+') + '</button>' : '') +
+        '</div>';
       if(faerdig) html += '<div class="flyt-vis" id="d-flyt-vis" aria-live="polite"></div>';
-      html += '<div class="note">Tryk på et lille billede for at beskære det' +
-        (faerdig ? ' · hold fingeren på det og træk for at flytte det' : '') + '.</div>';
+      html += '<div class="note">Tryk på et lille billede for at beskære' + (kanRetteFotos(d) && photos.length > 1 ? ' eller fjerne' : '') + ' det' +
+        (faerdig ? ' · hold fingeren på det og træk for at flytte det' : '') +
+        (plus ? ' · + lægger billeder til' : '') + '.</div>';
     }
     html += producentBlok(d, f);
     html += '</div><div class="d-info">';
@@ -1184,6 +1193,12 @@
       // foto); en flytning dér ville lande paa de forkerte pladser.
       if(faerdig) flytbarStribe(strip, d);
     }
+    if($('d-foto-ny')) $('d-foto-ny').addEventListener('click', function(){
+      var fil = $('d-foto-fil');
+      fil.value = '';
+      fil.onchange = function(){ if(fil.files && fil.files.length) tilfoejFotos(d, Array.prototype.slice.call(fil.files)); };
+      fil.click();
+    });
 
     // Foden: de tre markedspladser, saa laenge varen ikke er ude nogen steder.
     // Derefter bor handlingerne i markedspladsens egen raekke.
@@ -2103,7 +2118,11 @@
   }
   function openCrop(d, i){
     var p = (d.photos || [])[i]; if(!p) return;
-    crop = { draft: d, i: i, rect: null, frame: null, rot: 0 };
+    // Mens billeder laegges til, kan listen skifte under skaermen.
+    if(FOTO_TRAVL[d.id]){ toast('Vent, til billederne er lagt til'); return; }
+    // Billedet kendes paa sin rod og sti, ikke paa pladsen: listen kan
+    // aendre sig, mens skaermen staar fremme.
+    crop = { draft: d, i: i, rod: fotoRod(p), sti: p.path, kind: p.kind, rect: null, frame: null, rot: 0 };
     $('crop').hidden = false;
     $('crop-img').onload = function(){
       var s = $('crop-stage').getBoundingClientRect(), im = $('crop-img').getBoundingClientRect();
@@ -2112,6 +2131,9 @@
       layoutBox();
     };
     $('crop-img').src = p.url;
+    $('crop-fjern').hidden = !(kanRetteFotos(d) && d.photos.length > 1);
+    $('crop-fjern').disabled = false;
+    $('crop-fjern').textContent = 'Fjern';
   }
   function pos(e){
     var t = e.touches ? e.touches[0] : e, s = $('crop-stage').getBoundingClientRect();
@@ -2167,6 +2189,15 @@
     layoutBox();
   });
 
+  $('crop-fjern').addEventListener('click', function(){
+    if(!crop) return;
+    var b = $('crop-fjern'), mit = crop;
+    b.disabled = true; b.textContent = 'Fjerner …';
+    fjernFoto(rows[mit.draft.id] || mit.draft, mit.rod).then(function(ok){
+      if(ok && crop === mit){ $('crop').hidden = true; $('crop-img').style.transform = ''; crop = null; }
+      b.disabled = false; b.textContent = 'Fjern';
+    });
+  });
   $('crop-cancel').addEventListener('click', function(){
     $('crop').hidden = true;
     $('crop-img').style.transform = '';
@@ -2176,7 +2207,7 @@
     if(!crop || !crop.rect) return;
     var btn = $('crop-save');
     btn.disabled = true; btn.textContent = 'Gemmer …';
-    var d = crop.draft, idx = crop.i, img = $('crop-img');
+    var d = crop.draft, mit = crop, img = $('crop-img');
     // Skalér op fra visningsstørrelse til billedets faktiske opløsning.
     var rot = crop.rot || 0;
     var swap = (rot === 90 || rot === 270);
@@ -2202,24 +2233,20 @@
       var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '-manuel.jpg';
       sb.storage.from('photos').upload(path, blob, { contentType:'image/jpeg' }).then(function(res){
         if(res.error) throw res.error;
-        var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
-        var photos = d.photos.slice();
-        // Behold originalen. Den manuelle beskaering lagde sin egen fil ind og
-        // glemte, hvad den kom af - og saa er der ingen vej tilbage, hverken
-        // for dig eller for en ny gennemkoersel af billedbehandlingen. Produkt
-        // 8's forfra-billede maatte findes igen paa tidsstemplet i Storage.
-        var foer = photos[idx];
-        photos[idx] = {
-          path: path, url: url, kind: foer.kind, optimized: true,
-          org: foer.org || foer.path
-        };
-        var patch = { photos: photos };
-        if(idx === 0){ patch.image_path = path; patch.image_url = url; }
-        return sb.from('drafts').update(patch).eq('id', d.id);
-      }).then(function(res){
-        if(res && res.error) throw res.error;
-        $('crop').hidden = true; $('crop-img').style.transform = ''; crop = null;
-        toast('Billedet er gemt');
+        // Behold originalen (org). Den manuelle beskaering lagde sin egen fil
+        // ind og glemte, hvad den kom af - og saa er der ingen vej tilbage,
+        // hverken for dig eller for en ny gennemkoersel af billedbehandlingen.
+        // Produkt 8's forfra-billede maatte findes igen paa tidsstemplet i
+        // Storage. Serveren erstatter billedet paa dets sti i én saetning
+        // (erstatFoto) - appen skriver ikke listen ud fra sin egen kopi.
+        return fillKald({ mode: 'erstatFoto', id: d.id, sti: mit.sti, path: path,
+          org: mit.rod !== mit.sti ? mit.rod : '', kind: mit.kind || '' });
+      }).then(function(svar){
+        if(!svar.ok && svar.j.error !== 'vaek') throw new Error(svar.j.error || 'erstatFoto');
+        if(Array.isArray(svar.j.photos) && rows[d.id]) rows[d.id].photos = svar.j.photos;
+        if(crop === mit){ $('crop').hidden = true; $('crop-img').style.transform = ''; crop = null; }
+        tegnHvisFremme(d.id);
+        toast(svar.j.error === 'vaek' ? 'Billedet er ændret imens — åbn det igen for at beskære' : 'Billedet er gemt');
       }).catch(function(){ btn.textContent = 'Prøv igen'; })
         .then(function(){ btn.disabled = false; if(btn.textContent === 'Gemmer …') btn.textContent = 'Gem'; });
     }, 'image/jpeg', 0.92);
@@ -2455,38 +2482,155 @@
     sb.from('drafts').update({ photos: ny, image_path: ny[0].path || null, image_url: ny[0].url || null })
       .eq('id', d.id).then(function(res){
         if(res.error) throw res.error;
-        var l = vintedAnnonce(d);
-        if(!l || !l.external_id || (l.status !== 'aktiv' && l.status !== 'pause')){
-          toast('Rækkefølgen er gemt');
-          return;
-        }
-        // Har Vinted lagt billederne op paa ny, kan de ikke parres (fotos.ts).
-        if(l.fotos && l.fotos.udskiftet){
-          toast('Gemt i appen. Vinted har lagt billederne op på ny, så rækkefølgen kan ikke sendes dertil');
-          return;
-        }
-        var raekke = ny.map(fotoRod);
-        var ude = l.published && l.published.fotos;
-        if(ude && sammeRaekke(ude, raekke)){
-          // Tilbage til det, der staar paa Vinted: intet at sende.
-          if(l.pending && l.pending.fotos){
-            var rest = Object.assign({}, l.pending); delete rest.fotos;
-            var tom = !Object.keys(rest).length;
-            return sb.from('listings').update(tom ? { pending: null, pending_note: null, pending_since: null } : { pending: rest })
-              .eq('id', l.id).then(function(){ toast('Rækkefølgen er som på Vinted igen'); hentAnnoncer(d.id); });
-          }
-          toast('Rækkefølgen er gemt');
-          return;
-        }
-        return koeTilMarkedsplads(d, { fotos: raekke }).then(function(){
-          toast('Gemt — Vinted får rækkefølgen næste gang en Vinted-side er åben i Safari');
-          hentAnnoncer(d.id);
+        return fotosTilVinted(d, ny, 'rækkefølgen').then(function(ude){
+          toast(ude ? 'Gemt — ' + ude : 'Rækkefølgen er gemt');
         });
       }).catch(function(err){
         d.photos = foer;
         renderDetail();
         toast('Kunne ikke gemme rækkefølgen: ' + (err && err.message ? err.message : 'ukendt fejl'));
       });
+  }
+
+  // Billedlisten til Vinted (rækkefølge, lagt til, fjernet): ligger varen
+  // ude paa Vinted, laegges roedderne i annoncens postkasse som enhver anden
+  // rettelse, og runneren saetter dem selv, naeste gang telefonen har en
+  // Vinted-side aaben - nye billeder laegges op, fjernede tages ud
+  // (fotoplan.ts). DBA og Reshopper kan appen ikke naa, naar annoncen
+  // allerede er ude dér. Svaret er en kort tekst til beskeden, eller ''.
+  function fotosTilVinted(d, ny, hvad){
+    var dba = (sendtTil(d).dba || sendtTil(d).reshopper) ? ' Ret selv på ' +
+      [sendtTil(d).dba ? 'DBA' : '', sendtTil(d).reshopper ? 'Reshopper' : ''].filter(Boolean).join(' og ') + '.' : '';
+    var lagt = hvad === 'billederne';
+    var l = vintedAnnonce(d);
+    if(!l || !l.external_id || (l.status !== 'aktiv' && l.status !== 'pause')) return Promise.resolve(lagt ? dba.trim() : '');
+    // Har Vinted lagt billederne op paa ny, kan de ikke parres (fotos.ts).
+    if(l.fotos && l.fotos.udskiftet){
+      return Promise.resolve('kun i appen: Vinted har lagt billederne op på ny, så ' + hvad + ' kan ikke sendes dertil.' + dba);
+    }
+    var raekke = ny.map(fotoRod);
+    var ude = l.published && l.published.fotos;
+    var som = ude && (lagt
+      ? ude.length === raekke.length && ude.every(function(r, i){ return r === raekke[i]; })
+      : sammeRaekke(ude, raekke));
+    if(som){
+      // Tilbage til det, der staar paa Vinted: intet at sende.
+      if(l.pending && l.pending.fotos){
+        var rest = Object.assign({}, l.pending); delete rest.fotos;
+        var tom = !Object.keys(rest).length;
+        return sb.from('listings').update(tom ? { pending: null, pending_note: null, pending_since: null } : { pending: rest })
+          .eq('id', l.id).then(function(){ hentAnnoncer(d.id); return 'som på Vinted igen.' + dba; });
+      }
+      return Promise.resolve(dba.trim());
+    }
+    return koeTilMarkedsplads(d, { fotos: raekke }).then(function(){
+      hentAnnoncer(d.id);
+      return 'Vinted får ' + hvad + ' næste gang en Vinted-side er åben i Safari.' + dba;
+    });
+  }
+
+  /* ---- Billeder lagt til og fjernet ---------------------------------------
+     Bestemt af dig 19. oktober: billeder kan laegges til og fjernes, ogsaa
+     naar varen er ude. Serveren laegger til og fjerner i én saetning:
+     nytFoto, fjernFoto og sql/020 - appen skriver aldrig selv listen her, en
+     gammel kopi kunne tabe en optimering. Teksten skrives ikke om. */
+  var MAKS_FOTOS = 20;          // Vinteds loft
+  var FOTO_TRAVL = {};          // udkast -> »1 af 3« mens der laegges til
+  function kanRetteFotos(d){
+    return (d.status === 'ny' || d.status === 'afsendt') && fase(d) !== 'solgt';
+  }
+  function fillKald(krop){
+    return fetch(FILL_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(krop) })
+      .then(function(res){
+        return res.json().catch(function(){ return {}; }).then(function(j){ return { ok: res.ok && j && j.ok, j: j || {} }; });
+      }, function(){ return { ok: false, j: {} }; });
+  }
+  function tegnHvisFremme(id){
+    try { if(currentId === id && currentTop() === 'detail') renderDetail(); } catch(e){}
+  }
+  function tilfoejFotos(d, filer){
+    var id = d.id;
+    if(FOTO_TRAVL[id]) return;
+    if(PBTAG && PBTAG.travl && PBTAG.id === id){ toast('Vent, til billedet fra »Tag dit eget« er gemt'); return; }
+    var plads = MAKS_FOTOS - (d.photos || []).length;
+    if(plads <= 0){ toast('Vinted tager højst 20 billeder'); return; }
+    var for_mange = filer.length > plads;
+    filer = filer.slice(0, plads);
+    var lagt = 0, ikkeOpt = 0, fejl = 0, afvist = false;
+    function naeste(k){
+      if(k >= filer.length || afvist) return Promise.resolve();
+      FOTO_TRAVL[id] = (k + 1) + ' af ' + filer.length;
+      tegnHvisFremme(id);
+      var sti = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
+      return shrink(filer[k], 1800, 0.9).then(function(blob){
+        return sb.storage.from('photos').upload(sti, blob, { contentType: 'image/jpeg' });
+      }).then(function(r){
+        if(r.error) throw r.error;
+        return fillKald({ mode: 'nytFoto', id: id, path: sti, kind: 'ekstra' });
+      }).then(function(svar){
+        var j = svar.j;
+        // Listen fra serveren er den rigtige - realtid kan vaere langsom.
+        if(Array.isArray(j.photos) && rows[id]) rows[id].photos = j.photos;
+        if(svar.ok) lagt++;
+        else if(j.error === 'ikke_klar') afvist = true;
+        else if(Array.isArray(j.photos)){ lagt++; ikkeOpt++; }
+        else fejl++;
+      }).catch(function(){ fejl++; }).then(function(){ return naeste(k + 1); });
+    }
+    naeste(0).then(function(){
+      delete FOTO_TRAVL[id];
+      tegnHvisFremme(id);
+      var tekst = lagt === 1 ? 'Billedet er lagt til' : lagt + ' billeder er lagt til';
+      if(!lagt) tekst = afvist ? 'Billeder kan ikke lægges til — varen er solgt, eller den har 20 billeder'
+        : 'Billedet kunne ikke gemmes';
+      if(ikkeOpt) tekst += ' (' + ikkeOpt + ' ikke optimeret)';
+      if(fejl && lagt) tekst += ' · ' + fejl + ' kunne ikke gemmes';
+      if(for_mange) tekst += ' · Vinted tager højst 20';
+      if(!lagt || !rows[id]){ toast(tekst); return; }
+      return fotosTilVinted(rows[id], rows[id].photos, 'billederne').then(function(ude){
+        toast(tekst + (ude ? ' · ' + ude : ''));
+      });
+    });
+  }
+  function fjernFoto(d, r){
+    if(FOTO_TRAVL[d.id]){ toast('Vent, til billederne er lagt til'); return Promise.resolve(false); }
+    if((d.photos || []).length < 2) return Promise.resolve(false);
+    var id = d.id;
+    return fillKald({ mode: 'fjernFoto', id: id, rod: r }).then(function(svar){
+      var j = svar.j;
+      if(!svar.ok){
+        toast(j.error === 'ikke_klar' ? 'Billedet kan ikke fjernes — varen er solgt, eller det er det sidste' : 'Billedet kunne ikke fjernes');
+        return false;
+      }
+      if(Array.isArray(j.photos) && rows[id]) rows[id].photos = j.photos;
+      tegnHvisFremme(id);
+      var t = document.createElement('div');
+      t.className = 'toast toast-action';
+      var label = document.createElement('span');
+      label.textContent = 'Billedet er fjernet';
+      var fortryd = document.createElement('button');
+      fortryd.type = 'button';
+      fortryd.textContent = 'Fortryd';
+      fortryd.addEventListener('click', function(){
+        t.remove();
+        fillKald({ mode: 'fjernFoto', id: id, fortryd: { foto: j.foto, plads: j.plads } }).then(function(s2){
+          if(!s2.ok){ toast('Billedet kunne ikke lægges tilbage'); return; }
+          if(Array.isArray(s2.j.photos) && rows[id]) rows[id].photos = s2.j.photos;
+          tegnHvisFremme(id);
+          return fotosTilVinted(rows[id], rows[id].photos, 'billederne').then(function(ude){
+            toast('Billedet er tilbage' + (ude ? ' · ' + ude : ''));
+          });
+        });
+      });
+      t.appendChild(label); t.appendChild(fortryd);
+      document.body.appendChild(t);
+      setTimeout(function(){ t.remove(); }, 6000);
+      // Vinted-delen efter beskeden; den siger selv til, hvis noget skal ses.
+      fotosTilVinted(rows[id], rows[id].photos, 'billederne').then(function(ude){
+        if(ude) label.textContent = 'Billedet er fjernet · ' + ude;
+      });
+      return true;
+    });
   }
 
   /* ---- Menu og historik ------------------------------------------------- */
@@ -3466,7 +3610,7 @@
 
   // Hvilke felter venter paa at blive skrevet ind i annoncen? Baade
   // prisvagtens forslag og dine egne rettelser ligger i den samme postkasse.
-  var FELT_NAVNE = { price:'pris', title:'titel', description:'beskrivelse', fotos:'billedrækkefølge' };
+  var FELT_NAVNE = { price:'pris', title:'titel', description:'beskrivelse', fotos:'billeder' };
   function venterFelter(l){
     var p = (l && l.pending) || null;
     if(!p) return [];

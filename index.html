@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=0c06a2f9">
+<link rel="stylesheet" href="style.css?v=b8dcb4e0">
 </head>
 <body>
 
@@ -447,12 +447,14 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
       </div>
     </div>
     <div class="crop-btns">
+      <button type="button" class="btn btn-secondary crop-fjern" id="crop-fjern" hidden>Fjern</button>
       <button type="button" class="btn btn-secondary" id="crop-rotate" aria-label="Rotér 90 grader">Rotér</button>
       <button type="button" class="btn btn-secondary" id="crop-cancel">Annullér</button>
       <button type="button" class="btn btn-primary" id="crop-save">Gem</button>
     </div>
   </div>
 
+  <input type="file" id="d-foto-fil" accept="image/*" multiple hidden>
   <input type="file" id="cam" accept="image/*" capture="environment"
          style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
   <input type="file" id="cam-fotos" accept="image/*" multiple
@@ -463,6 +465,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=89f36fd9"></script>
+<script src="app.js?v=b9d1ab7b"></script>
 </body>
 </html>

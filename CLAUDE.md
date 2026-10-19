@@ -221,7 +221,8 @@ i `function_logs`, beviser intet.
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
 | »Sådan ser den ud på« på varens side (`producentBlok`, `producentKoblOp`, `visProducentStor`, `POSE_NAVN`), »Tag dit eget som dette« (`aabnForlaeg`, `gemForlaegsbillede`, `POSE_TEKST`) og trinnet `paa-kroppen` i `STEPS` | `app.js`; `#pb-stor` og `#s-pbtag` i `index.html`; `.pb-…` i `style.css` |
-| Ét nyt billede i et klar-udkast (`mode:'nytFoto'` med `{id, path, kind}`): lægges sidst med `append_draft_photo` (afviser `ikke_klar`) og optimeres alene af delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; svarer med den friske `photos`, og `ikke_optimeret`, når delkaldet ikke fik det optimeret; et fejlet delkald rører ikke prisnoten. Appen skriver aldrig selv `photos` her | `…/vinted-fill-script/index.ts` |
+| Ét nyt billede i et færdiganalyseret, ikke solgt udkast (`mode:'nytFoto'` med `{id, path, kind}`, kind `paa-kroppen`/`detalje`/`ekstra`): lægges sidst med `append_draft_photo` (afviser `ikke_klar`) og optimeres alene af delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; svarer med den friske `photos`, og `ikke_optimeret`, når delkaldet ikke fik det optimeret; et fejlet delkald rører ikke prisnoten. Appen skriver aldrig selv `photos` her | `…/vinted-fill-script/index.ts` |
+| Billeder lagt til og fjernet (`mode:'fjernFoto'` `{id, rod}` / `{id, fortryd:{foto, plads}}`; `mode:'erstatFoto'` til beskæringen; `mode:'fotoOp'` fra runneren); planen mod Vinted (`fotoPlan`, `fuldtSat`, `medNye`, `glemFjernede`, testet med `node --test tools/test-fotoplan.mjs`); upload på redigeringssiden (`laegFotoerOp`, `meldOp`); appens »+« og »Fjern« (`tilfoejFotos`, `fjernFoto`, `fotosTilVinted`) | `…/vinted-fill-script/index.ts`, `…/vinted-fill-script/fotoplan.ts`, `fotos.ts`, `runner.ts`; `app.js` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
@@ -265,6 +266,8 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Appen må læse `forbrug` (til »Konto«) | `sql/017-forbrug-laeses.sql` |
 | Prisvagtens forslag til godkendelse: `listings.forslag` | `sql/018-prisforslag.sql` |
 | Ét billede lagt sidst i et klar-udkast i én sætning, kun når varen er færdiganalyseret og ikke sendt (`append_draft_photo`, kun service-nøglen) | `sql/019-tilfoej-billede.sql` |
+| Billeder lagt til og fjernet: `append_draft_photo` løsnet til færdiganalyseret (`ny`/`afsendt`), ikke solgt og under 20 billeder; `remove_draft_photo` (på roden, aldrig det sidste), `restore_draft_photo` (Fortryd), `set_draft_photo_paa_sti` (optimeringen skriver på stien, ikke pladsen) | `sql/020-billeder-til-og-fra.sql` |
+| Runnerens uploads gemt før Gem: `listings.fotos_op` (`[{rod, id}]`); `replace_draft_photo` (beskæringen); låsen i `set_draft_photo_paa_sti`; Fortryd ikke i en solgt vare | `sql/021-billeder-lagt-op.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -375,9 +378,10 @@ Spec: `docs/superpowers/specs/2026-10-19-producentbilleder-design.md`.
   Vælges flere billeder fra Fotos på én gang, springes trinnet over: et
   `paa-kroppen`-billede isoleres aldrig, og et fladt billede nr. 3 skal
   stadig kunne isoleres. Ét billede valgt på trinnet er dit valg.
-- **»Tag dit eget som dette«** (under billederne, kun når varen er
-  færdiganalyseret — status `ny` — og ikke sendt nogen steder hen; serverens
-  `nytFoto` har samme regel): skærmen `#s-pbtag` viser producentens billede
+- **»Tag dit eget som dette«** (under billederne, når varen er
+  færdiganalyseret — status `ny`/`afsendt` — og ikke solgt; serverens
+  `nytFoto` har samme regel, løsnet 19. oktober, se »Billeder lagt til og
+  fjernet«): skærmen `#s-pbtag` viser producentens billede
   som forlæg (iOS' kamera kan ikke få et overlay), posens navn og en kort
   vejledning. Appen lægger dit billede i Storage; serveren lægger det sidst
   i udkastet i én sætning (`paa-kroppen`, for nær `detalje`) og optimerer
@@ -387,6 +391,48 @@ Spec: `docs/superpowers/specs/2026-10-19-producentbilleder-design.md`.
   viser den igangværende i stedet for at starte en til.
   Teksten skrives ikke om. Fejler optimeringen, står billedet stadig i
   udkastet (»Billedet er gemt, men ikke optimeret«).
+
+## Billeder lagt til og fjernet
+
+Bestemt af dig 19. oktober: **billeder kan lægges til og fjernes, også i en
+annonce, der allerede er ude.** Spec:
+`docs/superpowers/specs/2026-10-19-billeder-til-og-fra-design.md`.
+
+- **I appen**, på varens side, når analysen er færdig og varen ikke er
+  solgt: **+** ved siden af billedstriben (kamera/Fotos, flere på én gang,
+  højst 20 i alt — Vinteds loft) og **Fjern** på beskæringsskærmen (tryk på
+  et lille billede). Det sidste billede kan ikke fjernes; beskeden har
+  **Fortryd**, og filen bliver i Storage. Et nyt billede optimeres alene med
+  seriens tone og format. Teksten skrives ikke om.
+- **Appen skriver aldrig selv listen**: serveren lægger til, fjerner,
+  lægger tilbage og beskærer i én sætning (`nytFoto`, `fjernFoto`,
+  `erstatFoto`, sql/020-021). Mens billeder lægges til, kan der hverken
+  beskæres eller fjernes, og »+« og »Tag dit eget« venter på hinanden.
+- **Til Vinted** som rækkefølgen: røddernes liste i `pending.fotos`, og
+  runneren gør det selv, næste gang en Vinted-side er åben i Safari. Nye
+  billeder lægges i `add-photos-input` ét ad gangen, og id'et tages af
+  Vinteds svar på netop det upload og meldes straks (`fotoOp` →
+  `listings.fotos_op`), før Gem; fjernede id'er (`fotoFjern`) tages ud af
+  Gem-kaldets `assigned_photos`. `fotos` ryddes først, når annoncen læst
+  frisk har præcis listen (`fuldtSat`).
+- **Det, du har gjort på Vinted, røres ikke**: et billede, du har lagt til
+  dér, forbliver, og et parret billede, du har slettet dér, lægges ikke op
+  igen. Billeder lagt til eller fjernet på Vinted kommer ikke tilbage til
+  appen (kun rækkefølgen gør).
+- **Skrives `pending.fotos`, lægges ethvert app-billede, Vinted ikke har,
+  op** — også et, der aldrig kom med ved udfyldningen. Appens liste er
+  facit.
+- **Et billede, der ikke kan komme op**, falder ud af listen (`price_events`
+  »… kunne ikke lægges op på Vinted …«): uden adresse straks, ellers efter
+  to fejlede uploads. Ellers ville runneren gå til redigeringssiden igen og
+  igen.
+- **DBA og Reshopper**: en annonce, der allerede er ude dér, kan appen ikke
+  nå — beskeden siger »Ret selv på DBA«. Listen følger med, når varen sendes
+  derhen.
+- **Ikke afprøvet på telefonen**: upload og Gem på Vinteds redigeringsside
+  (DataDome afviser Gem fra browserruden). Se `spor` »fotos: N af N nye
+  billeder lagt op« og »fotos: rækkefølgen lagt i gem-kaldet (…, N fjernet
+  → N)«.
 
 ## Billedernes rækkefølge
 
@@ -1557,6 +1603,12 @@ Målt 17. oktober, logget ind i browserruden.
   (`aria-roledescription="sortable"`) og flyttes ikke udefra.
 - **Garderoben** (`/api/v2/wardrobe/{bruger}/items`) har også `photos` med id
   og rækkefølge, men vejer ~14 kB pr. annonce (20 = 284 kB).
+- **Et nyt billede lægges op med `POST /api/v2/photos`** (FormData
+  `photo[type]`, `photo[file]`, `photo[temp_uuid]`; læst i Vinteds kode
+  19. oktober, `createPhoto`), og svaret har `id` øverst (`{id, url,
+  temp_uuid}`). Gitteret lægger hver fil op for sig; billedet hører først
+  til annoncen, når Gem sender det i `assigned_photos`. Redigeringssiden har
+  samme `add-photos-input` som opret-siden.
 - **Gem fra browserruden afvises af DataDome** (17. oktober): runneren lagde
   rækkefølgen i kaldet (»12 af 12«), og `PUT …/item_upload/items/{id}` fik
   403 med en captcha-side (`geo.captcha-delivery.com`). Intet blev gemt.

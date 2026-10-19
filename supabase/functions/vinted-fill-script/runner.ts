@@ -956,13 +956,31 @@ async function fotoIds(id){
 // vil have, i appens rækkefølge, resten bagefter, som de stod. Uden en
 // ventende rækkefølge sendes kaldets rækkefølge til appen bagefter — så har
 // du selv flyttet billederne på Vinted.
-var FOTO_OENSKE=null,FOTO_KROG=false;
-function ordnFotos(arr,oenske){
- var efter={},ud=[];
+// Billeder lagt til og fjernet i appen (bestemt af dig 19. oktober, se
+// fotoplan.ts): FOTO_FJERN er id'er, der skal ud af kaldet, og FOTO_OP er
+// id'erne fra Vinteds svar på vores egne uploads (POST /api/v2/photos).
+var FOTO_OENSKE=null,FOTO_FJERN=[],FOTO_OP=[],FOTO_KROG=false;
+function ordnFotos(arr,oenske,fjern){
+ var efter={},ud=[],ud2={};
+ (fjern||[]).forEach(function(id){ud2[String(id)]=1});
  arr.forEach(function(p){efter[String(p&&p.id)]=p});
- oenske.forEach(function(id){if(efter[id]){ud.push(efter[id]);delete efter[id]}});
- arr.forEach(function(p){if(efter[String(p&&p.id)])ud.push(p)});
+ // Et billede, vi selv lagde op, men som gitteret ikke nåede at vise, kommer
+ // med alligevel — kun et id fra Vinteds eget svar på vores upload.
+ oenske.forEach(function(id){
+  if(ud2[id])return;
+  if(efter[id]){ud.push(efter[id]);delete efter[id]}
+  else if(FOTO_OP.indexOf(id)>-1)ud.push({id:Number(id),orientation:0});
+ });
+ arr.forEach(function(p){var id=String(p&&p.id);if(efter[id]&&!ud2[id])ud.push(p)});
  return ud;
+}
+// Vinteds svar på et upload: {photo:{id}} eller {id} (createPhoto, læst i
+// Vinteds kode 19. oktober).
+function fotoUpload(url,metode){
+ return /^post$/i.test(String(metode||''))&&/\/photos$|\/photos\?/.test(String(url||''));
+}
+function fangFotoId(tekst){
+ try{var j=JSON.parse(tekst),id=j&&((j.photo&&j.photo.id)||j.id);if(id)FOTO_OP.push(String(id))}catch(e){}
 }
 function fotoKald(url,metode,krop,itemId){
  if(!/^put$/i.test(String(metode||''))||typeof krop!=='string')return null;
@@ -972,9 +990,10 @@ function fotoKald(url,metode,krop,itemId){
  var a=o&&o.item&&o.item.assigned_photos;
  if(!Array.isArray(a)){spor('fotos: gem-kaldet bar ingen assigned_photos');return null}
  if(FOTO_OENSKE){
-  o.item.assigned_photos=ordnFotos(a,FOTO_OENSKE);
-  spor('fotos: rækkefølgen lagt i gem-kaldet ('+FOTO_OENSKE.length+' af '+a.length+')');
-  FOTO_OENSKE=null;
+  o.item.assigned_photos=ordnFotos(a,FOTO_OENSKE,FOTO_FJERN);
+  spor('fotos: rækkefølgen lagt i gem-kaldet ('+FOTO_OENSKE.length+' af '+a.length+
+   (FOTO_FJERN.length?', '+FOTO_FJERN.length+' fjernet':'')+' → '+o.item.assigned_photos.length+')');
+  FOTO_OENSKE=null;FOTO_FJERN=[];
   return {krop:JSON.stringify(o),vores:true};
  }
  return {krop:krop,vores:false,ids:a.map(function(p){return String(p&&p.id)})};
@@ -995,6 +1014,8 @@ function fotoKrog(itemId){
  X.send=function(b){
   var xhr=this;
   try{
+   if(fotoUpload(xhr.__udbU,xhr.__udbM))xhr.addEventListener('load',function(){
+    if(xhr.status>=200&&xhr.status<300)fangFotoId(xhr.responseText)});
    var k=fotoKald(xhr.__udbU,xhr.__udbM,b,itemId);
    if(k){
     b=k.krop;
@@ -1008,6 +1029,8 @@ function fotoKrog(itemId){
   try{
    var u=typeof inp==='string'?inp:(inp&&inp.url);
    var m=(init&&init.method)||(inp&&typeof inp!=='string'&&inp.method)||'GET';
+   if(fotoUpload(u,m))return f.call(this,inp,init).then(function(r){
+    if(r.ok)r.clone().text().then(fangFotoId,function(){});return r});
    var k=init&&fotoKald(u,m,init.body,itemId);
    if(k){
     init=Object.assign({},init,{body:k.krop});
@@ -1018,11 +1041,56 @@ function fotoKrog(itemId){
  };
 }
 
+// De nye billeder lægges i Vinteds eget billedfelt ét ad gangen, og id'et
+// tages af Vinteds svar på netop det upload — så ved vi, hvilket billede der
+// fik hvilket id. Samme felt som ved oprettelsen (fillPhotos). Hvert id
+// meldes straks til serveren (mode fotoOp), før Gem: går kvitteringen tabt,
+// lægges billedet ikke op igen. Et billede, der ikke kom op, meldes også —
+// to gange, og serveren tager det ud af listen.
+function meldOp(itemId,o){
+ return timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(Object.assign({mode:'fotoOp',item_id:itemId},o))},15000).catch(function(){});
+}
+async function laegFotoerOp(nye,itemId){
+ var par=[];
+ for(var i=0;i<nye.length;i++){
+  var inp=document.querySelector('[data-testid="add-photos-input"]');
+  if(!inp){spor('fotos: billedfeltet findes ikke på redigeringssiden');break}
+  var b=null;
+  try{b=await(await timedFetch(nye[i].url,{cache:'no-store'},30000)).blob()}catch(e){}
+  if(!b||!b.size){spor('fotos: nyt billede kunne ikke hentes ('+nye[i].ny+')');await meldOp(itemId,{rod:nye[i].ny,fejl:true});continue}
+  var foer=FOTO_OP.length,dt=new DataTransfer();
+  dt.items.add(new File([b],'foto-ny'+(i+1)+'.jpg',{type:b.type||'image/jpeg'}));
+  inp.files=dt.files;
+  inp.dispatchEvent(new Event('change',{bubbles:true}));
+  for(var w=0;w<180&&FOTO_OP.length===foer;w++)await sleep(250);
+  if(FOTO_OP.length===foer){
+   spor('fotos: Vinted svarede ikke på upload af '+nye[i].ny);
+   await meldOp(itemId,{rod:nye[i].ny,fejl:true});
+   // Et sent svar kunne ellers blive parret med det næste billede.
+   break;
+  }
+  if(FOTO_OP.length!==foer+1){spor('fotos: '+(FOTO_OP.length-foer)+' svar på ét upload — stopper');break}
+  var id=FOTO_OP[FOTO_OP.length-1];
+  par.push({rod:nye[i].ny,id:id});
+  await meldOp(itemId,{rod:nye[i].ny,id:id});
+  await sleep(400);
+ }
+ spor('fotos: '+par.length+' af '+nye.length+' nye billeder lagt op');
+ return par;
+}
+
 async function anvend(post){
  var f=post.felter||{};
  // Prisfeltet er det eneste, der altid er der. Er det ikke dukket op, er vi
  // ikke på redigeringssiden endnu.
  for(var i=0;i<60;i++){ if(q('#price')||q('#title'))break; await sleep(250) }
+ // Nye billeder først: et upload kan tegne formularen om.
+ var nyePar=[];
+ if(Array.isArray(f.fotos)&&f.fotos.some(function(x){return x&&typeof x==='object'})){
+  fotoKrog(String(post.itemId));
+  nyePar=await laegFotoerOp(f.fotos.filter(function(x){return x&&typeof x==='object'&&x.ny&&x.url}),String(post.itemId));
+ }
 
  var sat=[],manglende=[],allerede=[];
  for(var navn in FELT_TIL_INPUT){
@@ -1043,7 +1111,10 @@ async function anvend(post){
  // Rækkefølgen sættes ikke i et felt, men i Gem-kaldet (fotoKrog). Serveren
  // har allerede tjekket, at den ikke står der i forvejen.
  if(Array.isArray(f.fotos)&&f.fotos.length){
-  FOTO_OENSKE=f.fotos.map(String);
+  var tilId={};nyePar.forEach(function(p){tilId[p.rod]=p.id});
+  FOTO_OENSKE=f.fotos.map(function(x){return x&&typeof x==='object'?tilId[x.ny]:String(x)})
+   .filter(function(x){return !!x});
+  FOTO_FJERN=Array.isArray(f.fotoFjern)?f.fotoFjern.map(String):[];
   fotoKrog(String(post.itemId));
   sat.push('fotos');
  }
@@ -1064,7 +1135,7 @@ async function anvend(post){
  log('anvend: satte '+sat.join(', ')+(manglende.length?' — manglede '+manglende.join(','):''));
  await sleep(300);
  try{localStorage.setItem('udbakke_prisvagt_sat',JSON.stringify(
-  {listing:post.listing,itemId:post.itemId,felter:f,satte:sat,tid:Date.now()}))}catch(e){}
+  {listing:post.listing,itemId:post.itemId,felter:f,satte:sat,nye:nyePar,tid:Date.now()}))}catch(e){}
 
  // Findes knappen ikke, står ændringerne i felterne, og du trykker selv —
  // ventetiden herunder kvitterer alligevel, når formularen forsvinder.
@@ -1202,7 +1273,7 @@ async function kvitter(v,udgivet){
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({mode:'anvendt',listing:v.listing,price:udgivet.price,
-    udgivet:udgivet,besoegt:rundeBesoegt(),fotos:ids})},20000);
+    udgivet:udgivet,besoegt:rundeBesoegt(),fotos:ids,fotoNye:v.nye||null})},20000);
   return await r.json();
  }catch(e){return null}
 }

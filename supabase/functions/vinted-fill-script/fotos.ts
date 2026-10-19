@@ -22,6 +22,11 @@
 // vise billederne i samme raekkefoelge, og der er kun én raekkefoelge.
 
 import { genkend, type Vfoto } from "./fotohash.ts";
+import { fotoPlan, fuldtSat, glemFjernede, medNye, type Ny } from "./fotoplan.ts";
+
+// Noten, runneren faar skrevet, naar et nyt billede ikke kunne laegges op
+// (mode fotoOp). To af dem for samme billede, og det tages ud af listen.
+export const OP_FEJL = "billede kunne ikke lægges op på Vinted: ";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -30,14 +35,6 @@ type Kort = Array<{ id: string; rod: string }>;
 
 export function rod(p: Foto | null | undefined): string {
   return String((p && (p.org || p.path)) || "");
-}
-
-// Er de to raekkefoelger ens paa de billeder, de har tilfaelles? Et billede,
-// du har lagt til paa Vinted (eller som aldrig kom op), aendrer ikke ordenen.
-export function sammeRaekke(a: string[], b: string[]): boolean {
-  const A = new Set(a), B = new Set(b);
-  const x = a.filter((r) => B.has(r)), y = b.filter((r) => A.has(r));
-  return x.length === y.length && x.every((r, i) => r === y[i]);
 }
 
 // De billeder, der matcher, faar de pladser, der matchede billeder har i
@@ -63,12 +60,6 @@ export function lavKort(ids: string[], sendt: string[]): Kort | null {
   return op.map((id, i) => ({ id, rod: sendt[i] }));
 }
 
-// Vinteds billed-id'er i den raekkefoelge, du vil have dem.
-export function idsFor(kort: Kort, raekke: string[]): string[] {
-  const efterRod = new Map(kort.map((k) => [k.rod, k.id]));
-  return raekke.map((r) => efterRod.get(r)).filter((x): x is string => !!x);
-}
-
 // Telefonen sender id'er, eller {id, t} med Vinteds miniature (150x210),
 // naar den har den — til genkendelsen, naar Vinted har lagt billederne op
 // paa ny. Kun Vinteds egen billedserver hentes.
@@ -88,17 +79,21 @@ export type FotoSvar = {
   gemt?: boolean;           // en ventende raekkefoelge staar nu paa Vinted
   omordnet?: boolean;       // udkastet er flyttet efter Vinted
   genkendt?: boolean;       // parret paa billedernes indhold (fotohash.ts)
-  oenske?: string[];        // Vinteds id'er i den raekkefoelge, der venter
+  // Vinteds id'er i den raekkefoelge, der venter; {ny, url} for et billede,
+  // Vinted ikke har endnu (fotoplan.ts).
+  oenske?: Array<string | Ny>;
+  fjern?: string[];         // Vinteds id'er, appen har fjernet
 };
 
 // Telefonen har laest annoncens billed-id'er i Vinteds raekkefoelge.
 // Parrer (foerste gang), noterer annoncens raekkefoelge, kvitterer en
 // ventende raekkefoelge, eller flytter udkastet efter Vinted.
-export async function fotoSynk(db: Db, listingId: string, idsInd: unknown, hvor: string): Promise<FotoSvar | null> {
+// `nye` er runnerens par {rod, id} for billeder, den lige har lagt op.
+export async function fotoSynk(db: Db, listingId: string, idsInd: unknown, hvor: string, nye?: unknown): Promise<FotoSvar | null> {
   const vfotos = rensFotos(idsInd);
   const ids = vfotos.map((f) => f.id);
   const { data: l } = await db.from("listings")
-    .select("id, draft_id, status, fotos, pending, published").eq("id", listingId).maybeSingle();
+    .select("id, draft_id, status, fotos, fotos_op, pending, published").eq("id", listingId).maybeSingle();
   if (!l) return null;
   const pending = (l.pending ?? null) as Record<string, unknown> | null;
   if (!ids.length || !l.draft_id) return { kort: !!l.fotos, pending };
@@ -184,7 +179,7 @@ export async function fotoSynk(db: Db, listingId: string, idsInd: unknown, hvor:
           pending: tom ? null : rest, ...(tom ? { pending_note: null, pending_since: null } : {}),
         }).eq("id", l.id);
         await db.from("price_events").insert({
-          listing_id: l.id, kind: "rettet", note: "billedrækkefølgen kan ikke sendes: " + grund,
+          listing_id: l.id, kind: "rettet", note: "billederne kan ikke sendes: " + grund,
         });
         return { kort: false, pending: tom ? null : rest, grund };
       }
@@ -193,14 +188,75 @@ export async function fotoSynk(db: Db, listingId: string, idsInd: unknown, hvor:
     opd.fotos = kort;
   }
 
+  // Billeder, runneren har lagt op (bestemt af dig 19. oktober): fra
+  // kvitteringen og fra listings.fotos_op, som runneren skriver straks efter
+  // hver upload - foer Gem. Gik kvitteringen tabt, kendes id'et alligevel,
+  // og billedet laegges ikke op to gange. Et par bruges, naar id'et staar paa
+  // annoncen.
+  const op = (Array.isArray(l.fotos_op) ? l.fotos_op : []) as Array<Record<string, unknown>>;
+  const alleNye = [...(Array.isArray(nye) ? nye : []), ...op];
+  if (alleNye.length) {
+    const m = medNye(kort, alleNye, ids);
+    if (m.length !== kort.length) { kort = m; opd.fotos = kort; }
+    const kendtR = new Set(kort.map((k) => k.rod));
+    const rest = op.filter((o) => !kendtR.has(String(o.rod ?? ""))).slice(-40);
+    if (rest.length !== op.length) opd.fotos_op = rest.length ? rest : null;
+  }
   const efterId = new Map(kort.map((k) => [k.id, k.rod]));
   const vinted = ids.map((id) => efterId.get(id)).filter((r): r is string => !!r);
   opd.published = { ...((l.published ?? {}) as Record<string, unknown>), fotos: vinted };
 
   const svar: FotoSvar = { kort: true, pending, vinted, ...(genkendt ? { genkendt } : {}) };
-  const venter = pending && Array.isArray(pending.fotos) ? (pending.fotos as unknown[]).map(String) : null;
+  let venter = pending && Array.isArray(pending.fotos) ? (pending.fotos as unknown[]).map(String) : null;
+  const url = (r: string) => {
+    const p = photos.find((x) => rod(x) === r);
+    return p && p.url ? String(p.url) : null;
+  };
   if (venter) {
-    if (sammeRaekke(venter, vinted)) {
+    // Et nyt billede, der aldrig kan komme op - uden adresse, eller afvist to
+    // gange - tages ud af listen. Ellers venter den for evigt, og runneren
+    // gaar til redigeringssiden igen og igen.
+    const forsoeg = new Map<string, number>();
+    const { data: ev } = await db.from("price_events").select("note")
+      .eq("listing_id", l.id).like("note", OP_FEJL + "%");
+    for (const e of ev ?? []) {
+      const r = String(e.note).slice(OP_FEJL.length);
+      forsoeg.set(r, (forsoeg.get(r) ?? 0) + 1);
+    }
+    const foerPlan = fotoPlan(kort, venter, ids, url);
+    const ud = [...foerPlan.uden, ...foerPlan.nye.filter((r) => (forsoeg.get(r) ?? 0) >= 2)];
+    if (ud.length) {
+      venter = venter.filter((r) => !ud.includes(r));
+      const nyP = { ...pending!, fotos: venter };
+      opd.pending = nyP;
+      svar.pending = nyP;
+      await db.from("price_events").insert({
+        listing_id: l.id, kind: "rettet",
+        note: `${ud.length} billede${ud.length === 1 ? "" : "r"} kunne ikke lægges op på Vinted og venter ikke længere`,
+      });
+    }
+    // Et nyt billede, Vinted allerede har (en kvittering gik tabt), maa ikke
+    // laegges op to gange: de ukendte billeder paa Vinted genkendes foerst
+    // mod de nye (fotohash.ts). Kun et entydigt par taeller.
+    const kendtRod = new Set(kort.map((k) => k.rod));
+    const nyeRod = venter.filter((r) => !kendtRod.has(r));
+    const ukendte = vfotos.filter((f) => !efterId.has(f.id));
+    if (nyeRod.length && ukendte.length && ukendte.every((f) => f.url)) {
+      const app = photos.filter((p) => p && p.path && nyeRod.includes(rod(p)))
+        .map((p) => ({ rod: rod(p), path: String(p.path) }));
+      const g = app.length ? await genkend(ukendte, app) : { grund: "ingen" };
+      if (!("grund" in g)) {
+        kort = [...kort, ...g.kort];
+        opd.fotos = kort;
+        for (const k of g.kort) efterId.set(k.id, k.rod);
+        vinted.splice(0, vinted.length, ...ids.map((id) => efterId.get(id)).filter((r): r is string => !!r));
+        opd.published = { ...((l.published ?? {}) as Record<string, unknown>), fotos: vinted };
+        console.log("fotos: nye genkendt på Vinted", l.id, JSON.stringify(g.afstande));
+      }
+    }
+    if (fuldtSat(kort, venter, ids)) {
+      const glemt = glemFjernede(kort, venter, ids);
+      if (glemt.length !== kort.length) { kort = glemt; opd.fotos = kort; }
       const rest = { ...pending! };
       delete rest.fotos;
       const tom = !Object.keys(rest).length;
@@ -209,10 +265,12 @@ export async function fotoSynk(db: Db, listingId: string, idsInd: unknown, hvor:
       svar.pending = opd.pending as Record<string, unknown> | null;
       svar.gemt = true;
       await db.from("price_events").insert({
-        listing_id: l.id, kind: "rettet", note: "sat på Vinted: billedrækkefølge",
+        listing_id: l.id, kind: "rettet", note: "sat på Vinted: billeder",
       });
     } else {
-      svar.oenske = idsFor(kort, venter);
+      const plan = fotoPlan(kort, venter, ids, url);
+      svar.oenske = plan.oenske;
+      if (plan.fjern.length) svar.fjern = plan.fjern;
     }
   } else if (l.status === "aktiv" || l.status === "pause") {
     const ny = omordn(photos, vinted);
