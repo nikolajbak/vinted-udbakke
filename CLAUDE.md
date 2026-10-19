@@ -721,12 +721,22 @@ sender ingen mails.
     QR-koden af telefonen. En PDF tegnes af pdf.js 3.11.174 fra cdnjs
     (hentet først ved tryk, op til tre sider), et billede vises som det er.
     Appen kan ikke zoomes, så et tryk på mærkatet gør det 2,5 × større.
-    **QR-koden skæres ud og står stort øverst** (`fremhaevKode`, jsQR
-    1.4.0 fra jsdelivr): på det rigtige mærkat var den ellers ~70 px bred
-    på telefonen. Siden tegnes mindst 2400 px bred, så udsnittet er skarpt,
-    og den hvide rest af A4-siden skæres fra (`udenHvidt`). Findes koden
-    ikke, vises mærkatet bare. Prøvet med mail 50's mærkat: koden læst af
-    udsnittet. pdf.js tegner ikke, mens browserruden er skjult — tag et
+    **QR-koden står stort øverst i fuld opløsning** (bestemt af dig
+    19. oktober; `fremhaevKode`, `moduler`, jsQR 1.4.0 fra jsdelivr): på
+    det rigtige mærkat var den ellers ~70 px bred på telefonen. Siden
+    tegnes mindst 2400 px bred (~8 px pr. modul), koden aflæses **modul
+    for modul** og tegnes som vektor-SVG (`crispEdges`, 4 modulers kant) —
+    præcis samme kode, skarp i enhver størrelse. Den tegnede kode læses
+    igen (`svgLaest`) og skal give **de samme bytes**; ellers vises
+    udsnittet af mærkatet. **Kod den ikke forfra**: GLS-koden er version
+    11 med UTF-8 og ECI (modtagerens adresse med æøå, målt på mail 50), og
+    qrcode-generator kan ikke skrive ECI. Over koden står varens titel,
+    løbenummer og pakkestørrelse, under den **Forsendelsesnummer**
+    (sporingskoden) stort. Pakkenummeret under GLS' kode er en del af
+    billedet i PDF'en, ikke tekst, og kan ikke læses. Den hvide rest af
+    A4-siden skæres fra (`udenHvidt`). Findes koden ikke, vises mærkatet
+    bare. Prøvet med mail 50's mærkat: vektorkoden læst i 1200 px gav samme
+    bytes som PDF'en. pdf.js tegner ikke, mens browserruden er skjult — tag et
     skærmbillede, før der ledes efter en fejl.
     Lukkes kun med Luk og ved navigation. Uden fil, men med DAO's
     fragtkode: **Vis fragtkoden** stort. Prøvet med et PDF-mærkat med

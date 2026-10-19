@@ -1447,30 +1447,23 @@
   }
   // QR-koden stort oeverst: Vinteds GLS-maerkat er en hel A4-side med
   // koden i et hjoerne (mail 50, 19. oktober) - paa telefonen ~70 px bred.
-  // jsQR finder koden, og den skaeres ud med stille zone. Findes den ikke,
-  // vises maerkatet bare, som det er.
-  var JSQR = null;
-  function hentJsQR(){
-    if(JSQR) return JSQR;
-    JSQR = new Promise(function(ok, fejl){
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-      s.onload = function(){ ok(window.jsQR); };
-      s.onerror = function(){ JSQR = null; fejl(new Error('jsQR kunne ikke hentes')); };
-      document.head.appendChild(s);
-    });
-    return JSQR;
-  }
-  function fremhaevKode(kilde, fil){
-    return hentJsQR().then(function(jsQR){
+  // jsQR finder koden, og den aflaeses modul for modul af maerkatet og
+  // tegnes som vektor: praecis samme kode (ogsaa tegnsaet og fejlretning),
+  // skarp i enhver stoerrelse. Den tegnede kode laeses igen og skal give
+  // de samme bytes; ellers vises udsnittet af maerkatet. Koden kodes IKKE
+  // forfra: indholdet er UTF-8 med ECI (modtagerens adresse), og
+  // qrcode-generator kan ikke skrive ECI. Findes koden ikke, vises
+  // maerkatet bare, som det er.
+  function fremhaevKode(kilde, plads){
+    return scannerKlar().then(function(){
       var w = kilde.naturalWidth || kilde.width, h = kilde.naturalHeight || kilde.height;
       var k = Math.min(1, 900 / w), sm = document.createElement('canvas');
       sm.width = Math.round(w * k); sm.height = Math.round(h * k);
-      var x = sm.getContext('2d');
+      var x = sm.getContext('2d', { willReadFrequently: true });
       x.fillStyle = '#fff'; x.fillRect(0, 0, sm.width, sm.height);
       x.drawImage(kilde, 0, 0, sm.width, sm.height);
-      var q = jsQR(x.getImageData(0, 0, sm.width, sm.height).data, sm.width, sm.height);
-      if(!q || !fil.isConnected) return;
+      var q = window.jsQR(x.getImageData(0, 0, sm.width, sm.height).data, sm.width, sm.height);
+      if(!q || !plads.isConnected) return;
       var p = q.location, xs = [p.topLeftCorner.x, p.topRightCorner.x, p.bottomLeftCorner.x, p.bottomRightCorner.x],
         ys = [p.topLeftCorner.y, p.topRightCorner.y, p.bottomLeftCorner.y, p.bottomRightCorner.y];
       var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
@@ -1478,12 +1471,62 @@
       var sx = Math.max(0, (x0 - m) / k), sy = Math.max(0, (y0 - m) / k);
       var sw = Math.min(w - sx, (x1 - x0 + 2 * m) / k), sh = Math.min(h - sy, (y1 - y0 + 2 * m) / k);
       var c = document.createElement('canvas');
-      c.width = Math.round(sw); c.height = Math.round(sh); c.className = 'fs-qr';
-      var cx = c.getContext('2d');
+      c.width = Math.round(sw); c.height = Math.round(sh);
+      var cx = c.getContext('2d', { willReadFrequently: true });
       cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
       cx.drawImage(kilde, sx, sy, sw, sh, 0, 0, c.width, c.height);
-      fil.insertBefore(c, fil.firstChild);
+      var vis = function(el){ el.classList.add('fs-qr'); plads.innerHTML = ''; plads.appendChild(el); plads.hidden = false; };
+      var svg = moduler(cx, c, q, x0 / k - sx, y0 / k - sy, (x1 - x0) / k, (y1 - y0) / k);
+      if(!svg){ vis(c); return; }
+      return svgLaest(svg).then(function(bytes){
+        if(!plads.isConnected) return;
+        if(bytes === q.binaryData.join(',')){
+          var ny = document.createElement('div');
+          ny.setAttribute('data-vektor', '');
+          ny.appendChild(svg);
+          vis(ny);
+        } else vis(c);
+      });
     }).catch(function(){});
+  }
+  // Kodens moduler aflaest i midten af hvert felt (gennemsnit af 3×3 px).
+  // Kun en kode, der staar lige (ikke drejet) og har mindst 3 px pr. modul.
+  function moduler(cx, c, q, X0, Y0, B, H){
+    var n = 17 + 4 * q.version, cel = B / n;
+    var p = q.location;
+    if(cel < 3 || Math.abs(B - H) > cel || Math.abs(p.topLeftCorner.y - p.topRightCorner.y) > cel / 2) return null;
+    var d = cx.getImageData(0, 0, c.width, c.height).data, rect = '';
+    for(var r = 0; r < n; r++) for(var k = 0; k < n; k++){
+      var mx = Math.round(X0 + (k + 0.5) * cel), my = Math.round(Y0 + (r + 0.5) * (H / n)), sum = 0, t = 0;
+      for(var dy = -1; dy <= 1; dy++) for(var dx = -1; dx <= 1; dx++){
+        var px = Math.min(c.width - 1, Math.max(0, mx + dx)), py = Math.min(c.height - 1, Math.max(0, my + dy)), o = (py * c.width + px) * 4;
+        sum += d[o] * 0.299 + d[o + 1] * 0.587 + d[o + 2] * 0.114; t++;
+      }
+      if(sum / t < 128) rect += 'M' + (k + 4) + ' ' + (r + 4) + 'h1v1h-1z';
+    }
+    var ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + (n + 8) + ' ' + (n + 8));
+    svg.setAttribute('shape-rendering', 'crispEdges');
+    svg.innerHTML = '<rect width="' + (n + 8) + '" height="' + (n + 8) + '" fill="#fff"/><path fill="#000" d="' + rect + '"/>';
+    return svg;
+  }
+  // De bytes, en SVG-kode giver, naar den laeses som et billede (600 px).
+  function svgLaest(svg){
+    return new Promise(function(ok){
+      var kopi = svg.cloneNode(true);
+      kopi.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      kopi.setAttribute('width', '600'); kopi.setAttribute('height', '600');
+      var im = new Image();
+      im.onload = function(){
+        var c = document.createElement('canvas'); c.width = c.height = 600;
+        var x = c.getContext('2d', { willReadFrequently: true });
+        x.fillStyle = '#fff'; x.fillRect(0, 0, 600, 600); x.drawImage(im, 0, 0, 600, 600);
+        var r = window.jsQR(x.getImageData(0, 0, 600, 600).data, 600, 600);
+        ok(r ? r.binaryData.join(',') : null);
+      };
+      im.onerror = function(){ ok(null); };
+      im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(kopi));
+    });
   }
   // Den hvide rest af A4-siden skaeres fra, saa selve maerkatet fylder skaermen.
   function udenHvidt(c){
@@ -1508,25 +1551,32 @@
   function visMaerkat(l){
     var fs = l.forsendelse || {}, o = $('fs-stor');
     var url = fs.maerkat && MAERKAT[fs.maerkat];
+    var d = rows[l.draft_id] || {};
     var h = '<div class="fs-stor-top"><b>' + esc((fs.transportoer ? fs.transportoer + ' · ' : '') + (fs.maerkat ? 'Fragtmærkat' : 'Fragtkode')) +
       '</b><button type="button" class="btn btn-quiet" data-fs-luk>Luk</button></div><div class="fs-stor-krop">';
+    // Varen og forsendelsesnummeret paa samme side som koden (bestemt af
+    // dig 19. oktober), saa du kan se, hvilken pakke koden hoerer til.
+    h += '<div class="fs-stor-vare"><b>' + esc(l.title || d.title || '') + '</b>' +
+      (d.nr || fs.pakke ? '<span>' + esc([fmtNr(d.nr), fs.pakke].filter(Boolean).join(' · ')) + '</span>' : '') + '</div>';
+    if(fs.maerkat) h += '<div class="fs-stor-qr" hidden></div>';
     if(fs.fragtkode) h += '<div class="fs-stor-kode"><span>Sig fragtkoden</span><b class="mono">' + esc(fs.fragtkode) + '</b></div>';
+    if(fs.sporingskode) h += '<div class="fs-stor-nr"><span>Forsendelsesnummer</span><b class="mono">' + esc(fs.sporingskode) +
+      '</b></div>';
     if(fs.maerkat) h += '<div class="fs-stor-fil">' + (url ? 'Henter mærkatet …' : 'Mærkatet hentes — prøv igen om et øjeblik.') + '</div>';
     h += '</div><div class="fs-stor-bund">' + (fs.maerkat ? 'Skru op for lysstyrken, og lad personalet scanne koden.' : '') +
-      (fs.sporingskode ? ' Sporing <span class="mono">' + esc(fs.sporingskode) + '</span>' : '') +
-      (url ? ' · <a href="' + esc(url) + '" target="_blank" rel="noopener">Åbn filen</a>' : '') + '</div>';
+      (url ? ' <a href="' + esc(url) + '" target="_blank" rel="noopener">Åbn filen</a>' : '') + '</div>';
     o.innerHTML = h;
     o.hidden = false;
     o.querySelector('[data-fs-luk]').addEventListener('click', lukFsStor);
     if(!url){ if(fs.maerkat) hentMaerkater(); return; }
-    var fil = o.querySelector('.fs-stor-fil');
+    var fil = o.querySelector('.fs-stor-fil'), qrPlads = o.querySelector('.fs-stor-qr');
     // Appen kan ikke zoomes: et tryk paa maerkatet goer det 2,5 gange
     // stoerre (rul hen til koden), et tryk til tilbage.
     fil.addEventListener('click', function(e){ if(e.target.closest('img, canvas')) fil.classList.toggle('stor'); });
     if(fs.maerkat_type !== 'pdf'){
       fil.innerHTML = '<img src="' + esc(url) + '" alt="Fragtmærkatet" crossorigin="anonymous">';
       var im = fil.querySelector('img');
-      im.addEventListener('load', function(){ fremhaevKode(im, fil); });
+      im.addEventListener('load', function(){ fremhaevKode(im, qrPlads); });
       return;
     }
     hentPdfJs().then(function(pdfjs){ return pdfjs.getDocument(url).promise; }).then(function(pdf){
@@ -1547,7 +1597,7 @@
           });
         });
       })(n);
-      return tegn.then(function(){ if(foerste) return fremhaevKode(foerste, fil); });
+      return tegn.then(function(){ if(foerste) return fremhaevKode(foerste, qrPlads); });
     }).catch(function(){
       fil.innerHTML = 'PDF\'en kan ikke vises her — <a href="' + esc(url) + '" target="_blank" rel="noopener">åbn den</a>.';
     });
