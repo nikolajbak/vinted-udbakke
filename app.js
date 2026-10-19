@@ -1316,9 +1316,11 @@
         // Prisvagten paa selve varen: hvad den sidst gjorde, og hvad der sker.
         // Mens et boost koerer, faar annoncen intet tilsyn (boostKoerer i boost.ts).
         var boostNu = (ANN[d.id] || []).some(function(r){
-          return r.plads === 'vinted' && new Date(r.start) <= new Date() && new Date(r.slut) > new Date();
+          return r.listing_id === l.id && new Date(r.start) <= new Date() && new Date(r.slut) > new Date();
         });
-        if(l.platform === 'vinted') krop += '<div class="plads-vagt">' + esc(boostNu && !harForslag(l) && !(l.pending && l.pending.price)
+        // Kun i stedet for den almindelige linje: pause, stop, forslag og en
+        // ventende pris siger mere og staar urørt.
+        if(l.platform === 'vinted') krop += '<div class="plads-vagt">' + esc(boostNu && l.auto && l.status === 'aktiv' && !harForslag(l) && !(l.pending && l.pending.price)
           ? 'Prisvagt: holder pause, mens boostet kører' : pladsVagt(l)) + '</div>';
       }
       krop += udgivetBlok(l, d);
@@ -1387,7 +1389,8 @@
       });
   }
   // Beloeb med oere: et boost koster »12,69 kr«, ikke hele kroner.
-  function krOere(n){ return tusindDel(Math.floor(Number(n))) + ',' + (Number(n).toFixed(2).split('.')[1]) + ' kr'; }
+  // Rundes til oere foerst: 18,995 er 19,00 kr, ikke 18,00 (fundet ved gennemgangen).
+  function krOere(n){ var d = (Math.round(Number(n) * 100) / 100).toFixed(2).split('.'); return tusindDel(d[0]) + ',' + d[1] + ' kr'; }
   function tusindDel(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
   var ANN_NAVN = { boost: 'Boostet', garderobe: 'Fokus på garderobe', 'dba-top': 'Topannonce', andet: 'Betalt annoncering' };
   // Samme tal som tragt() i _shared/annoncering.ts - ret dem sammen.
@@ -1442,7 +1445,9 @@
     var dage = Math.round(Number(boks.querySelector('.ann-dage').value));
     if(!isFinite(belob) || belob < 0){ toast('Skriv beløbet i kroner, fx 25,38'); return; }
     if(!(dage >= 1 && dage <= 60)){ toast('Dage skal være 1-60'); return; }
-    var l = annoncer(d).filter(function(x){ return x.platform === plads; })[0];
+    // Den aktive annonce foerst - en aeldre, solgt annonce paa samme plads er ikke den, der betales for.
+    var paaPlads = annoncer(d).filter(function(x){ return x.platform === plads; });
+    var l = paaPlads.filter(function(x){ return x.status === 'aktiv' || x.status === 'pause'; })[0] || paaPlads[0];
     var nu = new Date();
     b.disabled = true;
     sb.from('annoncering').insert({
@@ -4355,9 +4360,10 @@
       sb.from('drafts').select('id', { count:'exact', head:true }).not('taget_ned', 'is', null),
       sb.from('annoncering').select('kr, start, slut, listing_id, draft_id, plads')
     ]).then(function(svar){
-      var fejl = svar[0].error || svar[1].error || svar[3].error;
+      var fejl = svar[0].error || svar[1].error;
       if(fejl) throw new Error(fejl.message);
-      tegnKonto(svar[0].data || [], svar[1].data || [], svar[2].count || 0, svar[3].data || []);
+      // Kan annonceringen ikke hentes, staar Konto som foer uden den.
+      tegnKonto(svar[0].data || [], svar[1].data || [], svar[2].count || 0, svar[3].error ? [] : (svar[3].data || []));
     }).catch(function(e){
       visFejl(krop, 'Kontoen kunne ikke hentes', e.message || 'Kunne ikke nå serveren', hentKonto);
     });
