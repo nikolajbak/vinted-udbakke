@@ -1043,9 +1043,13 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
   } catch (err) {
     console.error("analyze-draft failed", err);
     // Leave status as 'afventer' but note the failure so the UI/user isn't left guessing forever.
-    await supabase.from("drafts").update({
-      price_note: `Analyse mislykkedes: ${err instanceof Error ? err.message : String(err)}`,
-    }).eq("id", id);
+    // Et delkald ({id, photo}) roerer ikke prisnoten: fra nytFoto er analysen
+    // faerdig, og et billede, der ikke kunne hentes, er ikke en mislykket analyse.
+    if (only === null) {
+      await supabase.from("drafts").update({
+        price_note: `Analyse mislykkedes: ${err instanceof Error ? err.message : String(err)}`,
+      }).eq("id", id);
+    }
     return new Response(`error: ${err}`, { status: 500 });
   }
 });

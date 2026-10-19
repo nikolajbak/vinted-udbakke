@@ -1434,12 +1434,15 @@ Deno.serve(async (req: Request) => {
         .select("id, status, photos, posted_to, listings(id)").eq("id", body.id).maybeSingle();
       if (e) return json({ error: e.message }, 500);
       if (!d) return json({ error: "ikke_fundet" }, 404);
-      // Samme regel som fase() i app.js for »klar« - ret de to sammen. En
-      // vare, der er ude, har fotos_sendt og en parring med Vinteds
-      // billed-id'er; et ekstra billede dér er ikke designet.
+      // Kun en faerdiganalyseret vare (status ny), der ikke er sendt nogen
+      // steder hen. Under analysen skriver serveren billederne pr. plads, og
+      // appens PATCH af photos ville skrive oven i dem. En vare, der er ude,
+      // har fotos_sendt og en parring med Vinteds billed-id'er; et ekstra
+      // billede dér er ikke designet. Appens knap kraever det samme
+      // (fase() === 'klar' og status 'ny') - ret de to sammen.
       const sendt = Object.values((d.posted_to ?? {}) as Record<string, unknown>).some(Boolean);
       const lst = (d as { listings?: unknown[] }).listings;
-      if (sendt || (Array.isArray(lst) && lst.length) || d.status === "afsendt" || d.status === "kasseret") {
+      if (d.status !== "ny" || sendt || (Array.isArray(lst) && lst.length)) {
         return json({ error: "ikke_klar" }, 409);
       }
       const n = body.photo;
@@ -1452,7 +1455,11 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({ id: d.id, photo: n }),
       });
       await res.body?.cancel();
-      return res.ok ? json({ ok: true }) : json({ error: "fejl", status: res.status }, 502);
+      if (!res.ok) return json({ error: "fejl", status: res.status }, 502);
+      // Delkaldet svarer ok, ogsaa naar optimeringen fejlede stille. Laes efter.
+      const { data: efter } = await supabase.from("drafts").select("photos").eq("id", d.id).single();
+      const nu = (Array.isArray(efter?.photos) ? efter!.photos : [])[n] as { optimized?: boolean } | undefined;
+      return nu?.optimized ? json({ ok: true }) : json({ error: "ikke_optimeret" }, 502);
     }
     if (body.mode === "omskriv") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);

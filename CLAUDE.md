@@ -220,7 +220,7 @@ i `function_logs`, beviser intet.
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
-| Ét nyt billede i et klar-udkast optimeres alene (`mode:'nytFoto'`, kalder delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; afviser `ikke_klar`, `findes_ikke`, `optimeret`) | `…/vinted-fill-script/index.ts` |
+| Ét nyt billede i et klar-udkast optimeres alene (`mode:'nytFoto'`, kalder delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; kun status `ny` og ikke sendt nogen steder hen; afviser `ikke_klar`, `findes_ikke`, `optimeret`, og `ikke_optimeret` når delkaldet ikke fik billedet optimeret; et fejlet delkald rører ikke prisnoten) | `…/vinted-fill-script/index.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
