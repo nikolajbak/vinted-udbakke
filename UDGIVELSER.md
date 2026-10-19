@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0136 — 2026-10-19 16:46
+
+Commit `d229054` — Forsendelse: Kopiér-knappen klemmer ikke sporingskoden  
+App: `app.js?v=f9c76432` · `style.css?v=1a76d391`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v97 | `c789b74b` |
+| dba-fill-script | v45 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v36 | `8b0e0533` |
+| vinted-fill-script | v125 | `f1292738` |
+| vinted-mail | v28 | `f40e42c1` |
+
 ## udgivelse-0135 — 2026-10-19 16:42
 
 Commit `df18712` — Forsendelsen på varen: fragtmærkat, frist, sporing og status fra Vinteds mails  
