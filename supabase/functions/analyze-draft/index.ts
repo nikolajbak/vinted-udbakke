@@ -10,6 +10,7 @@ import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer, hentRettelser } from "../_shared/laering.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
+import { modelKald } from "../_shared/model.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme, prisTekst } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -133,22 +134,14 @@ async function callClaudeJson(
   maxTokens = 1200,
   draftId?: unknown,
 ): Promise<Record<string, unknown>> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      system,
-      tools: [tool],
-      tool_choice: { type: "tool", name: tool.name },
-      messages: [{ role: "user", content: userContent }],
-    }),
-  });
+  const res = await modelKald({
+    model,
+    max_tokens: maxTokens,
+    system,
+    tools: [tool],
+    tool_choice: { type: "tool", name: tool.name },
+    messages: [{ role: "user", content: userContent }],
+  }, { trin: `analyse:${tool.name}`, draftId });
   if (!res.ok) {
     throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   }

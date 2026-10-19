@@ -21,6 +21,8 @@ const PRIS: Array<[string, number, number]> = [
   ["claude-haiku-4-5", 1, 5],
   ["claude-opus-5-5", 4, 20],
   ["claude-sonnet-5", 2, 10],
+  // Gemini koerer paa gratisniveauet (en noegle uden fakturering): 0 $.
+  ["gemini", 0, 0],
 ];
 const PR_SOEGNING = 0.01; // web search: $10 pr. 1000
 

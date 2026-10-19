@@ -21,6 +21,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import PostalMime from "npm:postal-mime@2.4.3";
 import { helKroner, kr } from "../_shared/pris.ts";
+import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -233,14 +234,7 @@ type Laesning = {
 async function laesMail(emne: string, tekst: string): Promise<Laesning | null> {
   if (!ANTHROPIC_API_KEY) return null;
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    const res = await modelKald({
         model: "claude-haiku-5-5",
         max_tokens: 800,
         system: "Du laeser mails fra Vinted til en dansk saelger og siger praecist, hvad de handler om. " +
@@ -248,8 +242,7 @@ async function laesMail(emne: string, tekst: string): Promise<Laesning | null> {
         tools: [LAES_TOOL],
         tool_choice: { type: "tool", name: LAES_TOOL.name },
         messages: [{ role: "user", content: "Emne: " + emne + "\n\n" + renTekst(tekst).slice(0, 6000) }],
-      }),
-    });
+      }, { trin: "mail:laes" });
     if (!res.ok) { console.error("laes_mail", res.status, await res.text()); return null; }
     const data = await res.json();
     await noterForbrug(data, "mail:laes");

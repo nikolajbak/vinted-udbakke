@@ -4,6 +4,7 @@
 // "uden synlige pletter", og en rettelse ét sted naaede aldrig de tre andre.
 // Nu staar reglerne her, og alle fire laeser dem.
 
+import { modelKald } from "./model.ts";
 import { noterForbrug } from "./forbrug.ts";
 import { billedKandidater, pasformEllerIntet, udvaelg, type BilledSvar, type ProducentBillede } from "./producentbilleder.ts";
 
@@ -269,10 +270,7 @@ export async function slaaOp(
   // 12000 kostede ét opslag 261.000 input-tokens. Haiku 5.5, ikke Sonnet 5:
   // samme opgave fandt nr. 54's jakke paa 23 s for $0,035 mod 64 s og $0,98.
   for (let runde = 0; runde < 3; runde++) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const res = await modelKald({
         model: "claude-haiku-5-5",
         max_tokens: 4000,
         tools: [
@@ -281,8 +279,7 @@ export async function slaaOp(
           OPSLAG_TOOL,
         ],
         messages,
-      }),
-    });
+      }, { trin: "opslag:nypris_maal", draftId, apiKey, geminiMs: 25000 });
     if (!res.ok) throw new Error(`opslag_${res.status}: ${(await res.text()).slice(0, 200)}`);
     const data = await res.json();
     await noterForbrug(data, "opslag:nypris_maal", draftId);
@@ -406,11 +403,7 @@ export async function vaelgBilleder(
   const kald = async (liste: string[]) => {
     // Hoejst 20 s: markedsrundens runner venter 90 s paa hele opslaget, og
     // billederne er kun til appen.
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      signal: AbortSignal.timeout(20000),
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const res = await modelKald({
         model: "claude-haiku-5-5",
         max_tokens: 1500,
         tools: [BILLED_TOOL],
@@ -433,8 +426,7 @@ export async function vaelgBilleder(
             },
           ],
         }],
-      }),
-    });
+      }, { trin: "opslag:billeder", draftId, signal: AbortSignal.timeout(20000), apiKey, geminiMs: 9000 });
     return { res, tekst: res.ok ? "" : await res.text() };
   };
   try {
@@ -492,10 +484,7 @@ export async function udenForbudte(apiKey: string, tekst: string, draftId?: unkn
     t.split(/\n/).map((l) => l.split(/(?<=[.!?])\s+/).filter((s) => !FORBUDTE_VENDINGER.test(s)).join(" "))
       .join("\n").replace(/\n{3,}/g, "\n\n").trim();
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
+    const res = await modelKald({
         model: "claude-sonnet-5",
         max_tokens: 1500,
         system: "Du retter en dansk annoncetekst. Svar KUN med den rettede tekst — ingen indledning.",
@@ -507,8 +496,7 @@ export async function udenForbudte(apiKey: string, tekst: string, draftId?: unkn
             "bytte — nævn slet ikke pletter, huller eller fejl, der ikke er der. Sig standen positivt " +
             "(\"står pænt\", \"i fin stand\", \"klar til nye eventyr\"), og opfind intet.\n\n" + tekst,
         }],
-      }),
-    });
+      }, { trin: "tekst:uden_forbudte", draftId, apiKey });
     if (!res.ok) return fjern(tekst);
     const data = await res.json();
     await noterForbrug(data, "tekst:uden_forbudte", draftId);

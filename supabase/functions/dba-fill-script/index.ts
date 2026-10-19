@@ -10,6 +10,7 @@ import { RUNNER } from "./runner.ts";
 import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
 import { BESKRIVELSE_REGLER, faktaTekst, ingenVersaler, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 import { helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
@@ -80,10 +81,7 @@ async function chooseOption(
     ? `Analysen foreslog her: "${hint}". Vælg det punkt, der ligger tættest på det, ` +
       "medmindre det tydeligvis er forkert.\n"
     : "";
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
+  const res = await modelKald({
       model: "claude-sonnet-5",
       max_tokens: 300,
       system: "Du er en meget erfaren sælger på det danske genbrugsmarked. " +
@@ -103,8 +101,7 @@ async function chooseOption(
             : "") +
           `\n${where}${suggested}Muligheder:\n${list}`,
       }],
-    }),
-  });
+    }, { trin: `dba:valg ${kind}`, draftId: draft.id });
   if (!res.ok) return -1;
   const data = await res.json();
   await noterForbrug(data, `dba:valg ${kind}`, draft.id);
@@ -235,18 +232,14 @@ async function analyseMarket(
   const erf = await hentErfaringer(["tekst"]);
   const erfaringer = erf ? "\n\n" + erf : "";
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
+  const res = await modelKald({
       model: "claude-sonnet-5",
       max_tokens: 1600,
       system: MARKET_SYSTEM + erfaringer,
       tools: [MARKET_TOOL],
       tool_choice: { type: "tool", name: MARKET_TOOL.name },
       messages: [{ role: "user", content }],
-    }),
-  });
+    }, { trin: "dba:marked", draftId: draft.id });
   if (!res.ok) return null;
   const data = await res.json();
   await noterForbrug(data, "dba:marked", draft.id);

@@ -21,6 +21,7 @@ import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer, noterTekstRettelse } from "../_shared/laering.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
+import { modelKald } from "../_shared/model.ts";
 import { laer } from "./laering.ts";
 import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
 import { indkob } from "./indkob.ts";
@@ -139,22 +140,14 @@ async function callTool(
   tool: Record<string, unknown>,
   draftId?: unknown,
 ) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-5",
-      max_tokens: 1200,
-      system,
-      tools: [tool],
-      tool_choice: { type: "tool", name: tool.name },
-      messages: [{ role: "user", content: user }],
-    }),
-  });
+  const res = await modelKald({
+    model: "claude-sonnet-5",
+    max_tokens: 1200,
+    system,
+    tools: [tool],
+    tool_choice: { type: "tool", name: tool.name },
+    messages: [{ role: "user", content: user }],
+  }, { trin: `vinted:${tool.name}`, draftId });
   if (!res.ok) throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   const data = await res.json();
   await noterForbrug(data, `vinted:${tool.name}`, draftId);
@@ -648,14 +641,7 @@ async function priceFromComparables(
     .map((c) => `${c.title || "(uden titel)"} — ${c.price} ${c.currency || "DKK"}`)
     .join("\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
+  const res = await modelKald({
       model: "claude-sonnet-5",
       max_tokens: 600,
       system:
@@ -670,8 +656,7 @@ async function priceFromComparables(
         content: `Vare: ${draft.title}\nStand: ${draft.condition}\nBeskrivelse: ${draft.description}\n\n` +
           `${comparables.length} aktive, sammenlignelige annoncer på Vinted DK:\n${lines}`,
       }],
-    }),
-  });
+  }, { trin: "vinted:pris_sammenlignelige", draftId: draft.id });
   if (!res.ok) throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   const data = await res.json();
   await noterForbrug(data, "vinted:pris_sammenlignelige", draft.id);

@@ -14,6 +14,7 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { erNy, helKroner } from "../_shared/pris.ts";
+import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 
 const STILLE_DAGE = 14;
@@ -338,18 +339,14 @@ export async function indkob(supabase: SupabaseClient, apiKey: string) {
         ).join("\n")
       ).join("\n")}`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({
+      const res = await modelKald({
           model: "claude-sonnet-5",
           max_tokens: 1500,
           system: SYSTEM,
           tools: [ANBEFALING_TOOL],
           tool_choice: { type: "tool", name: ANBEFALING_TOOL.name },
           messages: [{ role: "user", content: tekst }],
-        }),
-      });
+        }, { trin: "indkob", apiKey: apiKey });
       if (!res.ok) throw new Error(`anthropic_error_${res.status}`);
       const data = await res.json();
       await noterForbrug(data, "indkob");

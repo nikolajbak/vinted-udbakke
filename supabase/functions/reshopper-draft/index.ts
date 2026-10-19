@@ -11,6 +11,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
+import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 import { helKroner } from "../_shared/pris.ts";
 
@@ -100,10 +101,7 @@ Deno.serve(async (req) => {
 
   const erf = await hentErfaringer(["tekst"]);
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
+  const res = await modelKald({
       model: "claude-sonnet-5",
       max_tokens: 1300,
       system:
@@ -128,8 +126,7 @@ Deno.serve(async (req) => {
             `Materiale: ${d.material ?? ""}\nPris: ${d.price ?? ""}\n${faktaTekst(d.fakta)}` },
         ],
       }],
-    }),
-  });
+    }, { trin: "reshopper", draftId: id });
   if (!res.ok) return json({ error: `anthropic_${res.status}` }, 500);
   const data = await res.json();
   await noterForbrug(data, "reshopper", id);

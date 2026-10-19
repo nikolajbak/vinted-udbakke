@@ -235,6 +235,7 @@ i `function_logs`, beviser intet.
 | »Hvad skal jeg købe igen?« (`mode:'indkob'`) — ubrugte varer pr. kategori og produkt | `…/vinted-fill-script/indkob.ts`; skærmen `tegnIndkob()` i `app.js` |
 | Brugerscripterne (Vinted + DBA): indlæser, `.user.js`/`.meta.js`, udgave, båndet »ny udgave« | `supabase/functions/_shared/brugerscript.ts`; opsætningen `BRUGERSCRIPT` i hver fill-funktions `index.ts` |
 | Hvad hvert modelkald koster (`noterForbrug`) → tabellen `forbrug` | `supabase/functions/_shared/forbrug.ts` |
+| Hvert modelkald: Gemini (gratis) eller Claude pr. trin (`modelKald`, nøgle: `GEMINI_API_KEY`); oversættelsen Anthropic ↔ Gemini (`tilGemini`, `fraGemini`, ren og testet med `node --test tools/test-gemini.mjs`) | `supabase/functions/_shared/model.ts`, `_shared/gemini-oversaet.ts` |
 | Billedernes rækkefølge mellem appen og Vinted (`fotoSynk`, `lavKort`, `omordn`); genkendelse på billedet (`genkend`, `aftryk`) | `…/vinted-fill-script/fotos.ts`, `…/vinted-fill-script/fotohash.ts`; krogen i Gem-kaldet `fotoKrog`/`fotoKald` og `fotoIds` i `runner.ts`; træk og slip `flytbarStribe`/`gemRaekkefoelge` i `app.js` |
 | Fanelukkeren »Udbakke luk« (`/udbakke-luk.user.js`) og `lukFanen()` | `LUK_SCRIPT` i `…/vinted-fill-script/index.ts`; `lukFanen`/`fraApp` i `…/vinted-fill-script/runner.ts` |
 
@@ -268,6 +269,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Ét billede lagt sidst i et klar-udkast i én sætning, kun når varen er færdiganalyseret og ikke sendt (`append_draft_photo`, kun service-nøglen) | `sql/019-tilfoej-billede.sql` |
 | Billeder lagt til og fjernet: `append_draft_photo` løsnet til færdiganalyseret (`ny`/`afsendt`), ikke solgt og under 20 billeder; `remove_draft_photo` (på roden, aldrig det sidste), `restore_draft_photo` (Fortryd), `set_draft_photo_paa_sti` (optimeringen skriver på stien, ikke pladsen) | `sql/020-billeder-til-og-fra.sql` |
 | Runnerens uploads gemt før Gem: `listings.fotos_op` (`[{rod, id}]`); `replace_draft_photo` (beskæringen); låsen i `set_draft_photo_paa_sti`; Fortryd ikke i en solgt vare | `sql/021-billeder-lagt-op.sql` |
+| Hvilken model hvert trin bruger: `modelvalg` (`claude`/`skygge`/`gemini`, opslag trin → delen før kolon → `*`); hvert Gemini-forsøg og skyggens to svar: `modelkald` (30 dage) | `sql/022-gemini.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -619,6 +621,44 @@ markedspladsernes — og brug læringen fremover.**
 - **For Claude:** hver fejlsøgning slutter med et fund i »Målt, ikke gættet«
   og hver beslutning her — i samme omgang. Læs `rettelser` og `spor` før der
   gættes på, hvorfor analysen eller udfyldningen tog fejl.
+
+## Gemini først, Claude som reserve
+
+Bestemt af dig 19. oktober: **flyt så mange modelkald som muligt til
+Geminis gratisniveau — uden at gå på kompromis med kvaliteten.** Forbilledet
+er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
+
+- **Alle kald går gennem `modelKald`** (`_shared/model.ts`) med det samme
+  Anthropic-kald som før; svaret kommer tilbage i Anthropics form, så
+  prompter, værktøjer og læsningen af svaret er urørte. Nyt modelkald →
+  `modelKald`, aldrig `fetch` til Anthropic direkte.
+- **`modelvalg` styrer hvert trin** uden en udgivelse: `claude` (kun Claude),
+  `skygge` (Claude bruges, Gemini kører ved siden af, og begge svar gemmes i
+  `modelkald`), `gemini` (Gemini bruges, Claude ved fejl). Uden
+  `GEMINI_API_KEY` er alt `claude`, som før.
+- **Et trin skifter først til `gemini`, når skyggen har vist, at Gemini er
+  lige så god** på rigtige varer: læs `modelkald` (`skygge = true`), sammenlign
+  `gemini_svar` med `claude_svar`, og skift trinnet med
+  `update modelvalg …`/`insert`. Start: `*` = `skygge`.
+- **Claude tager over** ved en fejl (429, 5xx, timeout), et afskåret eller
+  blokeret svar, ugyldig JSON eller et manglende påkrævet felt. Hvert
+  forsøg står i `modelkald` (`ok`, `fejl`, `ms`).
+- **Modellen**: nyeste Flash (ikke lite, ikke Pro) fra Geminis modelliste,
+  hentet én gang i timen pr. isolat; preview tæller lidt mindre. To modeller
+  på skift (søgningen én — runneren venter 90 s på hele opslaget), 429/5xx
+  giver et minuts pause, 404 en time. Gemini 3 tænker `low` for et
+  Haiku-kald og `medium` for Sonnet; 2.5 et budget på 1024/4096.
+- **Nøglen skal være uden fakturering** — ellers er det ikke gratis.
+  Gratisniveauet må bruge data til at forbedre Googles modeller; det er
+  varebilleder og annoncetekster. **Vinteds mails bliver hos Claude**
+  (`mail` = `claude`): de bærer købernavne, og læsningen koster under
+  0,01 $ om måneden.
+- **Én frist for hele Gemini-delen** (`geminiMs`, standard 40 s; opslaget
+  25 s, producentbillederne 9 s), så Claude altid når at svare bagefter.
+  Svaret holdes op mod værktøjets skema (`skemaFejl`: type, enum, indlejrede
+  felter) — Claude håndhæver selv sit skema, og et Gemini-svar med en tekst
+  i stedet for en liste ville ellers vælte kaldestedet.
+- `forbrug` noterer Gemini-kald til 0 $ (`PRIS` `gemini`).
 
 ## Prisen
 

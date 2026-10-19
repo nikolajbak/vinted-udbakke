@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { BESKRIVELSE_REGLER } from "../_shared/beskrivelse.ts";
+import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 
 const MIN_SOLGTE = 3;
@@ -223,18 +224,14 @@ export async function laer(supabase: SupabaseClient, apiKey: string) {
         fravalgte.join("\n")
       : "");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
+  const res = await modelKald({
       model: "claude-sonnet-5",
       max_tokens: 3000,
       system: SYSTEM,
       tools: [ERFARING_TOOL],
       tool_choice: { type: "tool", name: ERFARING_TOOL.name },
       messages: [{ role: "user", content: tekst }],
-    }),
-  });
+    }, { trin: "laering", apiKey: apiKey });
   if (!res.ok) throw new Error(`anthropic_error_${res.status}: ${await res.text()}`);
   const data = await res.json();
   await noterForbrug(data, "laering");
