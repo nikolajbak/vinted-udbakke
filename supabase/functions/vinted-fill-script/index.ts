@@ -1928,10 +1928,11 @@ Deno.serve(async (req: Request) => {
             fakta.produktNavn = fundet.produktNavn;
             fakta.produktTekst = fundet.produktTekst;
             fakta.produktMaerke = fundet.produktMaerke;
+            // Billederne og pasformen hoerer til netop denne produktside - ogsaa
+            // naar den ingen har, saa en tidligere sides billeder ikke bliver staaende.
+            fakta.producentBilleder = fundet.producentBilleder;
+            fakta.pasform = fundet.pasform;
           }
-          // Overskriv ikke et gammelt fund med intet.
-          if (fundet.producentBilleder?.length) fakta.producentBilleder = fundet.producentBilleder;
-          if (fundet.pasform) fakta.pasform = fundet.pasform;
           d.fakta = fakta;
           await supabase.from("drafts").update({ fakta }).eq("id", body.id);
         } catch (err) {

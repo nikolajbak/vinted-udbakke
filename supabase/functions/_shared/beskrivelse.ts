@@ -132,7 +132,7 @@ export function faktaTekst(f: unknown): string {
         `${k.produktMaerke ? `. Mærket er ${k.produktMaerke} — butikken er kun forhandler` : ""}. Den er fundamentet for annoncen: brug butikkens ` +
         "navn for varen og dens egenskaber i titel og tekst, også hvor billedanalysen siger noget andet. " +
         "Skriv ikke adressen eller butikkens navn i annoncen.",
-    k.pasform && `Butikken skriver om pasformen: ${k.pasform}. Brug det, hvis det hjælper køberen med størrelsen — skriv ikke, at det kommer fra butikken eller fra et billede.`,
+    k.pasform && `Butikken skriver om pasformen: ${k.pasform}. Brug det kun som størrelsesråd (fx "normal pasform", "falder lidt stort"), hvis det hjælper køberen — gengiv ikke modellens højde eller størrelse (annoncen viser ingen model), og skriv ikke, at det kommer fra butikken eller fra et billede.`,
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
     k.maerkeFarve && `Farve ifølge mærket: ${k.maerkeFarve}. Brug den farve (på dansk) i titel og tekst, også hvis billedet ser anderledes ud, og vælg den nærmeste i Vinteds farveliste.`,
     k.dele?.length && `Sælges samlet: ${k.dele.join(" + ")}. Nævn hver del i titel og tekst.`,
@@ -403,7 +403,10 @@ export async function vaelgBilleder(
 ): Promise<ProducentBillede[]> {
   if (!kandidater.length) return [];
   const kald = async (liste: string[]) => {
+    // Hoejst 20 s: markedsrundens runner venter 90 s paa hele opslaget, og
+    // billederne er kun til appen.
     const res = await fetch("https://api.anthropic.com/v1/messages", {
+      signal: AbortSignal.timeout(20000),
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
@@ -436,10 +439,19 @@ export async function vaelgBilleder(
   try {
     let liste = kandidater;
     let { res, tekst } = await kald(liste);
-    // Et billede, Anthropic ikke kan hente, vaelter hele kaldet. Én gang til
-    // uden de adresser, fejlen naevner.
+    // Et billede, Anthropic ikke kan hente, vaelter hele kaldet - og fejlen
+    // naevner ikke hvilket (»Unable to download the file«, maalt 19. oktober).
+    // Saa hentes hver kandidat her, og kun dem, der svarer med et billede,
+    // sendes én gang til.
     if (res.status === 400) {
-      const uden = liste.filter((u) => !tekst.includes(u));
+      const ok = await Promise.all(liste.map(async (u) => {
+        try {
+          const r = await fetch(u, { signal: AbortSignal.timeout(4000) });
+          await r.body?.cancel();
+          return r.ok && (r.headers.get("content-type") ?? "").startsWith("image/");
+        } catch { return false; }
+      }));
+      const uden = liste.filter((_, i) => ok[i]);
       if (!uden.length || uden.length === liste.length) return [];
       liste = uden;
       ({ res, tekst } = await kald(liste));

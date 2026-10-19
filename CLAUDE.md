@@ -334,7 +334,8 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
 - **Pasformen fra butikken** (19. oktober): opslaget læser, hvad
   produktsiden skriver om pasform og modellens højde/størrelse
   (`fakta.pasform`), og `faktaTekst` giver det til alle fire tekstskrivere —
-  uden at nævne butikken eller et billede.
+  uden at nævne butikken eller et billede, og kun som størrelsesråd —
+  modellens højde og størrelse gengives ikke (annoncen viser ingen model).
 - Spørgsmål fra købere besvares med samme tone (køber-assistenten,
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
@@ -1381,7 +1382,18 @@ Målt 19. oktober på nr. 54, 63, 65 og 66 (to gennemløb hver).
   (pakkeshot), så heller ingen. Resultat: nr. 54 fik forfra, trekvart og
   bagfra, ens i begge gennemløb; de tre andre korrekt ingen.
 - **Shopify skalerer efter forespørgslen**: forfra-billedet kom i 360×482
-  (`width=360&height=482&crop=center`); `width`/`height`/`crop` fjernes.
+  (`width=360&height=482&crop=center`); de tre fjernes, og `width=1200`
+  sættes (fuld størrelse kan være en PNG på flere MB — for stor til
+  Anthropic og tung på telefonen).
+- **Ét billede, Anthropic ikke kan hente, vælter hele kaldet med 400 — og
+  fejlen siger ikke hvilket** (»Unable to download the file«). Derfor
+  henter `vaelgBilleder` ved et 400 hver kandidat selv (4 s, parallelt) og
+  prøver én gang til med dem, der svarer med et billede. Målt på nr. 54:
+  2,5 s uden en død adresse, 4,6 s med, og samme tre fund. Kaldet har en
+  grænse på 20 s — markedsrundens runner venter 90 s på hele opslaget.
+- **Billederne og pasformen hører til produktsiden**: de skrives sammen med
+  `produktside` (og ryddes, når en ny side ingen har), så en tidligere
+  vares billeder aldrig bliver stående.
   Samme billede i flere bredder (`_200x`, `_800x`) er ét billede, og
   `{width}`-skabeloner er ikke billeder.
 - **Pasform**: modellen skrev »ingen modelhøjde angivet«, når siden intet

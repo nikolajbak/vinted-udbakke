@@ -77,14 +77,14 @@ test("kandidater: Shopify-skabelon droppes, bredder er samme billede", () => {
   const html = `<img src="//cdn.shopify.com/f/hooded_{width}x.jpg?v=1">
     <img srcset="//cdn.shopify.com/f/a_200x.jpg?v=1 200w, //cdn.shopify.com/f/a_800x.jpg?v=1 800w, //cdn.shopify.com/f/a_1200x1600.jpg 1200w">
     <img src="//cdn.shopify.com/f/b%7Bwidth%7D.jpg">`;
-  assert.deepEqual(billedKandidater(html, SIDE, []), ["https://cdn.shopify.com/f/a_200x.jpg?v=1"]);
+  assert.deepEqual(billedKandidater(html, SIDE, []), ["https://cdn.shopify.com/f/a_200x.jpg?v=1&width=1200"]);
 });
 
-test("kandidater: Shopifys width/height/crop fjernes, saa billedet er i fuld stoerrelse", () => {
+test("kandidater: Shopify-billeder hentes i 1200 px bredde", () => {
   const html = `<img src="//teeshoppen.dk/cdn/shop/files/jakke-set-forfra.png?v=17&amp;width=360&amp;height=482&amp;crop=center">`;
-  assert.deepEqual(billedKandidater(html, SIDE, []), ["https://teeshoppen.dk/cdn/shop/files/jakke-set-forfra.png?v=17"]);
+  assert.deepEqual(billedKandidater(html, SIDE, []), ["https://teeshoppen.dk/cdn/shop/files/jakke-set-forfra.png?v=17&width=1200"]);
   const cdn = `<img src="//cdn.shopify.com/s/files/a.jpg?v=1&width=200">`;
-  assert.deepEqual(billedKandidater(cdn, SIDE, []), ["https://cdn.shopify.com/s/files/a.jpg?v=1"]);
+  assert.deepEqual(billedKandidater(cdn, SIDE, []), ["https://cdn.shopify.com/s/files/a.jpg?v=1&width=1200"]);
 });
 
 test("kandidater: &quot; afkodes og slutter adressen", () => {

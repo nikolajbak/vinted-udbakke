@@ -31,9 +31,11 @@ function absolut(u: string, side: string): string | undefined {
   }
   if (x.protocol === "http:") x.protocol = "https:";
   // Shopify skalerer efter forespoergslen: teeshoppen.dk gav forfra-billedet
-  // i 360x482 (19. oktober). Uden den er det billedet i fuld stoerrelse.
+  // i 360x482 (19. oktober). Fuld stoerrelse kan vaere en PNG paa flere MB -
+  // for stor til Anthropic og tung paa telefonen - saa 1200 px bredde.
   if (x.hostname === "cdn.shopify.com" || x.pathname.startsWith("/cdn/shop/")) {
     for (const k of ["width", "height", "crop"]) x.searchParams.delete(k);
+    x.searchParams.set("width", "1200");
   }
   return x.protocol === "https:" ? x.href : undefined;
 }
