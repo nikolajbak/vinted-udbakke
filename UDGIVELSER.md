@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0124 — 2026-10-19 06:59
+
+Commit `6c809e1` — Pasform smides væk led for led, nytFoto tjekker at filen findes, spec og CLAUDE.md passer til koden  
+App: `app.js?v=89f36fd9` · `style.css?v=0c06a2f9`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v92 | `1d0d05bb` |
+| dba-fill-script ← | v41 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v32 | `63727506` |
+| vinted-fill-script ← | v117 | `95621ae9` |
+| vinted-mail ← | v22 | `48755620` |
+
 ## udgivelse-0123 — 2026-10-19 06:52
 
 Commit `3ca30b1` — Pasform: en skala uden markering er ingen pasform, og et svar om det, siden ikke siger, smides væk  
