@@ -16,6 +16,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { erNy, helKroner } from "../_shared/pris.ts";
 import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
+import { boostSalg } from "../_shared/annoncering.ts";
 
 const STILLE_DAGE = 14;
 const HURTIG_DAGE = 7;          // solgt inden for en uge = "saelger let"
@@ -81,6 +82,8 @@ type Vare = {
   andelAfNypris: number | null;   // salgspris (eller nuvaerende pris) i % af nyprisen
   nedsaettelser: number;
   udfald: string;
+  boostet: boolean;      // betalt boost i varens levetid
+  boostSalg: boolean;    // solgt under boostet eller op til 7 dage efter
 };
 
 type Gruppe = {
@@ -101,10 +104,14 @@ type Gruppe = {
   nr: number[];
 };
 
-function dom(g: { solgt: number; vurderbare: number; medianDageTilSalg: number | null; hjerterPrDag: number | null }): Dom {
+// »Saelger let« kraever hurtige salg, der ikke alle var boost-salg (bestemt af
+// dig 19. oktober): et betalt boost siger ikke, at varen saelger af sig selv.
+function dom(g: {
+  solgt: number; vurderbare: number; medianDageUdenBoost: number | null; hjerterPrDag: number | null;
+}): Dom {
   if (g.solgt > 0) {
     const rate = g.solgt / Math.max(1, g.vurderbare);
-    return g.medianDageTilSalg != null && g.medianDageTilSalg <= HURTIG_DAGE && rate >= 0.5 ? "let" : "saelger";
+    return g.medianDageUdenBoost != null && g.medianDageUdenBoost <= HURTIG_DAGE && rate >= 0.5 ? "let" : "saelger";
   }
   if (g.hjerterPrDag != null && g.hjerterPrDag >= LOVENDE_HJERTER_PR_DAG) return "lovende";
   if (g.vurderbare > 0) return "traeg";
@@ -132,7 +139,9 @@ function samle(navn: string, vs: Vare[], ekstra: Partial<Gruppe> = {}): Gruppe {
   const solgte = vs.filter((v) => v.solgt);
   const vurderbare = vs.filter((v) => v.vurderbar).length;
   const medDage = median(solgte.map((v) => v.dage));
-  const hjDag = median(vs.filter((v) => !v.solgt && v.status === "aktiv").map((v) => v.hjerterPrDag));
+  const medUdenBoost = median(solgte.filter((v) => !v.boostSalg).map((v) => v.dage));
+  // Hjerter fra en boostperiode er pustet op: boostede varer taeller ikke med.
+  const hjDag = median(vs.filter((v) => !v.solgt && v.status === "aktiv" && !v.boostet).map((v) => v.hjerterPrDag));
   const g = {
     navn,
     ...ekstra,
@@ -144,6 +153,7 @@ function samle(navn: string, vs: Vare[], ekstra: Partial<Gruppe> = {}): Gruppe {
     medianSalgspris: median(solgte.map((v) => v.salgspris ?? NaN)),
     medianAfNypris: median(solgte.map((v) => v.andelAfNypris ?? NaN)),
     hjerterPrDag: hjDag,
+    medianDageUdenBoost: medUdenBoost,
     nr: vs.map((v) => v.nr).filter((n): n is number => n != null).sort((a, b) => a - b),
   };
   return {
@@ -228,7 +238,7 @@ export async function indkob(supabase: SupabaseClient, apiKey: string) {
 
   const ids = lst.map((l) => l.id as string);
   const draftIds = lst.map((l) => l.draft_id).filter(Boolean) as string[];
-  const [{ data: drafts }, { data: events }] = await Promise.all([
+  const [{ data: drafts }, { data: events }, { data: boosts }] = await Promise.all([
     draftIds.length
       ? supabase.from("drafts").select("id, nr, title, brand, condition, category, category_path, fakta")
         .in("id", draftIds)
@@ -236,7 +246,12 @@ export async function indkob(supabase: SupabaseClient, apiKey: string) {
     ids.length
       ? supabase.from("price_events").select("listing_id, kind").in("listing_id", ids).limit(5000)
       : Promise.resolve({ data: [] }),
+    ids.length
+      ? supabase.from("annoncering").select("listing_id, start, slut").in("listing_id", ids)
+      : Promise.resolve({ data: [] }),
   ]);
+  const boostAf = (id: unknown) => ((boosts ?? []) as Array<{ listing_id: string; start: string; slut: string }>)
+    .filter((b) => b.listing_id === id);
   const draftAf = new Map(((drafts ?? []) as Raekke[]).map((d) => [d.id as string, d]));
   const nedsat = new Map<string, number>();
   ((events ?? []) as Raekke[]).forEach((e) => {
@@ -257,7 +272,11 @@ export async function indkob(supabase: SupabaseClient, apiKey: string) {
     const nypris = isFinite(np) && np > 0 ? np : null;
     const grundPris = salgspris ?? (Number(l.price) || null);
     const vurderbar = solgt || (l.status === "aktiv" && ude >= STILLE_DAGE);
+    const bs = boostAf(l.id);
+    const erBoostSalg = solgt && bs.some((b) => boostSalg(b, l.sold_at as string | null));
     return {
+      boostet: bs.length > 0,
+      boostSalg: erBoostSalg,
       nr: (d.nr as number) ?? null,
       titel: String(pub.title ?? l.title ?? d.title ?? ""),
       maerke: String(d.brand ?? pub.brand ?? "").trim() || "Uden mærke",
@@ -278,12 +297,13 @@ export async function indkob(supabase: SupabaseClient, apiKey: string) {
       nypris,
       andelAfNypris: nypris && grundPris ? Math.round((grundPris / nypris) * 100) : null,
       nedsaettelser: nedsat.get(l.id as string) ?? 0,
-      udfald: solgt
+      udfald: (solgt
         ? `solgt efter ${ude} ${ude === 1 ? "dag" : "dage"}` +
           (salgspris ? ` for ${salgspris} kr${l.sold_price == null ? " (udbudspris)" : ""}` : "")
         : l.status === "aktiv"
         ? `ude i ${ude} ${ude === 1 ? "dag" : "dage"}${vurderbar ? "" : " — for tidligt at bedømme"}`
-        : String(l.status ?? ""),
+        : String(l.status ?? "")
+      ) + (bs.length ? (erBoostSalg ? " (boostet — solgt under/efter boostet)" : " (boostet)") : ""),
     };
   });
 

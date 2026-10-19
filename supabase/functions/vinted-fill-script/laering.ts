@@ -13,6 +13,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { BESKRIVELSE_REGLER } from "../_shared/beskrivelse.ts";
 import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
+import { boostLinje, type Tal } from "../_shared/annoncering.ts";
 
 const MIN_SOLGTE = 3;
 const MIN_VURDERBARE = 6;    // solgt, eller ude i mindst STILLE_DAGE
@@ -73,7 +74,10 @@ const SYSTEM =
   "- Solgt på under to døgn til fuld pris tyder på, at prisen var for lav.\n" +
   "- Vinted skjuler solgte varer, så en markedsmedian er altid for høj. Ingen pris-erfaring må lægge " +
   "en pris over medianen af de sammenlignelige.\n" +
-  "- Visninger findes ikke (Vinted giver altid 0). Brug dem ikke.\n\n" +
+  "- Visninger findes ikke (Vinted giver altid 0). Brug dem ikke.\n" +
+  "- Et salg under eller lige efter et betalt boost beviser ikke, at pris, tekst eller billeder " +
+  "virkede, og hjerter fra en boostperiode er pustet op. Tallene fra boostet (vist, klik, hjerter) " +
+  "siger, om forsidebilledet og titlen fanger (klik pr. visning), og om varens side holder (hjerter pr. klik).\n\n" +
   "En erfaring skal:\n" +
   `- pege på mindst ${MIN_VARER_PR_ERFARING} varer, der kan bedømmes, ved løbenummer — ellers er den en ` +
   "tilfældighed. En vare markeret \"for tidligt at bedømme\" tæller ikke.\n" +
@@ -120,7 +124,7 @@ export async function laer(supabase: SupabaseClient, apiKey: string) {
 
   const ids = lst.map((l) => l.id as string);
   const draftIds = lst.map((l) => l.draft_id).filter(Boolean) as string[];
-  const [{ data: drafts }, { data: events }, { data: beskeder }, { data: fravalgt }] = await Promise.all([
+  const [{ data: drafts }, { data: events }, { data: beskeder }, { data: fravalgt }, { data: boosts }] = await Promise.all([
     draftIds.length
       ? supabase.from("drafts").select(
         "id, nr, title, description, brand, size, condition, category_path, photos, fakta, price_grounded",
@@ -133,6 +137,10 @@ export async function laer(supabase: SupabaseClient, apiKey: string) {
     supabase.from("koeber_beskeder").select("listing_id, item_title, buyer_message, offer, intent, emne")
       .order("at", { ascending: false }).limit(200),
     supabase.from("laerdomme").select("omraade, tekst").not("slaaet_fra", "is", null),
+    ids.length
+      ? supabase.from("annoncering").select("listing_id, start, slut, kr, tal").in("listing_id", ids)
+        .order("start", { ascending: true })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const draftAf = new Map(((drafts ?? []) as Raekke[]).map((d) => [d.id as string, d]));
@@ -163,7 +171,10 @@ export async function laer(supabase: SupabaseClient, apiKey: string) {
           : l.status === "aktiv" ? `ikke solgt, ude i ${ude} dage` : `${l.status} efter ${ude} dage`
         } · ${l.favourites ?? 0} hjerter · startpris ${l.start_price} kr, nu ${l.price} kr · ` +
           `${egne.filter((e) => e.kind === "aendret").length} nedsættelser` +
-          (med ? ` · seneste markedsmedian ${med} kr` : ""),
+          (med ? ` · seneste markedsmedian ${med} kr` : "") +
+          ((boosts ?? []) as Raekke[]).filter((b) => b.listing_id === l.id)
+            .map((b) => " · " + boostLinje(b as { start: string; slut: string; kr: number | null; tal: Tal | null },
+              solgt ? l.sold_at as string : null)).join(""),
         `  vare: ${d.brand ?? "uden mærke"} · str. ${d.size ?? "?"} · ${d.condition ?? "?"} · ` +
           `${Array.isArray(d.category_path) ? (d.category_path as string[]).join(" › ") : "?"}` +
           (fakta.ny ? " · ny" : "") + (fakta.nypris ? ` · nypris ${fakta.nypris} kr nævnt` : "") +
