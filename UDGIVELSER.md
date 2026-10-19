@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0126 — 2026-10-19 13:31
+
+Commit `ac17b6f` — Modelkald via Gemini (gratis) med Claude som reserve, styret pr. trin  
+App: `app.js?v=b9d1ab7b` · `style.css?v=b8dcb4e0`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v94 | `c789b74b` |
+| dba-fill-script ← | v42 | `efdfae13` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v33 | `8b0e0533` |
+| vinted-fill-script ← | v119 | `763ee357` |
+| vinted-mail ← | v23 | `43aee8a9` |
+
 ## udgivelse-0125 — 2026-10-19 10:24
 
 Commit `f0fec3b` — Billeder lægges til og fjernes, også i en annonce, der er ude  
