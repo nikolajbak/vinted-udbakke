@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0123 — 2026-10-19 06:52
+
+Commit `3ca30b1` — Pasform: en skala uden markering er ingen pasform, og et svar om det, siden ikke siger, smides væk  
+App: `app.js?v=89f36fd9` · `style.css?v=0c06a2f9`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v91 | `1d0d05bb` |
+| dba-fill-script ← | v40 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft ← | v31 | `63727506` |
+| vinted-fill-script ← | v116 | `a22578a6` |
+| vinted-mail ← | v21 | `48755620` |
+
 ## udgivelse-0122 — 2026-10-19 06:49
 
 Commit `0c1d35d` — Tag dit eget: serveren lægger billedet til i én sætning (append_draft_photo), svaret lukker ingen anden skærm, filvælger på computeren  
