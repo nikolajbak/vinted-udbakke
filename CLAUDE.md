@@ -648,6 +648,7 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
   på skift (søgningen én — runneren venter 90 s på hele opslaget), 429/5xx
   giver et minuts pause, 404 en time. Gemini 3 tænker `low` for et
   Haiku-kald og `medium` for Sonnet; 2.5 et budget på 1024/4096.
+- **Nøglen lægges ind med `sh tools/gemini-noegle.sh`** (fra udklipsholderen → Supabase-hemmeligheden og `.env.secrets`). Claude må ikke selv håndtere nøglen.
 - **Nøglen skal være uden fakturering** — ellers er det ikke gratis.
   Gratisniveauet må bruge data til at forbedre Googles modeller; det er
   varebilleder og annoncetekster. **Vinteds mails bliver hos Claude**
