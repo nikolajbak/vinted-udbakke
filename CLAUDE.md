@@ -238,6 +238,10 @@ i `function_logs`, beviser intet.
 | Hvert modelkald: Gemini (gratis) eller Claude pr. trin (`modelKald`, nøgle: `GEMINI_API_KEY`); oversættelsen Anthropic ↔ Gemini (`tilGemini`, `fraGemini`, ren og testet med `node --test tools/test-gemini.mjs`) | `supabase/functions/_shared/model.ts`, `_shared/gemini-oversaet.ts` |
 | Billedernes rækkefølge mellem appen og Vinted (`fotoSynk`, `lavKort`, `omordn`); genkendelse på billedet (`genkend`, `aftryk`) | `…/vinted-fill-script/fotos.ts`, `…/vinted-fill-script/fotohash.ts`; krogen i Gem-kaldet `fotoKrog`/`fotoKald` og `fotoIds` i `runner.ts`; træk og slip `flytbarStribe`/`gemRaekkefoelge` i `app.js` |
 | Fanelukkeren »Udbakke luk« (`/udbakke-luk.user.js`) og `lukFanen()` | `LUK_SCRIPT` i `…/vinted-fill-script/index.ts`; `lukFanen`/`fraApp` i `…/vinted-fill-script/runner.ts` |
+| Betalt annoncering: fakturaen, tragten og dommen (`laesFaktura`, `tragt`, `boostDom`, `boostSalg`, `boostLinje`, rene og testet med `node --test tools/test-annoncering.mjs`) | `supabase/functions/_shared/annoncering.ts` |
+| Boost-fakturaen fra mail → ordre (slags `boost`) | `vinted-mail/index.ts` |
+| Fakturaens varer fundet i garderoben, Vinteds tal gemt, dommene, prisvagtens pause (`mode:'boost'`, `boostKoerer`, `boostLinjer`); runnerens `boostRunde` | `…/vinted-fill-script/boost.ts`, `runner.ts` |
+| Betalt annoncering på varens side (`annBlok`, `hentAnnoncering`, `gemAnnoncering`, `annTragt`, `erBoostSalg`) og på Konto | `app.js`, `.ann-…` i `style.css` |
 
 ## Databasen
 
@@ -270,6 +274,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Billeder lagt til og fjernet: `append_draft_photo` løsnet til færdiganalyseret (`ny`/`afsendt`), ikke solgt og under 20 billeder; `remove_draft_photo` (på roden, aldrig det sidste), `restore_draft_photo` (Fortryd), `set_draft_photo_paa_sti` (optimeringen skriver på stien, ikke pladsen) | `sql/020-billeder-til-og-fra.sql` |
 | Runnerens uploads gemt før Gem: `listings.fotos_op` (`[{rod, id}]`); `replace_draft_photo` (beskæringen); låsen i `set_draft_photo_paa_sti`; Fortryd ikke i en solgt vare | `sql/021-billeder-lagt-op.sql` |
 | Hvilken model hvert trin bruger: `modelvalg` (`claude`/`skygge`/`gemini`, opslag trin → delen før kolon → `*`); hvert Gemini-forsøg og skyggens to svar: `modelkald` (30 dage) | `sql/022-gemini.sql` |
+| Betalt annoncering: `annoncering_ordrer` (én faktura, `vinted_mail_id` unik), `annoncering` (én vares del; `kilde` `mail`/`dig`, `tal` og `dom` fra Vinted, unik på ordre+annonce), `annoncering_maal` (Vinteds tal, én pr. dag) | `sql/023-annoncering.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -665,6 +670,45 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
   - **Googles søgning har ingen gratiskvote** (`google_search` → 429 på alle modeller, mens almindelige kald og `url_context` svarede). Derfor er `opslag:nypris_maal` = `claude`.
   - `gemini-2.5-flash` svarer 404 (»no longer available to new users«), og `gemini-3.8-flash` gav 403 fra serveren; begge sættes på pause.
   - Gemini er langsommere end Claude: et billedkald tog 7-52 s og indkøbsanalysen 13 s. Se `ms` i `modelkald`, før et trin, som telefonen venter på (`vinted:*`, `dba:*`), skiftes til `gemini`.
+
+## Betalt annoncering
+
+Bestemt af dig 19. oktober: **betalt boost og anden betalt annoncering
+registreres pr. vare og markedsplads og tælles med i statistikkerne, så de
+forbliver retvisende** — og Vinteds performancetal, som boostet åbner op
+for, bruges. Spec: `docs/superpowers/specs/2026-10-19-betalt-annoncering-design.md`.
+Første gang: nr. 55 og 7, boostet 19. oktober i 3 dage for 25,38 kr.
+
+- **Vinted fylder selv ud.** Fakturaen (»Boost af din artikel - din
+  faktura«) bliver en ordre uden varer (`laesFaktura`, ingen push). Runneren
+  (`boostRunde`, højst én gang i timen pr. fane) henter garderoben, når en
+  ordre mangler varer, og melder dem med `promoted: true`; serveren deler
+  beløbet ligeligt (12,69 kr hver). Et boost, mailen ikke fangede, og alt på
+  DBA/Reshopper registreres på varens side under **Betalt annoncering**
+  (`kilde = 'dig'`, kan slettes).
+- **Et boost-salg** er solgt under boostet eller op til 7 dage efter `slut`
+  (`boostSalg`; appens kopi `erBoostSalg` — ret dem sammen).
+- **Konto**: »Annoncering (N varer)«, »Boost: N boostede · M solgt
+  under/efter« (kr pr. salg) og »Tilbage efter AI og annoncering«; salget
+  mærkes »boostet«. Tid til salg og de andre tal tæller alle salg.
+- **Læringen tæller boost-salg med, men mærket** (dit valg 19. oktober):
+  gennemgangen af salgene får boost-linjen og at et boostet salg ikke
+  beviser, at pris/tekst virkede. **Køb igen**: »sælger let« kræver hurtige
+  salg, der ikke alle var boost-salg; boostede varer tæller ikke i hjerter
+  pr. dag; udfaldet siger »(boostet)«.
+- **Prisvagten holder pause, mens et boost kører** (ingen tilsyn, ingen
+  forslag — heller ikke »Tjek priserne nu«); `next_check_at` flyttes til
+  `slut` + 1 dag. Bagefter får den boost-linjen med tragten og besked om,
+  at hjerterne fra boostet er pustet op.
+- **Tallene bruges**: varens side viser »2.397 vist → 54 klik (2,3 %) → 6 ♥
+  (11,1 %) → 0 beskeder« og én dom (`boostDom`, regnet af serveren og gemt
+  i `annoncering.dom`): solgt → betalte sig; få klik pr. visning →
+  forsidebillede/titel/pris i feedet; klik men få hjerter → varens side
+  eller prisen; mindst 5 hjerter og intet salg efter boostet → prisen.
+  Grænsen er 0,7 × medianen af dine andre boostede varer, når der er
+  mindst 5; ellers fast 1,5 % klik og 5 % hjerter (og dommen siger »skøn«).
+- **Ikke bygget**: »Fokus på garderobe« (bygges, når en rigtig faktura er
+  set — indtil da går den til »ny slags mail«), køb af boost fra appen.
 
 ## Prisen
 
@@ -1690,6 +1734,26 @@ Målt 17. oktober, logget ind i browserruden.
   (nr. 54, 56, 57) var intet under 0,37. Hele genkendelsen af 12 mod 12
   tog 150-800 ms. Tærsklerne (0,15 / 0,15) står i `fotohash.ts`; ret dem
   ikke uden at måle på flere annoncer.
+
+## Vinted: boost og dets tal
+
+Målt 19. oktober i browserruden, logget ind.
+
+- **Fakturaen nævner ikke varerne** (mail 44): kun »3-dags lokalt Boost (2
+  Artikler)« og »I alt / 25.38 kr.« med punktum som decimaltegn; linkene er
+  vilkår og privatliv.
+- **Garderoben siger hvilke**: `promoted: true` og `stats_visible: true`
+  (ikke boostet: `promoted: false`, `can_push_up: true`). `per_page=96`
+  virker; 53 varer på én side.
+- **Tallene**: `GET https://api.vinted.dk/vas/items/{id}/bumps/stats?timezone=Europe%2FCopenhagen`
+  med cookies og **`Accept-Language: da-DK`**. Uden det hoved — også med
+  bare `da` — svarer den 500 `internal server error`; csrf og anon-id er
+  ligegyldige. 404 for en vare uden boost. Svaret `bumped_item_stats` har
+  `impressions` (»medlemmer nået«), `views` (klik), `favorites`,
+  `conversations`, `impression_difference` (×-forskel mod normalt),
+  `chart_data` (7 dage), `humanized_hours_left`, `recently_promoted`. Nr. 7
+  gik fra 36-112 visninger om dagen til 2.034 på boostdagen.
+- `/vas/bumps/orders` (POST) køber et boost — røres aldrig.
 
 ## Vinted: at finde den nye annonce
 

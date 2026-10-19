@@ -19,6 +19,19 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+000000000000000000000. **Betalt annoncering (boost) — 19. oktober** (udgivelse-0128 til -0133).
+   Spec og plan i `docs/superpowers/`; regler i CLAUDE.md »Betalt
+   annoncering« og »Vinted: boost og dets tal«. **Afprøvet:** fakturaen
+   (mail 44 → én ordre, også genlæst to gange); serverens `mode:'boost'`
+   live (nr. 55 og 7 knyttet à 12,69 kr, dubletten afvist, tallene gemt,
+   dommen regnet, `maal` tomt bagefter); Vinteds kald fra browserruden;
+   Køb igen live (»(boostet)«); appen på prøvesiden (tragten, dommen,
+   prisvagtens pause, manuel registrering og sletning, Konto 375 og
+   1280 px, lyst og mørkt); review-agent pr. task og en afsluttende.
+   **Ikke afprøvet:** `boostRunde` i runneren på telefonen (se `spor`
+   »boost: …«), gennemgangen af salgene (`mode:'laer'`) med boost-linjen
+   (kører mandag), og »Fokus på garderobe« (ingen faktura set).
+
 00000000000000000000. **Billeder lagt til og fjernet, også i en annonce, der er ude — 19. oktober**
    (udgivelse-0125). Spec i `docs/superpowers/specs/`; regler i CLAUDE.md
    »Billeder lagt til og fjernet«. **Afprøvet:** appen på prøvesiden (»+«
