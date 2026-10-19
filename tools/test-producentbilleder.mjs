@@ -62,3 +62,20 @@ test("udvaelg dropper andre varer, pakkeshot og ukendte nr", () => {
   ]);
   assert.deepEqual(ud, []);
 });
+
+test("kandidater kaster ikke paa andet end tekst", () => {
+  assert.deepEqual(billedKandidater(undefined, SIDE, [null, undefined, 7, { url: 1 }]), []);
+  assert.deepEqual(billedKandidater("", "ikke en adresse", undefined), []);
+});
+
+test("kandidater: relativ adresse i foerst loeses mod siden, http bliver https", () => {
+  assert.deepEqual(billedKandidater("", SIDE, ["/files/a.jpg", "http://cdn.x.com/b.jpg"]),
+    ["https://shop.dk/files/a.jpg", "https://cdn.x.com/b.jpg"]);
+});
+
+test("kandidater: Shopify-skabelon droppes, bredder er samme billede", () => {
+  const html = `<img src="//cdn.shopify.com/f/hooded_{width}x.jpg?v=1">
+    <img srcset="//cdn.shopify.com/f/a_200x.jpg?v=1 200w, //cdn.shopify.com/f/a_800x.jpg?v=1 800w, //cdn.shopify.com/f/a_1200x1600.jpg 1200w">
+    <img src="//cdn.shopify.com/f/b%7Bwidth%7D.jpg">`;
+  assert.deepEqual(billedKandidater(html, SIDE, []), ["https://cdn.shopify.com/f/a_200x.jpg?v=1"]);
+});

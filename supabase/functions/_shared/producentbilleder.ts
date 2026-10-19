@@ -22,14 +22,22 @@ function afkod(s: string): string {
   return s.replace(/\\\//g, "/").replace(/\\u002F/gi, "/").replace(/&amp;/g, "&");
 }
 
-function absolut(u: string): string | undefined {
+// Absolut og https. JSON-LD og og:image kan staa relativt (»/files/a.jpg«).
+function absolut(u: string, side: string): string | undefined {
   const a = u.startsWith("//") ? "https:" + u : u;
-  try { return new URL(a).href; } catch { return undefined; }
+  let x: URL;
+  try { x = new URL(a, side); } catch {
+    try { x = new URL(a); } catch { return undefined; }
+  }
+  if (x.protocol === "http:") x.protocol = "https:";
+  return x.protocol === "https:" ? x.href : undefined;
 }
 
+// Samme billede i flere bredder er ét billede: Shopifys srcset giver
+// a_200x.jpg, a_800x.jpg ... og ville fylde de tolv pladser med én vare.
 function noegle(u: string): string {
   const x = new URL(u);
-  return x.origin + x.pathname;
+  return x.origin + x.pathname.replace(/_\d+x\d*(?=\.[a-z]+$)/i, "");
 }
 
 // Alle billedadresser i siden. Siden blander varen med anbefalinger og
@@ -37,6 +45,10 @@ function noegle(u: string): string {
 // kandidater - en model vaelger bagefter. JSON-LD og og:image (foerst)
 // kommer forrest, saa filnavne, der deler ord med sidens sti.
 export function billedKandidater(html: string, sideUrl: string, foerst: string[]): string[] {
+  // Tal ikke med paa, at kalderen kun sender tekst: opslaget maa aldrig
+  // vaelte paa billederne.
+  if (typeof html !== "string") html = "";
+  if (!Array.isArray(foerst)) foerst = [];
   let ord: string[] = [];
   try {
     ord = new URL(sideUrl).pathname.toLowerCase().split(/[^a-z0-9æøå]+/)
@@ -45,11 +57,13 @@ export function billedKandidater(html: string, sideUrl: string, foerst: string[]
 
   const set = new Set<string>();
   const alle: string[] = [];
-  const tag = (raa: string) => {
-    const u = absolut(afkod(raa));
+  const tag = (raa: unknown) => {
+    if (typeof raa !== "string") return;
+    const u = absolut(afkod(raa), sideUrl);
     if (!u) return;
     const sti = new URL(u).pathname.toLowerCase();
-    if (IKKE_VAREN.test(sti) || !/\.(jpe?g|png|webp)$/.test(sti)) return;
+    // {width} og %7Bwidth%7D er Shopifys skabeloner, ikke et billede.
+    if (IKKE_VAREN.test(sti) || /[{}]|%7b|%7d/.test(sti) || !/\.(jpe?g|png|webp)$/.test(sti)) return;
     const n = noegle(u);
     if (set.has(n)) return;
     set.add(n);
