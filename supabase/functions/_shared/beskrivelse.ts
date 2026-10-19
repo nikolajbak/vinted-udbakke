@@ -5,6 +5,7 @@
 // Nu staar reglerne her, og alle fire laeser dem.
 
 import { noterForbrug } from "./forbrug.ts";
+import { billedKandidater, udvaelg, type BilledSvar, type ProducentBillede } from "./producentbilleder.ts";
 
 export const BESKRIVELSE_REGLER =
   "Regler for beskrivelsen:\n" +
@@ -109,6 +110,12 @@ export type Fakta = {
   // Maerket, som produktsiden selv opgiver det (JSON-LD). Nr. 56 var en Roly
   // Sitka solgt hos Teeshoppen og blev kaldt »TeeShoppen«.
   produktMaerke?: string;
+  // Producentens billeder af varen paa en person, fra produktsiden - kun
+  // links, kun til appen som forlaeg. ALDRIG i drafts.photos: Vinted forbyder
+  // billeder, saelgeren ikke selv har taget.
+  producentBilleder?: ProducentBillede[];
+  // Det, butikken skriver om pasformen og modellens hoejde/stoerrelse.
+  pasform?: string;
   // Hvornaar opslaget sidst kørte uden at fejle, saa markedsrunden ved, om et
   // gammelt udkast mangler det.
   opslaaet?: string;
@@ -125,6 +132,7 @@ export function faktaTekst(f: unknown): string {
         `${k.produktMaerke ? `. Mærket er ${k.produktMaerke} — butikken er kun forhandler` : ""}. Den er fundamentet for annoncen: brug butikkens ` +
         "navn for varen og dens egenskaber i titel og tekst, også hvor billedanalysen siger noget andet. " +
         "Skriv ikke adressen eller butikkens navn i annoncen.",
+    k.pasform && `Butikken skriver om pasformen: ${k.pasform}. Brug det, hvis det hjælper køberen med størrelsen — skriv ikke, at det kommer fra butikken eller fra et billede.`,
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
     k.maerkeFarve && `Farve ifølge mærket: ${k.maerkeFarve}. Brug den farve (på dansk) i titel og tekst, også hvis billedet ser anderledes ud, og vælg den nærmeste i Vinteds farveliste.`,
     k.dele?.length && `Sælges samlet: ${k.dele.join(" + ")}. Nævn hver del i titel og tekst.`,
@@ -173,8 +181,15 @@ const OPSLAG_TOOL = {
         type: ["integer", "null"],
         description: "Plaggets skulderbredde i cm i netop denne størrelse, som den står hos mærket. Ikke kropsmål. null ellers.",
       },
+      pasform: {
+        type: ["string", "null"],
+        description:
+          "Kun det, varens produktside selv skriver om pasform og modellens højde/størrelse, kort og på dansk, " +
+          "fx \"normal pasform; modellen er 178 cm og bærer M\". Skriv aldrig, hvad siden IKKE siger, og intet fra " +
+          "andre sider. null hvis siden hverken nævner pasformen eller modellen.",
+      },
     },
-    required: ["nypris", "nyprisKilde", "produktside", "produktNavn", "produktTekst", "maal", "laengde", "skulderbredde"],
+    required: ["nypris", "nyprisKilde", "produktside", "produktNavn", "produktTekst", "maal", "laengde", "skulderbredde", "pasform"],
   },
 };
 
@@ -185,6 +200,7 @@ export type Opslag = {
   nypris?: number; nyprisKilde?: string; produktside?: string; produktNavn?: string; produktTekst?: string;
   produktMaerke?: string;
   maal?: string; laengde?: number; skulderbredde?: number;
+  producentBilleder?: ProducentBillede[]; pasform?: string;
 };
 
 export async function slaaOp(
@@ -281,6 +297,7 @@ export async function slaaOp(
       // en side, der stod i EUR (133,95 € paa teeshoppen.com).
       const siden = url ? await laesSiden(url) : {};
       const paaSiden = siden.pris;
+      const producentBilleder = url ? await vaelgBilleder(apiKey, siden.kandidater ?? [], billeder, draftId) : [];
       const pris = paaSiden ?? (nypris > 0 ? nypris : undefined);
       return {
         nypris: vare.ny && pris ? pris : undefined,
@@ -296,6 +313,8 @@ export async function slaaOp(
         maal: vare.size && i.maal ? String(i.maal) : undefined,
         laengde: vare.size ? cm(i.laengde) : undefined,
         skulderbredde: vare.size ? cm(i.skulderbredde) : undefined,
+        pasform: tekst(i.pasform, 200),
+        producentBilleder: producentBilleder.length ? producentBilleder : undefined,
       };
     }
     if (data?.stop_reason !== "pause_turn") return {};
@@ -307,8 +326,8 @@ export async function slaaOp(
 // Prisen i hele danske kroner og maerket, som produktsiden selv opgiver dem i
 // sin JSON-LD (`Product` med `offers` og `brand`). Kun DKK - en pris i en
 // anden valuta er ikke en dansk nypris. Intet, hvis siden ikke svarer.
-async function laesSiden(url: string): Promise<{ pris?: number; maerke?: string }> {
-  const ud: { pris?: number; maerke?: string } = {};
+async function laesSiden(url: string): Promise<{ pris?: number; maerke?: string; kandidater: string[] }> {
+  const ud: { pris?: number; maerke?: string; kandidater: string[] } = { kandidater: [] };
   try {
     const res = await fetch(url, {
       headers: { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1", "accept-language": "da-DK" },
@@ -317,13 +336,19 @@ async function laesSiden(url: string): Promise<{ pris?: number; maerke?: string 
     if (!res.ok) return ud;
     const html = (await res.text()).slice(0, 3_000_000);
     const blokke = html.match(/<script[^>]*application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi) ?? [];
+    // JSON-LD's og og:image's billeder kommer forrest blandt kandidaterne.
+    const foerst: string[] = [];
     for (const b of blokke) {
       let d: unknown;
       try { d = JSON.parse(b.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "")); } catch { continue; }
       const alle = ([] as unknown[]).concat(d, (d as { "@graph"?: unknown[] })?.["@graph"] ?? []);
       for (const x of alle) {
-        const p = x as { "@type"?: unknown; offers?: unknown; brand?: unknown };
+        const p = x as { "@type"?: unknown; offers?: unknown; brand?: unknown; image?: unknown };
         if (!p || !String(p["@type"] ?? "").includes("Product")) continue;
+        for (const im of ([] as unknown[]).concat(p.image ?? [])) {
+          const u = typeof im === "string" ? im : (im as { url?: unknown; contentUrl?: unknown })?.url ?? (im as { contentUrl?: unknown })?.contentUrl;
+          if (typeof u === "string") foerst.push(u);
+        }
         const b = typeof p.brand === "string" ? p.brand : (p.brand as { name?: unknown })?.name;
         if (!ud.maerke && typeof b === "string" && b.trim()) ud.maerke = b.trim().slice(0, 60);
         const offers = ([] as unknown[]).concat(p.offers ?? []) as Array<Record<string, unknown>>;
@@ -334,8 +359,104 @@ async function laesSiden(url: string): Promise<{ pris?: number; maerke?: string 
         }
       }
     }
+    for (const m of html.matchAll(/<meta[^>]+(?:property|name)=["']og:image(?::url)?["'][^>]*>/gi)) {
+      const c = m[0].match(/content=["']([^"']+)["']/i)?.[1];
+      if (c) foerst.push(c);
+    }
+    ud.kandidater = billedKandidater(html, url, foerst);
   } catch (_) { /* siden er en ekstra */ }
   return ud;
+}
+
+// Producentens billeder af varen paa en person - til appen, som forlaeg.
+// Siden blander varen med anbefalinger og samme model i andre farver
+// (teeshoppen.dk: sort, navy og oliven af samme jakke), og filnavnene foelger
+// intet faelles moenster, saa en model, der ser billederne, vaelger.
+// Kun et nummer fra listen kan vaelges: en adresse, der ikke stod i sidens
+// HTML, kan ikke komme ind. Fejl giver bare ingen billeder.
+const BILLED_TOOL = {
+  name: "angiv_billeder",
+  description: "Bedøm hver kandidat.",
+  input_schema: {
+    type: "object",
+    properties: {
+      billeder: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            nr: { type: "integer" },
+            sammeVare: { type: "boolean", description: "Samme model OG samme farve som varen." },
+            paaPerson: { type: "boolean", description: "Varen bæres af en person." },
+            pose: { type: "string", enum: ["forfra-hel", "trekvart", "bagfra", "naer", "pakkeshot", "andet"] },
+          },
+          required: ["nr", "sammeVare", "paaPerson", "pose"],
+        },
+      },
+    },
+    required: ["billeder"],
+  },
+};
+
+export async function vaelgBilleder(
+  apiKey: string, kandidater: string[], egne: string[], draftId?: unknown,
+): Promise<ProducentBillede[]> {
+  if (!kandidater.length) return [];
+  const kald = async (liste: string[]) => {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-haiku-5-5",
+        max_tokens: 1500,
+        tools: [BILLED_TOOL],
+        tool_choice: { type: "tool", name: BILLED_TOOL.name },
+        messages: [{
+          role: "user",
+          content: [
+            ...egne.slice(0, 4).map((url) => ({ type: "image", source: { type: "url", url } })),
+            { type: "text", text: "Billederne ovenfor er varen, der sælges." },
+            ...liste.flatMap((url, i) => [
+              { type: "text", text: `Kandidat ${i + 1}:` },
+              { type: "image", source: { type: "url", url } },
+            ]),
+            {
+              type: "text",
+              text: "For hver kandidat: er det samme model OG samme farve som varen (sammeVare), bæres den af en " +
+                "person (paaPerson), og hvilken pose: forfra-hel (hele figuren forfra), trekvart, bagfra, naer " +
+                "(stof eller detalje tæt på), pakkeshot (uden person) eller andet. En anden farve af samme model " +
+                "er ikke samme vare.",
+            },
+          ],
+        }],
+      }),
+    });
+    return { res, tekst: res.ok ? "" : await res.text() };
+  };
+  try {
+    let liste = kandidater;
+    let { res, tekst } = await kald(liste);
+    // Et billede, Anthropic ikke kan hente, vaelter hele kaldet. Én gang til
+    // uden de adresser, fejlen naevner.
+    if (res.status === 400) {
+      const uden = liste.filter((u) => !tekst.includes(u));
+      if (!uden.length || uden.length === liste.length) return [];
+      liste = uden;
+      ({ res, tekst } = await kald(liste));
+    }
+    if (!res.ok) { console.error("producentbilleder", res.status, tekst.slice(0, 200)); return []; }
+    const data = await res.json();
+    await noterForbrug(data, "opslag:billeder", draftId);
+    const brug = (data?.content || []).find((b: { type?: string; name?: string }) =>
+      b?.type === "tool_use" && b?.name === BILLED_TOOL.name);
+    let svar = brug?.input?.billeder as unknown;
+    // Modellen leverer af og til en indlejret liste som tekst.
+    if (typeof svar === "string") { try { svar = JSON.parse(svar); } catch { svar = []; } }
+    return udvaelg(liste, svar as BilledSvar[]);
+  } catch (err) {
+    console.error("producentbilleder sprunget over", err);
+    return [];
+  }
 }
 
 // Et maal i hele cm, eller intet. Et plag under 10 eller over 250 cm er en

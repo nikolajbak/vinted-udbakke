@@ -897,6 +897,9 @@ Deno.serve(async (req: Request) => {
         fakta.produktTekst = fundet.produktTekst;
         fakta.produktMaerke = fundet.produktMaerke;
       }
+      // Overskriv ikke et gammelt fund med intet.
+      if (fundet.producentBilleder?.length) fakta.producentBilleder = fundet.producentBilleder;
+      if (fundet.pasform) fakta.pasform = fundet.pasform;
       if (fundet.maal) { fakta.maal = fundet.maal; fakta.maalKilde = "mærkets størrelsesguide"; }
       // Plaggets egne maal til Vinteds felter - kun naar varens produktside
       // opgiver dem. Et saet har ingen samlet laengde.

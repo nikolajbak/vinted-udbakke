@@ -19,7 +19,7 @@ const IKKE_ORD = new Set(["products", "product", "html"]);
 const BILLEDE = /(?:https?:)?\/\/[A-Za-z0-9.-]+\/[^"'\s)<>,]+?\.(?:jpe?g|png|webp)(?:\?[^"'\s)<>,]*)?/gi;
 
 function afkod(s: string): string {
-  return s.replace(/\\\//g, "/").replace(/\\u002F/gi, "/").replace(/&amp;/g, "&");
+  return s.replace(/\\\//g, "/").replace(/\\u002F/gi, "/").replace(/&quot;/g, "\"").replace(/&amp;/g, "&");
 }
 
 // Absolut og https. JSON-LD og og:image kan staa relativt (»/files/a.jpg«).
@@ -30,6 +30,11 @@ function absolut(u: string, side: string): string | undefined {
     try { x = new URL(a); } catch { return undefined; }
   }
   if (x.protocol === "http:") x.protocol = "https:";
+  // Shopify skalerer efter forespoergslen: teeshoppen.dk gav forfra-billedet
+  // i 360x482 (19. oktober). Uden den er det billedet i fuld stoerrelse.
+  if (x.hostname === "cdn.shopify.com" || x.pathname.startsWith("/cdn/shop/")) {
+    for (const k of ["width", "height", "crop"]) x.searchParams.delete(k);
+  }
   return x.protocol === "https:" ? x.href : undefined;
 }
 

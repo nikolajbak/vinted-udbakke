@@ -219,6 +219,7 @@ i `function_logs`, beviser intet.
 | Køberbeskeder fra mail som opgave på forsiden (`SVAR`, `hentSvar`) | `app.js` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
+| Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
@@ -249,7 +250,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Løbenumre: `drafts.nr` fra en sekvens | `sql/003-loebenummer.sql` |
 | Annoncens egne ord: `listings.published` | `sql/004-udgivet.sql` |
 | Ventende ændringer til annoncen: `listings.pending` | `sql/005-ventende-aendringer.sql` |
-| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, køn sat af dig `koen`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`) | `sql/006-fakta.sql` |
+| Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, køn sat af dig `koen`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`, producentens billeder af varen på en person `producentBilleder` (`[{url, pose}]`, kun links, kun til appen — aldrig i en annonce), butikkens ord om pasformen `pasform`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` (rækkerne `vinted-runner`, `dba-runner`, `prisvagt` = sidste forespørgsel på forfaldne, `prisvagt-dagligt` = sidste daglige tjek) | `sql/009-lager.sql` |
@@ -330,6 +331,10 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   alle mærker. Børnesko har skonumre og røres ikke.
 - **Står materialet på vaskemærket, skrives det præcis sådan** (»95% bomuld,
   5% elastan«), og Vinteds materialefelt får det, der er mest af.
+- **Pasformen fra butikken** (19. oktober): opslaget læser, hvad
+  produktsiden skriver om pasform og modellens højde/størrelse
+  (`fakta.pasform`), og `faktaTekst` giver det til alle fire tekstskrivere —
+  uden at nævne butikken eller et billede.
 - Spørgsmål fra købere besvares med samme tone (køber-assistenten,
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
@@ -1358,6 +1363,29 @@ Reglerne for farveægthed står under »Dine beslutninger → Billedernes farver
   som den simple fandt på 21 s. Og `max_tokens` under ~4000 slap op midt i
   søgningen og gav et tomt svar. Opslaget kører side om side med
   markedssøgningen i `analyze-draft`, så det ikke lægger sin tid oveni.
+
+## Produktsidernes billeder
+
+Målt 19. oktober på nr. 54, 63, 65 og 66 (to gennemløb hver).
+
+- **Varens billeder står sjældent pænt i sidens data.** JSON-LD `image` gav
+  1 (Teeshoppen), 6 (Magasin) og 0 (Ganni, Mads Nørgaard); Shopifys
+  `/products/<handle>.json` svarer 404 (Teeshoppen er headless). HTML'en
+  blander varen med menuer, kampagner, anbefalinger og samme model i andre
+  farver (Teeshoppen: sort, navy og oliven af samme jakke). Derfor vælger
+  en model blandt højst 12 kandidater (`vaelgBilleder`, Haiku 5.5,
+  ~0,002 $ pr. vare) — kun et nummer fra listen kan vælges.
+- **Ganni og Mads Nørgaard tegner galleriet i browseren** — varens egne
+  billeder står slet ikke i HTML'en, kun andre varer og kampagner. Modellen
+  afviste dem alle (ingen forkerte fund). Magasin viser kun varen liggende
+  (pakkeshot), så heller ingen. Resultat: nr. 54 fik forfra, trekvart og
+  bagfra, ens i begge gennemløb; de tre andre korrekt ingen.
+- **Shopify skalerer efter forespørgslen**: forfra-billedet kom i 360×482
+  (`width=360&height=482&crop=center`); `width`/`height`/`crop` fjernes.
+  Samme billede i flere bredder (`_200x`, `_800x`) er ét billede, og
+  `{width}`-skabeloner er ikke billeder.
+- **Pasform**: modellen skrev »ingen modelhøjde angivet«, når siden intet
+  sagde — prompten siger nu, at den aldrig skriver, hvad siden IKKE siger.
 
 ## Vinted: formularen
 

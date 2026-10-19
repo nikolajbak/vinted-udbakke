@@ -79,3 +79,15 @@ test("kandidater: Shopify-skabelon droppes, bredder er samme billede", () => {
     <img src="//cdn.shopify.com/f/b%7Bwidth%7D.jpg">`;
   assert.deepEqual(billedKandidater(html, SIDE, []), ["https://cdn.shopify.com/f/a_200x.jpg?v=1"]);
 });
+
+test("kandidater: Shopifys width/height/crop fjernes, saa billedet er i fuld stoerrelse", () => {
+  const html = `<img src="//teeshoppen.dk/cdn/shop/files/jakke-set-forfra.png?v=17&amp;width=360&amp;height=482&amp;crop=center">`;
+  assert.deepEqual(billedKandidater(html, SIDE, []), ["https://teeshoppen.dk/cdn/shop/files/jakke-set-forfra.png?v=17"]);
+  const cdn = `<img src="//cdn.shopify.com/s/files/a.jpg?v=1&width=200">`;
+  assert.deepEqual(billedKandidater(cdn, SIDE, []), ["https://cdn.shopify.com/s/files/a.jpg?v=1"]);
+});
+
+test("kandidater: &quot; afkodes og slutter adressen", () => {
+  const html = `data-x="{&quot;src&quot;:&quot;//cdn.x.com/a.jpg?sh=1000&quot;}"`;
+  assert.deepEqual(billedKandidater(html, SIDE, []), ["https://cdn.x.com/a.jpg?sh=1000"]);
+});

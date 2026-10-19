@@ -1929,6 +1929,9 @@ Deno.serve(async (req: Request) => {
             fakta.produktTekst = fundet.produktTekst;
             fakta.produktMaerke = fundet.produktMaerke;
           }
+          // Overskriv ikke et gammelt fund med intet.
+          if (fundet.producentBilleder?.length) fakta.producentBilleder = fundet.producentBilleder;
+          if (fundet.pasform) fakta.pasform = fundet.pasform;
           d.fakta = fakta;
           await supabase.from("drafts").update({ fakta }).eq("id", body.id);
         } catch (err) {
