@@ -118,7 +118,12 @@
       // sig selv, saa annoncerne laegges paa ud fra draft_id.
       if(m[1] === 'drafts' && /listings%28|listings\(/.test(m[2])){
         body = body.map(function(d){
-          return Object.assign({}, d, { listings: (data.listings || []).filter(function(l){ return l.draft_id === d.id; }) });
+          // Kun de felter, appen beder om - ellers skjuler mock'en et
+          // manglende felt (19. oktober: draft_id manglede i appen).
+          var felter = (decodeURIComponent(m[2]).match(/listings\(([^)]*)\)/) || [])[1];
+          felter = felter ? felter.split(',').map(function(f){ return f.trim(); }) : null;
+          return Object.assign({}, d, { listings: (data.listings || []).filter(function(l){ return l.draft_id === d.id; })
+            .map(function(l){ if(!felter) return l; var u = {}; felter.forEach(function(f){ if(f in l) u[f] = l[f]; }); return u; }) });
         });
       }
       var h = opt && opt.headers; var acc = h && (h.get ? h.get('Accept') : h.Accept || h.accept);

@@ -16,6 +16,6 @@ for t in drafts listings price_events puls forbrug laerdomme annoncering; do
 done
 cp tools/proeve-mock.js proeve/mock.js
 t=$(date +%s)
-sed -e 's#<script src="https://cdn.jsdelivr.net#<script src="proeve/mock.js"></script><script src="https://cdn.jsdelivr.net#' \
+sed -e "s|<script src=\"https://cdn.jsdelivr.net|<script src=\"proeve/mock.js?v=$t\"></script><script src=\"https://cdn.jsdelivr.net|" \
     -e "s#style.css?v=[a-z0-9]*#style.css?v=$t#" -e "s#app.js?v=[a-z0-9]*#app.js?v=$t#" index.html > proeve.html
 echo "proeve.html klar"

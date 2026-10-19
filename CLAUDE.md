@@ -176,7 +176,7 @@ intet sendes og intet gemmes. »Køb igen« får et fast eksempel
 Mock'en kan fejle (`window.__proeveFejl`), være langsom
 (`window.__proeveVent`, eller `localStorage` `proeveVent` til en
 genindlæsning), og en PATCH lægges i dens hukommelse, så en genhentning
-ser den. `window.__proeveData` er mock'ens data — læg fx en
+ser den. Mock'en giver kun de felter i en indlejret `listings(…)`, appen beder om (19. oktober: før gav den alle, og at `draft_id` manglede i `ANNONCE_FELTER`, skjulte den — løbenummeret på mærkatet virkede kun i prøve-appen). Et felt, appen læser på en annonce, skal stå i `ANNONCE_FELTER`. `window.__proeveData` er mock'ens data — læg fx en
 køberbesked i `koeber_beskeder` og send `visibilitychange`, så henter
 appen igen. Appens service worker serverer gammel CSS på
 localhost: afregistrér den i ruden, hvis en ændring ikke slår igennem.

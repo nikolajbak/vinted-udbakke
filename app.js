@@ -1551,7 +1551,8 @@
   function visMaerkat(l){
     var fs = l.forsendelse || {}, o = $('fs-stor');
     var url = fs.maerkat && MAERKAT[fs.maerkat];
-    var d = rows[l.draft_id] || {};
+    var d = rows[l.draft_id] || Object.keys(rows).map(function(k){ return rows[k]; })
+      .find(function(r){ return annoncer(r).indexOf(l) >= 0; }) || {};
     var h = '<div class="fs-stor-top"><b>' + esc((fs.transportoer ? fs.transportoer + ' · ' : '') + (fs.maerkat ? 'Fragtmærkat' : 'Fragtkode')) +
       '</b><button type="button" class="btn btn-quiet" data-fs-luk>Luk</button></div><div class="fs-stor-krop">';
     // Varen og forsendelsesnummeret paa samme side som koden (bestemt af
@@ -4884,7 +4885,8 @@
 
   // Hele lageret hentes med annoncerne paa: fasen, prisen og hjerterne paa
   // kortet kommer fra annoncen, ikke fra udkastet.
-  var ANNONCE_FELTER = 'id, platform, url, external_id, title, price, start_price, status, favourites, ' +
+  // draft_id skal med: maerkatet og opgaverne finder varen (og loebenummeret) paa den.
+  var ANNONCE_FELTER = 'id, draft_id, platform, url, external_id, title, price, start_price, status, favourites, ' +
     'listed_at, sold_at, sold_price, pending, pending_note, pending_since, forslag, last_check_at, next_check_at, auto, note, published, synced_at, fotos, forsendelse';
   // Koeberbeskeder fra Vinteds mails, der venter paa dit svar.
   var SVAR = [], KOE_HENTET = false;
