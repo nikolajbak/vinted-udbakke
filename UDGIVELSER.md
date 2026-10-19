@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0118 — 2026-10-19 05:00
+
+Commit `dba5d56` — Prisforslagenes push åbner Opgaver; Ude uden pris siger »ingen pris«; »Venter også« tilbage; Mere-kortet hentes igen ved tilbage  
+App: `app.js?v=960c0444` · `style.css?v=a97f58d2`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v88 | `66083c2e` |
+| dba-fill-script | v38 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v29 | `63727506` |
+| vinted-fill-script ← | v112 | `cd90f89b` |
+| vinted-mail | v19 | `48755620` |
+
 ## udgivelse-0117 — 2026-10-19 01:19
 
 Commit `e48cc10` — Opgaver: kun det nyeste svar tæller, ingen falsk »Intet venter«, »Godkend alle« siger hvad der fejlede  
