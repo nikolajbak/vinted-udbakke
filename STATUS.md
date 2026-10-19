@@ -19,6 +19,15 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0. **Forsendelsen på varen — 19. oktober** (udgivelse-0135/-0136). Regler i
+   CLAUDE.md »Forsendelsen«. **Afprøvet:** mail 7-49 genlæst — alle fire
+   solgte varer har status, frist, sporing og DAO's fragtkode; Opgaver og
+   varens side i prøve-appen (computer og telefonbredde). **Ikke afprøvet:**
+   om CloudMailin sender det vedhæftede mærkat med — se `handling` på den
+   næste »fragtmærkat«-mail (»mærkat gemt (pdf)« eller »ingen fil
+   vedhæftet …«). Kommer det ikke, så se CloudMailins indstillinger for
+   vedhæftninger. »Vis mærkat« er derfor ikke set med en rigtig fil.
+
 000000000000000000000. **Betalt annoncering (boost) — 19. oktober** (udgivelse-0128 til -0133).
    Spec og plan i `docs/superpowers/`; regler i CLAUDE.md »Betalt
    annoncering« og »Vinted: boost og dets tal«. **Afprøvet:** fakturaen
