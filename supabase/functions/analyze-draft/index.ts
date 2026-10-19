@@ -637,7 +637,11 @@ Deno.serve(async (req: Request) => {
         };
 
         const frame = {
-          subject: cleanText(g.subject) || undefined,
+          // Et billede paa kroppen (trinnet »På kroppen«, »Tag dit eget som
+          // dette«) isoleres aldrig: en person paa hvidt ligner en udklipning.
+          subject: l.photo.kind === "paa-kroppen" && cleanText(g.subject) === "helvare"
+            ? "paakroppen"
+            : cleanText(g.subject) || undefined,
           subjectCutOff: g.subjectCutOff === true,
           backgroundClutter: g.backgroundClutter === true,
           padStyle: (row?.pad_style as string) || "hvid",

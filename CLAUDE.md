@@ -220,6 +220,7 @@ i `function_logs`, beviser intet.
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
+| Ét nyt billede i et klar-udkast optimeres alene (`mode:'nytFoto'`, kalder delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; afviser `ikke_klar`, `findes_ikke`, `optimeret`) | `…/vinted-fill-script/index.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
@@ -1276,6 +1277,10 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   klistret op ad kanten læser det som en fejl. Var motivet allerede skåret af i
   originalen, lægges rammen bredt, så det afskårne ikke springer i øjnene.
   Værdierne står i `PADDING` i `optimize.ts`.
+- **Et billede på kroppen isoleres aldrig** (`kind: 'paa-kroppen'`,
+  19. oktober): en person på hvidt ligner en udklipning. Siger modellen
+  `helvare`, bliver motivet `paakroppen` — samme luft (`PADDING`), ingen
+  hvid ramme, seriens format og tone som alle andre.
 - **KUN hele varer isoleres — aldrig nærbilleder.** Et hovedbillede skal ligne
   et produktfoto i gitteret, og en hel vare har ingen gavn af den flade, den
   ligger på. Et nærbillede beholder sine omgivelser: stoffet omkring et mærkat

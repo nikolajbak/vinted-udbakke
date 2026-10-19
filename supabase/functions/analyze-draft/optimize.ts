@@ -76,6 +76,9 @@ const MAX_EDGE = 1600;
 // dét, billedet handler om.
 const PADDING: Record<string, number> = {
   helvare: 0.035,
+  // Varen paa en person: samme luft som en hel vare, men isoleres aldrig -
+  // en person paa hvidt ligner en udklipning.
+  paakroppen: 0.035,
   maerkat: 0.18,
   logo: 0.18,
   detalje: 0.10,

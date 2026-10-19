@@ -1424,6 +1424,36 @@ Deno.serve(async (req: Request) => {
     // skriv:true skrives beskrivelsen forfra ud fra den. `fra` er teksten, du
     // startede fra - ikke modellens omskrivning - saa kun dine egne rettelser
     // bliver til laering.
+    // »Tag dit eget som dette«: appen har lagt ét nyt billede sidst i et
+    // klar-udkast, og det optimeres alene med seriens tone og format (det
+    // eksisterende delkald i analyze-draft). Appen kan ikke selv kalde
+    // analyze-draft - det kraever webhook-hemmeligheden.
+    if (body.mode === "nytFoto") {
+      if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
+      const { data: d, error: e } = await supabase.from("drafts")
+        .select("id, status, photos, posted_to, listings(id)").eq("id", body.id).maybeSingle();
+      if (e) return json({ error: e.message }, 500);
+      if (!d) return json({ error: "ikke_fundet" }, 404);
+      // Samme regel som fase() i app.js for »klar« - ret de to sammen. En
+      // vare, der er ude, har fotos_sendt og en parring med Vinteds
+      // billed-id'er; et ekstra billede dér er ikke designet.
+      const sendt = Object.values((d.posted_to ?? {}) as Record<string, unknown>).some(Boolean);
+      const lst = (d as { listings?: unknown[] }).listings;
+      if (sendt || (Array.isArray(lst) && lst.length) || d.status === "afsendt" || d.status === "kasseret") {
+        return json({ error: "ikke_klar" }, 409);
+      }
+      const n = body.photo;
+      const fotos = (Array.isArray(d.photos) ? d.photos : []) as Array<{ optimized?: boolean }>;
+      if (!Number.isInteger(n) || !fotos[n]) return json({ error: "findes_ikke" }, 400);
+      if (fotos[n].optimized) return json({ error: "optimeret" }, 409);
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-draft`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-webhook-secret": Deno.env.get("WEBHOOK_SECRET") ?? "" },
+        body: JSON.stringify({ id: d.id, photo: n }),
+      });
+      await res.body?.cancel();
+      return res.ok ? json({ ok: true }) : json({ error: "fejl", status: res.status }, 502);
+    }
     if (body.mode === "omskriv") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
       const { data: d, error: e } = await supabase.from("drafts")
