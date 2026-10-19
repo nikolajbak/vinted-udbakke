@@ -106,6 +106,8 @@ udgivelser lige efter hinanden. `vent-paa-pages.sh` venter derfor og beder om
 ét byg til, i stedet for at melde udgivelsen død — og et byg, der fejler, skal
 ikke få nogen til at lede efter fejlen i det, der blev skrevet.
 
+**Se GitHubs status, før der skubbes på igen.** 19. oktober (udgivelse-0141) fejlede ét byg efter et andet, og bygget stod derefter i kø i over 20 minutter: GitHub meldte »Degraded availability for GitHub Actions, GitHub Pages and Webhooks« (`curl -s https://www.githubstatus.com/api/v2/summary.json`). Et `POST …/pages/builds` hvert andet minut afbrød bare det forrige (»cancelled«); bygget i kø kommer af sig selv, når GitHub er oppe igen.
+
 ## Før en commit
 
 **Kør `./build.sh` før hver commit, der rører `style.css` eller `app.js`.** Den
