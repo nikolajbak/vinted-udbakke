@@ -695,9 +695,14 @@ sender ingen mails.
   `maerkater` (`<listing>/<mail>.pdf`) — det kan bære købers navn og
   adresse, så aldrig i `photos`. Appen henter tidsbegrænsede links
   (6 t, `createSignedUrls`). En PDF vælges før et billede; billeder under
-  10 kB er Vinteds logoer. **Ikke målt:** om CloudMailin sender
-  vedhæftningen med — `handling` siger »mærkat gemt (pdf)« eller »ingen fil
-  vedhæftet (N filer: …)«. `?genlaes` har ingen filer.
+  10 kB er Vinteds logoer. **CloudMailin sender vedhæftningen med**
+  (målt 19. oktober, mail 50: »mærkat gemt (pdf)«, 104 kB) — `handling`
+  siger ellers »ingen fil vedhæftet (N filer: …)«. `?genlaes` har ingen
+  filer. Vinteds GLS-mærkat er én A4-side med et kort øverst: »Scan koden
+  for at sende pakken«, GLS, modtagerens navn, QR-koden, et nummer og
+  sporingskoden.
+- **Adressen, mails sendes videre til**, står i `.env.secrets`
+  (`CLOUDMAILIN_ADRESSE`) — ikke i repoet, som er offentligt.
 - **Varens side**: blokken »Forsendelse« under Vinted, når varen er solgt:
   status, frist (rav, rød det sidste døgn), hvordan (»GLS · Under 1000 g —
   vis mærkatet i pakkeshoppen« / »sig fragtkoden …«), fragtkode og
@@ -716,6 +721,13 @@ sender ingen mails.
     QR-koden af telefonen. En PDF tegnes af pdf.js 3.11.174 fra cdnjs
     (hentet først ved tryk, op til tre sider), et billede vises som det er.
     Appen kan ikke zoomes, så et tryk på mærkatet gør det 2,5 × større.
+    **QR-koden skæres ud og står stort øverst** (`fremhaevKode`, jsQR
+    1.4.0 fra jsdelivr): på det rigtige mærkat var den ellers ~70 px bred
+    på telefonen. Siden tegnes mindst 2400 px bred, så udsnittet er skarpt,
+    og den hvide rest af A4-siden skæres fra (`udenHvidt`). Findes koden
+    ikke, vises mærkatet bare. Prøvet med mail 50's mærkat: koden læst af
+    udsnittet. pdf.js tegner ikke, mens browserruden er skjult — tag et
+    skærmbillede, før der ledes efter en fejl.
     Lukkes kun med Luk og ved navigation. Uden fil, men med DAO's
     fragtkode: **Vis fragtkoden** stort. Prøvet med et PDF-mærkat med
     QR-kode i prøve-appen: koden læst af `jsQR` fra det tegnede.

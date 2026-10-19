@@ -1445,6 +1445,66 @@
     });
     return PDFJS;
   }
+  // QR-koden stort oeverst: Vinteds GLS-maerkat er en hel A4-side med
+  // koden i et hjoerne (mail 50, 19. oktober) - paa telefonen ~70 px bred.
+  // jsQR finder koden, og den skaeres ud med stille zone. Findes den ikke,
+  // vises maerkatet bare, som det er.
+  var JSQR = null;
+  function hentJsQR(){
+    if(JSQR) return JSQR;
+    JSQR = new Promise(function(ok, fejl){
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+      s.onload = function(){ ok(window.jsQR); };
+      s.onerror = function(){ JSQR = null; fejl(new Error('jsQR kunne ikke hentes')); };
+      document.head.appendChild(s);
+    });
+    return JSQR;
+  }
+  function fremhaevKode(kilde, fil){
+    return hentJsQR().then(function(jsQR){
+      var w = kilde.naturalWidth || kilde.width, h = kilde.naturalHeight || kilde.height;
+      var k = Math.min(1, 900 / w), sm = document.createElement('canvas');
+      sm.width = Math.round(w * k); sm.height = Math.round(h * k);
+      var x = sm.getContext('2d');
+      x.fillStyle = '#fff'; x.fillRect(0, 0, sm.width, sm.height);
+      x.drawImage(kilde, 0, 0, sm.width, sm.height);
+      var q = jsQR(x.getImageData(0, 0, sm.width, sm.height).data, sm.width, sm.height);
+      if(!q || !fil.isConnected) return;
+      var p = q.location, xs = [p.topLeftCorner.x, p.topRightCorner.x, p.bottomLeftCorner.x, p.bottomRightCorner.x],
+        ys = [p.topLeftCorner.y, p.topRightCorner.y, p.bottomLeftCorner.y, p.bottomRightCorner.y];
+      var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+      var m = Math.max(x1 - x0, y1 - y0) * 0.12;
+      var sx = Math.max(0, (x0 - m) / k), sy = Math.max(0, (y0 - m) / k);
+      var sw = Math.min(w - sx, (x1 - x0 + 2 * m) / k), sh = Math.min(h - sy, (y1 - y0 + 2 * m) / k);
+      var c = document.createElement('canvas');
+      c.width = Math.round(sw); c.height = Math.round(sh); c.className = 'fs-qr';
+      var cx = c.getContext('2d');
+      cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+      cx.drawImage(kilde, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      fil.insertBefore(c, fil.firstChild);
+    }).catch(function(){});
+  }
+  // Den hvide rest af A4-siden skaeres fra, saa selve maerkatet fylder skaermen.
+  function udenHvidt(c){
+    var k = Math.min(1, 600 / c.width), sm = document.createElement('canvas');
+    sm.width = Math.round(c.width * k); sm.height = Math.round(c.height * k);
+    var x = sm.getContext('2d'); x.drawImage(c, 0, 0, sm.width, sm.height);
+    var d = x.getImageData(0, 0, sm.width, sm.height).data, x0 = sm.width, x1 = -1, y0 = sm.height, y1 = -1;
+    for(var y = 0; y < sm.height; y++) for(var i = 0; i < sm.width; i++){
+      var o = (y * sm.width + i) * 4;
+      if(d[o + 3] > 0 && (d[o] < 235 || d[o + 1] < 235 || d[o + 2] < 235)){
+        if(i < x0) x0 = i; if(i > x1) x1 = i; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      }
+    }
+    if(x1 < 0) return c;
+    var m = 8, sx = Math.max(0, (x0 - m) / k), sy = Math.max(0, (y0 - m) / k);
+    var sw = Math.min(c.width - sx, (x1 - x0 + 2 * m) / k), sh = Math.min(c.height - sy, (y1 - y0 + 2 * m) / k);
+    if(sw * sh > c.width * c.height * 0.9) return c;
+    var n = document.createElement('canvas'); n.width = Math.round(sw); n.height = Math.round(sh);
+    n.getContext('2d').drawImage(c, sx, sy, sw, sh, 0, 0, n.width, n.height);
+    return n;
+  }
   function visMaerkat(l){
     var fs = l.forsendelse || {}, o = $('fs-stor');
     var url = fs.maerkat && MAERKAT[fs.maerkat];
@@ -1463,22 +1523,31 @@
     // Appen kan ikke zoomes: et tryk paa maerkatet goer det 2,5 gange
     // stoerre (rul hen til koden), et tryk til tilbage.
     fil.addEventListener('click', function(e){ if(e.target.closest('img, canvas')) fil.classList.toggle('stor'); });
-    if(fs.maerkat_type !== 'pdf'){ fil.innerHTML = '<img src="' + esc(url) + '" alt="Fragtmærkatet">'; return; }
+    if(fs.maerkat_type !== 'pdf'){
+      fil.innerHTML = '<img src="' + esc(url) + '" alt="Fragtmærkatet" crossorigin="anonymous">';
+      var im = fil.querySelector('img');
+      im.addEventListener('load', function(){ fremhaevKode(im, fil); });
+      return;
+    }
     hentPdfJs().then(function(pdfjs){ return pdfjs.getDocument(url).promise; }).then(function(pdf){
       if(o.hidden) return;
       fil.innerHTML = '';
-      var bredde = Math.min(fil.clientWidth || 360, 900), tegn = Promise.resolve();
+      var bredde = Math.min(fil.clientWidth || 360, 900), tegn = Promise.resolve(), foerste = null;
       for(var n = 1; n <= Math.min(pdf.numPages, 3); n++) (function(n){
         tegn = tegn.then(function(){ return pdf.getPage(n); }).then(function(side){
           var v0 = side.getViewport({ scale: 1 });
-          var skala = bredde / v0.width * Math.max(2, window.devicePixelRatio || 1);
+          // Mindst 2400 px bred: QR-koden skal kunne skaeres ud og vises stort.
+          var skala = Math.min(3000, Math.max(2400, bredde * (window.devicePixelRatio || 1))) / v0.width;
           var v = side.getViewport({ scale: skala }), c = document.createElement('canvas');
           c.width = v.width; c.height = v.height;
-          fil.appendChild(c);
-          return side.render({ canvasContext: c.getContext('2d'), viewport: v }).promise;
+          return side.render({ canvasContext: c.getContext('2d'), viewport: v }).promise.then(function(){
+            var vis = udenHvidt(c);
+            fil.appendChild(vis);
+            if(n === 1) foerste = c;
+          });
         });
       })(n);
-      return tegn;
+      return tegn.then(function(){ if(foerste) return fremhaevKode(foerste, fil); });
     }).catch(function(){
       fil.innerHTML = 'PDF\'en kan ikke vises her — <a href="' + esc(url) + '" target="_blank" rel="noopener">åbn den</a>.';
     });

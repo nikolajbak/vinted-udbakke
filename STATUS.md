@@ -32,8 +32,11 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    videresendte mails læses. Afprøvet i prøve-appen med et PDF-mærkat
    med QR-kode (læst af jsQR), 375 px. **Ikke afprøvet:** pdf.js på
    iPhonen og et rigtigt Vinted-mærkat; upload fra Filer/Fotos på
-   telefonen. Hættetrøjen (#0015) og jeansene (#0017) mangler deres
-   mærkat — læg det ind, eller send mailen videre.
+   telefonen. **Videresendt (mail 50):** jeansenes (#0017) mærkat kom
+   med som PDF — CloudMailin tager vedhæftninger med; QR-koden skæres nu
+   ud og vises stort. Hættetrøjens (#0015) videresendte mail nåede aldrig
+   `vinted-mail` (ingen kald efter kl. 15.07 UTC) — se CloudMailins log,
+   eller læg mærkatet ind i appen.
 
 000000000000000000000. **Betalt annoncering (boost) — 19. oktober** (udgivelse-0128 til -0133).
    Spec og plan i `docs/superpowers/`; regler i CLAUDE.md »Betalt

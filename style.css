@@ -1491,6 +1491,8 @@
 .fs-stor-fil{ width: 100%; max-width: 900px; text-align: center; color: #555; }
 .fs-stor-fil img, .fs-stor-fil canvas{ display: block; width: 100%; height: auto; margin: 0 auto 12px; background: #fff; }
 .fs-stor-fil.stor{ width: 250%; max-width: none; }
+.fs-stor-fil canvas.fs-qr{ width: min(78vw, 420px); margin: 4px auto 20px; image-rendering: pixelated; }
+.fs-stor-fil.stor canvas.fs-qr{ width: min(78vw, 420px); }
 .fs-stor-fil img, .fs-stor-fil canvas{ cursor: zoom-in; }
 .fs-stor-fil.stor img, .fs-stor-fil.stor canvas{ cursor: zoom-out; }
 .fs-stor-top .btn{ color: #0F6E72; background: transparent; border-color: #ccc; }
