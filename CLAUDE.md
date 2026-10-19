@@ -1448,7 +1448,12 @@ Målt 19. oktober på nr. 54, 63, 65 og 66 (to gennemløb hver).
   Samme billede i flere bredder (`_200x`, `_800x`) er ét billede, og
   `{width}`-skabeloner er ikke billeder.
 - **Pasform**: modellen skrev »ingen modelhøjde angivet«, når siden intet
-  sagde — prompten siger nu, at den aldrig skriver, hvad siden IKKE siger.
+  sagde, og læste Teeshoppens skala (»Lille – Størrelsessvarende – Stor«,
+  uden markering) som en pasform — så blev teksten »passer lidt lille«, et
+  opfundet råd (rigtig analyse, 19. oktober). Prompten siger, at en skala
+  uden markering ikke er en pasform, og `pasformEllerIntet` smider et svar
+  væk, der siger, hvad siden ikke siger (»ikke angivet«, »uden tydelig«,
+  »skala« …). Teksten må ikke nævne, hvor rådet kommer fra.
 
 ## Vinted: formularen
 

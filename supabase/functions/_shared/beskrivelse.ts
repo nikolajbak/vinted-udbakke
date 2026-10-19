@@ -132,7 +132,7 @@ export function faktaTekst(f: unknown): string {
         `${k.produktMaerke ? `. Mærket er ${k.produktMaerke} — butikken er kun forhandler` : ""}. Den er fundamentet for annoncen: brug butikkens ` +
         "navn for varen og dens egenskaber i titel og tekst, også hvor billedanalysen siger noget andet. " +
         "Skriv ikke adressen eller butikkens navn i annoncen.",
-    k.pasform && `Butikken skriver om pasformen: ${k.pasform}. Brug det kun som størrelsesråd (fx "normal pasform", "falder lidt stort"), hvis det hjælper køberen — gengiv ikke modellens højde eller størrelse (annoncen viser ingen model), og skriv ikke, at det kommer fra butikken eller fra et billede.`,
+    k.pasform && `Butikken skriver om pasformen: ${k.pasform}. Brug det kun som størrelsesråd (fx "normal pasform", "falder lidt stort"), hvis det hjælper køberen — gengiv ikke modellens højde eller størrelse (annoncen viser ingen model), og nævn ikke, hvor det kommer fra (butikken, mærkets guide eller et billede).`,
     k.maal && `Mål: ${k.maal}${k.maalKilde ? ` (${k.maalKilde})` : ""}`,
     k.maerkeFarve && `Farve ifølge mærket: ${k.maerkeFarve}. Brug den farve (på dansk) i titel og tekst, også hvis billedet ser anderledes ud, og vælg den nærmeste i Vinteds farveliste.`,
     k.dele?.length && `Sælges samlet: ${k.dele.join(" + ")}. Nævn hver del i titel og tekst.`,
@@ -184,9 +184,10 @@ const OPSLAG_TOOL = {
       pasform: {
         type: ["string", "null"],
         description:
-          "Kun det, varens produktside selv skriver om pasform og modellens højde/størrelse, kort og på dansk, " +
-          "fx \"normal pasform; modellen er 178 cm og bærer M\". Skriv aldrig, hvad siden IKKE siger, og intet fra " +
-          "andre sider. null hvis siden hverken nævner pasformen eller modellen.",
+          "Kun en udtrykkelig sætning på varens produktside om pasformen eller modellens højde/størrelse, kort og " +
+          "på dansk, fx \"normal pasform; modellen er 178 cm og bærer M\". En skala eller etiketter uden en tydelig " +
+          "markering (\"Lille – Størrelsessvarende – Stor\") er IKKE en pasform. Skriv aldrig, hvad siden ikke " +
+          "siger, og intet fra andre sider. null i alle andre tilfælde.",
       },
     },
     required: ["nypris", "nyprisKilde", "produktside", "produktNavn", "produktTekst", "maal", "laengde", "skulderbredde", "pasform"],
@@ -313,7 +314,7 @@ export async function slaaOp(
         maal: vare.size && i.maal ? String(i.maal) : undefined,
         laengde: vare.size ? cm(i.laengde) : undefined,
         skulderbredde: vare.size ? cm(i.skulderbredde) : undefined,
-        pasform: tekst(i.pasform, 200),
+        pasform: pasformEllerIntet(tekst(i.pasform, 200)),
         producentBilleder: producentBilleder.length ? producentBilleder : undefined,
       };
     }
@@ -321,6 +322,16 @@ export async function slaaOp(
     messages.push({ role: "assistant", content: data.content });
   }
   return {};
+}
+
+// Pasformen er kun en oplysning, naar den siger noget. Teeshoppens side har
+// en skala (Lille - Stoerrelsessvarende - Stor) uden markering, og modellen
+// skrev »angiver pasform Lille; modelhoejde er ikke angivet« - og teksten blev
+// til »passer lidt lille« (19. oktober). Det, siden IKKE siger, smides vaek.
+export function pasformEllerIntet(p?: string): string | undefined {
+  if (!p) return undefined;
+  if (/ikke (angivet|oplyst|nævnt|tydelig)|uden (tydelig|markering|markør)|ingen (model|markering|markør|oplysning)|skala/i.test(p)) return undefined;
+  return p;
 }
 
 // Prisen i hele danske kroner og maerket, som produktsiden selv opgiver dem i
