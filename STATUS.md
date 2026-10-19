@@ -19,6 +19,22 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+0000000000000000000. **Producentens billeder som forlæg — 19. oktober** (udgivelse-0120
+   til -0124). Spec og plan i `docs/superpowers/`; regler i CLAUDE.md
+   »Producentens billeder« og »Produktsidernes billeder«. Vinted forbyder
+   billeder, du ikke selv har taget, så de bruges KUN i appen.
+   **Afprøvet:** udvælgelsen på nr. 54, 63, 65, 66 (to gennemløb; nr. 54
+   forfra/trekvart/bagfra, de tre andre korrekt ingen — Ganni og Mads
+   Nørgaard tegner galleriet i browseren, Magasin har kun pakkeshots); en
+   rigtig analyse på en kopi af nr. 54 (3 billeder, ingen opfundet pasform,
+   kopien slettet); `nytFoto` live (ok på 10-12 s, ikke_klar, bad_path,
+   prisnoten urørt ved fejl); appens blok, »Tag dit eget som dette« og
+   trinnet »På kroppen« på prøvesiden i 375 og 1280 px, lyst og mørkt;
+   review-agent pr. task og en afsluttende. **Ikke afprøvet:** på
+   telefonen — kameraet fra forlægsskærmen og »På kroppen« i en rigtig
+   optagelse. Kun nye opslag får billeder; gamle udkast får dem, næste gang
+   Vinteds markedsrunde slår dem op.
+
 000000000000000000. **Redesign trin 3: Mere, Konto og Prisvagt — 19. oktober.** Regler i
    CLAUDE.md »Appens opbygning« og »Konto«. **Afprøvet** på prøvesiden:
    prisvagtens kort i Mere (Kører/Forsinket, skjult ved puls-fejl), »Tjek
