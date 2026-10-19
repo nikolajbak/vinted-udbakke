@@ -217,6 +217,8 @@ i `function_logs`, beviser intet.
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 | Vinteds mails → læst af en model og brugt: solgt, bud, besked, favorit, pris (nøgle: `MAIL_KEY`) | `supabase/functions/vinted-mail/` |
 | Køberbeskeder fra mail som opgave på forsiden (`SVAR`, `hentSvar`) | `app.js` |
+| Forsendelsen læst af Vinteds mails (`erForsendelse`, `laesForsendelse`, `fletForsendelse`, `vaelgMaerkat`, rene og testet med `node --test tools/test-forsendelse.mjs`); mærkatet gemt i `vinted-mail` | `supabase/functions/_shared/forsendelse.ts`, `vinted-mail/index.ts` |
+| Forsendelsen på varens side (`forsendelseBlok`, `hentMaerkater`, `fristTekst`) og opgaverne »Lav fragtmærkatet«/»Send pakken« | `app.js`, `.fs-…` i `style.css` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
@@ -275,6 +277,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Runnerens uploads gemt før Gem: `listings.fotos_op` (`[{rod, id}]`); `replace_draft_photo` (beskæringen); låsen i `set_draft_photo_paa_sti`; Fortryd ikke i en solgt vare | `sql/021-billeder-lagt-op.sql` |
 | Hvilken model hvert trin bruger: `modelvalg` (`claude`/`skygge`/`gemini`, opslag trin → delen før kolon → `*`); hvert Gemini-forsøg og skyggens to svar: `modelkald` (30 dage) | `sql/022-gemini.sql` |
 | Betalt annoncering: `annoncering_ordrer` (én faktura, `vinted_mail_id` unik), `annoncering` (én vares del; `kilde` `mail`/`dig`, `tal` og `dom` fra Vinted, unik på ordre+annonce), `annoncering_maal` (Vinteds tal, én pr. dag) | `sql/023-annoncering.sql` |
+| Forsendelsen af en solgt vare: `listings.forsendelse` (status, transportør, sporingskode, fragtkode, frist, pakke, transaktion, samtale, levering, `maerkat`, hændelser); den private Storage-mappe `maerkater` (kun logget ind læser, kun service-nøglen skriver) | `sql/024-forsendelse.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -670,6 +673,38 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
   - **Googles søgning har ingen gratiskvote** (`google_search` → 429 på alle modeller, mens almindelige kald og `url_context` svarede). Derfor er `opslag:nypris_maal` = `claude`.
   - `gemini-2.5-flash` svarer 404 (»no longer available to new users«), og `gemini-3.8-flash` gav 403 fra serveren; begge sættes på pause.
   - Gemini er langsommere end Claude: et billedkald tog 7-52 s og indkøbsanalysen 13 s. Se `ms` i `modelkald`, før et trin, som telefonen venter på (`vinted:*`, `dba:*`), skiftes til `gemini`.
+
+## Forsendelsen
+
+Bestemt af dig 19. oktober: **ved salg hentes fragtmærkatet og det andet,
+forsendelsen kræver, ind på varen i appen.** Kun Vinted — DBA og Reshopper
+sender ingen mails.
+
+- **Kilden er Vinteds mails** (`vinted-mail`, målt på mail 7-49): salget
+  (»Send denne ordre inden for 5 dage«, link til samtalen) starter
+  forsendelsen som »mærkatet mangler« med fristen ca. 5 dage efter;
+  »… fragtmærkat – skal anvendes inden …« (GLS) og »… Fragtkode: …« (DAO)
+  giver transportør, sporingskode, DAO's fragtkode, pakkestørrelse,
+  transaktions-id og den rigtige frist; »Ordreopdatering til …« giver på
+  vej (med anslået levering), afhentes, modtaget; »Denne ordre er fuldført«
+  afslutter. Status går kun frem (`RANG`). Mønstrene står i
+  `_shared/forsendelse.ts` og vinder over modellen (emnet afgør — salgsmailen
+  nævner også fragtmærkatet).
+- **Mærkatet** (vedhæftet mailen) gemmes i den **private** mappe
+  `maerkater` (`<listing>/<mail>.pdf`) — det kan bære købers navn og
+  adresse, så aldrig i `photos`. Appen henter tidsbegrænsede links
+  (6 t, `createSignedUrls`). En PDF vælges før et billede; billeder under
+  10 kB er Vinteds logoer. **Ikke målt:** om CloudMailin sender
+  vedhæftningen med — `handling` siger »mærkat gemt (pdf)« eller »ingen fil
+  vedhæftet (N filer: …)«. `?genlaes` har ingen filer.
+- **Varens side**: blokken »Forsendelse« under Vinted, når varen er solgt:
+  status, frist (rav, rød det sidste døgn), hvordan (»GLS · Under 1000 g —
+  vis mærkatet i pakkeshoppen« / »sig fragtkoden …«), fragtkode og
+  sporingskode med Kopiér, **Vis mærkat**, **Lav mærkatet i samtalen** /
+  **Åbn samtalen** og forløbet.
+- **Opgaver → Haster**: »Lav fragtmærkatet« og »Send pakken inden …«
+  (rød under et døgn til fristen, ellers rav), til en mail siger, at
+  pakken er på vej. Ingen push — Vinted har selv sendt mailen.
 
 ## Betalt annoncering
 

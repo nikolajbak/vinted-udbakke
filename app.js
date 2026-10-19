@@ -614,10 +614,12 @@
   // der mangler.
   // En koeber, der venter paa svar, kommer lige efter en vare, der kan
   // saelges to gange.
-  var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5 };
+  // En pakke med frist inden for et doegn er lige saa akut som en vare, der
+  // kan saelges to gange: ellers annullerer Vinted handlen.
+  var OPGAVE_ORDEN = { ned:0, pakkerod:0.5, svar:1, pakke:1.5, fejl:2, send:3, salg:4, knyt:5 };
   // Farven paa foerste linje siger, hvor galt det er: roed kan saelges to
   // gange, rav venter paa dig. En manglende salgspris er stille.
-  var OPGAVE_FARVE = { ned:' opg-rod', svar:' opg-rav', fejl:' opg-rav', send:' opg-rav', knyt:' opg-rav', salg:'' };
+  var OPGAVE_FARVE = { ned:' opg-rod', pakkerod:' opg-rod', svar:' opg-rav', pakke:' opg-rav', fejl:' opg-rav', send:' opg-rav', knyt:' opg-rav', salg:'' };
   // En opgave er en raekke som paa Lager: billedet, tre linjer — hvad der
   // skal goeres, hvorfor, og loebenummer · varen — og knapperne til hoejre.
   // Et tryk ved siden af knapperne aabner varen.
@@ -659,6 +661,23 @@
             '<button type="button" class="btn btn-secondary" data-op="aabn-' + m.k + '" data-id="' + esc(d.id) + '">Åbn ' + esc(m.navn) + '</button>' +
             '<button type="button" class="btn btn-primary" data-op="ned-' + m.k + '" data-id="' + esc(d.id) + '">Taget ned</button>', 'ned', d));
         });
+        // Forsendelsen (Vinteds mails, listings.forsendelse): mærkatet skal
+        // laves, eller pakken skal afsted inden fristen.
+        var fs = solgtL.platform === 'vinted' && solgtL.forsendelse;
+        if(fs && (fs.status === 'mangler' || fs.status === 'klar')){
+          var rod = fs.frist && new Date(fs.frist).getTime() - Date.now() < 86400000;
+          var knap = fs.status === 'klar' && fs.maerkat && MAERKAT[fs.maerkat]
+            ? '<a class="btn btn-primary" href="' + esc(MAERKAT[fs.maerkat]) + '" target="_blank" rel="noopener">Vis mærkat</a>'
+            : '';
+          if(fs.samtale) knap += '<button type="button" class="btn btn-secondary" data-op="samtale" data-url="' + esc(fs.samtale) + '">Åbn samtalen</button>';
+          kort.push(opgaveKort(fs.status === 'mangler'
+              ? 'Lav fragtmærkatet' : 'Send pakken' + (fs.frist ? ' inden ' + esc(fristTekst(fs.frist)) : ''),
+            fs.status === 'mangler'
+              ? 'Solgt' + (fs.frist ? ' — send inden ca. ' + esc(fristTekst(fs.frist)) : '') + '. Mærkatet laves i samtalen på Vinted.'
+              : esc(fsHvordan(fs)),
+            knap || '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Se</button>',
+            rod ? 'pakkerod' : 'pakke', d));
+        }
         if(solgtL.sold_price == null){
           kort.push(opgaveKort('Solgt — hvad gik den for?', '',
             '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Tast pris</button>', 'salg', d));
@@ -886,6 +905,7 @@
       return;
     }
     if(op === 'vis' && d){ openDetail(d.id); return; }
+    if(op === 'samtale'){ aabnUdad(b.getAttribute('data-url')); return; }
     if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit#udbakke=send'); return; }
     if(op.indexOf('aabn-') === 0){
       var k = op.slice(5);
@@ -1290,6 +1310,82 @@
     return 'Prisvagt: ' + (l.last_check_at ? 'tjekket ' + relTime(l.last_check_at) : 'ikke tjekket endnu') +
       (l.next_check_at ? ' · ' + omDage(l.next_check_at) : '');
   }
+  /* ---- Forsendelsen ------------------------------------------------------
+     Bestemt af dig 19. oktober: ved salg hentes fragtmaerkatet og det andet,
+     forsendelsen kraever, ind paa varen. vinted-mail fletter Vinteds mails
+     ind i listings.forsendelse (_shared/forsendelse.ts); maerkatet ligger i
+     den private Storage-mappe »maerkater« og aabnes med et link, der udloeber. */
+  var FS_STATUS = { mangler:'Mærkatet mangler', klar:'Klar til afsendelse', paa_vej:'På vej til køberen',
+    afhentes:'Venter på, at køberen henter den', modtaget:'Køberen har modtaget den', fuldfoert:'Handlen er gennemført' };
+  var MAERKAT = {};
+  function hentMaerkater(){
+    var stier = [];
+    Object.keys(rows).forEach(function(k){
+      annoncer(rows[k]).forEach(function(l){
+        var st = l.forsendelse && l.forsendelse.maerkat;
+        if(st && !MAERKAT[st] && stier.indexOf(st) < 0) stier.push(st);
+      });
+    });
+    if(!stier.length || !sb.storage) return;
+    sb.storage.from('maerkater').createSignedUrls(stier, 6 * 3600).then(function(res){
+      if(res.error || !res.data) return;
+      res.data.forEach(function(x){ if(x.signedUrl) MAERKAT[x.path] = x.signedUrl; });
+      if(currentId && rows[currentId] && !screenEl('detail').hidden) renderDetail();
+      if(!screenEl('opgaver').hidden) tegnOpgaveSkaerm();
+    }, function(){});
+  }
+  // »i dag kl. 10.00«, »i morgen kl. 15.09«, »tor. 23. okt. kl. 10.00«
+  function fristTekst(iso){
+    var d = new Date(iso); if(isNaN(d)) return '';
+    var kl = 'kl. ' + ('0' + d.getHours()).slice(-2) + '.' + ('0' + d.getMinutes()).slice(-2);
+    var dag = function(x){ return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var n = Math.round((dag(d) - dag(new Date())) / 86400000);
+    if(n === 0) return 'i dag ' + kl;
+    if(n === 1) return 'i morgen ' + kl;
+    return d.toLocaleDateString('da-DK', { weekday:'short', day:'numeric', month:'short' }) + ' ' + kl;
+  }
+  function fsHvordan(fs){
+    var t = [fs.transportoer, fs.pakke].filter(Boolean).join(' · ');
+    var hv = fs.fragtkode ? 'sig fragtkoden ' + fs.fragtkode + ' i pakkeshoppen'
+      : fs.digital ? 'vis mærkatet i pakkeshoppen' : 'sæt mærkatet på pakken';
+    return (t ? t + ' — ' : '') + hv;
+  }
+  function fsKode(navn, v){
+    return '<div class="fs-kode"><span class="fs-kode-n">' + navn + '</span><span class="fs-kode-v mono">' + esc(v) +
+      '</span><button type="button" class="btn btn-quiet" data-a="fs-kopier" data-v="' + esc(v) + '">Kopiér</button></div>';
+  }
+  function forsendelseBlok(fs){
+    var aaben = fs.status === 'mangler' || fs.status === 'klar';
+    var h = '<div class="fs-blok"><div class="fs-top"><b>Forsendelse</b><span>' + esc(FS_STATUS[fs.status] || '') +
+      (fs.status === 'paa_vej' && fs.levering ? ' · levering ' + esc(fs.levering) : '') + '</span></div>';
+    if(aaben && fs.frist){
+      var over = new Date(fs.frist).getTime() < Date.now();
+      var rod = new Date(fs.frist).getTime() - Date.now() < 86400000;
+      h += '<div class="fs-frist' + (rod ? ' rod' : '') + '">' + (over ? 'Fristen var ' : 'Send inden ') +
+        (fs.status === 'mangler' ? 'ca. ' : '') + esc(fristTekst(fs.frist)) + '</div>';
+    }
+    if(fs.status === 'mangler') h += '<div class="fs-linje">Mærkatet laves i samtalen med køberen på Vinted.</div>';
+    else if(fs.status === 'klar') h += '<div class="fs-linje">' + esc(fsHvordan(fs)) + '</div>';
+    else if(fs.transportoer || fs.pakke) h += '<div class="fs-linje">' + esc([fs.transportoer, fs.pakke].filter(Boolean).join(' · ')) + '</div>';
+    if(fs.fragtkode) h += fsKode('Fragtkode', fs.fragtkode);
+    if(fs.sporingskode) h += fsKode('Sporing', fs.sporingskode);
+    var kn = '';
+    if(fs.maerkat && aaben){
+      kn += MAERKAT[fs.maerkat]
+        ? '<a class="btn btn-primary" href="' + esc(MAERKAT[fs.maerkat]) + '" target="_blank" rel="noopener">Vis mærkat</a>'
+        : '<span class="fs-linje">Henter mærkatet …</span>';
+    }
+    if(fs.samtale) kn += '<button type="button" class="btn ' + (fs.status === 'mangler' ? 'btn-primary' : 'btn-secondary') +
+      '" data-aabn="' + esc(fs.samtale) + '">' + (fs.status === 'mangler' ? 'Lav mærkatet i samtalen' : 'Åbn samtalen') + '</button>';
+    if(kn) h += '<div class="fs-knapper">' + kn + '</div>';
+    if(fs.status === 'klar' && !fs.maerkat) h += '<div class="fs-linje lille">Mærkatet kom ikke med mailen — det ligger i samtalen og i din mail.</div>';
+    var hh = (fs.haendelser || []).slice().reverse();
+    if(hh.length) h += '<details class="fs-hist"><summary>Forløb</summary>' + hh.map(function(x){
+      return '<div><span class="mono">' + esc(new Date(x.at).toLocaleDateString('da-DK', { day:'numeric', month:'short' })) +
+        '</span> ' + esc(x.tekst) + '</div>';
+    }).join('') + '</details>';
+    return h + '</div>';
+  }
   function pladsRaekke(d, m, f){
     var sendt = sendtTil(d)[m.k], ned = (d.taget_ned || {})[m.k];
     var l = annoncer(d).filter(function(x){ return x.platform === m.k; })[0];
@@ -1307,6 +1403,7 @@
             'placeholder="' + esc(String(l.price || '')) + '" aria-label="Salgspris i kroner">' +
             '<button type="button" class="btn btn-primary" data-salg="' + esc(l.id) + '">Gem</button></div></div>';
         }
+        if(l.platform === 'vinted' && l.forsendelse) krop += forsendelseBlok(l.forsendelse);
       } else if(l.status === 'afsluttet'){
         status = 'Taget ned';
       } else {
@@ -1372,6 +1469,7 @@
       if(res.error || !rows[id]) return;
       rows[id].listings = res.data || [];
       if(currentId === id && !screenEl('detail').hidden) renderDetail();
+      hentMaerkater();
     });
     hentAnnoncering(id);
   }
@@ -1759,6 +1857,9 @@
 
   function detailAction(a, d, btn){
     if(a === 'edit'){ aabnRedigering(d); }
+    else if(a === 'fs-kopier'){
+      if(navigator.clipboard) navigator.clipboard.writeText(btn.getAttribute('data-v')).then(function(){ toast('Kopieret'); });
+    }
     else if(a === 'fill'){
       aabnMarked(d, btn, 'vinted', 'Vinted', 'https://www.vinted.dk/items/new');
     }
@@ -4526,7 +4627,7 @@
   // Hele lageret hentes med annoncerne paa: fasen, prisen og hjerterne paa
   // kortet kommer fra annoncen, ikke fra udkastet.
   var ANNONCE_FELTER = 'id, platform, url, external_id, title, price, start_price, status, favourites, ' +
-    'listed_at, sold_at, sold_price, pending, pending_note, pending_since, forslag, last_check_at, next_check_at, auto, note, published, synced_at, fotos';
+    'listed_at, sold_at, sold_price, pending, pending_note, pending_since, forslag, last_check_at, next_check_at, auto, note, published, synced_at, fotos, forsendelse';
   // Koeberbeskeder fra Vinteds mails, der venter paa dit svar.
   var SVAR = [], KOE_HENTET = false;
   function hentSvar(){
@@ -4558,6 +4659,7 @@
         KOE_HENTET = true;
         renderQueue();
         hentOpgaver();
+        hentMaerkater();
       });
   }
   // Annoncerne skifter tit flere ad gangen (et tilsyn, et salg). Én

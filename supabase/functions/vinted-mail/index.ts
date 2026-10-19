@@ -24,6 +24,7 @@ import { helKroner, kr } from "../_shared/pris.ts";
 import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 import { laesFaktura } from "../_shared/annoncering.ts";
+import { erForsendelse, fletForsendelse, laesForsendelse, vaelgMaerkat, type Fil, type Forsendelse } from "../_shared/forsendelse.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -37,7 +38,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "content-type": "application/json" } });
 
-type Mail = { fra: string; emne: string; tekst: string; html: string; messageId: string | null };
+type Mail = { fra: string; emne: string; tekst: string; html: string; messageId: string | null; filer: Fil[] };
 
 function str(v: unknown): string {
   if (v === undefined || v === null) return "";
@@ -66,6 +67,33 @@ function felt(h: unknown, ...navne: string[]): string {
   return "";
 }
 
+// Vedhaeftningerne (fragtmaerkatet). CloudMailin: attachments [{file_name,
+// content_type, content (base64) | url}]; Postmark: Attachments [{Name,
+// ContentType, Content}]. Ikke maalt: om CloudMailin sender dem med paa
+// vores plan - handling siger »ingen fil vedhæftet«, hvis ikke.
+function fraBase64(b: string): Uint8Array {
+  const bin = atob(b.replace(/\s+/g, ""));
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+async function jsonFiler(liste: unknown): Promise<Fil[]> {
+  const ud: Fil[] = [];
+  if (!Array.isArray(liste)) return ud;
+  for (const a of liste.slice(0, 10) as Record<string, unknown>[]) {
+    const navn = str(a.file_name ?? a.Name ?? a.filename ?? "");
+    const type = str(a.content_type ?? a.ContentType ?? a.mimeType ?? "");
+    try {
+      if (a.content || a.Content) ud.push({ navn, type, data: fraBase64(str(a.content ?? a.Content)) });
+      else if (typeof a.url === "string") {
+        const r = await fetch(a.url);
+        if (r.ok) ud.push({ navn, type, data: new Uint8Array(await r.arrayBuffer()) });
+      }
+    } catch (err) { console.error("vedhaeftning", navn, err); }
+  }
+  return ud;
+}
+
 async function laesIndgaaende(req: Request): Promise<Mail> {
   const type = req.headers.get("content-type") || "";
   if (type.includes("json")) {
@@ -77,6 +105,7 @@ async function laesIndgaaende(req: Request): Promise<Mail> {
       tekst: str(o.plain ?? o.TextBody ?? o.text),
       html: str(o.html ?? o.HtmlBody),
       messageId: felt(h, "message_id", "message-id") || str(o.MessageID ?? o.messageId) || null,
+      filer: await jsonFiler(o.attachments ?? o.Attachments),
     };
   }
   if (type.includes("multipart/form-data")) {
@@ -88,6 +117,11 @@ async function laesIndgaaende(req: Request): Promise<Mail> {
       tekst: g("plain"),
       html: g("html"),
       messageId: g("headers[message_id]") || null,
+      filer: await Promise.all([...f.entries()].filter(([k, v]) => /^attachments/.test(k) && v instanceof File)
+        .slice(0, 10).map(async ([, v]) => {
+          const fil = v as File;
+          return { navn: fil.name, type: fil.type, data: new Uint8Array(await fil.arrayBuffer()) };
+        })),
     };
   }
   const p = await PostalMime.parse(await req.text());
@@ -97,6 +131,10 @@ async function laesIndgaaende(req: Request): Promise<Mail> {
     tekst: p.text || "",
     html: p.html || "",
     messageId: p.messageId || null,
+    filer: (p.attachments ?? []).slice(0, 10).map((a) => ({
+      navn: a.filename || "", type: a.mimeType || "",
+      data: typeof a.content === "string" ? new TextEncoder().encode(a.content) : new Uint8Array(a.content),
+    })),
   };
 }
 
@@ -123,6 +161,9 @@ function slags(emne: string, tekst: string): string {
   // Fakturaen for et boost (maalt paa mail 44, 19. oktober). Foerst: den er
   // dit eget koeb, og teksten naevner hverken salg eller bud.
   if (/boost af din artikel/.test(s)) return "boost";
+  // Forsendelsen (maalt 9.-19. oktober, _shared/forsendelse.ts): kun paa
+  // emnet - salgsmailen naevner ogsaa fragtmaerkatet.
+  if (erForsendelse(emne)) return "forsendelse";
   // Dit eget koeb er ikke et salg.
   if (/du har købt|dit køb|your purchase|you bought/.test(s)) return "andet";
   // "Din <titel> er lige blevet markeret som favorit"
@@ -269,6 +310,7 @@ type Raekke = {
   id: string; external_id: string; title: string | null; status: string;
   price: number; draft_id: string | null; published: Record<string, unknown> | null;
   pending: Record<string, unknown> | null; favourites: number | null;
+  forsendelse: Forsendelse | null;
 };
 
 // Slags, der kun gaelder en annonce, vi selv har til salg.
@@ -363,7 +405,7 @@ Deno.serve(async (req: Request) => {
     const { data: r } = await supabase.from("vinted_mails").select("id, at, fra, emne, tekst, laesning")
       .eq("id", genlaes).maybeSingle();
     if (!r) return json({ error: "ukendt" }, 404);
-    m = { fra: r.fra ?? "", emne: r.emne ?? "", tekst: r.tekst ?? "", html: "", messageId: null };
+    m = { fra: r.fra ?? "", emne: r.emne ?? "", tekst: r.tekst ?? "", html: "", messageId: null, filer: [] };
     gemtId = r.id;
     mailTid = r.at;
     gemteLinks = ((r.laesning as Laesning | null)?.links ?? []) as string[];
@@ -384,7 +426,7 @@ Deno.serve(async (req: Request) => {
   const maalt = fraVinted ? slags(m.emne, tekst) : "andet";
   const numre = annonceNumre(links, m.html, m.tekst);
   const { data: raekker } = await supabase.from("listings")
-    .select("id, external_id, title, status, price, draft_id, published, pending, favourites")
+    .select("id, external_id, title, status, price, draft_id, published, pending, favourites, forsendelse")
     .eq("platform", "vinted").not("external_id", "is", null);
   const find = (titel?: string) => fraVinted
     ? findAnnonce((raekker ?? []) as Raekke[], numre, m.emne + "\n" + tekst + (titel ? "\n" + titel : ""))
@@ -443,6 +485,19 @@ Deno.serve(async (req: Request) => {
   if (!fraVinted) {
     handling = "ikke fra Vinted — intet gjort";
   } else if (kind === "solgt") {
+    // Forsendelsen begynder: maerkatet laves i samtalen, og Vinted giver
+    // 5 dage (»Send denne ordre inden for 5 dage«). Maerkat-mailens frist
+    // gaar forud, ogsaa naar mailene genlaeses i en anden raekkefoelge.
+    if (l) {
+      const dage = Number(tekst.match(/inden for (\d+) dage/i)?.[1]) || 5;
+      await supabase.from("listings").update({
+        forsendelse: fletForsendelse(l.forsendelse, {
+          status: "mangler", tekst: "Solgt — lav fragtmærkatet i samtalen",
+          samtale: samtaleUrl(links) ?? undefined,
+          frist: l.forsendelse?.frist ? undefined : new Date(new Date(mailTid).getTime() + dage * 86400000).toISOString(),
+        }, mailTid, gemtId),
+      }).eq("id", l.id);
+    }
     if (l && l.status === "aktiv") {
       await supabase.from("listings").update({
         status: "solgt", sold_at: new Date().toISOString(),
@@ -490,6 +545,37 @@ Deno.serve(async (req: Request) => {
       });
     }
     handling = "bud meldt" + (synk ? "; " + synk : "");
+  } else if (kind === "forsendelse") {
+    // Fragtmaerkatet og forsendelsens gang paa varen (bestemt af dig
+    // 19. oktober). Ingen push: Vinted har selv sendt mailen.
+    const f = laesForsendelse(m.emne, tekst);
+    if (!l) {
+      handling = "forsendelse; ingen annonce i appen passede";
+    } else if (!f) {
+      handling = "forsendelse; mailen kunne ikke læses";
+    } else {
+      const ny = { ...f, samtale: samtaleUrl(links) ?? undefined };
+      let filNote = "";
+      if (f.status === "klar" && !genlaes) {
+        const fil = vaelgMaerkat(m.filer);
+        if (fil) {
+          const ext = /pdf/i.test(fil.type) || /\.pdf$/i.test(fil.navn) ? "pdf"
+            : (fil.type.split("/")[1] || "png").replace("jpeg", "jpg");
+          const sti = l.id + "/" + gemtId + "." + ext;
+          const { error } = await supabase.storage.from("maerkater").upload(sti, fil.data, {
+            contentType: fil.type || (ext === "pdf" ? "application/pdf" : "image/" + ext), upsert: true,
+          });
+          if (error) filNote = "; mærkatet kunne ikke gemmes — " + error.message;
+          else { ny.maerkat = sti; ny.maerkat_type = ext; filNote = "; mærkat gemt (" + ext + ")"; }
+        } else {
+          filNote = "; ingen fil vedhæftet (" + m.filer.length + " filer: " +
+            m.filer.map((x) => x.type || x.navn).join(", ").slice(0, 120) + ")";
+        }
+      }
+      await supabase.from("listings").update({ forsendelse: fletForsendelse(l.forsendelse, ny, mailTid, gemtId) })
+        .eq("id", l.id);
+      handling = "forsendelse: " + f.tekst + filNote;
+    }
   } else if (kind === "boost") {
     // Betalt annoncering (bestemt af dig 19. oktober): fakturaen bliver en
     // ordre uden varer. Runneren finder dem i garderoben (promoted, mode
