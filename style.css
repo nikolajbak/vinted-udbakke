@@ -1477,3 +1477,22 @@
 .fs-hist{ margin-top: var(--s2); color: var(--ink-soft); }
 .fs-hist summary{ cursor: pointer; }
 .fs-hist div{ margin-top: 2px; }
+.fs-link{ margin-top: var(--s2); padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: var(--t-small); cursor: pointer; }
+/* Maerkatet i fuld skaerm: altid hvid bund, ogsaa i moerkt tema - en
+   scanner skal se sort paa hvidt. */
+#fs-stor{ position: fixed; inset: 0; z-index: 61; background: #fff; color: #111; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px); }
+#fs-stor[hidden]{ display: none; }
+.fs-stor-top{ display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fs-stor-top .btn{ width: auto; flex: 0 0 auto; }
+.fs-stor-krop{ flex: 1 1 auto; overflow: auto; display: flex; flex-direction: column; align-items: safe center; gap: 16px; padding: 12px 0; }
+.fs-stor-kode{ text-align: center; }
+.fs-stor-kode span{ display: block; font-size: 14px; color: #555; }
+.fs-stor-kode b{ display: block; font-size: 44px; letter-spacing: .04em; overflow-wrap: anywhere; }
+.fs-stor-fil{ width: 100%; max-width: 900px; text-align: center; color: #555; }
+.fs-stor-fil img, .fs-stor-fil canvas{ display: block; width: 100%; height: auto; margin: 0 auto 12px; background: #fff; }
+.fs-stor-fil.stor{ width: 250%; max-width: none; }
+.fs-stor-fil img, .fs-stor-fil canvas{ cursor: zoom-in; }
+.fs-stor-fil.stor img, .fs-stor-fil.stor canvas{ cursor: zoom-out; }
+.fs-stor-top .btn{ color: #0F6E72; background: transparent; border-color: #ccc; }
+.fs-stor-bund{ font-size: 13px; color: #555; text-align: center; }
+.fs-stor-bund a{ color: #0F6E72; }

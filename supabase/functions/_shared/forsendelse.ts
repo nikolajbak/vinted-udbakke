@@ -37,9 +37,12 @@ export const RANG: Record<Status, number> = {
 };
 
 // Er mailen om forsendelsen? Kun paa emnet: salgsmailen naevner ogsaa
-// »fragtmærkat« i teksten.
+// »fragtmærkat« i teksten. En mail, du selv sender videre (»Fwd:«/»VS:«),
+// taeller med - saadan kommer et maerkat ind, der ikke kom med foerste gang.
+const VIDERE = /^\s*(?:(?:fwd?|vs|videresendt|wg)\s*:\s*)*/i;
 export function erForsendelse(emne: string): boolean {
-  return /^\s*ordreopdatering til |fragtmærkat|fragtkode:|denne ordre er fuldført/i.test(emne);
+  const e = emne.replace(VIDERE, "");
+  return /^ordreopdatering til |fragtmærkat|fragtkode:|denne ordre er fuldført/i.test(e);
 }
 
 // Dansk tid → ISO. Sommertid fra sidste soendag i marts kl. 2 til sidste
@@ -77,7 +80,9 @@ function levering(s: string): string {
 // Hvad mailen siger om forsendelsen. null, hvis den ikke handler om den.
 export function laesForsendelse(emne: string, raa: string): Laest | null {
   if (!erForsendelse(emne)) return null;
-  const tekst = raa.replace(/\r/g, "");
+  emne = emne.replace(VIDERE, "");
+  // Videresendt med citat: »> Sporingskode:« - tegnet maa ikke blive vaerdien.
+  const tekst = raa.replace(/\r/g, "").replace(/^[ \t]*(?:>[ \t]?)+/gm, "");
   if (/fragtmærkat|fragtkode:/i.test(emne)) {
     const ud: Laest = { status: "klar", tekst: "Fragtmærkat klar" };
     const spor = efter(tekst, "Sporingskode");

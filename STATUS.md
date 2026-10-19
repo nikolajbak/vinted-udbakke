@@ -27,6 +27,13 @@ laves om; denne fil rummer det, der er **i gang** og går til.
    næste »fragtmærkat«-mail (»mærkat gemt (pdf)« eller »ingen fil
    vedhæftet …«). Kommer det ikke, så se CloudMailins indstillinger for
    vedhæftninger. »Vis mærkat« er derfor ikke set med en rigtig fil.
+   **Samme dag, i appen:** mærkatet i fuld skærm (QR-koden scannes af
+   telefonen), »Læg mærkatet ind«, »Afleveret«, »Følg pakken«, og
+   videresendte mails læses. Afprøvet i prøve-appen med et PDF-mærkat
+   med QR-kode (læst af jsQR), 375 px. **Ikke afprøvet:** pdf.js på
+   iPhonen og et rigtigt Vinted-mærkat; upload fra Filer/Fotos på
+   telefonen. Hættetrøjen (#0015) og jeansene (#0017) mangler deres
+   mærkat — læg det ind, eller send mailen videre.
 
 000000000000000000000. **Betalt annoncering (boost) — 19. oktober** (udgivelse-0128 til -0133).
    Spec og plan i `docs/superpowers/`; regler i CLAUDE.md »Betalt

@@ -116,7 +116,7 @@
   function show(name, opts){
     opts = opts || {};
     stopScan();
-    lukProducentStor();
+    lukProducentStor(); lukFsStor();
     var next = screenEl(name);
     var cur = stack.length ? screenEl(stack[stack.length - 1]) : null;
     if(cur === next) return;
@@ -147,7 +147,7 @@
   function back(fraHistorik){
     if(stack.length < 2) return;
     stopScan();
-    lukProducentStor();
+    lukProducentStor(); lukFsStor();
     // Kom trykket fra appens egen pil, skal historien med tilbage. Kom det fra
     // browseren, har den allerede gjort sit.
     if(fraHistorik !== true){ springer++; try{ history.back(); }catch(e){ springer--; } }
@@ -190,7 +190,7 @@
     else if(name === 'menu'){ hentMereVagt(); tegnTjek(); tegnVersion(); }
   }
   function skiftFane(name){
-    lukProducentStor();
+    lukProducentStor(); lukFsStor();
     var s = screenEl(name);
     if(stack.length === 1 && stack[0] === name){
       var b = s.querySelector('.body');
@@ -227,9 +227,15 @@
     if(e.key !== 'Escape' || e.defaultPrevented) return;
     if(!$('crop').hidden) return;
     if(!$('pb-stor').hidden){ e.preventDefault(); lukProducentStor(); return; }
+    if(!$('fs-stor').hidden){ e.preventDefault(); lukFsStor(); return; }
     if(stack.length > 1){ e.preventDefault(); back(); }
   });
   $('pb-stor').addEventListener('click', function(){ lukProducentStor(); });
+  $('fs-fil').addEventListener('change', function(){
+    var f = this.files && this.files[0], l = annonceMedId(this.getAttribute('data-l'));
+    this.value = '';
+    if(f && l) laegMaerkatInd(l, f);
+  });
 
   /* ---- Kø --------------------------------------------------------------- */
   // Tre prikker paa kortet: hvor har varen vaeret? Med én markedsplads var det
@@ -666,9 +672,11 @@
         var fs = solgtL.platform === 'vinted' && solgtL.forsendelse;
         if(fs && (fs.status === 'mangler' || fs.status === 'klar')){
           var rod = fs.frist && new Date(fs.frist).getTime() - Date.now() < 86400000;
-          var knap = fs.status === 'klar' && fs.maerkat && MAERKAT[fs.maerkat]
-            ? '<a class="btn btn-primary" href="' + esc(MAERKAT[fs.maerkat]) + '" target="_blank" rel="noopener">Vis mærkat</a>'
-            : '';
+          var lid = ' data-l="' + esc(solgtL.id) + '"';
+          var knap = fs.maerkat || fs.fragtkode
+            ? '<button type="button" class="btn btn-primary" data-op="fs-vis"' + lid + '>' + (fs.maerkat ? 'Vis mærkat' : 'Vis fragtkoden') + '</button>'
+            : fs.status === 'klar' ? '<button type="button" class="btn btn-secondary" data-op="fs-fil"' + lid + '>Læg mærkatet ind</button>' : '';
+          if(fs.status === 'klar') knap += '<button type="button" class="btn btn-secondary" data-op="fs-afleveret"' + lid + '>Afleveret</button>';
           if(fs.samtale) knap += '<button type="button" class="btn btn-secondary" data-op="samtale" data-url="' + esc(fs.samtale) + '">Åbn samtalen</button>';
           kort.push(opgaveKort(fs.status === 'mangler'
               ? 'Lav fragtmærkatet' : 'Send pakken' + (fs.frist ? ' inden ' + esc(fristTekst(fs.frist)) : ''),
@@ -906,6 +914,7 @@
     }
     if(op === 'vis' && d){ openDetail(d.id); return; }
     if(op === 'samtale'){ aabnUdad(b.getAttribute('data-url')); return; }
+    if(op.indexOf('fs-') === 0){ fsHandling(op, b); return; }
     if(op === 'send'){ aabnUdad('https://www.vinted.dk/items/' + ext + '/edit#udbakke=send'); return; }
     if(op.indexOf('aabn-') === 0){
       var k = op.slice(5);
@@ -1354,7 +1363,24 @@
     return '<div class="fs-kode"><span class="fs-kode-n">' + navn + '</span><span class="fs-kode-v mono">' + esc(v) +
       '</span><button type="button" class="btn btn-quiet" data-a="fs-kopier" data-v="' + esc(v) + '">Kopiér</button></div>';
   }
-  function forsendelseBlok(fs){
+  // Sporingen hos transportoeren (maalt 19. oktober: GLS' side tager
+  // ?match=, DAO sender selv videre til #q=). Andre: kun i samtalen.
+  function fsSporLink(fs){
+    if(!fs.sporingskode) return '';
+    var t = (fs.transportoer || '').toUpperCase(), k = encodeURIComponent(fs.sporingskode);
+    if(t === 'GLS') return 'https://gls-group.com/DK/da/find-pakke?match=' + k;
+    if(t === 'DAO') return 'https://dao.as/find-din-pakke/#q=' + k;
+    return '';
+  }
+  function annonceMedId(id){
+    var fundet = null;
+    Object.keys(rows).forEach(function(k){
+      annoncer(rows[k]).forEach(function(l){ if(String(l.id) === String(id)) fundet = l; });
+    });
+    return fundet;
+  }
+  function forsendelseBlok(l){
+    var fs = l.forsendelse, lid = ' data-l="' + esc(l.id) + '"';
     var aaben = fs.status === 'mangler' || fs.status === 'klar';
     var h = '<div class="fs-blok"><div class="fs-top"><b>Forsendelse</b><span>' + esc(FS_STATUS[fs.status] || '') +
       (fs.status === 'paa_vej' && fs.levering ? ' · levering ' + esc(fs.levering) : '') + '</span></div>';
@@ -1370,21 +1396,131 @@
     if(fs.fragtkode) h += fsKode('Fragtkode', fs.fragtkode);
     if(fs.sporingskode) h += fsKode('Sporing', fs.sporingskode);
     var kn = '';
-    if(fs.maerkat && aaben){
-      kn += MAERKAT[fs.maerkat]
-        ? '<a class="btn btn-primary" href="' + esc(MAERKAT[fs.maerkat]) + '" target="_blank" rel="noopener">Vis mærkat</a>'
-        : '<span class="fs-linje">Henter mærkatet …</span>';
+    if(aaben && (fs.maerkat || fs.fragtkode)){
+      kn += '<button type="button" class="btn btn-primary" data-a="fs-vis"' + lid + '>' +
+        (fs.maerkat ? 'Vis mærkat' : 'Vis fragtkoden') + '</button>';
     }
     if(fs.samtale) kn += '<button type="button" class="btn ' + (fs.status === 'mangler' ? 'btn-primary' : 'btn-secondary') +
       '" data-aabn="' + esc(fs.samtale) + '">' + (fs.status === 'mangler' ? 'Lav mærkatet i samtalen' : 'Åbn samtalen') + '</button>';
+    if(fs.status === 'klar') kn += '<button type="button" class="btn btn-secondary" data-a="fs-afleveret"' + lid + '>Afleveret</button>';
+    var spor = fs.status !== 'fuldfoert' && fsSporLink(fs);
+    if(spor && fs.status !== 'mangler') kn += '<a class="btn btn-secondary" href="' + esc(spor) + '" target="_blank" rel="noopener">Følg pakken</a>';
     if(kn) h += '<div class="fs-knapper">' + kn + '</div>';
-    if(fs.status === 'klar' && !fs.maerkat) h += '<div class="fs-linje lille">Mærkatet kom ikke med mailen — det ligger i samtalen og i din mail.</div>';
+    if(aaben){
+      h += fs.maerkat
+        ? '<button type="button" class="fs-link" data-a="fs-fil"' + lid + '>Skift mærkatet</button>'
+        : '<div class="fs-linje lille">' + (fs.status === 'klar' ? 'Mærkatet kom ikke med mailen. ' : '') +
+          'Læg PDF\'en eller et skærmbillede af QR-koden ind, så har du den her i pakkeshoppen.</div>' +
+          '<div class="fs-knapper"><button type="button" class="btn btn-quiet" data-a="fs-fil"' + lid + '>Læg mærkatet ind</button></div>';
+    }
     var hh = (fs.haendelser || []).slice().reverse();
     if(hh.length) h += '<details class="fs-hist"><summary>Forløb</summary>' + hh.map(function(x){
       return '<div><span class="mono">' + esc(new Date(x.at).toLocaleDateString('da-DK', { day:'numeric', month:'short' })) +
         '</span> ' + esc(x.tekst) + '</div>';
     }).join('') + '</details>';
     return h + '</div>';
+  }
+  // Knapperne paa forsendelsen, fra varens side og fra Opgaver.
+  function fsHandling(a, b){
+    var l = annonceMedId(b.getAttribute('data-l'));
+    if(!l) return;
+    if(a === 'fs-vis') visMaerkat(l);
+    else if(a === 'fs-fil'){ var i = $('fs-fil'); i.setAttribute('data-l', l.id); i.click(); }
+    else if(a === 'fs-afleveret') fsAfleveret(l);
+  }
+  // Maerkatet i fuld skaerm paa hvid bund, saa personalet kan scanne
+  // QR-koden af telefonen. En PDF tegnes af pdf.js (hentet foerst her);
+  // et billede vises, som det er. Lukkes kun med Luk - et tryk paa koden
+  // maa ikke lukke den.
+  var PDFJS = null;
+  function hentPdfJs(){
+    if(PDFJS) return PDFJS;
+    var base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+    PDFJS = new Promise(function(ok, fejl){
+      var s = document.createElement('script');
+      s.src = base + 'pdf.min.js';
+      s.onload = function(){ window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js'; ok(window.pdfjsLib); };
+      s.onerror = function(){ PDFJS = null; fejl(new Error('pdf.js kunne ikke hentes')); };
+      document.head.appendChild(s);
+    });
+    return PDFJS;
+  }
+  function visMaerkat(l){
+    var fs = l.forsendelse || {}, o = $('fs-stor');
+    var url = fs.maerkat && MAERKAT[fs.maerkat];
+    var h = '<div class="fs-stor-top"><b>' + esc((fs.transportoer ? fs.transportoer + ' · ' : '') + (fs.maerkat ? 'Fragtmærkat' : 'Fragtkode')) +
+      '</b><button type="button" class="btn btn-quiet" data-fs-luk>Luk</button></div><div class="fs-stor-krop">';
+    if(fs.fragtkode) h += '<div class="fs-stor-kode"><span>Sig fragtkoden</span><b class="mono">' + esc(fs.fragtkode) + '</b></div>';
+    if(fs.maerkat) h += '<div class="fs-stor-fil">' + (url ? 'Henter mærkatet …' : 'Mærkatet hentes — prøv igen om et øjeblik.') + '</div>';
+    h += '</div><div class="fs-stor-bund">' + (fs.maerkat ? 'Skru op for lysstyrken, og lad personalet scanne koden.' : '') +
+      (fs.sporingskode ? ' Sporing <span class="mono">' + esc(fs.sporingskode) + '</span>' : '') +
+      (url ? ' · <a href="' + esc(url) + '" target="_blank" rel="noopener">Åbn filen</a>' : '') + '</div>';
+    o.innerHTML = h;
+    o.hidden = false;
+    o.querySelector('[data-fs-luk]').addEventListener('click', lukFsStor);
+    if(!url){ if(fs.maerkat) hentMaerkater(); return; }
+    var fil = o.querySelector('.fs-stor-fil');
+    // Appen kan ikke zoomes: et tryk paa maerkatet goer det 2,5 gange
+    // stoerre (rul hen til koden), et tryk til tilbage.
+    fil.addEventListener('click', function(e){ if(e.target.closest('img, canvas')) fil.classList.toggle('stor'); });
+    if(fs.maerkat_type !== 'pdf'){ fil.innerHTML = '<img src="' + esc(url) + '" alt="Fragtmærkatet">'; return; }
+    hentPdfJs().then(function(pdfjs){ return pdfjs.getDocument(url).promise; }).then(function(pdf){
+      if(o.hidden) return;
+      fil.innerHTML = '';
+      var bredde = Math.min(fil.clientWidth || 360, 900), tegn = Promise.resolve();
+      for(var n = 1; n <= Math.min(pdf.numPages, 3); n++) (function(n){
+        tegn = tegn.then(function(){ return pdf.getPage(n); }).then(function(side){
+          var v0 = side.getViewport({ scale: 1 });
+          var skala = bredde / v0.width * Math.max(2, window.devicePixelRatio || 1);
+          var v = side.getViewport({ scale: skala }), c = document.createElement('canvas');
+          c.width = v.width; c.height = v.height;
+          fil.appendChild(c);
+          return side.render({ canvasContext: c.getContext('2d'), viewport: v }).promise;
+        });
+      })(n);
+      return tegn;
+    }).catch(function(){
+      fil.innerHTML = 'PDF\'en kan ikke vises her — <a href="' + esc(url) + '" target="_blank" rel="noopener">åbn den</a>.';
+    });
+  }
+  function lukFsStor(){ var o = $('fs-stor'); if(!o || o.hidden) return; o.hidden = true; o.innerHTML = ''; }
+  // Mærkatet lagt ind af dig (sql/025): PDF'en fra mailen eller et
+  // skaermbillede af QR-koden. Kom det ikke med Vinteds mail, er det
+  // saadan, det kommer ind i appen.
+  function laegMaerkatInd(l, fil){
+    var pdf = /pdf/i.test(fil.type) || /\.pdf$/i.test(fil.name);
+    if(!pdf && !/^image\//.test(fil.type)){ toast('Vælg en PDF eller et billede'); return; }
+    var ext = pdf ? 'pdf' : ((fil.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg'));
+    var sti = l.id + '/dig-' + Date.now() + '.' + ext;
+    toast('Lægger mærkatet ind …');
+    sb.storage.from('maerkater').upload(sti, fil, { contentType: fil.type || (pdf ? 'application/pdf' : 'image/jpeg') }).then(function(res){
+      if(res.error){ toast('Kunne ikke gemme: ' + res.error.message); return; }
+      var fs = Object.assign({ status: 'mangler' }, l.forsendelse || {});
+      fs.maerkat = sti; fs.maerkat_type = ext;
+      if(fs.status === 'mangler') fs.status = 'klar';
+      gemForsendelse(l, fs, 'Mærkatet lagt ind af dig', 'Mærkatet er lagt ind');
+    }, function(){ toast('Kunne ikke gemme mærkatet'); });
+  }
+  // Afleveret i pakkeshoppen: opgaven forsvinder med det samme. Vinteds
+  // mail om, at pakken er paa vej, kommer bagefter og aendrer intet.
+  function fsAfleveret(l){
+    var fs = Object.assign({}, l.forsendelse || {});
+    fs.status = 'paa_vej';
+    gemForsendelse(l, fs, 'Afleveret i pakkeshoppen (markeret af dig)', 'Noteret: pakken er afleveret');
+  }
+  function gemForsendelse(l, fs, haendelse, besked){
+    var nu = new Date().toISOString();
+    fs.haendelser = (fs.haendelser || []).concat([{ at: nu, tekst: haendelse }]).slice(-20);
+    fs.opdateret = nu;
+    return sb.from('listings').update({ forsendelse: fs }).eq('id', l.id).then(function(res){
+      if(res.error){ toast('Kunne ikke gemme: ' + res.error.message); return; }
+      l.forsendelse = fs;
+      toast(besked);
+      hentMaerkater();
+      renderQueue();
+      if(currentId && !screenEl('detail').hidden) renderDetail();
+      if(!screenEl('opgaver').hidden) tegnOpgaveSkaerm();
+    });
   }
   function pladsRaekke(d, m, f){
     var sendt = sendtTil(d)[m.k], ned = (d.taget_ned || {})[m.k];
@@ -1403,7 +1539,7 @@
             'placeholder="' + esc(String(l.price || '')) + '" aria-label="Salgspris i kroner">' +
             '<button type="button" class="btn btn-primary" data-salg="' + esc(l.id) + '">Gem</button></div></div>';
         }
-        if(l.platform === 'vinted' && l.forsendelse) krop += forsendelseBlok(l.forsendelse);
+        if(l.platform === 'vinted' && l.forsendelse) krop += forsendelseBlok(l);
       } else if(l.status === 'afsluttet'){
         status = 'Taget ned';
       } else {
@@ -1860,6 +1996,7 @@
     else if(a === 'fs-kopier'){
       if(navigator.clipboard) navigator.clipboard.writeText(btn.getAttribute('data-v')).then(function(){ toast('Kopieret'); });
     }
+    else if(a.indexOf('fs-') === 0){ fsHandling(a, btn); }
     else if(a === 'fill'){
       aabnMarked(d, btn, 'vinted', 'Vinted', 'https://www.vinted.dk/items/new');
     }

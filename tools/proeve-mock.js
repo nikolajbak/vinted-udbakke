@@ -84,6 +84,14 @@
       ed.photos[ei] = { path: eb.path, url: ed.photos[ei].url, kind: eb.kind, optimized: true, org: eb.org || eb.sti };
       body = { ok: true, photos: ed.photos };
     }
+    // Maerkaterne (Storage-mappen »maerkater«): links peger paa et fast
+    // proevemaerkat med en QR-kode (proeve/maerkat.pdf, laves ikke her),
+    // og et upload lader, som om det lykkedes.
+    if(/\/storage\/v1\/object\/sign\/maerkater$/.test(url) && method === 'POST'){
+      body = JSON.parse(opt.body).paths.map(function(p){ return { path: p, signedURL: '/object/sign/maerkater/' + p + '?token=proeve', error: null }; });
+    }
+    if(/\/storage\/v1\/object\/sign\/maerkater\//.test(url) && method === 'GET') return ægte('proeve/maerkat.pdf');
+    if(/\/storage\/v1\/object\/maerkater\//.test(url) && method === 'POST') body = { Key: url.replace(/^.*\/object\//, '') };
     // En raekke lagt til (POST) eller slettet (DELETE) i annoncering huskes ogsaa.
     if(m && m[1] === 'annoncering' && method === 'POST'){
       var ny = JSON.parse(opt.body || '{}'); ny = Array.isArray(ny) ? ny[0] : ny;

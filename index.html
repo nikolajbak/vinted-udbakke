@@ -32,7 +32,7 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<link rel="stylesheet" href="style.css?v=1a76d391">
+<link rel="stylesheet" href="style.css?v=2047ccbe">
 </head>
 <body>
 
@@ -436,6 +436,8 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
   </section>
 
   <div id="pb-stor" hidden role="dialog" aria-label="Producentens billede"></div>
+  <div id="fs-stor" hidden role="dialog" aria-label="Fragtmærkatet"></div>
+  <input type="file" id="fs-fil" accept="image/*,application/pdf" hidden>
 
   <div id="crop" hidden>
     <p>Træk i hjørnerne. Billedet gemmes i den udsnitsstørrelse, du vælger.</p>
@@ -465,6 +467,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=f9c76432"></script>
+<script src="app.js?v=a4615d82"></script>
 </body>
 </html>

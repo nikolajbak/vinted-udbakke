@@ -218,7 +218,7 @@ i `function_logs`, beviser intet.
 | Vinteds mails → læst af en model og brugt: solgt, bud, besked, favorit, pris (nøgle: `MAIL_KEY`) | `supabase/functions/vinted-mail/` |
 | Køberbeskeder fra mail som opgave på forsiden (`SVAR`, `hentSvar`) | `app.js` |
 | Forsendelsen læst af Vinteds mails (`erForsendelse`, `laesForsendelse`, `fletForsendelse`, `vaelgMaerkat`, rene og testet med `node --test tools/test-forsendelse.mjs`); mærkatet gemt i `vinted-mail` | `supabase/functions/_shared/forsendelse.ts`, `vinted-mail/index.ts` |
-| Forsendelsen på varens side (`forsendelseBlok`, `hentMaerkater`, `fristTekst`) og opgaverne »Lav fragtmærkatet«/»Send pakken« | `app.js`, `.fs-…` i `style.css` |
+| Forsendelsen på varens side (`forsendelseBlok`, `hentMaerkater`, `fristTekst`, `fsHandling`) og opgaverne »Lav fragtmærkatet«/»Send pakken«; mærkatet i fuld skærm (`visMaerkat`, `hentPdfJs`), lagt ind af dig (`laegMaerkatInd`), afleveret (`fsAfleveret`), sporingen (`fsSporLink`) | `app.js`, `#fs-stor`/`#fs-fil` i `index.html`, `.fs-…` i `style.css` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
@@ -278,6 +278,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Hvilken model hvert trin bruger: `modelvalg` (`claude`/`skygge`/`gemini`, opslag trin → delen før kolon → `*`); hvert Gemini-forsøg og skyggens to svar: `modelkald` (30 dage) | `sql/022-gemini.sql` |
 | Betalt annoncering: `annoncering_ordrer` (én faktura, `vinted_mail_id` unik), `annoncering` (én vares del; `kilde` `mail`/`dig`, `tal` og `dom` fra Vinted, unik på ordre+annonce), `annoncering_maal` (Vinteds tal, én pr. dag) | `sql/023-annoncering.sql` |
 | Forsendelsen af en solgt vare: `listings.forsendelse` (status, transportør, sporingskode, fragtkode, frist, pakke, transaktion, samtale, levering, `maerkat`, hændelser); den private Storage-mappe `maerkater` (kun logget ind læser, kun service-nøglen skriver) | `sql/024-forsendelse.sql` |
+| Mærkatet lagt ind fra appen: logget ind må lægge filer i `maerkater` | `sql/025-maerkat-fra-appen.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -705,6 +706,36 @@ sender ingen mails.
 - **Opgaver → Haster**: »Lav fragtmærkatet« og »Send pakken inden …«
   (rød under et døgn til fristen, ellers rav), til en mail siger, at
   pakken er på vej. Ingen push — Vinted har selv sendt mailen.
+- **Al administration af forsendelsen kan ske i appen** (bestemt af dig
+  19. oktober: »QR-koder og andet relevant … så alt administration kan
+  laves i appen«). Mærkat-mailen har INGEN QR-kode i teksten eller
+  linkene (målt på mail 10, 41, 48 — kun hjælp/vilkår/privatliv); koden
+  står i det vedhæftede mærkat. Derfor:
+  - **Vis mærkat** åbner mærkatet i fuld skærm inde i appen (`visMaerkat`,
+    `#fs-stor`) på hvid bund, også i mørkt tema, så personalet scanner
+    QR-koden af telefonen. En PDF tegnes af pdf.js 3.11.174 fra cdnjs
+    (hentet først ved tryk, op til tre sider), et billede vises som det er.
+    Appen kan ikke zoomes, så et tryk på mærkatet gør det 2,5 × større.
+    Lukkes kun med Luk og ved navigation. Uden fil, men med DAO's
+    fragtkode: **Vis fragtkoden** stort. Prøvet med et PDF-mærkat med
+    QR-kode i prøve-appen: koden læst af `jsQR` fra det tegnede.
+  - **Læg mærkatet ind** (`laegMaerkatInd`, `#fs-fil`): PDF'en fra mailen
+    eller et skærmbillede af QR-koden, når mærkatet ikke kom med mailen.
+    Lægges i `maerkater/<listing>/dig-<tid>.<ext>` (sql/025), og appen
+    skriver selv `listings.forsendelse` (`gemForsendelse`, med en hændelse);
+    »mangler« bliver »klar«. **Skift mærkatet** lægger et nyt ind.
+  - **Send mailen videre**: en mail, du selv videresender (»Fwd:«/»VS:«,
+    også med »>«-citat), læses som Vinteds egen (`VIDERE` i
+    `_shared/forsendelse.ts`, testet) — så får et gammelt mærkat sin fil,
+    hvis tjenesten tager vedhæftningen med.
+  - **Afleveret** (`fsAfleveret`) sætter status »på vej« med hændelsen
+    »Afleveret i pakkeshoppen (markeret af dig)«, og opgaven forsvinder.
+    Vinteds mail bagefter ændrer intet (samme rang).
+  - **Følg pakken** (`fsSporLink`): GLS
+    `https://gls-group.com/DK/da/find-pakke?match=<kode>`, DAO
+    `https://dao.as/find-din-pakke/#q=<kode>` (målt 19. oktober: begge
+    svarer 200; DAO's `?stregkode=` sender selv videre til `#q=`). Andre
+    transportører: kun i samtalen.
 
 ## Betalt annoncering
 

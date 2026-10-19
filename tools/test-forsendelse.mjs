@@ -79,6 +79,17 @@ test("status gaar kun frem, og felterne bliver staaende", () => {
   assert.equal(f.haendelser.length, 4);
 });
 
+test("en mail, du selv sender videre", () => {
+  assert.ok(erForsendelse("Fwd: " + GLS_EMNE));
+  assert.ok(erForsendelse("VS: " + OPD));
+  const citeret = GLS.split("\n").map((l) => "> " + l).join("\n");
+  const f = laesForsendelse("Fwd: " + GLS_EMNE, citeret);
+  assert.equal(f.status, "klar");
+  assert.equal(f.sporingskode, "YPCECWZ9");
+  assert.equal(f.frist, "2026-10-26T14:09:00.000Z");
+  assert.equal(laesForsendelse("Fwd: " + OPD, "> Din pakke er på vej til køberen! Anslået levering er Okt 19 - Okt 21 for x.").status, "paa_vej");
+});
+
 test("dansk tid omkring skiftet", () => {
   assert.equal(kbhTilIso(2026, 10, 24, 12, 0), "2026-10-24T10:00:00.000Z");
   assert.equal(kbhTilIso(2026, 10, 25, 12, 0), "2026-10-25T11:00:00.000Z");
