@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0122 — 2026-10-19 06:49
+
+Commit `0c1d35d` — Tag dit eget: serveren lægger billedet til i én sætning (append_draft_photo), svaret lukker ingen anden skærm, filvælger på computeren  
+App: `app.js?v=89f36fd9` · `style.css?v=0c06a2f9`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v90 | `1d0d05bb` |
+| dba-fill-script | v39 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v30 | `63727506` |
+| vinted-fill-script ← | v115 | `a22578a6` |
+| vinted-mail | v20 | `48755620` |
+
 ## udgivelse-0121 — 2026-10-19 06:31
 
 Commit `7edc882` — nytFoto: kun færdiganalyserede varer, svarer ikke_optimeret når delkaldet ikke fik billedet optimeret; et fejlet delkald rører ikke prisnoten  
