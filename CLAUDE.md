@@ -782,7 +782,8 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   og `flytFanebar` flytter den ind i den skærm, der er fremme. Opgaver har
   sit tal på fanen (`opdaterOpgaveTal`: opgaverne + prisforslagene), Mere
   sit, når noget i opsætningen er gået i stå. **Prisvagt er en underskærm**
-  med tilbagepil, åbnet fra Mere. `#fane-vagt` (runnerens vej tilbage på
+  med tilbagepil, åbnet fra Mere; tilbage i Mere hentes prisvagtens kort
+  igen (`back()` → `hentMereVagt`). `#fane-vagt` (runnerens vej tilbage på
   Mac'en) lander i Mere; runneren og `aabnFraAdresse` kender også
   `opgaver` — ret de to regex sammen.
 - **Nyt produkt** er en svævende knap over listen; Scan sidder øverst til
@@ -884,7 +885,8 @@ listen« fra 2.-3. oktober). `raekkeTekst()` og `raekkePris()` i `app.js`.
   3. Løbenummeret · markedspladsernes prikker · »rettelse venter«.
 - **Til højre det tal, der betyder noget**, med en linje under: Klar —
   prisen (ellers »Analyserer …«, »Kladde«, eller »ingen pris« /
-  »Analysen mislykkedes« i rav); Ude — prisen nu, under: »♥ 4 · 3 d«;
+  »Analysen mislykkedes« i rav); Ude — prisen nu (mangler den: »ingen
+  pris« i rav), under: »♥ 4 · 3 d«;
   Solgt — salgsprisen, under: »12 d« (mangler den: »tast salgsprisen« i
   rav; uden annonce: »taget ned«). Ord i stedet for et tal står mindre
   (`.lille`), så de ikke klemmer varens tekst.
@@ -1018,7 +1020,8 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
 - **Samme mail to gange er én mail** (`message_id` er unik). Tjenesterne
   sender igen, hvis de ikke fik svar i tide.
 - **En push med en vare åbner varen** (`#v<nr>`), også når appen allerede er
-  åben — `sw.js` navigerer den åbne rude.
+  åben — `sw.js` navigerer den åbne rude. Det samme gælder en fane
+  (`#fane-opgaver`, prisforslagenes push).
 
 ## Mails bruges til alt, de kan
 
@@ -1560,11 +1563,13 @@ laver en liste til godkendelse.** Erstatter beslutningen fra 16. oktober
   sammenlignelige}`), ALDRIG i `pending`. `pending` er kun dit: rettelser
   fra appen og godkendte priser. Tilsynet rører ikke `pending`, og siger
   et nyt tilsyn »behold«, ryddes et gammelt forslag. Push: »N prisforslag
-  venter på din godkendelse«.
+  venter på din godkendelse«; et tryk åbner Opgaver (`#fane-opgaver`,
+  tredje led i `puf`).
 - **Appen**: forslagene godkendes under fanen **Opgaver** (19. oktober; før
   en gruppe på Prisvagt-skærmen): »Prisforslag · N« med × (afvis), prisen
   (godkend) og »Godkend alle«. Prisvagt-skærmen viser kun »Foreslår X kr —
-  venter på dit ja under Opgaver«. **Ingen opgave om forslagene på Lager**
+  venter på dit ja under Opgaver« (med »Venter også: …«, hvis der også
+  ligger rettelser i `pending`). **Ingen opgave om forslagene på Lager**
   (bestemt af dig 18. oktober). Varens side: »Prisvagt: foreslår X kr —
   venter på din godkendelse«.
 - **Godkend** (`godkendForslag`): prisen lægges i `pending` med

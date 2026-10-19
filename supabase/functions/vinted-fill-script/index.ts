@@ -841,14 +841,14 @@ async function ogsaaNedePaa(draftIds: unknown[]): Promise<string> {
   return navne.size ? " Slet den også på " + [...navne].join(" og ") + "." : "";
 }
 
-async function puf(title: string, body: string) {
+async function puf(title: string, body: string, url = "/vinted-udbakke/") {
   const hemmelighed = Deno.env.get("WEBHOOK_SECRET");
   if (!hemmelighed) return;
   try {
     await fetch(`${SUPABASE_URL}/functions/v1/push-send`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-webhook-secret": hemmelighed },
-      body: JSON.stringify({ title, body, url: "/vinted-udbakke/" }),
+      body: JSON.stringify({ title, body, url }),
     });
   } catch { /* en manglende notifikation maa aldrig vaelte en prisjustering */ }
 }
@@ -1210,7 +1210,8 @@ async function tilsyn(maalinger: Maaling[]) {
   if (aendringer) {
     await puf("Prisvagt", aendringer === 1
       ? "1 prisforslag venter på din godkendelse"
-      : aendringer + " prisforslag venter på din godkendelse");
+      : aendringer + " prisforslag venter på din godkendelse",
+      "/vinted-udbakke/#fane-opgaver");
   }
   return { beslutninger: ud };
 }

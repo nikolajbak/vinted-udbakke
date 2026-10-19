@@ -152,6 +152,8 @@
     var cur = screenEl(stack.pop());
     var prev = screenEl(stack[stack.length - 1]);
     prev.hidden = false;
+    // Tilbage i Mere fra Prisvagt: kortet skal vise det, Prisvagt lige saa.
+    if(stack[stack.length - 1] === 'menu') hentMereVagt();
     if(reduce){ cur.hidden = true; return; }
     prev.classList.add('exit-left');
     void prev.offsetWidth;
@@ -465,10 +467,10 @@
     }
     var l = vintedAnnonce(d), n = nuPris(d);
     if(f === 'ude'){
-      var p = isFinite(n) ? kr(n) : '';
-      if(!l) return { pris: p, under: 'ikke bekræftet', rav: false };
+      var ok = isFinite(n), p = ok ? kr(n) : 'ingen pris';
+      if(!l) return { pris: p, under: 'ikke bekræftet', rav: !ok, lille: !ok };
       var dg = dageUde(l);
-      return { pris: p, under: '♥ ' + (l.favourites || 0) + (dg === null ? '' : ' · ' + dage(dg)), rav: false };
+      return { pris: p, under: '♥ ' + (l.favourites || 0) + (dg === null ? '' : ' · ' + dage(dg)), rav: !ok, lille: !ok };
     }
     var sl = annoncer(d).filter(function(x){ return x.status === 'solgt'; })[0];
     if(!sl) return { pris: 'taget ned', under: '', rav: false, lille: true };
@@ -3309,6 +3311,7 @@
     if(harForslag(l)){
       var fo = l.forslag;
       h += '<div class="vagt-forslag"><b>Foreslår ' + esc(kr(fo.price)) + ' <s>' + esc(kr(l.price)) + '</s></b>' +
+           (venter.length ? '<span>Venter også: ' + esc(venter.join(', ')) + '</span>' : '') +
            '<span>Venter på dit ja under Opgaver.</span></div>';
     } else if(venter.length){
       var pv = l.pending && l.pending.price;
