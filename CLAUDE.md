@@ -220,7 +220,7 @@ i `function_logs`, beviser intet.
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
-| »Sådan ser den ud på« på varens side (`producentBlok`, `producentKoblOp`, `visProducentStor`, `POSE_NAVN`) og trinnet `paa-kroppen` i `STEPS` | `app.js`; `#pb-stor` i `index.html`; `.pb-…` i `style.css` |
+| »Sådan ser den ud på« på varens side (`producentBlok`, `producentKoblOp`, `visProducentStor`, `POSE_NAVN`), »Tag dit eget som dette« (`aabnForlaeg`, `gemForlaegsbillede`, `POSE_TEKST`) og trinnet `paa-kroppen` i `STEPS` | `app.js`; `#pb-stor` og `#s-pbtag` i `index.html`; `.pb-…` i `style.css` |
 | Ét nyt billede i et klar-udkast optimeres alene (`mode:'nytFoto'`, kalder delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; kun status `ny` og ikke sendt nogen steder hen; afviser `ikke_klar`, `findes_ikke`, `optimeret`, og `ikke_optimeret` når delkaldet ikke fik billedet optimeret; et fejlet delkald rører ikke prisnoten) | `…/vinted-fill-script/index.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
@@ -374,6 +374,14 @@ Spec: `docs/superpowers/specs/2026-10-19-producentbilleder-design.md`.
   Vælges flere billeder fra Fotos på én gang, springes trinnet over: et
   `paa-kroppen`-billede isoleres aldrig, og et fladt billede nr. 3 skal
   stadig kunne isoleres. Ét billede valgt på trinnet er dit valg.
+- **»Tag dit eget som dette«** (under billederne, kun når varen er
+  færdiganalyseret — status `ny` — og ikke sendt nogen steder hen; serverens
+  `nytFoto` har samme regel): skærmen `#s-pbtag` viser producentens billede
+  som forlæg (iOS' kamera kan ikke få et overlay), posens navn og en kort
+  vejledning. Dit billede lægges sidst i udkastet (`paa-kroppen`, for nær
+  `detalje`), og serveren optimerer det alene med seriens tone og format.
+  Teksten skrives ikke om. Fejler optimeringen, står billedet stadig i
+  udkastet (»Billedet er gemt, men ikke optimeret«).
 
 ## Billedernes rækkefølge
 

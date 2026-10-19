@@ -52,6 +52,9 @@
     // eksempel i samme form, saa skaermen kan ses uden at koste noget.
     var mode = ''; try { mode = JSON.parse(opt && opt.body || '{}').mode || ''; } catch(e){}
     if(/\/functions\//.test(url) && mode === 'indkob') body = INDKOB;
+    // »Tag dit eget som dette«: serveren optimerer billedet - her bare ok.
+    // Fejl proeves med __proeveFejl = { url: /vinted-fill-script/, method: 'POST', status: 502 }.
+    if(/\/functions\//.test(url) && mode === 'nytFoto') body = { ok: true };
     // En PATCH laegges ind i hukommelsen, saa en genhentning ser den (intet sendes).
     if(m && method === 'PATCH'){
       var ret = {}; try { ret = JSON.parse(opt.body || '{}'); } catch(e){}

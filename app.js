@@ -981,6 +981,10 @@
     var husket = PB_VALGT[d.id] != null && blok.querySelector('.pb-kort[data-pb-i="' + PB_VALGT[d.id] + '"]:not([hidden])');
     var foerste = husket || blok.querySelector('.pb-kort:not([hidden])');
     if(foerste && tag){ foerste.classList.add('pb-valgt'); tag.setAttribute('data-pb-tag', foerste.getAttribute('data-pb-i')); }
+    if(tag) tag.addEventListener('click', function(){
+      var b = pb[Number(tag.getAttribute('data-pb-tag'))];
+      if(b) aabnForlaeg(d, b);
+    });
   }
   function visProducentStor(b, vaert){
     var o = $('pb-stor');
@@ -988,6 +992,70 @@
       producentPille(vaert) + '<span class="pb-stor-pose">' + esc(POSE_NAVN[b.pose] || '') + '</span>';
     o.hidden = false;
   }
+  // »Tag dit eget som dette«: producentens billede som forlaeg lige foer dit
+  // tryk (iOS' kamera kan ikke faa et overlay). Dit billede laegges sidst i
+  // udkastet, og serveren optimerer det alene (mode nytFoto). Teksten skrives
+  // ikke om. Kun for en faerdiganalyseret vare, der ikke er sendt afsted.
+  var POSE_TEKST = {
+    'forfra-hel': 'Varen på, hele figuren lige forfra — eller fra halsen og ned, ansigtet er ikke nødvendigt. Rolig, ensfarvet baggrund, stå lidt til siden for midten.',
+    trekvart: 'Varen på, drejet en kvart omgang mod kameraet — hele figuren eller fra halsen og ned. Rolig, ensfarvet baggrund.',
+    bagfra: 'Varen på, set bagfra — hele figuren eller fra halsen og ned. Rolig, ensfarvet baggrund.',
+    naer: 'Stoffet eller detaljen tæt på, som på billedet — med luft omkring, så intet skæres af kanten.'
+  };
+  var PBTAG = null;
+  function aabnForlaeg(d, b){
+    PBTAG = { id: d.id, pose: b.pose, travl: false };
+    $('pbtag-titel').textContent = POSE_NAVN[b.pose] || 'Tag dit eget';
+    $('pbtag-ramme').innerHTML = '<span class="pb-forlaeg-ind"><img class="pb-forlaeg" src="' + esc(b.url) + '" alt="" referrerpolicy="no-referrer">' +
+      producentPille(producentVaert(d)) + '</span>';
+    $('pbtag-hint').textContent = POSE_TEKST[b.pose] || '';
+    $('pbtag-status').hidden = true;
+    $('pbtag-shoot').disabled = false;
+    show('pbtag');
+  }
+  function gemForlaegsbillede(file){
+    if(!PBTAG || PBTAG.travl) return;
+    var d = rows[PBTAG.id];
+    if(!d) return;
+    PBTAG.travl = true;
+    var st = $('pbtag-status');
+    st.hidden = false; st.textContent = 'Uploader …';
+    $('pbtag-shoot').disabled = true;
+    var kind = PBTAG.pose === 'naer' ? 'detalje' : 'paa-kroppen';
+    var photos, path, n;
+    shrink(file, 1800, 0.9).then(function(blob){
+      path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
+      return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' });
+    }).then(function(r){
+      if(r.error) throw r.error;
+      var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+      photos = (d.photos || []).concat([{ path: path, url: url, kind: kind }]);
+      n = photos.length - 1;
+      return sb.from('drafts').update({ photos: photos }).eq('id', d.id);
+    }).then(function(r){
+      if(r && r.error) throw r.error;
+      d.photos = photos;
+      // Billedet er gemt; herfra er det kun optimeringen, der kan mangle.
+      return fetch(FILL_API, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mode: 'nytFoto', id: d.id, photo: n })
+      }).then(function(res){
+        return res.json().catch(function(){ return {}; }).then(function(j){ return res.ok && j && j.ok ? 'ok' : (j && j.error) || 'fejl'; });
+      }, function(){ return 'fejl'; }).then(function(udfald){
+        PBTAG = null;
+        back();
+        if(udfald === 'ok') toast('Billedet er lagt til');
+        else if(udfald === 'ikke_klar') toast('Varen er sendt afsted — billeder lægges kun til, mens den er klar');
+        else toast('Billedet er gemt, men ikke optimeret');
+        if(currentId === d.id) renderDetail();
+      });
+    }).catch(function(){
+      if(PBTAG) PBTAG.travl = false;
+      st.textContent = 'Kunne ikke gemme billedet. Prøv igen.';
+      $('pbtag-shoot').disabled = false;
+    });
+  }
+
   function lukProducentStor(){ var o = $('pb-stor'); if(!o || o.hidden) return; o.hidden = true; o.innerHTML = ''; }
 
   function renderDetail(){
@@ -2000,6 +2068,13 @@
   }
   $('cap-finish').addEventListener('click', function(){ lavUdkast($('cap-finish'), false); });
   $('cap-next').addEventListener('click', function(){ lavUdkast($('cap-next'), true); });
+  $('pbtag-close').addEventListener('click', function(){ if(!(PBTAG && PBTAG.travl)){ PBTAG = null; back(); } });
+  $('pbtag-shoot').addEventListener('click', function(){ if(!(PBTAG && PBTAG.travl)) $('pbtag-cam').click(); });
+  $('pbtag-cam').addEventListener('change', function(){
+    var f = $('pbtag-cam').files && $('pbtag-cam').files[0];
+    $('pbtag-cam').value = '';
+    if(f) gemForlaegsbillede(f);
+  });
   $('cap-close').addEventListener('click', function(){
     if(session && session.id && session.photos.length){
       back(); toast('Gemt som ufærdig — du kan fortsætte senere');
