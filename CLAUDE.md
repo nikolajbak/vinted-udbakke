@@ -660,6 +660,11 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
   felter) — Claude håndhæver selv sit skema, og et Gemini-svar med en tekst
   i stedet for en liste ville ellers vælte kaldestedet.
 - `forbrug` noterer Gemini-kald til 0 $ (`PRIS` `gemini`).
+- **Målt 19. oktober med nøglen:**
+  - Billeder kan sendes som adresse (`file_data` med Storage-adressen) — ingen base64.
+  - **Googles søgning har ingen gratiskvote** (`google_search` → 429 på alle modeller, mens almindelige kald og `url_context` svarede). Derfor er `opslag:nypris_maal` = `claude`.
+  - `gemini-2.5-flash` svarer 404 (»no longer available to new users«), og `gemini-3.8-flash` gav 403 fra serveren; begge sættes på pause.
+  - Gemini er langsommere end Claude: et billedkald tog 7-52 s og indkøbsanalysen 13 s. Se `ms` i `modelkald`, før et trin, som telefonen venter på (`vinted:*`, `dba:*`), skiftes til `gemini`.
 
 ## Prisen
 

@@ -182,7 +182,9 @@ async function gemini(body: any, trin: string, draft_id: string | null, ms: numb
     } catch (e) {
       sidste = e;
       const s = e instanceof GeminiFejl ? e.status : 0;
-      if (s === 404) karantaene.set(model, Date.now() + 3_600_000);
+      // 403 (»API has not been used in project … or it is disabled«, set
+      // paa gemini-3.8-flash 19. oktober, mens 3.7 svarede) som 404.
+      if (s === 404 || s === 403) karantaene.set(model, Date.now() + 3_600_000);
       else if (s === 429 || s >= 500 || (e as Error)?.name === "TimeoutError") karantaene.set(model, Date.now() + 60_000);
       iBaggrunden(noter({ trin, draft_id, model, ok: false, ms: Date.now() - t0, fejl: String((e as Error)?.message ?? e).slice(0, 500) }));
       if (frist.aborted) break;
