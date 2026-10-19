@@ -1472,6 +1472,7 @@
 .fs-kode{ display: flex; align-items: center; gap: var(--s2); margin-top: var(--s1); }
 .fs-kode-n{ color: var(--ink-soft); min-width: 5.5em; }
 .fs-kode-v{ flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
+.fs-kode .btn{ flex: 0 0 auto; width: auto; min-height: 0; padding: 4px 10px; }
 .fs-knapper{ display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
 .fs-hist{ margin-top: var(--s2); color: var(--ink-soft); }
 .fs-hist summary{ cursor: pointer; }
