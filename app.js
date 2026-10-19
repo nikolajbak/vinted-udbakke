@@ -116,6 +116,7 @@
   function show(name, opts){
     opts = opts || {};
     stopScan();
+    lukProducentStor();
     var next = screenEl(name);
     var cur = stack.length ? screenEl(stack[stack.length - 1]) : null;
     if(cur === next) return;
@@ -146,6 +147,7 @@
   function back(fraHistorik){
     if(stack.length < 2) return;
     stopScan();
+    lukProducentStor();
     // Kom trykket fra appens egen pil, skal historien med tilbage. Kom det fra
     // browseren, har den allerede gjort sit.
     if(fraHistorik !== true){ springer++; try{ history.back(); }catch(e){ springer--; } }
@@ -188,6 +190,7 @@
     else if(name === 'menu'){ hentMereVagt(); tegnTjek(); tegnVersion(); }
   }
   function skiftFane(name){
+    lukProducentStor();
     var s = screenEl(name);
     if(stack.length === 1 && stack[0] === name){
       var b = s.querySelector('.body');
@@ -917,6 +920,7 @@
   // Producentens billeder af varen paa en person - kun til dig, som forlaeg.
   // De ligger i fakta.producentBilleder (links) og kommer ALDRIG i photos:
   // Vinted forbyder billeder, saelgeren ikke selv har taget.
+  var PB_VALGT = {};
   var POSE_NAVN = { 'forfra-hel':'Forfra, hele figuren', trekvart:'Trekvart', bagfra:'Bagfra', naer:'Tæt på' };
   function producentVaert(d){
     try { return new URL(d.fakta.produktside).hostname.replace(/^www\./, ''); } catch(e){ return ''; }
@@ -959,8 +963,11 @@
         if(tag && tag.getAttribute('data-pb-tag') === String(i)) vael(tilbage[0]);
       }
       function vael(kort){
+        // Markeringen betyder »forlaegget« og staar kun, naar knappen gor.
+        if(!tag) return;
         Array.prototype.forEach.call(blok.querySelectorAll('.pb-kort'), function(x){ x.classList.toggle('pb-valgt', x === kort); });
-        if(tag) tag.setAttribute('data-pb-tag', kort.getAttribute('data-pb-i'));
+        tag.setAttribute('data-pb-tag', kort.getAttribute('data-pb-i'));
+        PB_VALGT[d.id] = kort.getAttribute('data-pb-i');
       }
       img.addEventListener('error', vaek);
       if(img.complete && img.naturalWidth === 0 && img.src) vaek();
@@ -970,8 +977,10 @@
         visProducentStor(pb[i], vaert);
       });
     });
-    var foerste = blok.querySelector('.pb-kort:not([hidden])');
-    if(foerste && tag) foerste.classList.add('pb-valgt');
+    // Valget overlever, naar siden tegnes om (realtid).
+    var husket = PB_VALGT[d.id] != null && blok.querySelector('.pb-kort[data-pb-i="' + PB_VALGT[d.id] + '"]:not([hidden])');
+    var foerste = husket || blok.querySelector('.pb-kort:not([hidden])');
+    if(foerste && tag){ foerste.classList.add('pb-valgt'); tag.setAttribute('data-pb-tag', foerste.getAttribute('data-pb-i')); }
   }
   function visProducentStor(b, vaert){
     var o = $('pb-stor');
@@ -979,7 +988,7 @@
       producentPille(vaert) + '<span class="pb-stor-pose">' + esc(POSE_NAVN[b.pose] || '') + '</span>';
     o.hidden = false;
   }
-  function lukProducentStor(){ var o = $('pb-stor'); o.hidden = true; o.innerHTML = ''; }
+  function lukProducentStor(){ var o = $('pb-stor'); if(!o || o.hidden) return; o.hidden = true; o.innerHTML = ''; }
 
   function renderDetail(){
     var d = rows[currentId];
@@ -1961,7 +1970,14 @@
     var filer = Array.prototype.slice.call($('cam-fotos').files || []);
     $('cam-fotos').value = '';
     var kaede = Promise.resolve();
-    filer.forEach(function(f){ kaede = kaede.then(function(){ return handleShot(f); }); });
+    filer.forEach(function(f){ kaede = kaede.then(function(){
+      // Flere paa én gang springer »På kroppen« over: trinnet bliver til en
+      // regel i billedbehandlingen (isoleres aldrig), og et fladt billede
+      // nr. 3 skal stadig kunne isoleres. Ét billede valgt paa trinnet er dit valg.
+      var st = session && STEPS[session.step];
+      if(filer.length > 1 && st && st.kind === 'paa-kroppen') session.step++;
+      return handleShot(f);
+    }); });
   });
   $('cap-skip').addEventListener('click', function(){
     if(session && session.step < STEPS.length){ session.step++; renderCapture(); }

@@ -363,10 +363,17 @@ Spec: `docs/superpowers/specs/2026-10-19-producentbilleder-design.md`.
   hvert med pillen »Fra producenten · <butik>« (HTML oven på billedet, ikke
   brændt ind) og posens navn. Tryk = stort billede (`#pb-stor`, Esc eller
   tryk lukker) og gør det til forlægget. Et billede, butikken har fjernet,
-  skjules; er alle væk, skjules blokken. På computerskærmen har den faste
-  billedkolonne sin egen rul, så blokken altid kan nås.
+  skjules; er alle væk, skjules blokken. Valget af forlæg huskes, når
+  siden tegnes om (`PB_VALGT`), og billedet lukkes ved enhver navigation.
+  På computerskærmen har den faste billedkolonne sin egen rul, når blokken
+  er der (`.d-medier:has(.pb-blok)`, loftet 100dvh − 198 px er målt på
+  headeren og bundknapperne), så blokken altid kan nås; andre varer er som
+  før.
 - **Optagelsen** har trinnet **»På kroppen«** efter Bagfra (valgfrit som
   alle trin): varen på, hele figuren forfra eller fra halsen og ned.
+  Vælges flere billeder fra Fotos på én gang, springes trinnet over: et
+  `paa-kroppen`-billede isoleres aldrig, og et fladt billede nr. 3 skal
+  stadig kunne isoleres. Ét billede valgt på trinnet er dit valg.
 
 ## Billedernes rækkefølge
 

@@ -1322,8 +1322,10 @@
   /* Billedkolonnen staar fast - men med producentens billeder under kan den
      blive hoejere end vinduet, og saa kunne bunden aldrig ses. Den faar
      derfor hoejst rullefladens hoejde (vinduet minus top 77, bund 73 og
-     d-body's 16+32 px luft, maalt 19. oktober) og sin egen rul. */
-  .d-medier{ position: sticky; top: 0; max-height: calc(100dvh - 198px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+     d-body's 16+32 px luft, maalt 19. oktober) og sin egen rul - kun naar
+     blokken er der, saa andre varer er som foer. */
+  .d-medier{ position: sticky; top: 0; }
+  .d-medier:has(.pb-blok:not([hidden])){ max-height: calc(100dvh - 198px); overflow-y: auto; scrollbar-width: thin; }
   .d-info > :first-child{ margin-top: 0; }
 
   /* Knapperne i bunden holder laesebredden, ogsaa naar skaermen er bred:
