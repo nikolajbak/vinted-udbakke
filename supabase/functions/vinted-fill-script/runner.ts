@@ -1582,11 +1582,13 @@ async function boostRunde(){
   var nu=Date.now(),sidst=0;
   try{sidst=Number(localStorage.getItem('udbakke_boost_sidst'))||0}catch(e){}
   if(nu-sidst<3600000)return;
+  // Stemplet foer kaldet, saa to faner, der indlaeses samtidig, ikke begge
+  // koerer. Fejler kaldet, slettes det igen.
+  try{localStorage.setItem('udbakke_boost_sidst',String(nu))}catch(e){}
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({mode:'boost'})},15000);
   var j=await r.json();
-  if(!j||!j.bruger){spor('boost: intet svar fra serveren');return}
-  try{localStorage.setItem('udbakke_boost_sidst',String(nu))}catch(e){}
+  if(!j||!j.bruger){try{localStorage.removeItem('udbakke_boost_sidst')}catch(e){}spor('boost: intet svar fra serveren');return}
   if(j.behov){
    var promoted=[],side=1,ialt=0;
    for(;side<=5;side++){

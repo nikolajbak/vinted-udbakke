@@ -33,19 +33,24 @@ async function ordrerUdenVarer(supabase: SupabaseClient) {
 // Hvilke vinted-annoncer skal maales i dag: et boost, der koerer eller sluttede
 // for under 7 dage siden, og intet maal i dag.
 async function tilMaaling(supabase: SupabaseClient): Promise<string[]> {
+  // Kun Vinteds egne boost (ikke en raekke, du selv har registreret), og
+  // pr. annonce afgoer den nyeste raekke - det er den, gemMaal skriver paa.
   const { data } = await supabase.from("annoncering")
     .select("listing_id, slut, maalt_at, listings(external_id, status)")
-    .eq("plads", "vinted").not("listing_id", "is", null)
-    .gte("slut", new Date(Date.now() - EFTER_DAGE * DAG).toISOString());
+    .eq("plads", "vinted").eq("kilde", "mail").not("listing_id", "is", null)
+    .gte("slut", new Date(Date.now() - EFTER_DAGE * DAG).toISOString())
+    .order("start", { ascending: false });
   const dag = idag();
-  const ud = new Set<string>();
+  const set = new Set<string>();
+  const ud: string[] = [];
   for (const r of (data ?? []) as Raekke[]) {
     const l = r.listings as Raekke | null;
-    if (!l?.external_id) continue;
+    if (!l?.external_id || set.has(String(r.listing_id))) continue;
+    set.add(String(r.listing_id));
     if (r.maalt_at && idag(new Date(String(r.maalt_at))) >= dag) continue;
-    ud.add(String(l.external_id));
+    ud.push(String(l.external_id));
   }
-  return [...ud];
+  return ud;
 }
 
 async function knyt(supabase: SupabaseClient, promoted: string[]) {
@@ -71,11 +76,12 @@ async function knyt(supabase: SupabaseClient, promoted: string[]) {
         ordre_id: o.id, draft_id: l.draft_id, listing_id: l.id, plads: "vinted", slags: "boost",
         kr, start: o.start, slut: o.slut, kilde: "mail",
       });
-      if (error) { console.error("boost: knyt", l.external_id, error.message); continue; }
+      // 23505: en anden fane knyttede den samme vare lige foer (unikt indeks).
+      if (error) { if (error.code !== "23505") console.error("boost: knyt", l.external_id, error.message); continue; }
       brugt.add(String(l.id));
       // Prisvagten holder sin ro, mens boostet koerer (og et doegn efter).
       const efter = new Date(new Date(o.slut).getTime() + DAG);
-      if (new Date(String(l.next_check_at)) < efter) {
+      if (!l.next_check_at || new Date(String(l.next_check_at)) < efter) {
         await supabase.from("listings").update({ next_check_at: efter.toISOString() }).eq("id", l.id);
       }
       await supabase.from("price_events").insert({
@@ -109,7 +115,8 @@ async function gemMaal(supabase: SupabaseClient, maal: Array<{ item_id: unknown;
       .eq("external_id", String(m.item_id)).maybeSingle();
     if (!l) continue;
     const { data: r } = await supabase.from("annoncering").select("id, maalt_at")
-      .eq("listing_id", l.id).eq("plads", "vinted").order("start", { ascending: false }).limit(1).maybeSingle();
+      .eq("listing_id", l.id).eq("plads", "vinted").eq("kilde", "mail")
+      .order("start", { ascending: false }).limit(1).maybeSingle();
     if (!r) continue;
     if (r.maalt_at && idag(new Date(r.maalt_at)) >= dag) continue;
     const nu = new Date().toISOString();
@@ -163,7 +170,8 @@ export async function boost(supabase: SupabaseClient, body: Raekke, bruger: stri
 // Prisvagten: de annoncer, hvis boost koerer lige nu, faar ingen tilsyn.
 export async function boostKoerer(supabase: SupabaseClient): Promise<Set<string>> {
   const { data } = await supabase.from("annoncering").select("listing_id")
-    .not("listing_id", "is", null).gt("slut", new Date().toISOString()).lte("start", new Date().toISOString());
+    .eq("plads", "vinted").not("listing_id", "is", null)
+    .gt("slut", new Date().toISOString()).lte("start", new Date().toISOString());
   return new Set((data ?? []).map((r) => String(r.listing_id)));
 }
 

@@ -75,3 +75,8 @@ create policy "authenticated can insert own annoncering" on public.annoncering
 drop policy if exists "authenticated can delete own annoncering" on public.annoncering;
 create policy "authenticated can delete own annoncering" on public.annoncering
   for delete to authenticated using (kilde = 'dig');
+
+-- Gennemgangen: to faner paa én gang maa ikke knytte samme vare til samme
+-- ordre to gange (boost.ts tager 23505 som »allerede knyttet«).
+create unique index if not exists annoncering_ordre_vare on public.annoncering (ordre_id, listing_id)
+  where ordre_id is not null;
