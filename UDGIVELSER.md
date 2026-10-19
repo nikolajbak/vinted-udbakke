@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0121 — 2026-10-19 06:31
+
+Commit `7edc882` — nytFoto: kun færdiganalyserede varer, svarer ikke_optimeret når delkaldet ikke fik billedet optimeret; et fejlet delkald rører ikke prisnoten  
+App: `app.js?v=1bc08647` · `style.css?v=8bae9b54`  
+Udrullet: analyze-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v90 | `1d0d05bb` |
+| dba-fill-script | v39 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v30 | `63727506` |
+| vinted-fill-script ← | v114 | `9b91c15a` |
+| vinted-mail | v20 | `48755620` |
+
 ## udgivelse-0120 — 2026-10-19 06:25
 
 Commit `91a012b` — Et billede på kroppen isoleres ikke; mode nytFoto optimerer ét nyt billede i et klar-udkast  
