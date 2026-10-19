@@ -218,6 +218,7 @@ i `function_logs`, beviser intet.
 | Automatikken bogmærket/brugerscriptet kører | `…/vinted-fill-script/runner.ts` |
 | Udfyldning af DBA-formularen | `supabase/functions/dba-fill-script/` |
 | Vinteds mails → læst af en model og brugt: solgt, bud, besked, favorit, pris (nøgle: `MAIL_KEY`) | `supabase/functions/vinted-mail/` |
+| Mailens titel parret med annoncen, når titlen er rettet på Vinted (`bedsteTitel`, `titelLighed`, `emneTitel`, rene og testet med `node --test tools/test-titellighed.mjs`) | `supabase/functions/_shared/titellighed.ts` |
 | Køberbeskeder fra mail som opgave på forsiden (`SVAR`, `hentSvar`) | `app.js` |
 | Forsendelsen læst af Vinteds mails (`erForsendelse`, `laesForsendelse`, `fletForsendelse`, `vaelgMaerkat`, rene og testet med `node --test tools/test-forsendelse.mjs`); mærkatet gemt i `vinted-mail` | `supabase/functions/_shared/forsendelse.ts`, `vinted-mail/index.ts` |
 | Forsendelsen på varens side (`forsendelseBlok`, `hentMaerkater`, `fristTekst`, `fsHandling`) og opgaverne »Lav fragtmærkatet«/»Send pakken«; mærkatet i fuld skærm (`visMaerkat`, `hentPdfJs`), lagt ind af dig (`laegMaerkatInd`), afleveret (`fsAfleveret`), sporingen (`fsSporLink`) | `app.js`, `#fs-stor`/`#fs-fil` i `index.html`, `.fs-…` i `style.css` |
@@ -740,7 +741,9 @@ sender ingen mails.
     bare. Prøvet med mail 50's mærkat: vektorkoden læst i 1200 px gav samme
     bytes som PDF'en. pdf.js tegner ikke, mens browserruden er skjult — tag et
     skærmbillede, før der ledes efter en fejl.
-    Lukkes kun med Luk og ved navigation. Uden fil, men med DAO's
+    Lukkes kun med Luk og ved navigation. **Vis mærkat står også, efter
+    pakken er afleveret** (bestemt af dig 19. oktober), som en almindelig
+    knap. Uden fil, men med DAO's
     fragtkode: **Vis fragtkoden** stort. Prøvet med et PDF-mærkat med
     QR-kode i prøve-appen: koden læst af `jsQR` fra det tegnede.
   - **Læg mærkatet ind** (`laegMaerkatInd`, `#fs-fil`): PDF'en fra mailen
@@ -1290,7 +1293,15 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   HTML'en gemmes ikke i `vinted_mails`, kun teksten — de udpakkede links
   gemmes i `laesning.links`.
 - **Mailen knyttes til annoncen på nummeret i et link**, ellers på den
-  længste titel (mindst seks tegn), der står i mailen.
+  længste titel (mindst seks tegn), der står i mailen, og til sidst på
+  titlens ord (`bedsteTitel`: mailens titel og emnet mod appens og Vinteds
+  titel, Dice mindst 0,6 og den næstbedste vare mindst 0,15 under). Salgs-
+  og forsendelsesmails har intet annoncenummer i linkene, og en titel rettet
+  i Vinteds egen app kommer ikke til appen: 19. oktober blev nr. 7 solgt som
+  »Teeshoppen Edmund lang parka …«, mens appen kendte »Teeshoppen parka
+  vinterjakke …«, og fire mails stod uden annonce. Fundet på ordene skrives
+  mailens titel i `published.title` (`price_events` »titlen rettet på Vinted
+  (set i mail)«). Prøvet på alle 57 mails: ingen fik en anden annonce end før.
 - **Solgt** → annoncen sættes til `solgt` med salgsprisen, hændelse,
   gennemgangen af salgene, og en push. Dit eget køb (»du har købt«, »dit
   køb«) er ikke et salg.
@@ -1760,6 +1771,11 @@ Målt 19. oktober på nr. 54, 63, 65 og 66 (to gennemløb hver).
   til en oversættelse. JSON-LD har ikke størrelse eller Vinteds standtekst, og
   prisen står i sælgerens valuta (en svensk annonce: 299 SEK), så kun DKK
   bruges. Kun `SoldOut`/`OutOfStock` tæller som solgt.
+- **En solgt annonce har ingen JSON-LD** (målt 19. oktober på nr. 7 og 17):
+  »Opdatér fra Vinted« sagde »Annoncen kunne ikke læses«. Sidens data har
+  pluginnet `item_status` på varens eget nummer med `is_closed: true` og
+  `item_closing_action: "sold"` (aktiv: `false`/`null`); `laesAnnonceside`
+  melder den da væk (solgt).
 - **En Vinted-vareside vejer ~2 MB.** Tekstprøver til beskrivelsen er derfor
   skåret til to og springes over på en målt forbindelse.
 - **`favourite_count` er brugbar, `view_count` er altid 0.** Mange hjerter på en

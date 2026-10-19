@@ -857,7 +857,14 @@ function laesAnnonceside(t,id){
    }
   }catch(e){}
  }
- if(!p)return null;
+ if(!p){
+  // En solgt annonce har ingen JSON-LD (målt 19. oktober, nr. 7), men sidens
+  // data har varens status på dens EGET nummer: »item_status« med
+  // is_closed og item_closing_action "sold".
+  var st=t.match(new RegExp('item_id\\\\?":'+id+',[^{}]*?is_closed\\\\?":(true|false),\\\\?"item_closing_action\\\\?":\\\\?"?([a-z_]*|null)'));
+  if(st&&st[1]==='true'&&st[2]==='sold')return {gone:true,price:0,favourites:0,views:0,udgivet:null};
+  return null;
+ }
  var tilbud=Array.isArray(p.offers)?p.offers[0]:p.offers;
  // JSON-LD bærer sælgerens valuta: en svensk annonce stod som 299 SEK, mens
  // søgningen viste den til 199 kr. Kun kroner er en pris her.

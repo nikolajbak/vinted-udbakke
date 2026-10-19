@@ -1396,8 +1396,10 @@
     if(fs.fragtkode) h += fsKode('Fragtkode', fs.fragtkode);
     if(fs.sporingskode) h += fsKode('Sporing', fs.sporingskode);
     var kn = '';
-    if(aaben && (fs.maerkat || fs.fragtkode)){
-      kn += '<button type="button" class="btn btn-primary" data-a="fs-vis"' + lid + '>' +
+    // Maerkatet kan ses, ogsaa efter pakken er afleveret (bestemt af dig
+    // 19. oktober) - som kvittering, og hvis pakkeshoppen skal scanne igen.
+    if(fs.maerkat || fs.fragtkode){
+      kn += '<button type="button" class="btn ' + (aaben ? 'btn-primary' : 'btn-secondary') + '" data-a="fs-vis"' + lid + '>' +
         (fs.maerkat ? 'Vis mærkat' : 'Vis fragtkoden') + '</button>';
     }
     if(fs.samtale) kn += '<button type="button" class="btn ' + (fs.status === 'mangler' ? 'btn-primary' : 'btn-secondary') +

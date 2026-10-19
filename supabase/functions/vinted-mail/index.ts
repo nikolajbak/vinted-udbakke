@@ -24,6 +24,7 @@ import { helKroner, kr } from "../_shared/pris.ts";
 import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
 import { laesFaktura } from "../_shared/annoncering.ts";
+import { bedsteTitel, emneTitel } from "../_shared/titellighed.ts";
 import { erForsendelse, fletForsendelse, laesForsendelse, vaelgMaerkat, type Fil, type Forsendelse } from "../_shared/forsendelse.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -318,7 +319,11 @@ const KOEBERS = new Set(["besked", "bud"]);
 
 // Nummeret i et link foerst; ellers den laengste titel, der staar i mailen.
 // En titel paa under seks tegn ("Jakke") er ikke nok til at pege paa en vare.
-function findAnnonce(raekker: Raekke[], numre: string[], tekst: string): Raekke | null {
+// Til sidst titlens ord (`kandidater`: mailens titel og emnet), kun entydigt -
+// en titel rettet i Vinteds egen app kommer ikke til appen (19. oktober,
+// nr. 7). `ord` siger, at det var ordene, der fandt den.
+function findAnnonce(raekker: Raekke[], numre: string[], tekst: string, kandidater: string[] = []):
+  (Raekke & { ord?: boolean }) | null {
   const paaNr = raekker.find((r) => numre.includes(String(r.external_id)));
   if (paaNr) return paaNr;
   const t = norm(tekst);
@@ -329,7 +334,11 @@ function findAnnonce(raekker: Raekke[], numre: string[], tekst: string): Raekke 
       if (n.length >= 6 && n.length > laengde && t.includes(n)) { bedst = r; laengde = n.length; }
     }
   }
-  return bedst;
+  if (bedst) return bedst;
+  const k = kandidater.filter((x) => x && x.trim().length >= 6);
+  if (!k.length) return null;
+  const i = bedsteTitel(raekker.map((r) => [r.published?.title, r.title]), k);
+  return i === null ? null : { ...raekker[i], ord: true };
 }
 
 async function puf(title: string, body: string, url: string) {
@@ -429,7 +438,8 @@ Deno.serve(async (req: Request) => {
     .select("id, external_id, title, status, price, draft_id, published, pending, favourites, forsendelse")
     .eq("platform", "vinted").not("external_id", "is", null);
   const find = (titel?: string) => fraVinted
-    ? findAnnonce((raekker ?? []) as Raekke[], numre, m.emne + "\n" + tekst + (titel ? "\n" + titel : ""))
+    ? findAnnonce((raekker ?? []) as Raekke[], numre, m.emne + "\n" + tekst + (titel ? "\n" + titel : ""),
+      [titel ?? "", emneTitel(m.emne)])
     : null;
 
   // Kun beskeder og bud paa VORES annoncer (bestemt af dig 16. oktober). En
@@ -451,6 +461,16 @@ Deno.serve(async (req: Request) => {
   const kind = !fraVinted ? "andet" : maalt !== "andet" ? maalt : (laest?.slags ?? "andet");
   l = l ?? find(laest?.titel);
   if (!l && KOEBERS.has(kind)) return await ikkeVores();
+  // Fundet paa ordene: mailens titel er annoncens, som den staar paa Vinted
+  // nu. Den skrives i `published`, saa de naeste mails om varen passer direkte.
+  const nyTitel = l?.ord ? String(laest?.titel ?? "").trim() : "";
+  if (l && nyTitel && nyTitel !== l.published?.title) {
+    l.published = { ...(l.published ?? {}), title: nyTitel };
+    await supabase.from("listings").update({ published: l.published }).eq("id", l.id);
+    await supabase.from("price_events").insert({
+      listing_id: l.id, kind: "rettet", note: "titlen rettet på Vinted (set i mail): " + nyTitel.slice(0, 120),
+    });
+  }
   const bud = kind === "bud" || kind === "solgt" || kind === "favorit"
     ? (beloeb(m.emne + " " + tekst) ?? (laest?.beloeb || laest?.pris || null)) : null;
   const laesning = laest ? { ...laest, links } : (links.length ? { links } : null);
