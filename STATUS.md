@@ -19,6 +19,19 @@ laves om; denne fil rummer det, der er **i gang** og går til.
 
 ## Ikke afprøvet — start her
 
+00000000000000000000. **Billeder lagt til og fjernet, også i en annonce, der er ude — 19. oktober**
+   (udgivelse-0125). Spec i `docs/superpowers/specs/`; regler i CLAUDE.md
+   »Billeder lagt til og fjernet«. **Afprøvet:** appen på prøvesiden (»+«
+   med to billeder, Fjern og Fortryd, beskæring via serveren, låsen mens der
+   lægges til); serverens kald live på en kopi af nr. 69 med en annonce på
+   pause og falske Vinted-id'er (`fjernFoto`, Fortryd, sidste billede afvist,
+   planen med et nyt og et fjernet billede, `fotoOp` → kvitteret og det
+   fjernede par glemt, to fejlede uploads → taget ud, `erstatFoto`,
+   `nytFoto` optimeret på 11,7 s); `fotoplan.ts` med `node --test`;
+   review-agent to gange. Kopien er slettet igen. **Ikke afprøvet:** på
+   telefonen — upload på Vinteds redigeringsside og Gem (DataDome afviser
+   Gem fra browserruden). Se `spor` »fotos: N af N nye billeder lagt op«.
+
 0000000000000000000. **Producentens billeder som forlæg — 19. oktober** (udgivelse-0120
    til -0124). Spec og plan i `docs/superpowers/`; regler i CLAUDE.md
    »Producentens billeder« og »Produktsidernes billeder«. Vinted forbyder
