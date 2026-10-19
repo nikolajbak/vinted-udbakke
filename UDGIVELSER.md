@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0134 — 2026-10-19 15:44
+
+Commit `ca57d60` — Annoncering i appen: øre rundes før kronerne, pauselinjen kun på den boostede annonce, manuel række på den aktive annonce, Konto uden annoncering ved fejl  
+App: `app.js?v=d6aa44e2` · `style.css?v=f75b6b4c`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v96 | `c789b74b` |
+| dba-fill-script | v44 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v35 | `8b0e0533` |
+| vinted-fill-script | v124 | `f1292738` |
+| vinted-mail | v27 | `8be53fa4` |
+
 ## udgivelse-0133 — 2026-10-19 15:40
 
 Commit `6c3d8d9` — Appen: boost og betalt annoncering på varens side (tragt, dom, manuel registrering) og på Konto  
