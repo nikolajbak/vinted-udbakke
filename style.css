@@ -1493,6 +1493,7 @@
 .fs-stor-fil.stor{ width: 250%; max-width: none; }
 .fs-stor-vare{ text-align: center; max-width: 520px; }
 .fs-stor-vare b{ display: block; font-size: 17px; line-height: 1.3; }
+.fs-stor-vare i{ display: block; font-style: normal; font-weight: 700; font-size: 34px; letter-spacing: .04em; line-height: 1.1; margin-bottom: 4px; }
 .fs-stor-vare span{ display: block; margin-top: 2px; font-size: 13px; color: #555; }
 .fs-stor-qr{ width: min(80vw, 60vh, 440px); }
 .fs-stor-qr[hidden]{ display: none; }

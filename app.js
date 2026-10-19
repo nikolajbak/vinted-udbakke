@@ -1556,8 +1556,10 @@
       '</b><button type="button" class="btn btn-quiet" data-fs-luk>Luk</button></div><div class="fs-stor-krop">';
     // Varen og forsendelsesnummeret paa samme side som koden (bestemt af
     // dig 19. oktober), saa du kan se, hvilken pakke koden hoerer til.
-    h += '<div class="fs-stor-vare"><b>' + esc(l.title || d.title || '') + '</b>' +
-      (d.nr || fs.pakke ? '<span>' + esc([fmtNr(d.nr), fs.pakke].filter(Boolean).join(' · ')) + '</span>' : '') + '</div>';
+    // Loebenummeret stort, som paa etiketten paa pakken.
+    h += '<div class="fs-stor-vare">' + (d.nr ? '<i class="mono">' + esc(fmtNr(d.nr)) + '</i>' : '') +
+      '<b>' + esc(l.title || d.title || '') + '</b>' +
+      (fs.pakke ? '<span>' + esc(fs.pakke) + '</span>' : '') + '</div>';
     if(fs.maerkat) h += '<div class="fs-stor-qr" hidden></div>';
     if(fs.fragtkode) h += '<div class="fs-stor-kode"><span>Sig fragtkoden</span><b class="mono">' + esc(fs.fragtkode) + '</b></div>';
     if(fs.sporingskode) h += '<div class="fs-stor-nr"><span>Forsendelsesnummer</span><b class="mono">' + esc(fs.sporingskode) +

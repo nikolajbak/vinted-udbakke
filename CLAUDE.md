@@ -730,8 +730,8 @@ sender ingen mails.
     igen (`svgLaest`) og skal give **de samme bytes**; ellers vises
     udsnittet af mærkatet. **Kod den ikke forfra**: GLS-koden er version
     11 med UTF-8 og ECI (modtagerens adresse med æøå, målt på mail 50), og
-    qrcode-generator kan ikke skrive ECI. Over koden står varens titel,
-    løbenummer og pakkestørrelse, under den **Forsendelsesnummer**
+    qrcode-generator kan ikke skrive ECI. Over koden står løbenummeret
+    stort (som på etiketten på pakken), varens titel og pakkestørrelsen, under den **Forsendelsesnummer**
     (sporingskoden) stort. Pakkenummeret under GLS' kode er en del af
     billedet i PDF'en, ikke tekst, og kan ikke læses. Den hvide rest af
     A4-siden skæres fra (`udenHvidt`). Findes koden ikke, vises mærkatet
