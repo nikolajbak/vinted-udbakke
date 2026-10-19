@@ -23,6 +23,7 @@ import PostalMime from "npm:postal-mime@2.4.3";
 import { helKroner, kr } from "../_shared/pris.ts";
 import { modelKald } from "../_shared/model.ts";
 import { noterForbrug } from "../_shared/forbrug.ts";
+import { laesFaktura } from "../_shared/annoncering.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -119,6 +120,9 @@ const norm = (s: unknown) =>
 // afgoer modellens laesning (laesMail).
 function slags(emne: string, tekst: string): string {
   const s = norm(emne) || norm(tekst).slice(0, 300);
+  // Fakturaen for et boost (maalt paa mail 44, 19. oktober). Foerst: den er
+  // dit eget koeb, og teksten naevner hverken salg eller bud.
+  if (/boost af din artikel/.test(s)) return "boost";
   // Dit eget koeb er ikke et salg.
   if (/du har købt|dit køb|your purchase|you bought/.test(s)) return "andet";
   // "Din <titel> er lige blevet markeret som favorit"
@@ -353,13 +357,15 @@ Deno.serve(async (req: Request) => {
   const genlaes = Number(url.searchParams.get("genlaes")) || 0;
   let m: Mail;
   let gemtId = 0;
+  let mailTid = new Date().toISOString();
   let gemteLinks: string[] = [];
   if (genlaes) {
-    const { data: r } = await supabase.from("vinted_mails").select("id, fra, emne, tekst, laesning")
+    const { data: r } = await supabase.from("vinted_mails").select("id, at, fra, emne, tekst, laesning")
       .eq("id", genlaes).maybeSingle();
     if (!r) return json({ error: "ukendt" }, 404);
     m = { fra: r.fra ?? "", emne: r.emne ?? "", tekst: r.tekst ?? "", html: "", messageId: null };
     gemtId = r.id;
+    mailTid = r.at;
     gemteLinks = ((r.laesning as Laesning | null)?.links ?? []) as string[];
   } else {
     try { m = await laesIndgaaende(req); } catch (err) {
@@ -484,6 +490,27 @@ Deno.serve(async (req: Request) => {
       });
     }
     handling = "bud meldt" + (synk ? "; " + synk : "");
+  } else if (kind === "boost") {
+    // Betalt annoncering (bestemt af dig 19. oktober): fakturaen bliver en
+    // ordre uden varer. Runneren finder dem i garderoben (promoted, mode
+    // 'boost' i vinted-fill-script) og deler beloebet. Ingen push - det er
+    // dit eget koeb. Samme mail to gange er én ordre (vinted_mail_id unik).
+    const f = laesFaktura(m.emne, tekst);
+    if (f) {
+      const start = new Date(mailTid);
+      const { error } = await supabase.from("annoncering_ordrer").upsert({
+        at: start.toISOString(), plads: "vinted", slags: f.slags, kr_i_alt: f.kr, antal: f.antal,
+        dage: f.dage, start: start.toISOString(),
+        slut: new Date(start.getTime() + f.dage * 86400000).toISOString(),
+        vinted_mail_id: gemtId, tekst: f.tekst,
+      }, { onConflict: "vinted_mail_id", ignoreDuplicates: true });
+      handling = error
+        ? "boost: ordren kunne ikke gemmes — " + error.message
+        : "boost: " + f.antal + (f.antal === 1 ? " vare, " : " varer, ") + f.kr.toFixed(2).replace(".", ",") + " kr — venter på garderoben";
+    } else {
+      await push("Ny slags mail fra Vinted", laest?.resume || m.emne || "Se mailen", "/vinted-udbakke/");
+      handling = "boost: fakturaen kunne ikke læses — meldt";
+    }
   } else if (kind === "favorit") {
     // Stille, bestemt af dig 9. oktober: prisen og hjerterne opdateres, ingen push.
     if (l && l.status === "aktiv") {
