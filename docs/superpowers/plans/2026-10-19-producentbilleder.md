@@ -169,7 +169,7 @@ git commit -m "Et billede på kroppen isoleres ikke; mode nytFoto optimerer ét 
 
 - [ ] **Step 6: Udgiv** — `./tools/udgiv.sh`. Expected: `udgivelse-NNNN` sat, Pages-tjekket grønt.
 
-- [ ] **Step 7: Prøv mod den udgivne server.** Opret en midlertidig række i `drafts` (`status 'kladde'`, `photos` = de to første fra nr. 66 med `optimized` fjernet fra det andet og `kind:'paa-kroppen'`, `tone`/`ratio` kopieret fra nr. 66). Kald `nytFoto` med `photo:1`.
+- [ ] **Step 7: Prøv mod den udgivne server.** Opret en midlertidig række i `drafts` (`status 'kladde'`, `photos` = de to første fra nr. 66, det andet som originalen (`path` = dets `org`, url'en derefter — en sti på `-opt.jpg` springes over af analyze-draft) uden `optimized` og med `kind:'paa-kroppen'`, `tone`/`ratio` kopieret fra nr. 66). Kald `nytFoto` med `photo:1`.
 Expected: `{ok:true}`; efter ≤30 s er `photos[1].optimized = true`, og billedet (hentet og set med `Read`) har seriens format og INGEN hvid ramme om. Kald igen → `optimeret`. Sæt `posted_to = {"vinted": "<nu>"}` → `ikke_klar`. `photo: 5` → `findes_ikke`. Slet rækken og dens nye fil i Storage bagefter.
 
 ---
