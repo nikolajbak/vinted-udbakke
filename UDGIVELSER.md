@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0135 — 2026-10-19 16:42
+
+Commit `df18712` — Forsendelsen på varen: fragtmærkat, frist, sporing og status fra Vinteds mails  
+App: `app.js?v=f9c76432` · `style.css?v=bbe57980`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v97 | `c789b74b` |
+| dba-fill-script ← | v45 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft ← | v36 | `8b0e0533` |
+| vinted-fill-script ← | v125 | `f1292738` |
+| vinted-mail ← | v28 | `f40e42c1` |
+
 ## udgivelse-0134 — 2026-10-19 15:44
 
 Commit `ca57d60` — Annoncering i appen: øre rundes før kronerne, pauselinjen kun på den boostede annonce, manuel række på den aktive annonce, Konto uden annoncering ved fejl  
