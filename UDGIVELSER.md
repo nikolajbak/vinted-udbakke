@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0130 — 2026-10-19 15:29
+
+Commit `419a5fc` — Boost: runneren finder fakturaens varer i garderoben og henter Vinteds tal; prisvagten holder ro under et boost  
+App: `app.js?v=b9d1ab7b` · `style.css?v=b8dcb4e0`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v96 | `c789b74b` |
+| dba-fill-script | v44 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v35 | `8b0e0533` |
+| vinted-fill-script ← | v122 | `e7969183` |
+| vinted-mail | v27 | `8be53fa4` |
+
 ## udgivelse-0129 — 2026-10-19 15:26
 
 Commit `8970a69` — Annoncering: én vare (»1 Artikel«), salg uden pris, »I alt«-linjen, uafrundede graenser (gennemgangen af task 1)  
