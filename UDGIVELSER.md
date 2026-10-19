@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0137 — 2026-10-19 16:58
+
+Commit `b4c38d3` — Forsendelsen i appen: mærkatet i fuld skærm, læg det ind, afleveret, følg pakken  
+App: `app.js?v=a4615d82` · `style.css?v=2047ccbe`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v98 | `c789b74b` |
+| dba-fill-script ← | v46 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft ← | v37 | `8b0e0533` |
+| vinted-fill-script ← | v126 | `f1292738` |
+| vinted-mail ← | v29 | `f40e42c1` |
+
 ## udgivelse-0136 — 2026-10-19 16:46
 
 Commit `d229054` — Forsendelse: Kopiér-knappen klemmer ikke sporingskoden  
