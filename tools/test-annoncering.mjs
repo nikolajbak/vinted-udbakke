@@ -98,3 +98,24 @@ test("linjen til prompterne", () => {
     "boostet 3 d for 12,69 kr fra 19.10 (2.397 vist, 54 klik, 6 hjerter), solgt under/efter boostet");
   assert.equal(boostLinje({ ...r, kr: null, tal: null }, null), "boostet 3 d (beløb ukendt) fra 19.10");
 });
+
+// Fundet ved gennemgangen af task 1.
+test("én vare: »(1 Artikel)«", () => {
+  const f = laesFaktura(EMNE, "1-dags lokalt Boost (1 Artikel)\nI alt\n10.00 kr.");
+  assert.equal(f.antal, 1);
+  assert.equal(f.kr, 10);
+  assert.equal(f.tekst, "1-dags lokalt Boost (1 Artikel)");
+});
+
+test("»I alt« er linjen, ikke en moms-linje foran", () => {
+  assert.equal(laesFaktura(EMNE, "3-dags Boost (2 Artikler)\nMoms i alt 5.08 kr.\nI alt: 25.38 kr.").kr, 25.38);
+});
+
+test("solgt uden kendt salgspris er stadig solgt", () => {
+  assert.equal(boostDom(NR7, [], { solgt: true, slut: SLUT_FORBI, nu: NU }), "Boostet betalte sig: solgt.");
+});
+
+test("graensen sammenlignes uafrundet: 1,46 % er under 1,5 %", () => {
+  assert.match(boostDom({ impressions: 10000, views: 146, favorites: 20, conversations: 0 }, [], { slut: SLUT_FREMME, nu: NU }),
+    /^Få klik/);
+});

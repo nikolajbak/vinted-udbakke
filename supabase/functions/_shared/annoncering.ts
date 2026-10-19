@@ -48,8 +48,9 @@ function beloeb(s: string): number | null {
 // (2 Artikler)« og »I alt« med beloebet bagefter. Mailen naevner ikke varerne.
 export function laesFaktura(emne: string, tekst: string): Faktura | null {
   if (!/boost af din artikel/i.test(emne)) return null;
-  const linje = tekst.match(/(\d+)-dags?[^\n]*?boost[^\n]*?\((\d+)\s*artikl/i);
-  const ialt = tekst.match(/i alt\s*(-?[\d.,\s]*\d)\s*kr/i);
+  const linje = tekst.match(/(\d+)-dags?[^\n]*?boost[^\n]*?\((\d+)\s*artik[^)\n]*\)/i);
+  // »I alt« som sin egen linje (eller linjens begyndelse) - ikke »Moms i alt«.
+  const ialt = tekst.match(/^[ \t]*i alt\b[:\s]*(?:kr\.?\s*)?(\d[\d.,]*)/im);
   if (!linje || !ialt) return null;
   const kr = beloeb(ialt[1]);
   if (kr == null || kr < 0) return null;
@@ -61,6 +62,8 @@ export function laesFaktura(emne: string, tekst: string): Faktura | null {
 
 const pct = (a: number, b: number) => Math.round((a / b) * 1000) / 10;
 
+// Andelene er afrundede til visning; graenserne sammenlignes paa de
+// uafrundede (raa) tal, saa 1,46 % ikke bliver til 1,5 % og slipper.
 export function tragt(t: Tal | null) {
   if (!t || !(Number(t.impressions) > 0)) return null;
   const vist = Number(t.impressions), klik = Number(t.views) || 0, hjerter = Number(t.favorites) || 0;
@@ -68,6 +71,7 @@ export function tragt(t: Tal | null) {
     vist, klik, klikPct: pct(klik, vist),
     hjerter, hjertePct: klik > 0 ? pct(hjerter, klik) : 0,
     beskeder: Number(t.conversations) || 0,
+    klikRaa: (klik / vist) * 100, hjerteRaa: klik > 0 ? (hjerter / klik) * 100 : 0,
   };
 }
 
@@ -89,22 +93,25 @@ const kroner = (n: number) => {
 // er 0,7 x medianen af dine andre boostede varer, naar der er mindst 5 med
 // tal; ellers en fast graense, og saa siger dommen, at det er et skoen.
 export function boostDom(
-  t: Tal | null, andre: Tal[], o: { solgtFor?: number | null; slut: string; nu?: Date },
+  t: Tal | null, andre: Tal[], o: { solgt?: boolean; solgtFor?: number | null; slut: string; nu?: Date },
 ): string | null {
-  if (o.solgtFor) return "Boostet betalte sig: solgt for " + kroner(o.solgtFor) + ".";
+  // Solgt under/efter boostet - ogsaa naar salgsprisen ikke kendes endnu.
+  if (o.solgt || o.solgtFor) {
+    return "Boostet betalte sig: solgt" + (o.solgtFor ? " for " + kroner(o.solgtFor) : "") + ".";
+  }
   const f = tragt(t);
   if (!f) return null;
   const andreF = andre.map(tragt).filter((x): x is NonNullable<ReturnType<typeof tragt>> => !!x);
   const sammenlign = andreF.length >= MIN_ANDRE;
-  const klikGr = sammenlign ? ANDEL_AF_MEDIAN * (median(andreF.map((x) => x.klikPct)) ?? 0) : FAST_KLIK_PCT;
-  const hjGr = sammenlign ? ANDEL_AF_MEDIAN * (median(andreF.map((x) => x.hjertePct)) ?? 0) : FAST_HJERTE_PCT;
+  const klikGr = sammenlign ? ANDEL_AF_MEDIAN * (median(andreF.map((x) => x.klikRaa)) ?? 0) : FAST_KLIK_PCT;
+  const hjGr = sammenlign ? ANDEL_AF_MEDIAN * (median(andreF.map((x) => x.hjerteRaa)) ?? 0) : FAST_HJERTE_PCT;
   const kilde = sammenlign ? " (mod dine andre boostede varer)" : " (skøn — for få boostede varer at måle mod)";
   const nu = o.nu ?? new Date();
-  if (f.klikPct < klikGr) {
+  if (f.klikRaa < klikGr) {
     return "Få klik: forsidebilledet, titlen eller prisen i feedet fanger ikke — " +
       komma(f.klikPct) + " % klikker" + kilde + ".";
   }
-  if (f.hjertePct < hjGr) {
+  if (f.hjerteRaa < hjGr) {
     return "Klik, men få hjerter: billederne, teksten eller prisen på varens side skuffer — " +
       komma(f.hjertePct) + " % giver et hjerte" + kilde + ".";
   }
