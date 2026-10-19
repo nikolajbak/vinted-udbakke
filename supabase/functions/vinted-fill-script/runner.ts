@@ -1572,6 +1572,60 @@ async function efterloeb(){
   (sj&&sj.fundet||[]).forEach(function(f){spor('efterloeb: nr '+f.nr+' er '+f.item_id)});
  }catch(e){spor('efterloeb: '+e.message)}
 }
+// Betalt boost (bestemt af dig 19. oktober, se boost.ts). Hoejst én gang i
+// timen pr. fane: spoerg serveren, om en faktura venter paa sine varer (så
+// hentes garderoben, og de med promoted meldes), og hvilke boostede varer
+// der skal maales i dag. Vinteds tal kraever Accept-Language med region
+// (»da-DK«) - uden svarer den 500 (maalt 19. oktober).
+async function boostRunde(){
+ try{
+  var nu=Date.now(),sidst=0;
+  try{sidst=Number(localStorage.getItem('udbakke_boost_sidst'))||0}catch(e){}
+  if(nu-sidst<3600000)return;
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'boost'})},15000);
+  var j=await r.json();
+  if(!j||!j.bruger){spor('boost: intet svar fra serveren');return}
+  try{localStorage.setItem('udbakke_boost_sidst',String(nu))}catch(e){}
+  if(j.behov){
+   var promoted=[],side=1,ialt=0;
+   for(;side<=5;side++){
+    var g=await timedFetch('/api/v2/wardrobe/'+j.bruger+'/items?page='+side+'&per_page=96&order=newest_first',
+     {headers:{'Accept':'application/json'},credentials:'include'},20000);
+    if(!g.ok){spor('boost: garderobe side '+side+' '+g.status);break}
+    var gj=await g.json(),varer=gj.items||[];
+    ialt+=varer.length;
+    varer.forEach(function(it){if(it.promoted)promoted.push(String(it.id))});
+    if(varer.length<96)break;
+   }
+   var k=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'boost',promoted:promoted})},20000);
+   var kj=await k.json();
+   spor('boost: '+promoted.length+' af '+ialt+' i garderoben er boostet; '+
+    ((kj&&kj.knyttet)||[]).length+' knyttet til fakturaen'+
+    ((kj&&kj.knyttet)||[]).map(function(x){return ' nr '+x.nr+' ('+x.item_id+')'}).join(','));
+  }
+  var maal=[];
+  for(var i=0;i<(j.maal||[]).length;i++){
+   var id=j.maal[i];
+   try{
+    var s=await timedFetch('https://api.vinted.dk/vas/items/'+id+'/bumps/stats?timezone=Europe%2FCopenhagen',
+     {headers:{'Accept':'application/json','Accept-Language':'da-DK'},credentials:'include'},15000);
+    if(!s.ok){spor('boost: tal for '+id+' '+s.status);continue}
+    var sj=await s.json();
+    if(sj&&sj.bumped_item_stats)maal.push({item_id:id,stats:sj.bumped_item_stats});
+    else spor('boost: tal for '+id+' uden bumped_item_stats');
+   }catch(e){spor('boost: tal for '+id+' '+e.message)}
+  }
+  if(maal.length){
+   var m=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'boost',maal:maal})},20000);
+   var mj=await m.json();
+   spor('boost: maal gemt for '+maal.map(function(x){return x.item_id+' ('+x.stats.impressions+' vist, '+
+    x.stats.views+' klik, '+x.stats.favorites+' hjerter)'}).join(', ')+' — '+((mj&&mj.gemt)||0)+' nye');
+  }
+ }catch(e){spor('boost: '+e.message)}
+}
 var AFVISTE={};
 async function meldPostet(){
  var v=hentAfventer();
@@ -1718,6 +1772,7 @@ if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
 // Efterloebet koerer ved siden af, uanset siden - det maa ikke forsinke en
 // udfyldning eller et tilsyn.
 efterloeb();
+boostRunde();
 // Kom fanen fra appen? Noteres nu, mens flaget stadig staar i adressen. Saa
 // er der arbejde, du venter paa, og skaermen holdes taendt imens.
 if(fraApp())vaagen(5);

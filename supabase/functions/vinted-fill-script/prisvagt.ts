@@ -22,6 +22,8 @@ export type Vagt = {
   favourites: number;
   favourites_prev: number;
   historik: Array<{ at: string; kind: string; price: number | null; from_price: number | null; favourites: number | null }>;
+  // Betalt boost inden for de sidste 30 dage (boostLinje i _shared/annoncering.ts).
+  boost?: string;
 };
 
 export type Maaling = {
@@ -198,6 +200,9 @@ export async function beslutPris(
     `Sidste prisændring: ${v.last_change_at ? `for ${sidenAendring} dage siden` : "ingen"}. ` +
     `Tjek nr. ${v.checks + 1}.\n` +
     `Hjerter: ${hjerter} (ved sidste tjek: ${v.favourites_prev}).\n` +
+    (v.boost
+      ? `Betalt boost: ${v.boost} — hjerterne fra boostperioden er pustet op og siger ikke noget om prisen.\n`
+      : "") +
     `Mindstepris, der IKKE må underskrides: ${gulv} kr.\n\n` +
     `Historik:\n${historikLinjer(v)}\n\n` +
     (felt

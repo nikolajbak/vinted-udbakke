@@ -26,6 +26,7 @@ import { laer } from "./laering.ts";
 import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
 import { indkob } from "./indkob.ts";
 import { fotoSynk, OP_FEJL } from "./fotos.ts";
+import { boost, boostKoerer, boostLinjer } from "./boost.ts";
 import { erNy, erNyAnnonce, helKroner, iNyprisRamme, NYPRIS_REGEL, nyprisRamme } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1060,8 +1061,10 @@ async function hentForfaldne(maks = 3, tving = false) {
   q = tving
     ? q.order("last_check_at", { ascending: true, nullsFirst: true })
     : q.lte("next_check_at", new Date().toISOString()).order("next_check_at", { ascending: true });
-  const { data } = await q.limit(maks);
-  return data ?? [];
+  // Mens et boost koerer, faar annoncen intet tilsyn og intet forslag: vi
+  // har betalt for en maaling og maa ikke selv oedelaegge den.
+  const [{ data }, koerer] = await Promise.all([q.limit(maks + 10), boostKoerer(supabase)]);
+  return (data ?? []).filter((r) => !koerer.has(String(r.id))).slice(0, maks);
 }
 
 // Telefonens maalinger ind, beslutninger ud.
@@ -1080,6 +1083,7 @@ async function tilsyn(maalinger: Maaling[]) {
 
   const erf = await hentErfaringer(["pris"]);
   const prisErfaringer = erf ? "\n\n" + erf : "";
+  const boostAf = await boostLinjer(supabase, ids);
 
   for (const m of maalinger) {
     const r = (raekker ?? []).find((x) => x.id === m.id);
@@ -1111,6 +1115,7 @@ async function tilsyn(maalinger: Maaling[]) {
       checks: Number(r.checks ?? 0),
       favourites: Number(r.favourites ?? 0), favourites_prev: Number(r.favourites_prev ?? 0),
       historik: (hist ?? []).filter((h) => h.listing_id === r.id),
+      boost: boostAf.get(String(r.id)),
     };
 
     let b;
@@ -1602,6 +1607,12 @@ Deno.serve(async (req: Request) => {
     // garderobens nyeste, og de parres med udkastene paa titlen.
     if (body.mode === "efterloeb") {
       return json(await efterloeb(body.items));
+    }
+
+    // Betalt boost (bestemt af dig 19. oktober): fakturaens varer findes i
+    // garderoben, og Vinteds tal for boostet gemmes. Se boost.ts.
+    if (body.mode === "boost") {
+      return json(await boost(supabase, body, VINTED_BRUGER));
     }
 
     // Prisvagtens tre kald staar ogsaa foer id-vaernet: de handler om en
