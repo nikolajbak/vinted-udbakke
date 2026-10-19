@@ -144,7 +144,8 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
     </div>
     <div class="footer">
       <button type="button" class="btn btn-primary" id="pbtag-shoot">Tag billede</button>
-      <input type="file" id="pbtag-cam" accept="image/*" capture="environment" hidden>
+      <input type="file" id="pbtag-cam" accept="image/*" capture="environment"
+             style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden">
     </div>
   </section>
 
@@ -462,6 +463,6 @@ try{ saetTema(localStorage.getItem('udbakke-tema') || 'enhed'); }catch(e){}
      appen og vise DET her - uden at flytte rundt paa noget paa skaermen. -->
 <div id="print-sheet" aria-hidden="true"></div>
 
-<script src="app.js?v=efe885bc"></script>
+<script src="app.js?v=89f36fd9"></script>
 </body>
 </html>

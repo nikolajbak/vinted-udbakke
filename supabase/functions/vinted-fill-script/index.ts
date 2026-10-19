@@ -1424,42 +1424,39 @@ Deno.serve(async (req: Request) => {
     // skriv:true skrives beskrivelsen forfra ud fra den. `fra` er teksten, du
     // startede fra - ikke modellens omskrivning - saa kun dine egne rettelser
     // bliver til laering.
-    // »Tag dit eget som dette«: appen har lagt ét nyt billede sidst i et
-    // klar-udkast, og det optimeres alene med seriens tone og format (det
-    // eksisterende delkald i analyze-draft). Appen kan ikke selv kalde
-    // analyze-draft - det kraever webhook-hemmeligheden.
+    // »Tag dit eget som dette«: appen har lagt billedet i Storage; her
+    // laegges det sidst i udkastet og optimeres alene med seriens tone og
+    // format (det eksisterende delkald i analyze-draft). Tilfoejelsen sker i
+    // én saetning (append_draft_photo, sql/019), som ogsaa tjekker, at varen er
+    // faerdiganalyseret (status ny) og ikke sendt afsted - appen PATCHede
+    // foer hele listen ud fra sin egen kopi, og saa kunne en optimering eller
+    // et billede gaa tabt. Appens knap kraever det samme - ret dem sammen.
+    // Appen kan ikke selv kalde analyze-draft (webhook-hemmeligheden).
     if (body.mode === "nytFoto") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);
-      const { data: d, error: e } = await supabase.from("drafts")
-        .select("id, status, photos, posted_to, listings(id)").eq("id", body.id).maybeSingle();
+      const path = typeof body.path === "string" ? body.path : "";
+      if (!/^draft-[A-Za-z0-9._-]+\.jpg$/.test(path)) return json({ error: "bad_path" }, 400);
+      const kind = body.kind === "detalje" ? "detalje" : "paa-kroppen";
+      // Adressen bygges her, ikke laest fra appen: kun appens egen Storage.
+      const url = `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`;
+      const { data: n, error: e } = await supabase.rpc("append_draft_photo", {
+        p_id: body.id, p_photo: { path, url, kind },
+      });
       if (e) return json({ error: e.message }, 500);
-      if (!d) return json({ error: "ikke_fundet" }, 404);
-      // Kun en faerdiganalyseret vare (status ny), der ikke er sendt nogen
-      // steder hen. Under analysen skriver serveren billederne pr. plads, og
-      // appens PATCH af photos ville skrive oven i dem. En vare, der er ude,
-      // har fotos_sendt og en parring med Vinteds billed-id'er; et ekstra
-      // billede dér er ikke designet. Appens knap kraever det samme
-      // (fase() === 'klar' og status 'ny') - ret de to sammen.
-      const sendt = Object.values((d.posted_to ?? {}) as Record<string, unknown>).some(Boolean);
-      const lst = (d as { listings?: unknown[] }).listings;
-      if (d.status !== "ny" || sendt || (Array.isArray(lst) && lst.length)) {
-        return json({ error: "ikke_klar" }, 409);
-      }
-      const n = body.photo;
-      const fotos = (Array.isArray(d.photos) ? d.photos : []) as Array<{ optimized?: boolean }>;
-      if (!Number.isInteger(n) || !fotos[n]) return json({ error: "findes_ikke" }, 400);
-      if (fotos[n].optimized) return json({ error: "optimeret" }, 409);
+      if (n === null || n === undefined) return json({ error: "ikke_klar" }, 409);
       const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-draft`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-webhook-secret": Deno.env.get("WEBHOOK_SECRET") ?? "" },
-        body: JSON.stringify({ id: d.id, photo: n }),
+        body: JSON.stringify({ id: body.id, photo: n }),
       });
       await res.body?.cancel();
-      if (!res.ok) return json({ error: "fejl", status: res.status }, 502);
-      // Delkaldet svarer ok, ogsaa naar optimeringen fejlede stille. Laes efter.
-      const { data: efter } = await supabase.from("drafts").select("photos").eq("id", d.id).single();
-      const nu = (Array.isArray(efter?.photos) ? efter!.photos : [])[n] as { optimized?: boolean } | undefined;
-      return nu?.optimized ? json({ ok: true }) : json({ error: "ikke_optimeret" }, 502);
+      // Delkaldet svarer ok, ogsaa naar optimeringen fejlede stille. Laes
+      // efter, og giv listen med, saa appen ikke skal vente paa realtid.
+      const { data: efter } = await supabase.from("drafts").select("photos").eq("id", body.id).single();
+      const photos = Array.isArray(efter?.photos) ? efter!.photos : [];
+      const nu = photos[n] as { optimized?: boolean } | undefined;
+      if (!res.ok) return json({ error: "fejl", status: res.status, photos }, 502);
+      return nu?.optimized ? json({ ok: true, photo: n, photos }) : json({ error: "ikke_optimeret", photos }, 502);
     }
     if (body.mode === "omskriv") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "bad_id" }, 400);

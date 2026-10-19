@@ -1004,6 +1004,9 @@
   };
   var PBTAG = null;
   function aabnForlaeg(d, b){
+    // En upload i gang (fx efter tilbage midt i den) vises igen i stedet for
+    // at starte en til oven i.
+    if(PBTAG && PBTAG.travl){ if(currentTop() !== 'pbtag') show('pbtag'); return; }
     PBTAG = { id: d.id, pose: b.pose, travl: false };
     $('pbtag-titel').textContent = POSE_NAVN[b.pose] || 'Tag dit eget';
     $('pbtag-ramme').innerHTML = '<span class="pb-forlaeg-ind"><img class="pb-forlaeg" src="' + esc(b.url) + '" alt="" referrerpolicy="no-referrer">' +
@@ -1013,46 +1016,50 @@
     $('pbtag-shoot').disabled = false;
     show('pbtag');
   }
+  function currentTop(){ return stack[stack.length - 1]; }
+  // Billedet laegges i Storage her; serveren laegger det sidst i udkastet i
+  // én saetning (og kun hvis varen stadig er klar) og optimerer det. Appen
+  // skriver aldrig selv photos-listen - en gammel kopi kunne tabe en
+  // optimering eller et billede.
   function gemForlaegsbillede(file){
     if(!PBTAG || PBTAG.travl) return;
-    var d = rows[PBTAG.id];
-    if(!d) return;
-    PBTAG.travl = true;
+    var mit = PBTAG, id = mit.id;
+    mit.travl = true;
     var st = $('pbtag-status');
     st.hidden = false; st.textContent = 'Uploader …';
     $('pbtag-shoot').disabled = true;
-    var kind = PBTAG.pose === 'naer' ? 'detalje' : 'paa-kroppen';
-    var photos, path, n;
+    var kind = mit.pose === 'naer' ? 'detalje' : 'paa-kroppen';
+    var path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
     shrink(file, 1800, 0.9).then(function(blob){
-      path = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
       return sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' });
     }).then(function(r){
       if(r.error) throw r.error;
-      var url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
-      photos = (d.photos || []).concat([{ path: path, url: url, kind: kind }]);
-      n = photos.length - 1;
-      return sb.from('drafts').update({ photos: photos }).eq('id', d.id);
-    }).then(function(r){
-      if(r && r.error) throw r.error;
-      d.photos = photos;
-      // Billedet er gemt; herfra er det kun optimeringen, der kan mangle.
+      st.textContent = 'Lægger billedet til og retter det til …';
       return fetch(FILL_API, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ mode: 'nytFoto', id: d.id, photo: n })
+        body: JSON.stringify({ mode: 'nytFoto', id: id, path: path, kind: kind })
       }).then(function(res){
-        return res.json().catch(function(){ return {}; }).then(function(j){ return res.ok && j && j.ok ? 'ok' : (j && j.error) || 'fejl'; });
-      }, function(){ return 'fejl'; }).then(function(udfald){
-        PBTAG = null;
-        back();
-        if(udfald === 'ok') toast('Billedet er lagt til');
-        else if(udfald === 'ikke_klar') toast('Varen er sendt afsted — billeder lægges kun til, mens den er klar');
-        else toast('Billedet er gemt, men ikke optimeret');
-        if(currentId === d.id) renderDetail();
-      });
+        return res.json().catch(function(){ return {}; }).then(function(j){ return { ok: res.ok && j && j.ok, j: j || {} }; });
+      }, function(){ return { ok: false, j: {} }; });
+    }).then(function(svar){
+      var j = svar.j;
+      // Listen fra serveren er den rigtige - realtid kan vaere langsom.
+      if(Array.isArray(j.photos) && rows[id]) rows[id].photos = j.photos;
+      var udfald = svar.ok ? 'ok' : (j.error === 'ikke_klar' ? 'ikke_klar' : Array.isArray(j.photos) ? 'gemt' : 'fejl');
+      if(udfald === 'fejl') throw new Error('nytFoto');
+      // Kun hvis det stadig er denne upload, og skaermen stadig staar fremme
+      // - ellers lukker back() en anden skaerm.
+      if(PBTAG === mit){ PBTAG = null; if(currentTop() === 'pbtag') back(); }
+      if(udfald === 'ok') toast('Billedet er lagt til');
+      else if(udfald === 'ikke_klar') toast('Varen er sendt afsted — billeder lægges kun til, mens den er klar');
+      else toast('Billedet er gemt, men ikke optimeret');
+      try { if(currentId === id && currentTop() === 'detail') renderDetail(); } catch(e){}
     }).catch(function(){
-      if(PBTAG) PBTAG.travl = false;
-      st.textContent = 'Kunne ikke gemme billedet. Prøv igen.';
-      $('pbtag-shoot').disabled = false;
+      mit.travl = false;
+      if(PBTAG === mit && currentTop() === 'pbtag'){
+        st.textContent = 'Kunne ikke gemme billedet. Prøv igen.';
+        $('pbtag-shoot').disabled = false;
+      } else toast('Billedet kunne ikke gemmes');
     });
   }
 
@@ -2069,6 +2076,8 @@
   $('cap-finish').addEventListener('click', function(){ lavUdkast($('cap-finish'), false); });
   $('cap-next').addEventListener('click', function(){ lavUdkast($('cap-next'), true); });
   $('pbtag-close').addEventListener('click', function(){ if(!(PBTAG && PBTAG.travl)){ PBTAG = null; back(); } });
+  // Paa en computer er der intet kamera - knappen aabner en filvaelger.
+  if(!PAA_IOS){ $('pbtag-cam').removeAttribute('capture'); $('pbtag-shoot').textContent = 'Vælg billede'; }
   $('pbtag-shoot').addEventListener('click', function(){ if(!(PBTAG && PBTAG.travl)) $('pbtag-cam').click(); });
   $('pbtag-cam').addEventListener('change', function(){
     var f = $('pbtag-cam').files && $('pbtag-cam').files[0];

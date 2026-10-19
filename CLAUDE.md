@@ -221,7 +221,7 @@ i `function_logs`, beviser intet.
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
 | »Sådan ser den ud på« på varens side (`producentBlok`, `producentKoblOp`, `visProducentStor`, `POSE_NAVN`), »Tag dit eget som dette« (`aabnForlaeg`, `gemForlaegsbillede`, `POSE_TEKST`) og trinnet `paa-kroppen` i `STEPS` | `app.js`; `#pb-stor` og `#s-pbtag` i `index.html`; `.pb-…` i `style.css` |
-| Ét nyt billede i et klar-udkast optimeres alene (`mode:'nytFoto'`, kalder delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; kun status `ny` og ikke sendt nogen steder hen; afviser `ikke_klar`, `findes_ikke`, `optimeret`, og `ikke_optimeret` når delkaldet ikke fik billedet optimeret; et fejlet delkald rører ikke prisnoten) | `…/vinted-fill-script/index.ts` |
+| Ét nyt billede i et klar-udkast (`mode:'nytFoto'` med `{id, path, kind}`): lægges sidst med `append_draft_photo` (afviser `ikke_klar`) og optimeres alene af delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; svarer med den friske `photos`, og `ikke_optimeret`, når delkaldet ikke fik det optimeret; et fejlet delkald rører ikke prisnoten. Appen skriver aldrig selv `photos` her | `…/vinted-fill-script/index.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
 | Gennemgangen af udfald → erfaringer (`mode:'laer'`) | `…/vinted-fill-script/laering.ts` |
@@ -264,6 +264,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Billedernes rækkefølge: `drafts.fotos_sendt` (de billeder, der kom med op, pr. plads), `listings.fotos` (Vinteds billed-id'er parret med appens, `[{id, rod}]`) og `listings.published.fotos`; `pending.fotos` er en ventende rækkefølge | `sql/016-billedraekkefoelge.sql` |
 | Appen må læse `forbrug` (til »Konto«) | `sql/017-forbrug-laeses.sql` |
 | Prisvagtens forslag til godkendelse: `listings.forslag` | `sql/018-prisforslag.sql` |
+| Ét billede lagt sidst i et klar-udkast i én sætning, kun når varen er færdiganalyseret og ikke sendt (`append_draft_photo`, kun service-nøglen) | `sql/019-tilfoej-billede.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi
@@ -378,8 +379,12 @@ Spec: `docs/superpowers/specs/2026-10-19-producentbilleder-design.md`.
   færdiganalyseret — status `ny` — og ikke sendt nogen steder hen; serverens
   `nytFoto` har samme regel): skærmen `#s-pbtag` viser producentens billede
   som forlæg (iOS' kamera kan ikke få et overlay), posens navn og en kort
-  vejledning. Dit billede lægges sidst i udkastet (`paa-kroppen`, for nær
-  `detalje`), og serveren optimerer det alene med seriens tone og format.
+  vejledning. Appen lægger dit billede i Storage; serveren lægger det sidst
+  i udkastet i én sætning (`paa-kroppen`, for nær `detalje`) og optimerer
+  det alene med seriens tone og format. Appen PATCHede før hele listen ud
+  fra sin egen kopi — så kunne en optimering eller et billede gå tabt.
+  Går du væk midt i, lukker svaret ingen anden skærm, og »Tag dit eget«
+  viser den igangværende i stedet for at starte en til.
   Teksten skrives ikke om. Fejler optimeringen, står billedet stadig i
   udkastet (»Billedet er gemt, men ikke optimeret«).
 

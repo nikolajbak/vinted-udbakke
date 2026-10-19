@@ -54,7 +54,11 @@
     if(/\/functions\//.test(url) && mode === 'indkob') body = INDKOB;
     // »Tag dit eget som dette«: serveren optimerer billedet - her bare ok.
     // Fejl proeves med __proeveFejl = { url: /vinted-fill-script/, method: 'POST', status: 502 }.
-    if(/\/functions\//.test(url) && mode === 'nytFoto') body = { ok: true };
+    if(/\/functions\//.test(url) && mode === 'nytFoto'){
+      var nb = JSON.parse(opt.body), dd = (data.drafts || []).find(function(r){ return r.id === nb.id; });
+      if(dd){ dd.photos = (dd.photos || []).concat([{ path: nb.path, url: 'proeve/' + nb.path, kind: nb.kind, optimized: true }]); }
+      body = { ok: true, photo: dd ? dd.photos.length - 1 : 0, photos: dd ? dd.photos : [] };
+    }
     // En PATCH laegges ind i hukommelsen, saa en genhentning ser den (intet sendes).
     if(m && method === 'PATCH'){
       var ret = {}; try { ret = JSON.parse(opt.body || '{}'); } catch(e){}
