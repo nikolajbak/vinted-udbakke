@@ -1439,6 +1439,10 @@ Deno.serve(async (req: Request) => {
       const kind = body.kind === "detalje" ? "detalje" : "paa-kroppen";
       // Adressen bygges her, ikke laest fra appen: kun appens egen Storage.
       const url = `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`;
+      // En sti, der ikke findes, maa ikke ende i udkastet - den ville komme
+      // med op paa Vinted og DBA som et doedt billede.
+      const findes = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000) }).then((r) => r.ok, () => false);
+      if (!findes) return json({ error: "bad_path" }, 400);
       const { data: n, error: e } = await supabase.rpc("append_draft_photo", {
         p_id: body.id, p_photo: { path, url, kind },
       });

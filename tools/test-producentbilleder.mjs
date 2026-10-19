@@ -3,7 +3,7 @@
 // og udvaelgelsen af modellens svar.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { billedKandidater, udvaelg } from "../supabase/functions/_shared/producentbilleder.ts";
+import { billedKandidater, udvaelg, pasformEllerIntet } from "../supabase/functions/_shared/producentbilleder.ts";
 
 const SIDE = "https://shop.dk/products/hooded-puffer-sort";
 
@@ -90,4 +90,18 @@ test("kandidater: Shopify-billeder hentes i 1200 px bredde", () => {
 test("kandidater: &quot; afkodes og slutter adressen", () => {
   const html = `data-x="{&quot;src&quot;:&quot;//cdn.x.com/a.jpg?sh=1000&quot;}"`;
   assert.deepEqual(billedKandidater(html, SIDE, []), ["https://cdn.x.com/a.jpg?sh=1000"]);
+});
+
+test("pasform: kun de led, der siger noget, bliver staaende", () => {
+  assert.equal(pasformEllerIntet("Normal pasform; modellens højde er ikke angivet"), "Normal pasform");
+  assert.equal(pasformEllerIntet("Oversized; modelhøjde ikke nævnt"), "Oversized");
+  assert.equal(pasformEllerIntet("Følger den normale størrelsesskala"), "Følger den normale størrelsesskala");
+  assert.equal(pasformEllerIntet("Regulær pasform; modellen er 173 cm og bærer størrelse S."), "Regulær pasform; modellen er 173 cm og bærer størrelse S");
+});
+
+test("pasform: en skala uden markering og det, siden ikke siger, smides vaek", () => {
+  assert.equal(pasformEllerIntet('Siden angiver pasform "Lille" og størrelsessvarende "Stor"; modelhøjde er ikke angivet.'), undefined);
+  assert.equal(pasformEllerIntet("Pasformsskala fra Lille til Stor uden tydelig markør; ingen modelhøjde angivet"), undefined);
+  assert.equal(pasformEllerIntet("null"), undefined);
+  assert.equal(pasformEllerIntet(undefined), undefined);
 });

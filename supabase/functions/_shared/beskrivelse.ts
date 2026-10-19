@@ -5,7 +5,7 @@
 // Nu staar reglerne her, og alle fire laeser dem.
 
 import { noterForbrug } from "./forbrug.ts";
-import { billedKandidater, udvaelg, type BilledSvar, type ProducentBillede } from "./producentbilleder.ts";
+import { billedKandidater, pasformEllerIntet, udvaelg, type BilledSvar, type ProducentBillede } from "./producentbilleder.ts";
 
 export const BESKRIVELSE_REGLER =
   "Regler for beskrivelsen:\n" +
@@ -322,16 +322,6 @@ export async function slaaOp(
     messages.push({ role: "assistant", content: data.content });
   }
   return {};
-}
-
-// Pasformen er kun en oplysning, naar den siger noget. Teeshoppens side har
-// en skala (Lille - Stoerrelsessvarende - Stor) uden markering, og modellen
-// skrev »angiver pasform Lille; modelhoejde er ikke angivet« - og teksten blev
-// til »passer lidt lille« (19. oktober). Det, siden IKKE siger, smides vaek.
-export function pasformEllerIntet(p?: string): string | undefined {
-  if (!p) return undefined;
-  if (/ikke (angivet|oplyst|nævnt|tydelig)|uden (tydelig|markering|markør)|ingen (model|markering|markør|oplysning)|skala/i.test(p)) return undefined;
-  return p;
 }
 
 // Prisen i hele danske kroner og maerket, som produktsiden selv opgiver dem i

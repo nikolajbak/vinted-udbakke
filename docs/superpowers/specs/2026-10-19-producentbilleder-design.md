@@ -150,9 +150,14 @@ på«** under billederne, når `fakta.producentBilleder` har noget:
   »Stoffet eller detaljen tæt på, som på billedet«). Ét tryk på kameraet
   (`<input type=file capture>` — samme som i dag; iOS' kamera kan ikke få
   et overlay).
-- Billedet lægges i Storage som i optagelsen og føjes **sidst** i
-  `drafts.photos` som `{url, path, kind:'paa-kroppen'}` (for `naer`:
-  `kind:'detalje'`).
+- Billedet lægges i Storage som i optagelsen. **Ændret under bygningen
+  (review af Task 5):** appen skriver ikke selv `photos` — en gammel kopi
+  kunne tabe en optimering eller et billede. Appen kalder `nytFoto` med
+  `{id, path, kind}` (`paa-kroppen`, for `naer`: `detalje`); serveren
+  tjekker, at filen findes, og lægger den sidst i én sætning
+  (`append_draft_photo`, sql/019) — kun når varen er færdiganalyseret
+  (status `ny`) og ikke sendt — og optimerer så den plads. Afsnittet
+  herunder om `{id, photo: n}` er erstattet af det.
 - Så kalder appen `FILL_API` med **`mode:'nytFoto'`, `{id, photo: n}`**.
   `vinted-fill-script` kalder `analyze-draft` med `{id, photo: n}` og
   `x-webhook-secret` — det eksisterende delkald, som optimerer det ene foto

@@ -105,3 +105,17 @@ export function udvaelg(kandidater: string[], svar: BilledSvar[]): ProducentBill
   }
   return POSER.filter((p) => valgt.has(p)).map((p) => ({ url: valgt.get(p)!, pose: p })).slice(0, MAKS_BILLEDER);
 }
+
+// Pasformen er kun en oplysning, naar den siger noget. Teeshoppens side har
+// en skala (Lille - Stoerrelsessvarende - Stor) uden markering, og modellen
+// skrev »angiver pasform Lille; modelhoejde er ikke angivet« - og teksten blev
+// til »passer lidt lille« (19. oktober). Svaret deles i led: et led, der
+// siger, hvad siden IKKE siger, eller som er skalaens to ender, smides vaek;
+// resten staar. Intet tilbage (eller »null«) er ingen pasform.
+const SIGER_INTET = /ikke (angivet|oplyst|nævnt|tydelig)|uden (tydelig|markering|markør)|ingen (model\S*|markering|markør|oplysning)/i;
+export function pasformEllerIntet(p?: unknown): string | undefined {
+  if (typeof p !== "string") return undefined;
+  const led = p.split(/[;.]\s*/).map((l) => l.trim()).filter((l) =>
+    l && !/^null$/i.test(l) && !SIGER_INTET.test(l) && !(/\blille\b/i.test(l) && /\bstor\b/i.test(l)));
+  return led.length ? led.join("; ") : undefined;
+}

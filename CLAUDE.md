@@ -1323,10 +1323,13 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   klistret op ad kanten læser det som en fejl. Var motivet allerede skåret af i
   originalen, lægges rammen bredt, så det afskårne ikke springer i øjnene.
   Værdierne står i `PADDING` i `optimize.ts`.
-- **Et billede på kroppen isoleres aldrig** (`kind: 'paa-kroppen'`,
+- **Et billede på kroppen isoleres ikke** (`kind: 'paa-kroppen'`,
   19. oktober): en person på hvidt ligner en udklipning. Siger modellen
-  `helvare`, bliver motivet `paakroppen` — samme luft (`PADDING`), ingen
-  hvid ramme, seriens format og tone som alle andre.
+  `helvare`, bliver motivet `paakroppen` — samme luft (`PADDING`) og
+  seriens tone. Som et nærbillede må det bøje seriens format, når det ikke
+  kan rummes (hellere et andet format end hvide bjælker om en person); kun
+  når heller ikke dets eget format kan rumme det (fx 9:16 af hele figuren),
+  fyldes der ud.
 - **KUN hele varer isoleres — aldrig nærbilleder.** Et hovedbillede skal ligne
   et produktfoto i gitteret, og en hel vare har ingen gavn af den flade, den
   ligger på. Et nærbillede beholder sine omgivelser: stoffet omkring et mærkat
@@ -1451,9 +1454,12 @@ Målt 19. oktober på nr. 54, 63, 65 og 66 (to gennemløb hver).
   sagde, og læste Teeshoppens skala (»Lille – Størrelsessvarende – Stor«,
   uden markering) som en pasform — så blev teksten »passer lidt lille«, et
   opfundet råd (rigtig analyse, 19. oktober). Prompten siger, at en skala
-  uden markering ikke er en pasform, og `pasformEllerIntet` smider et svar
-  væk, der siger, hvad siden ikke siger (»ikke angivet«, »uden tydelig«,
-  »skala« …). Teksten må ikke nævne, hvor rådet kommer fra.
+  uden markering ikke er en pasform, og `pasformEllerIntet`
+  (`_shared/producentbilleder.ts`, testet) deler svaret i led og smider de
+  led væk, der siger, hvad siden ikke siger (»ikke angivet«, »uden
+  tydelig«), eller som er skalaens to ender (både »lille« og »stor«).
+  »Normal pasform; modelhøjde ikke angivet« bliver til »Normal pasform«.
+  Teksten må ikke nævne, hvor rådet kommer fra.
 
 ## Vinted: formularen
 
