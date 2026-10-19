@@ -520,7 +520,7 @@ Deno.serve(async (req: Request) => {
     }
     if (l && l.status === "aktiv") {
       await supabase.from("listings").update({
-        status: "solgt", sold_at: new Date().toISOString(),
+        status: "solgt", sold_at: mailTid, // genlaest: mailens tid, ikke nu
         ...(bud ? { sold_price: bud } : {}),
         pending: null, pending_note: null, pending_since: null,
       }).eq("id", l.id);
