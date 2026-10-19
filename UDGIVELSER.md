@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0125 — 2026-10-19 10:24
+
+Commit `f0fec3b` — Billeder lægges til og fjernes, også i en annonce, der er ude  
+App: `app.js?v=b9d1ab7b` · `style.css?v=b8dcb4e0`  
+Udrullet: analyze-draft, vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v93 | `cb971e7c` |
+| dba-fill-script | v41 | `94aa7134` |
+| push-send | v4 | `cce82c40` |
+| push-subscribe | v4 | `989f990f` |
+| reshopper-draft | v32 | `63727506` |
+| vinted-fill-script ← | v118 | `7b4d7124` |
+| vinted-mail | v22 | `48755620` |
+
 ## udgivelse-0124 — 2026-10-19 06:59
 
 Commit `6c809e1` — Pasform smides væk led for led, nytFoto tjekker at filen findes, spec og CLAUDE.md passer til koden  
