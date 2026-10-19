@@ -176,7 +176,9 @@ intet sendes og intet gemmes. »Køb igen« får et fast eksempel
 Mock'en kan fejle (`window.__proeveFejl`), være langsom
 (`window.__proeveVent`, eller `localStorage` `proeveVent` til en
 genindlæsning), og en PATCH lægges i dens hukommelse, så en genhentning
-ser den. Appens service worker serverer gammel CSS på
+ser den. `window.__proeveData` er mock'ens data — læg fx en
+køberbesked i `koeber_beskeder` og send `visibilitychange`, så henter
+appen igen. Appens service worker serverer gammel CSS på
 localhost: afregistrér den i ruden, hvis en ændring ikke slår igennem.
 
 `window.__UDBAKKE_LOG__` i browseren viser hvert trin. Kør automatikken sådan:
@@ -649,9 +651,10 @@ varer i »køen«, selv om de lå ude på Vinted, og to af dem var solgt.
   øverst på forsiden), vigtigst først: solgt på Vinted men stadig ude på
   DBA/Reshopper (rød kant) → køber skriver → analysen fejlede → en ny
   pris/rettelse, der har ventet over et døgn (`sidderFast`) → ikke
-  tilknyttet (over en time efter udfyldningen) (rav kant) → prisforslag →
-  salgspris mangler (uden kant). `samlOpgaver()` finder dem,
-  `tegnOpgaveSkaerm()` tegner dem som én liste; Lager viser kun varerne. **Intet »tjek mod markedet«** —
+  tilknyttet (over en time efter udfyldningen) (rav) → prisforslag →
+  salgspris mangler (stille). `samlOpgaver()` finder dem,
+  `tegnOpgaveSkaerm()` tegner dem (se »Appens opbygning → Opgaver«); Lager
+  viser kun varerne. **Intet »tjek mod markedet«** —
   prisvagten tjekker selv (se »Prisvagten → Ingen tjek-knap«).
 - **Solgt ét sted = tag den ned de andre steder.** DBA og Reshopper kan ikke
   tages ned af appen, så push-beskeden om salget siger »Slet den også på DBA«,
@@ -801,9 +804,13 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
     erfaringerne side om side.
   - **Konto**: to spalter — omsætningen og søjlerne til venstre
     (`.konto-venstre`), nøgletalsrækkerne til højre (`.konto-kv`).
-  - **Opgaver** og **Mere**: én spalte på 680 px, venstrestillet i den
-    samme 1120 px-ramme — så overskriften står samme sted som på Lager og
-    Konto (målt x=248 på alle fire, 19. oktober).
+  - **Opgaver**: som Lager — tal-felterne over hele bredden og rækkerne i
+    to spalter (19. oktober). En høj række (en køberbesked) gør naboen lige
+    så høj; indholdet står øverst (`align-content: start`), så stregerne
+    flugter.
+  - **Mere**: én spalte på 680 px, venstrestillet i den samme 1120 px-ramme
+    — så overskriften står samme sted som på de andre faner (målt x=248 på
+    alle fire, 19. oktober).
   - **Redigér**: teksten til venstre, markedspladsernes felter i et panel
     til højre; »Skriv beskrivelsen forfra« står stadig nederst over Gem.
   - **Etiketter** og **Køb igen**: gitter/to spalter. Opsætning er en
@@ -827,10 +834,21 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   med samme stempel. Er en nyere app ude, siger linjen det. **Opsætning** er en tjekliste — hvert trin med
   status og vejledningen foldet ind under sig; bogmærket under »Andre
   måder«. Læg ikke vejledninger tilbage i Mere.
-- **Opgaver**: det akutte med en farvet kant øverst, så »Prisforslag · N«
-  med »Godkend alle« og én række pr. forslag (billede, titel, gammel pris
-  overstreget · begrundelsen, × afviser, prisen godkender; et tryk på
-  rækken åbner varen), så salgspriserne. Et forslag, der er sendt afsted,
+- **Opgaver** er bygget som Lager (bestemt af dig 19. oktober: »samme
+  design og udseende som Lager«). Øverst tre tal-felter, der er fanerne:
+  **Haster** (det akutte), **Prisforslag** (antal, og under det hvor meget
+  de sætter ned i alt) og **Salgspris** (`OPG_FANE`). Hver gang fanen åbnes,
+  vælges den første med noget i — Haster, ellers Prisforslag (også når de
+  ikke kunne hentes), ellers Salgspris. Under felterne rækker som på Lager
+  (`.row.lr.opg-r`): billedet, første linje er det, der skal gøres (rød:
+  kan sælges to gange; rav: venter på dig), anden hvorfor, tredje
+  løbenummer · varen; knapperne står under teksten (til højre klemte de den). Et
+  tryk ved siden af knapperne åbner varen. En køberbesked brydes over flere
+  linjer med knapperne under; varen findes på titlen (`udkastMedTitel`).
+  Et prisforslag: varen, gammel pris overstreget · begrundelsen, og til
+  højre prisen (godkend) med »Afvis« under; »Godkend alle« over listen.
+  Hver fane har sin egen tomme tekst; er alt tomt, »Intet venter på dig«.
+  Et forslag, der er sendt afsted,
   er låst, til svaret er kommet (`OPG_I_GANG`) — også hvis skærmen tegnes
   om imens. Kan forslagene ikke hentes, står opgaverne stadig, med »Prøv
   igen«. Kun det nyeste svar på hentningen tæller (`OPG_SEQ`): et
@@ -1566,8 +1584,8 @@ laver en liste til godkendelse.** Erstatter beslutningen fra 16. oktober
   venter på din godkendelse«; et tryk åbner Opgaver (`#fane-opgaver`,
   tredje led i `puf`).
 - **Appen**: forslagene godkendes under fanen **Opgaver** (19. oktober; før
-  en gruppe på Prisvagt-skærmen): »Prisforslag · N« med × (afvis), prisen
-  (godkend) og »Godkend alle«. Prisvagt-skærmen viser kun »Foreslår X kr —
+  en gruppe på Prisvagt-skærmen): tal-feltet »Prisforslag« med en række
+  pr. forslag — prisen (godkend), »Afvis« — og »Godkend alle«. Prisvagt-skærmen viser kun »Foreslår X kr —
   venter på dit ja under Opgaver« (med »Venter også: …«, hvis der også
   ligger rettelser i `pending`). **Ingen opgave om forslagene på Lager**
   (bestemt af dig 18. oktober). Varens side: »Prisvagt: foreslår X kr —

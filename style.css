@@ -1060,25 +1060,6 @@
 .lager-felt-s:empty{ display: none; }
 .fane-tal:empty{ display: none; }
 
-/* Kompakt: tekst til venstre, knap til hoejre. Fem kort maa ikke skubbe
-   lageret ud af skaermen. */
-.opgave{
-  padding: var(--s2) var(--s3); border-radius: 10px; background: var(--amber-soft);
-  display: flex; align-items: center; gap: var(--s3);
-}
-.opgave-tekst{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.opgave-tekst b{ font-size: var(--t-small); line-height: 1.35; }
-.opgave-tekst span{ font-size: var(--t-small); color: var(--ink-soft); line-height: 1.35;
-                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opgave-knapper{ flex: 0 0 auto; display: flex; gap: var(--s1); }
-.opgave-knapper .btn{ width: auto; min-height: 40px; padding: 0 var(--s3); font-size: var(--t-small); }
-/* Koeberens besked og udkastet skal kunne laeses helt, foer det kopieres. */
-.opgave.opgave-svar{ flex-direction: column; align-items: stretch; }
-.opgave-svar .opgave-tekst span{ white-space: normal; }
-.opgave-svar .svar-forslag{ margin-top: var(--s1); padding: var(--s2); border-radius: 8px;
-                            background: var(--raised); color: var(--ink); }
-.opgave-svar .opgave-knapper{ flex-wrap: wrap; }
-
 .kort-vent{ color: var(--amber); font-weight: 600; }
 
 .fod-knap{
@@ -1219,32 +1200,39 @@
 .trin.andre{ margin-top: var(--s5); border: 1px solid var(--line); border-radius: 14px;
              padding: 0 var(--s4); background: var(--raised); }
 
-/* Opgaver: det akutte med en farvet kant, saa prisforslagene som en liste
-   med streger, saa det stille. Kanten er den eneste farve, der raaber. */
-.opg-liste{ display: flex; flex-direction: column; gap: var(--s2); }
-.opg-liste + .opg-grp, .opg-grp + .opg-liste, .opg-forslag + .opg-liste{ margin-top: var(--s5); }
-.opgave.opg-kant-rod{ box-shadow: inset 3px 0 0 var(--danger-tekst); }
-.opgave.opg-kant-rav{ box-shadow: inset 3px 0 0 var(--amber); }
-.opg-stille .opgave{ background: var(--raised); }
+/* Opgaver: samme tal-felter og raekker som Lager. Foerste linje siger,
+   hvad der skal goeres - roed kan saelges to gange, rav venter paa dig -
+   og knapperne staar til hoejre, hvor Lager har prisen. */
+.opg-liste{ display: flex; flex-direction: column; }
+/* Staar en hoej raekke ved siden af (en koeberbesked), holder naboen sit
+   indhold oeverst; stregen under flugter stadig. */
+.opg-r{ cursor: default; align-content: start; }
+.opg-r[data-id], .opg-forslag{ cursor: pointer; }
+.opg-r:not([data-id]):not(.opg-forslag):active, .opg-r:has(button:active){ transform: none; }
+.opg-r.opg-rod .lr-l:first-child{ color: var(--danger-tekst); }
+.opg-r.opg-rav .lr-l:first-child{ color: var(--amber); }
+.opg-r-knapper{ display: flex; flex-direction: column; align-items: stretch; gap: var(--s1); }
+.opg-r-knapper .btn{ width: auto; min-height: 40px; padding: 0 var(--s3); font-size: var(--t-small);
+                     white-space: nowrap; font-variant-numeric: tabular-nums; }
+.opg-afvis{ min-height: 32px; background: none; border: 0; padding: 0; color: var(--ink-soft);
+            font: inherit; font-size: var(--t-small); font-weight: 500; cursor: pointer; }
+.opg-afvis[disabled]{ opacity: .55; }
+/* En opgaves knapper staar under teksten: til hoejre ville »Åbn Reshopper«
+   klemme »Tag den ned på …« til tre ord paa en telefon. Kun prisforslaget
+   har sin pris til hoejre, som Lager. */
+.opg-r:not(.opg-forslag){ grid-template-columns: 72px 1fr; align-items: start; }
+.opg-r:not(.opg-forslag) .opg-r-knapper{ grid-column: 2; row-gap: var(--s1); flex-direction: row; flex-wrap: wrap; }
+.opg-r:not(.opg-forslag) > img, .opg-r:not(.opg-forslag) > .ph{ grid-row: span 2; }
+.opg-r:not(.opg-forslag){ row-gap: var(--s2); }
+/* Koeberens besked og udkastet skal kunne laeses helt, foer det kopieres. */
+.opg-r-svar .lr-l{ white-space: normal; }
+.opg-r-svar .svar-forslag{ display: block; margin-top: var(--s1); padding: var(--s2); border-radius: 8px;
+                           background: var(--raised); color: var(--ink); }
 .opg-grp{ display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
           padding-bottom: var(--s2); border-bottom: 1px solid var(--line); }
 .opg-alle{ background: none; border: 0; padding: var(--s1) 0; color: var(--accent);
            font: inherit; font-size: var(--t-small); font-weight: 600; cursor: pointer; }
 .opg-fejl{ color: var(--ink-soft); font-size: var(--t-small); }
-.opg-forslag{ display: grid; grid-template-columns: 44px 1fr auto; gap: var(--s3); align-items: center;
-              padding: var(--s2) 0; border-bottom: 1px solid var(--line); cursor: pointer; }
-.opg-forslag img, .opg-forslag .ph{ width: 44px; height: 58px; object-fit: contain; border-radius: 7px;
-              background: var(--surface); display: block; }
-.opg-forslag-tekst{ min-width: 0; display: flex; flex-direction: column; }
-.opg-forslag-tekst b{ font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opg-forslag-tekst span{ font-size: var(--t-small); color: var(--ink-soft); font-variant-numeric: tabular-nums;
-              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opg-forslag-knapper{ display: flex; align-items: center; gap: var(--s1); }
-.opg-forslag-knapper .btn{ width: auto; min-width: 96px; min-height: 40px; padding: 0 var(--s3); font-size: var(--t-small);
-              font-variant-numeric: tabular-nums; }
-.opg-afvis{ width: 40px; height: 40px; border: 0; border-radius: 10px; background: none;
-            color: var(--ink-soft); font-size: 22px; line-height: 1; cursor: pointer; }
-.opg-afvis:active{ background: var(--surface); }
 
 /* Varens side: pris og pladser foerst, tekst og detaljer klappet sammen. */
 .d-under{ color: var(--ink-soft); margin-top: var(--s1); }
@@ -1304,7 +1292,8 @@
   /* Lageret: varerne side om side, saa en skaerm viser mere end fem. */
   #s-queue{ --maal: 1120px; }
   /* To spalter med raekker; stregen mellem raekkerne baerer stadig. */
-  #queue-list, #queue-loading{ display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--s6); }
+  #queue-list, #queue-loading, #opgaver-body .opg-liste, #opgaver-body .skel{
+    display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--s6); }
 
   /* Varens side: billederne til venstre, staaende fast, mens resten rulles.
      Kolonnen er saa bred, at et 3:4-billede passer i hoejden - saa vises
@@ -1325,9 +1314,10 @@
 
   /* Fanerne har samme bredde, saa overskriften ikke hopper ved et skift. */
   #s-vagt, #s-konto, #s-opgaver, #s-menu{ --maal: 1120px; }
-  /* Opgaverne og Mere er lister, der skal laeses - som Opsaetning. Rammen
-     er 1120 px som de andre faner, kun indholdet holder 680 px. */
-  #opgaver-body > *, #s-menu > .body > *{ max-width: 680px; }
+  /* Mere er en liste, der skal laeses - som Opsaetning. Rammen er 1120 px
+     som de andre faner, kun indholdet holder 680 px. Opgaver er bygget som
+     Lager og bruger hele bredden: rækkerne i to spalter. */
+  #s-menu > .body > *{ max-width: 680px; }
 
   /* Prisvagten: statuskortet paa én linje - teksten til venstre, knapperne
      til hoejre - og hver gruppe som et gitter af kort. Kortene i en raekke

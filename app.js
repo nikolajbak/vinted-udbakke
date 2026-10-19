@@ -183,7 +183,7 @@
   }
   if(BRED.addEventListener) BRED.addEventListener('change', function(){ flytFanebar(stack[0] || 'queue'); });
   function hentFane(name){
-    if(name === 'opgaver'){ tegnOpgaveSkaerm(); hentOpgaver(); }
+    if(name === 'opgaver'){ OPG_FANE = null; tegnOpgaveSkaerm(); hentOpgaver(); }
     else if(name === 'konto') hentKonto();
     else if(name === 'menu'){ hentMereVagt(); tegnTjek(); tegnVersion(); }
   }
@@ -242,9 +242,16 @@
   //   2  stoerrelse · farve · stand        (materialet staar paa varens side)
   //   3  loebenummer · markedspladser · »rettelse venter«
   // Hver linje er én linje; resten faar »…«.
-  function raekkeTekst(d){
-    var navn = [d.brand, d.category].filter(Boolean).join(' · ') || d.title ||
+  function raekkeNavn(d){
+    return [d.brand, d.category].filter(Boolean).join(' · ') || d.title ||
       (d.status === 'kladde' ? 'Ufærdig billedserie' : 'Nyt udkast');
+  }
+  // Billedet til venstre i en raekke — paa Lager og under Opgaver.
+  function raekkeBillede(d){
+    return d && d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>';
+  }
+  function raekkeTekst(d){
+    var navn = raekkeNavn(d);
     var detaljer = [d.size ? 'Str. ' + d.size : '', d.color, d.condition].filter(Boolean).join(' · ');
     if(!detaljer){
       detaljer = d.status === 'kladde' ? (d.photos || []).length + ' billeder taget'
@@ -545,7 +552,7 @@
     var el = $('queue-list');
     el.innerHTML = list.map(function(d){
       var pr = raekkePris(d);
-      var indre = (d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
+      var indre = raekkeBillede(d) +
         '<span class="lr-tekst">' + raekkeTekst(d) + '</span>' +
         '<span class="lr-hoejre"><b class="lr-pris' + (pr.rav ? ' rav' : '') + (pr.lille ? ' lille' : '') + '">' + esc(pr.pris) + '</b>' +
           (pr.under ? '<small>' + esc(pr.under) + '</small>' : '') + '</span>';
@@ -603,13 +610,26 @@
   // En koeber, der venter paa svar, kommer lige efter en vare, der kan
   // saelges to gange.
   var OPGAVE_ORDEN = { ned:0, svar:1, fejl:2, send:3, salg:4, knyt:5 };
-  // Kanten siger, hvor galt det er: roed kan saelges to gange, rav venter paa
-  // dig. En manglende salgspris er stille.
-  var OPGAVE_KANT = { ned:' opg-kant-rod', svar:' opg-kant-rav', fejl:' opg-kant-rav', send:' opg-kant-rav', knyt:' opg-kant-rav', salg:'' };
-  function opgaveKort(tekst, under, knapper, slags){
-    return { o: OPGAVE_ORDEN[slags], s: slags, h: '<div class="opgave' + OPGAVE_KANT[slags] + (slags === 'svar' ? ' opgave-svar' : '') + '">' +
-      '<div class="opgave-tekst"><b>' + tekst + '</b>' + (under ? '<span>' + under + '</span>' : '') + '</div>' +
-      '<div class="opgave-knapper">' + knapper + '</div></div>' };
+  // Farven paa foerste linje siger, hvor galt det er: roed kan saelges to
+  // gange, rav venter paa dig. En manglende salgspris er stille.
+  var OPGAVE_FARVE = { ned:' opg-rod', svar:' opg-rav', fejl:' opg-rav', send:' opg-rav', knyt:' opg-rav', salg:'' };
+  // En opgave er en raekke som paa Lager: billedet, tre linjer — hvad der
+  // skal goeres, hvorfor, og loebenummer · varen — og knapperne til hoejre.
+  // Et tryk ved siden af knapperne aabner varen.
+  function opgaveKort(tekst, under, knapper, slags, d){
+    return { o: OPGAVE_ORDEN[slags], s: slags, h: '<div class="row lr opg-r' + OPGAVE_FARVE[slags] + (slags === 'svar' ? ' opg-r-svar' : '') + '"' +
+        (d ? ' data-id="' + esc(d.id) + '"' : '') + '>' + raekkeBillede(d) +
+      '<span class="lr-tekst"><span class="lr-l">' + tekst + '</span>' +
+        (under ? '<span class="lr-l">' + under + '</span>' : '') +
+        (d ? '<span class="lr-l"><span class="lr-nr">' + esc(fmtNr(d.nr)) + '</span> · ' + esc(raekkeNavn(d)) + '</span>' : '') + '</span>' +
+      '<span class="opg-r-knapper">' + knapper + '</span></div>' };
+  }
+  // Koeberbeskeden kender kun annoncens titel.
+  function udkastMedTitel(alle, t){
+    return t ? alle.filter(function(d){
+      var l = vintedAnnonce(d);
+      return d.title === t || (l && l.title === t);
+    })[0] || null : null;
   }
   // Udkastene, der hoerer til lageret (ikke kasserede).
   function aktuelleUdkast(){
@@ -621,8 +641,6 @@
   function samlOpgaver(alle){
     var kort = [];
     alle.forEach(function(d){
-      var nr = esc(fmtNr(d.nr));
-      var navn = esc(d.title || 'Varen');
       var sendt = sendtTil(d), ned = d.taget_ned || {};
       var solgtL = annoncer(d).filter(function(x){ return x.status === 'solgt'; })[0];
 
@@ -631,14 +649,14 @@
       if(solgtL){
         MARKEDER.forEach(function(m){
           if(m.k === 'vinted' || !sendt[m.k] || ned[m.k]) return;
-          kort.push(opgaveKort(nr + ' er solgt — tag den ned på ' + esc(m.navn),
-            navn + ' kan ellers blive solgt to gange.',
+          kort.push(opgaveKort('Tag den ned på ' + esc(m.navn),
+            'Solgt på Vinted — ellers kan den sælges to gange.',
             '<button type="button" class="btn btn-secondary" data-op="aabn-' + m.k + '" data-id="' + esc(d.id) + '">Åbn ' + esc(m.navn) + '</button>' +
-            '<button type="button" class="btn btn-primary" data-op="ned-' + m.k + '" data-id="' + esc(d.id) + '">Taget ned</button>', 'ned'));
+            '<button type="button" class="btn btn-primary" data-op="ned-' + m.k + '" data-id="' + esc(d.id) + '">Taget ned</button>', 'ned', d));
         });
         if(solgtL.sold_price == null){
-          kort.push(opgaveKort(nr + ' er solgt — hvad gik den for?', navn,
-            '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Tast pris</button>', 'salg'));
+          kort.push(opgaveKort('Solgt — hvad gik den for?', '',
+            '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Tast pris</button>', 'salg', d));
         }
       }
       annoncer(d).forEach(function(l){
@@ -646,21 +664,21 @@
         // Kun en, der har ventet over et doegn, er din opgave.
         if((l.status === 'aktiv' || l.status === 'pause') && sidderFast(l) && l.external_id){
           var pv = l.pending && l.pending.price;
-          kort.push(opgaveKort(nr + (pv ? ': ny pris ' + esc(kr(pv)) + ' er ikke nået ud' : ': din rettelse er ikke nået ud'),
+          kort.push(opgaveKort(pv ? 'Ny pris ' + esc(kr(pv)) + ' er ikke nået ud' : 'Din rettelse er ikke nået ud',
             'Vinted har ikke været åben i Safari, så den er ikke sat endnu.',
-            '<button type="button" class="btn btn-secondary" data-op="send" data-ext="' + esc(l.external_id) + '">Sæt nu</button>', 'send'));
+            '<button type="button" class="btn btn-secondary" data-op="send" data-ext="' + esc(l.external_id) + '">Sæt nu</button>', 'send', d));
         }
       });
       if(d.status === 'afventer' && (d.price_note || '').indexOf('Analyse mislykkedes') === 0){
-        kort.push(opgaveKort(nr + ': analysen mislykkedes', '',
-          '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Se</button>', 'fejl'));
+        kort.push(opgaveKort('Analysen mislykkedes', '',
+          '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Se</button>', 'fejl', d));
       }
       // Sendt til Vinted for over en time siden, men ingen annonce fundet.
       // Efterloebet plejer at finde den; goer det ikke, er adressen vejen ind.
       if(sendt.vinted && !vintedAnnonce(d) && Date.now() - new Date(sendt.vinted).getTime() > 3600000){
-        kort.push(opgaveKort(nr + ' er ikke knyttet til sin annonce',
+        kort.push(opgaveKort('Ikke knyttet til sin annonce',
           'Uden den ser appen hverken pris, hjerter eller salg.',
-          '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Tilknyt</button>', 'knyt'));
+          '<button type="button" class="btn btn-secondary" data-op="vis" data-id="' + esc(d.id) + '">Tilknyt</button>', 'knyt', d));
       }
     });
     // Koeberbeskeder fra Vinteds mails, med koeber-assistentens udkast.
@@ -674,10 +692,12 @@
       else if(k.intent === 'defer') forslag += 'Det kan kun du svare på.';
       if(forslag) under += '<span class="svar-forslag">' + forslag + '</span>';
       var id = ' data-svar="' + esc(String(k.id)) + '"';
-      kort.push(opgaveKort('Køber skriver om ' + esc(k.item_title || 'en vare'), under,
+      // Kendes varen, staar den paa tredje linje; ellers i overskriften.
+      var dk = udkastMedTitel(alle, k.item_title);
+      kort.push(opgaveKort(dk ? 'Køber skriver' : 'Køber skriver om ' + esc(k.item_title || 'en vare'), under,
         (k.reply ? '<button type="button" class="btn btn-primary" data-op="svar-kopier"' + id + '>Kopiér svaret</button>' : '') +
         (k.samtale ? '<button type="button" class="btn btn-secondary" data-op="svar-aabn"' + id + '>Åbn samtalen</button>' : '') +
-        '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + id + '>Klaret</button>', 'svar'));
+        '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + id + '>Klaret</button>', 'svar', dk));
     });
     kort.sort(function(a, b){ return a.o - b.o; });
     return kort;
@@ -721,14 +741,31 @@
 
   function forslagRaekke(l){
     var d = rows[l.draft_id];
-    return '<div class="opg-forslag" data-l="' + esc(l.id) + '">' +
-      (d && d.image_url ? '<img src="' + esc(d.image_url) + '" alt="">' : '<span class="ph"></span>') +
-      '<span class="opg-forslag-tekst"><b>' + esc(l.title || (d && d.title) || 'Uden titel') + '</b>' +
-        '<span><s>' + esc(kr(l.price)) + '</s>' + (l.forslag.note ? ' · ' + esc(l.forslag.note) : '') + '</span></span>' +
-      '<span class="opg-forslag-knapper">' +
-        '<button type="button" class="opg-afvis" data-f="afvis" aria-label="Afvis"' + (OPG_I_GANG[l.id] ? ' disabled' : '') + '>×</button>' +
-        '<button type="button" class="btn btn-primary" data-f="godkend"' + (OPG_I_GANG[l.id] ? ' disabled' : '') + '>' + esc(kr(l.forslag.price)) + '</button>' +
+    var laast = OPG_I_GANG[l.id] ? ' disabled' : '';
+    return '<div class="row lr opg-r opg-forslag" data-l="' + esc(l.id) + '">' + raekkeBillede(d) +
+      '<span class="lr-tekst"><span class="lr-l">' + esc(d ? raekkeNavn(d) : (l.title || 'Uden titel')) + '</span>' +
+        '<span class="lr-l"><s>' + esc(kr(l.price)) + '</s>' + (l.forslag.note ? ' · ' + esc(l.forslag.note) : '') + '</span>' +
+        (d ? '<span class="lr-l"><span class="lr-nr">' + esc(fmtNr(d.nr)) + '</span>' + markedsMaerker(d) + '</span>' : '') + '</span>' +
+      '<span class="opg-r-knapper">' +
+        '<button type="button" class="btn btn-primary" data-f="godkend"' + laast + '>' + esc(kr(l.forslag.price)) + '</button>' +
+        '<button type="button" class="opg-afvis" data-f="afvis"' + laast + '>Afvis</button>' +
       '</span></div>';
+  }
+
+  // Tal-felterne oeverst er fanerne, som paa Lager: det, der haster,
+  // prisforslagene og salgspriserne. null = vaelg det foerste med noget i,
+  // naar det vides — det goeres, hver gang fanen aabnes.
+  var OPG_FANE = null;
+  function opgFelt(k, n, navn, sum){
+    var on = OPG_FANE === k;
+    return '<button type="button" role="tab" class="lager-felt' + (on ? ' on' : '') + '" data-ofane="' + k +
+      '" aria-selected="' + on + '"><span class="lager-felt-n">' + n + '</span><span class="lager-felt-t">' + navn +
+      '</span><span class="lager-felt-s">' + (sum || '') + '</span></button>';
+  }
+  var OPG_SKELET = '<div class="skel" aria-hidden="true">' + new Array(4).join('<div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>') + '</div>';
+  function opgTom(titel, tekst, maerke){
+    return '<div class="empty">' + (maerke ? '<svg class="empty-mark" viewBox="0 0 72 56" aria-hidden="true">' +
+      '<path d="M22 29l10 10 18-20"/></svg>' : '') + '<h3>' + titel + '</h3><p>' + tekst + '</p></div>';
   }
 
   function tegnOpgaveSkaerm(){
@@ -737,30 +774,58 @@
     var akut = kort.filter(function(k){ return k.s !== 'salg'; });
     var stille = kort.filter(function(k){ return k.s === 'salg'; });
     var fo = Array.isArray(OPG_FORSLAG) ? OPG_FORSLAG : [];
-    var h = '';
-    if(akut.length) h += '<div class="opg-liste">' + akut.map(function(k){ return k.h; }).join('') + '</div>';
-    if(fo.length){
-      h += '<div class="opg-grp"><span class="label">Prisforslag · ' + fo.length + '</span>' +
-        (fo.length > 1 ? '<button type="button" class="opg-alle" id="opg-godkend-alle"' +
-          (Object.keys(OPG_I_GANG).length ? ' disabled' : '') + '>Godkend alle</button>' : '') + '</div>' +
-        fo.map(forslagRaekke).join('');
+    // Endnu ikke hentet: »Intet venter« ville være usandt.
+    if(!KOE_HENTET){ el.innerHTML = OPG_SKELET; return; }
+    if(!OPG_FANE){
+      if(akut.length) OPG_FANE = 'nu';
+      else if(OPG_FORSLAG !== null) OPG_FANE = fo.length || OPG_FORSLAG === 'fejl' ? 'forslag' : stille.length ? 'salg' : 'nu';
+    }
+    var ned = fo.reduce(function(n, l){ return n + Math.max(0, (prisTal(l.price) || 0) - (prisTal(l.forslag.price) || 0)); }, 0);
+    var h = '<div class="lager-felter" role="tablist" id="opg-faner">' +
+      opgFelt('nu', akut.length, 'Haster') +
+      opgFelt('forslag', OPG_FORSLAG === null ? '…' : OPG_FORSLAG === 'fejl' ? '–' : fo.length, 'Prisforslag',
+        OPG_FORSLAG === 'fejl' ? 'ikke hentet' : ned ? '−' + kr(ned) : '') +
+      opgFelt('salg', stille.length, 'Salgspris') + '</div>';
+    var liste = function(k){ return '<div class="opg-liste">' + k.map(function(x){ return x.h; }).join('') + '</div>'; };
+    if(!OPG_FANE) h += OPG_SKELET;
+    else if(!akut.length && !stille.length && Array.isArray(OPG_FORSLAG) && !fo.length){
+      h += opgTom('Intet venter på dig', 'Nye opgaver dukker op her, fx når en vare er solgt eller en køber skriver.', true);
+    } else if(OPG_FANE === 'nu'){
+      h += akut.length ? liste(akut) : opgTom('Intet haster', 'Her står det, der ikke kan vente: en solgt vare, der stadig er ude andre steder, en køber, der skriver.');
+    } else if(OPG_FANE === 'salg'){
+      h += stille.length ? liste(stille) : opgTom('Ingen salgspriser mangler', 'Når en vare er solgt uden en pris fra Vinteds mail, beder appen om den her.');
+    } else if(OPG_FORSLAG === null){
+      h += OPG_SKELET;
     } else if(OPG_FORSLAG === 'fejl'){
       h += '<div class="opg-grp opg-fejl"><span>Prisforslagene kunne ikke hentes.</span>' +
         '<button type="button" class="opg-alle" id="opg-igen">Prøv igen</button></div>';
-    }
-    if(stille.length) h += '<div class="opg-liste opg-stille">' + stille.map(function(k){ return k.h; }).join('') + '</div>';
-    if(!h && (!KOE_HENTET || OPG_FORSLAG === null)){
-      // Endnu ikke hentet: »Intet venter« ville være usandt.
-      h = '<div class="skel" aria-hidden="true">' + new Array(4).join('<div class="skel-row"><i></i><span class="skel-tekst"><i></i><i></i><i></i></span></div>') + '</div>';
-    } else if(!h){
-      h = '<div class="empty"><svg class="empty-mark" viewBox="0 0 72 56" aria-hidden="true">' +
-        '<path d="M22 29l10 10 18-20"/></svg>' +
-        '<h3>Intet venter på dig</h3><p>Nye opgaver dukker op her, fx når en vare er solgt eller en køber skriver.</p></div>';
+    } else if(fo.length){
+      h += (fo.length > 1 ? '<div class="opg-grp"><span class="label">Foreslået af prisvagten</span>' +
+          '<button type="button" class="opg-alle" id="opg-godkend-alle"' +
+          (Object.keys(OPG_I_GANG).length ? ' disabled' : '') + '>Godkend alle</button></div>' : '') +
+        '<div class="opg-liste">' + fo.map(forslagRaekke).join('') + '</div>';
+    } else {
+      h += opgTom('Ingen prisforslag', 'Prisvagten foreslår en ny pris her, når en annonce står stille.');
     }
     el.innerHTML = h;
 
+    Array.prototype.forEach.call(el.querySelectorAll('[data-ofane]'), function(b){
+      b.addEventListener('click', function(){
+        OPG_FANE = b.getAttribute('data-ofane');
+        tegnOpgaveSkaerm();
+      });
+    });
     Array.prototype.forEach.call(el.querySelectorAll('[data-op]'), function(b){
       b.addEventListener('click', function(){ opgave(b.getAttribute('data-op'), b); });
+    });
+    // Et tryk paa raekken ved siden af knapperne aabner varen, som paa Lager.
+    Array.prototype.forEach.call(el.querySelectorAll('.opg-r[data-id]'), function(r){
+      r.addEventListener('click', function(e){
+        // Svarets tekst skal kunne markeres uden at aabne varen.
+        if(e.target.closest('button, .svar-forslag')) return;
+        var d = rows[r.getAttribute('data-id')];
+        if(d) openDetail(d.id);
+      });
     });
     var igen = $('opg-igen');
     if(igen) igen.addEventListener('click', hentOpgaver);

@@ -10,6 +10,9 @@
     var x = new XMLHttpRequest(); x.open('GET', 'proeve/' + t + '.json', false); x.send();
     data[t] = JSON.parse(x.responseText || '[]');
   });
+  // Til at lave en opgave fra konsollen, fx en koeberbesked:
+  // __proeveData.koeber_beskeder = [{ id: 1, kilde: 'mail', item_title: '…', buyer_message: '…' }]
+  window.__proeveData = data;
 
   function gr(navn, dom, solgt, vb, varer, ekstra){
     return Object.assign({ navn: navn, dom: dom, solgt: solgt, vurderbare: vb, varer: varer,
