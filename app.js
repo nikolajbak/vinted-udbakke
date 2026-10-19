@@ -1225,6 +1225,9 @@
     var felt = $('d-body').querySelector('[data-knyt="felt"]');
     var gem = $('d-body').querySelector('[data-knyt="gem"]');
     if(felt && gem) gem.addEventListener('click', function(){ tilknytAnnonce(d, felt); });
+    Array.prototype.forEach.call($('d-body').querySelectorAll('[data-ann-gem]'), function(b){
+      b.addEventListener('click', function(){ gemAnnoncering(d, b.getAttribute('data-ann-gem'), b); });
+    });
     Array.prototype.forEach.call($('d-body').querySelectorAll('[data-salg]'), function(b){
       b.addEventListener('click', function(){
         var l = annoncer(d).filter(function(x){ return x.id === b.getAttribute('data-salg'); })[0];
@@ -1311,7 +1314,12 @@
         krop += '<div class="plads-tal">♥ ' + esc(String(l.favourites || 0)) +
           (dg !== null ? ' · ' + dg + (dg === 1 ? ' dag' : ' dage') : '') + '</div>';
         // Prisvagten paa selve varen: hvad den sidst gjorde, og hvad der sker.
-        if(l.platform === 'vinted') krop += '<div class="plads-vagt">' + esc(pladsVagt(l)) + '</div>';
+        // Mens et boost koerer, faar annoncen intet tilsyn (boostKoerer i boost.ts).
+        var boostNu = (ANN[d.id] || []).some(function(r){
+          return r.plads === 'vinted' && new Date(r.start) <= new Date() && new Date(r.slut) > new Date();
+        });
+        if(l.platform === 'vinted') krop += '<div class="plads-vagt">' + esc(boostNu && !harForslag(l) && !(l.pending && l.pending.price)
+          ? 'Prisvagt: holder pause, mens boostet kører' : pladsVagt(l)) + '</div>';
       }
       krop += udgivetBlok(l, d);
       if(l.status === 'aktiv' || l.status === 'pause'){
@@ -1350,6 +1358,7 @@
         krop += '<button type="button" class="btn btn-secondary" data-a="' + m.a + '">Læg op på ' + esc(m.navn) + '</button>';
       }
     }
+    krop += annBlok(d, m.k, !!(l || sendt));
     return '<div class="plads"><div class="plads-top"><span class="plads-navn">' + esc(m.navn) + '</span>' +
       '<span class="plads-status">' + esc(status) + '</span></div>' + krop + '</div>';
   }
@@ -1362,6 +1371,102 @@
       rows[id].listings = res.data || [];
       if(currentId === id && !screenEl('detail').hidden) renderDetail();
     });
+    hentAnnoncering(id);
+  }
+
+  // Betalt annoncering (bestemt af dig 19. oktober): boost paa Vinted (fra
+  // fakturaen og garderoben, se vinted-fill-script/boost.ts) og det, du selv
+  // registrerer - fx en topannonce paa DBA. Pr. udkast, nyeste foerst.
+  var ANN = {};
+  function hentAnnoncering(id){
+    sb.from('annoncering').select('id, plads, slags, kr, start, slut, kilde, tal, dom, listing_id')
+      .eq('draft_id', id).order('start', { ascending: false }).then(function(res){
+        if(res.error) return;
+        ANN[id] = res.data || [];
+        if(currentId === id && !screenEl('detail').hidden) renderDetail();
+      });
+  }
+  // Beloeb med oere: et boost koster »12,69 kr«, ikke hele kroner.
+  function krOere(n){ return tusindDel(Math.floor(Number(n))) + ',' + (Number(n).toFixed(2).split('.')[1]) + ' kr'; }
+  function tusindDel(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  var ANN_NAVN = { boost: 'Boostet', garderobe: 'Fokus på garderobe', 'dba-top': 'Topannonce', andet: 'Betalt annoncering' };
+  // Samme tal som tragt() i _shared/annoncering.ts - ret dem sammen.
+  function annTragt(t){
+    if(!t || !(Number(t.impressions) > 0)) return null;
+    var vist = Number(t.impressions), klik = Number(t.views) || 0, hj = Number(t.favorites) || 0;
+    var pct = function(a, b){ return String(Math.round(a / b * 1000) / 10).replace('.', ','); };
+    return tusindDel(vist) + ' vist → ' + klik + ' klik (' + pct(klik, vist) + ' %) → ' + hj + ' ♥' +
+      (klik ? ' (' + pct(hj, klik) + ' %)' : '') + ' → ' + (Number(t.conversations) || 0) + ' beskeder';
+  }
+  // Samme som boostSalg() i _shared/annoncering.ts - ret dem sammen.
+  function erBoostSalg(r, soldAt){
+    if(!soldAt || !r.start || !r.slut) return false;
+    var s = new Date(soldAt).getTime();
+    return s >= new Date(r.start).getTime() && s <= new Date(r.slut).getTime() + 7 * 86400000;
+  }
+  function annPeriode(r){
+    var nu = Date.now(), slut = new Date(r.slut).getTime();
+    if(slut > nu){
+      var t = Math.max(1, Math.round((slut - nu) / 3600000));
+      return 'ender om ' + (t >= 24 ? Math.floor(t / 24) + ' d' + (t % 24 ? ' ' + (t % 24) + ' t' : '') : t + ' t');
+    }
+    var f = function(iso){ return new Date(iso).toLocaleDateString('da-DK', { day:'numeric', month:'short' }).replace('.', ''); };
+    return f(r.start) + '–' + f(r.slut);
+  }
+  function annBlok(d, plads, brugt){
+    var rk = (ANN[d.id] || []).filter(function(r){ return r.plads === plads; });
+    var h = rk.map(function(r){
+      var t = annTragt(r.tal);
+      return '<div class="ann-r"><div class="ann-top"><b>' + esc(ANN_NAVN[r.slags] || 'Betalt annoncering') + '</b> · ' +
+        esc(annPeriode(r)) + ' · ' + esc(r.kr != null ? krOere(r.kr) : 'beløb ukendt') +
+        (r.kilde === 'dig' ? ' <button type="button" class="btn-link ann-slet" data-a="ann-slet-' + esc(String(r.id)) + '">Slet</button>' : '') +
+        '</div>' +
+        (t ? '<div class="ann-tragt mono">' + esc(t) + '</div>' : '') +
+        (r.dom ? '<div class="ann-dom">' + esc(r.dom) + '</div>' : '') + '</div>';
+    }).join('');
+    if(brugt){
+      h += '<details class="vagt-mere ann-ny"><summary>Betalt annoncering</summary>' +
+        '<div class="ann-form"><label>Beløb<input type="text" inputmode="decimal" class="ann-kr" placeholder="25,38" aria-label="Beløb i kroner"></label>' +
+        '<label>Dage<input type="number" inputmode="numeric" min="1" max="60" class="ann-dage" value="3" aria-label="Antal dage"></label>' +
+        '<label>Slags<select class="ann-slags"><option value="boost">Boost</option><option value="dba-top">Topannonce</option>' +
+        '<option value="andet">Andet</option></select></label>' +
+        '<button type="button" class="btn btn-secondary" data-ann-gem="' + esc(plads) + '">Gem</button></div>' +
+        '<p class="note">Det, du har betalt for synlighed. Det trækkes fra på Konto, og et salg i perioden tælles som boostet.</p>' +
+        '</details>';
+    }
+    return h;
+  }
+  function gemAnnoncering(d, plads, b){
+    var boks = b.parentNode;
+    var belob = prisDecimal(boks.querySelector('.ann-kr').value);
+    var dage = Math.round(Number(boks.querySelector('.ann-dage').value));
+    if(!isFinite(belob) || belob < 0){ toast('Skriv beløbet i kroner, fx 25,38'); return; }
+    if(!(dage >= 1 && dage <= 60)){ toast('Dage skal være 1-60'); return; }
+    var l = annoncer(d).filter(function(x){ return x.platform === plads; })[0];
+    var nu = new Date();
+    b.disabled = true;
+    sb.from('annoncering').insert({
+      draft_id: d.id, listing_id: l ? l.id : null, plads: plads, slags: boks.querySelector('.ann-slags').value,
+      kr: Math.round(belob * 100) / 100, start: nu.toISOString(),
+      slut: new Date(nu.getTime() + dage * 86400000).toISOString(), kilde: 'dig'
+    }).then(function(res){
+      b.disabled = false;
+      if(res.error){ toast('Kunne ikke gemme: ' + res.error.message); return; }
+      toast('Gemt: ' + krOere(belob) + ' i ' + dage + (dage === 1 ? ' dag' : ' dage'));
+      hentAnnoncering(d.id);
+    });
+  }
+  // »25,38« og »25.38« er 25,38 kr; »1.234,50« er 1234,50.
+  function prisDecimal(v){
+    var t = String(v || '').replace(/[^0-9.,]/g, '');
+    if(!t) return NaN;
+    var k = t.lastIndexOf(','), p = t.lastIndexOf('.');
+    if(k >= 0 && p >= 0){ var dec = Math.max(k, p); t = t.slice(0, dec).replace(/[.,]/g, '') + '.' + t.slice(dec + 1); }
+    else if(k >= 0 || p >= 0){
+      var dele = t.split(k >= 0 ? ',' : '.');
+      t = dele.length === 2 && dele[1].length !== 3 ? dele[0] + '.' + dele[1] : dele.join('');
+    }
+    return Number(t);
   }
 
   // Salgsprisen er det, der kan laeres af. Udbudsprisen er ikke svaret: et bud,
@@ -1673,6 +1778,15 @@
       delete ned[a.slice(12)];
       d.taget_ned = ned;
       sb.from('drafts').update({ taget_ned: ned }).eq('id', d.id).then(function(){ renderQueue(); renderDetail(); });
+    }
+    else if(a.indexOf('ann-slet-') === 0){
+      btn.disabled = true;
+      sb.from('annoncering').delete().eq('id', a.slice(9)).eq('kilde', 'dig').then(function(res){
+        btn.disabled = false;
+        if(res.error){ toast('Kunne ikke slette: ' + res.error.message); return; }
+        toast('Slettet');
+        hentAnnoncering(d.id);
+      });
     }
     else if(a.indexOf('afslut-') === 0){
       var l = annoncer(d).filter(function(x){ return x.id === a.slice(7); })[0];
@@ -4238,11 +4352,12 @@
     Promise.all([
       sb.from('listings').select('id, platform, title, status, price, start_price, sold_price, listed_at, sold_at, favourites, drafts(nr, brand, category)'),
       sb.from('forbrug').select('usd, draft_id').limit(20000),
-      sb.from('drafts').select('id', { count:'exact', head:true }).not('taget_ned', 'is', null)
+      sb.from('drafts').select('id', { count:'exact', head:true }).not('taget_ned', 'is', null),
+      sb.from('annoncering').select('kr, start, slut, listing_id, draft_id, plads')
     ]).then(function(svar){
-      var fejl = svar[0].error || svar[1].error;
+      var fejl = svar[0].error || svar[1].error || svar[3].error;
       if(fejl) throw new Error(fejl.message);
-      tegnKonto(svar[0].data || [], svar[1].data || [], svar[2].count || 0);
+      tegnKonto(svar[0].data || [], svar[1].data || [], svar[2].count || 0, svar[3].data || []);
     }).catch(function(e){
       visFejl(krop, 'Kontoen kunne ikke hentes', e.message || 'Kunne ikke nå serveren', hentKonto);
     });
@@ -4265,7 +4380,8 @@
     return '<div class="konto-kv-r' + (cls ? ' ' + cls : '') + '"><span>' + esc(navn) + '</span><b>' + esc(vaerdi) + '</b></div>';
   }
 
-  function tegnKonto(ann, forbrug, tagetNed){
+  function tegnKonto(ann, forbrug, tagetNed, betalt){
+    betalt = betalt || [];
     var krop = $('konto-body');
     krop.className = 'body';
     krop.removeAttribute('aria-hidden');
@@ -4300,11 +4416,23 @@
     forbrug.forEach(function(f){ if(f.draft_id) varer[f.draft_id] = 1; });
     var nVarer = Object.keys(varer).length, udgift = usd * USD_KR;
 
+    // Betalt annoncering: alt, der er betalt for synlighed, paa alle
+    // markedspladser. Et boost-salg er solgt under boostet eller 7 dage efter.
+    var annKr = betalt.reduce(function(s, r){ return s + (Number(r.kr) || 0); }, 0);
+    var annVarer = {}; betalt.forEach(function(r){ annVarer[r.draft_id] = 1; });
+    var nAnn = Object.keys(annVarer).length;
+    function boostSalgAf(l){
+      return l.status === 'solgt' && betalt.some(function(r){ return r.listing_id === l.id && erBoostSalg(r, l.sold_at); });
+    }
+    var boostede = ann.filter(function(l){ return betalt.some(function(r){ return r.listing_id === l.id; }); });
+    var boostSolgt = boostede.filter(boostSalgAf).length;
+
     // Det store tal foerst - det er det, man kommer for - og under det de
     // seks maaneder. Ingen kasser: tallet og soejlerne er skaermen.
     var linje = solgte.length + ' salg' +
       (solgte.length ? ' · i snit ' + krSum(omsaetning / solgte.length) : '') +
-      (forbrug.length ? ' · ca. ' + krSum(udgift) + ' brugt på AI' : '');
+      (forbrug.length ? ' · ca. ' + krSum(udgift) + ' brugt på AI' : '') +
+      (annKr ? ' · ' + krOere(annKr) + ' på annoncering' : '');
     var h = '<div class="konto-venstre"><div class="konto-top"><span class="label">Omsætning i alt</span>' +
       '<div class="konto-stor">' + esc(krSum(omsaetning)) + '</div>' +
       '<div class="konto-linje">' + esc(linje) +
@@ -4340,7 +4468,10 @@
       kontoRk('Hjerter på det, der er ude', hjerter + ' ♥') +
       kontoRk('AI til analyse og tekster', 'ca. ' + krSum(udgift)) +
       (nVarer ? kontoRk('AI pr. vare (' + nVarer + ')', 'ca. ' + kr(udgift / nVarer), 's') : '') +
-      kontoRk('Tilbage efter AI', krSum(omsaetning - udgift), 'sum') +
+      (betalt.length ? kontoRk('Annoncering (' + nAnn + (nAnn === 1 ? ' vare' : ' varer') + ')', krOere(annKr)) : '') +
+      (boostede.length ? kontoRk('Boost: ' + boostede.length + ' boostede · ' + boostSolgt + ' solgt under/efter',
+        boostSolgt ? krOere(betalt.filter(function(r){ return r.listing_id; }).reduce(function(s, r){ return s + (Number(r.kr) || 0); }, 0) / boostSolgt) + ' pr. salg' : '–', 's') : '') +
+      kontoRk(betalt.length ? 'Tilbage efter AI og annoncering' : 'Tilbage efter AI', krSum(omsaetning - udgift - annKr), 'sum') +
       '</div>';
 
     // Det, der ligger ude: hjerterne viser, hvad der er taet paa et salg.
@@ -4359,7 +4490,7 @@
         var bud = l.sold_price != null && Number(l.start_price) > Number(l.sold_price) ? ' (udbudt ' + kr(l.start_price) + ')' : '';
         return (l.sold_price != null ? kr(l.sold_price) : 'salgspris mangler') + bud +
           (l.sold_at ? ' · ' + new Date(l.sold_at).toLocaleDateString('da-DK', { day:'numeric', month:'short' }) : '') +
-          (d != null ? ' · lå ' + dageTekst(d) : '');
+          (d != null ? ' · lå ' + dageTekst(d) : '') + (boostSalgAf(l) ? ' · boostet' : '');
       })).join('') + '</div>';
     }
 

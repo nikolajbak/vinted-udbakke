@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env.secrets; set +a
 P="host=aws-0-eu-central-1.pooler.supabase.com port=6543 dbname=postgres user=postgres.gjycsqshkvkcupdnvgvf sslmode=require"
 mkdir -p proeve
-for t in drafts listings price_events puls forbrug laerdomme; do
+for t in drafts listings price_events puls forbrug laerdomme annoncering; do
   PGPASSWORD="$SUPABASE_DB_PASSWORD" /opt/homebrew/opt/libpq/bin/psql "$P" -At \
     -c "select coalesce(json_agg(x),'[]') from (select * from $t order by 1 desc limit 80) x" > proeve/$t.json
 done

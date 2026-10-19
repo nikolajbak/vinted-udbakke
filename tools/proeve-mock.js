@@ -6,7 +6,7 @@
     expires_in: 86400, expires_at: now, user: { id: '00000000-0000-0000-0000-000000000000', aud: 'authenticated', role: 'authenticated', email: 'proeve@local' }
   }));
   var data = {};
-  ['drafts','listings','price_events','puls','forbrug','laerdomme'].forEach(function(t){
+  ['drafts','listings','price_events','puls','forbrug','laerdomme','annoncering'].forEach(function(t){
     var x = new XMLHttpRequest(); x.open('GET', 'proeve/' + t + '.json', false); x.send();
     data[t] = JSON.parse(x.responseText || '[]');
   });
@@ -83,6 +83,16 @@
       ed.photos = ed.photos.slice();
       ed.photos[ei] = { path: eb.path, url: ed.photos[ei].url, kind: eb.kind, optimized: true, org: eb.org || eb.sti };
       body = { ok: true, photos: ed.photos };
+    }
+    // En raekke lagt til (POST) eller slettet (DELETE) i annoncering huskes ogsaa.
+    if(m && m[1] === 'annoncering' && method === 'POST'){
+      var ny = JSON.parse(opt.body || '{}'); ny = Array.isArray(ny) ? ny[0] : ny;
+      ny.id = Date.now(); ny.tal = null; ny.dom = null;
+      (data.annoncering = data.annoncering || []).unshift(ny); body = [ny];
+    }
+    if(m && m[1] === 'annoncering' && method === 'DELETE'){
+      var did = (m[2].match(/id=eq\.(\d+)/) || [])[1];
+      data.annoncering = (data.annoncering || []).filter(function(r){ return String(r.id) !== did; });
     }
     // En PATCH laegges ind i hukommelsen, saa en genhentning ser den (intet sendes).
     if(m && method === 'PATCH'){

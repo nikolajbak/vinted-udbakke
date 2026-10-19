@@ -1100,6 +1100,22 @@
 .plads > .btn, .plads > .udgivet, .plads > .warn, .plads > .vagt-forslag{ margin-top: var(--s2); }
 .plads .udgivet > .label{ display: none; }
 
+/* Betalt annoncering paa varens side (boost, topannonce). */
+.ann-r{ margin-top: var(--s2); padding-top: var(--s2); border-top: 1px solid var(--line); font-size: var(--t-small); }
+.ann-top{ color: var(--ink); }
+.ann-top b{ font-weight: 600; }
+.ann-tragt{ margin-top: var(--s1); color: var(--ink); overflow-wrap: anywhere; }
+.ann-dom{ margin-top: var(--s1); color: var(--ink-soft); }
+.ann-slet{ background: none; border: 0; padding: 0 0 0 var(--s1); color: var(--accent); font: inherit;
+           text-decoration: underline; cursor: pointer; min-height: 0; }
+.ann-form{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-top: var(--s2); }
+.ann-form label{ display: flex; flex-direction: column; gap: var(--s1); font-size: var(--t-small); color: var(--ink-soft); }
+.ann-form input, .ann-form select{
+  min-height: var(--tap); padding: 0 var(--s3); border: 1px solid var(--line); border-radius: 8px;
+  background: var(--raised); color: var(--ink); font-size: var(--t-body); min-width: 0;
+}
+.ann-form .btn{ align-self: end; }
+.ann-ny .note{ margin-top: var(--s2); }
 .salg-form{ display: flex; gap: var(--s2); margin-top: var(--s2); }
 .salg-form .btn{ width: auto; flex: 0 0 auto; }
 .salg-pris{
