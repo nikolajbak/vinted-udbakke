@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0128 — 2026-10-19 15:25
+
+Commit `fd6f2d7` — Betalt annoncering: tabellerne (023) og Vinteds boost-faktura bliver en ordre  
+App: `app.js?v=b9d1ab7b` · `style.css?v=b8dcb4e0`  
+Udrullet: vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v96 | `c789b74b` |
+| dba-fill-script | v44 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v35 | `8b0e0533` |
+| vinted-fill-script | v121 | `763ee357` |
+| vinted-mail ← | v26 | `8be53fa4` |
+
 ## udgivelse-0127 — 2026-10-19 13:42
 
 Commit `bf566cd` — Gemini: 403 sætter modellen på pause; målingerne fra nøglen  
