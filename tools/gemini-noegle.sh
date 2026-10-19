@@ -6,15 +6,14 @@
 set -e
 cd "$(dirname "$0")/.."
 NOEGLE=$(pbpaste | tr -d '[:space:]')
-case "$NOEGLE" in
-  AIza*) ;;
-  *) echo "Udklipsholderen indeholder ikke en Gemini-noegle (den starter med AIza)."; exit 1 ;;
-esac
+# Ingen kontrol af formatet: om det er en noegle, afgoer Gemini selv herunder.
+[ -n "$NOEGLE" ] || { echo "Udklipsholderen er tom — kopiér noeglen fra aistudio.google.com/apikey først."; exit 1; }
+[ ${#NOEGLE} -le 200 ] || { echo "Udklipsholderen indeholder for meget tekst — kopiér kun noeglen."; exit 1; }
 
 # Virker den? Listen over modeller svarer kun med en gyldig noegle.
 SVAR=$(curl -s -o /dev/null -w "%{http_code}" -H "x-goog-api-key: $NOEGLE" \
   "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1")
-[ "$SVAR" = "200" ] || { echo "Gemini afviste noeglen (HTTP $SVAR)."; exit 1; }
+[ "$SVAR" = "200" ] || { echo "Gemini afviste det, der ligger i udklipsholderen (HTTP $SVAR). Er det noeglen, der er kopieret?"; exit 1; }
 
 set -a; . ./.env.secrets; set +a
 printf 'GEMINI_API_KEY=%s\n' "$NOEGLE" > /tmp/gemini-secret.$$
