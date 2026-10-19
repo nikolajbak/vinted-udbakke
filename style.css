@@ -1251,6 +1251,24 @@
 /* Temavalget i Mere genbruger fanernes segmenter. */
 .tema-valg{ margin-bottom: 0; }
 
+/* ---- Producentens billeder (kun til dig, som forlaeg) --------------------- */
+.pb-blok { margin-top: 18px; }
+.pb-stribe { display: flex; gap: 10px; overflow-x: auto; padding: 8px 0 4px; -webkit-overflow-scrolling: touch; }
+.pb-kort { flex: 0 0 120px; display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.pb-kort[hidden] { display: none; }
+.pb-ramme { position: relative; display: block; width: 120px; height: 160px; border-radius: 10px; overflow: hidden; background: var(--paper); border: 1px solid var(--line); }
+.pb-kort.pb-valgt .pb-ramme { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.pb-ramme img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.pb-pille { position: absolute; top: 6px; left: 6px; max-width: calc(100% - 12px); padding: 2px 7px; border-radius: 999px; background: var(--raised); color: var(--ink-soft); font-size: 10.5px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.pb-pose { font-size: 12.5px; color: var(--ink-soft); }
+.pb-tag { margin-top: 10px; width: 100%; }
+.pb-note { margin-top: 8px; }
+#pb-stor { position: fixed; inset: 0; z-index: 60; background: var(--paper); display: flex; align-items: center; justify-content: center; padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px); cursor: zoom-out; }
+#pb-stor[hidden] { display: none; }
+#pb-stor img { max-width: 100%; max-height: 100%; object-fit: contain; }
+#pb-stor .pb-pille { white-space: nowrap; top: calc(env(safe-area-inset-top) + 16px); left: 16px; font-size: 12px; }
+.pb-stor-pose { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 16px); left: 0; right: 0; text-align: center; color: var(--ink-soft); font-size: 13px; }
+
 /* ---- Computerskaermen ----------------------------------------------------
    Fra 960 px bred: fanerne bliver en sidebjaelke til venstre, der staar
    fast, mens skaermene skifter ved siden af den (app.js flytter den ind i
@@ -1301,7 +1319,11 @@
   #s-detail{ --maal: 1120px; }
   #d-body{ display: grid; grid-template-columns: minmax(0, min(46%, 56vh)) minmax(0, 1fr);
            gap: var(--s6); align-items: start; }
-  .d-medier{ position: sticky; top: 0; }
+  /* Billedkolonnen staar fast - men med producentens billeder under kan den
+     blive hoejere end vinduet, og saa kunne bunden aldrig ses. Den faar
+     derfor hoejst rullefladens hoejde (vinduet minus top 77, bund 73 og
+     d-body's 16+32 px luft, maalt 19. oktober) og sin egen rul. */
+  .d-medier{ position: sticky; top: 0; max-height: calc(100dvh - 198px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
   .d-info > :first-child{ margin-top: 0; }
 
   /* Knapperne i bunden holder laesebredden, ogsaa naar skaermen er bred:

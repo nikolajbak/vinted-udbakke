@@ -223,8 +223,10 @@
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Escape' || e.defaultPrevented) return;
     if(!$('crop').hidden) return;
+    if(!$('pb-stor').hidden){ e.preventDefault(); lukProducentStor(); return; }
     if(stack.length > 1){ e.preventDefault(); back(); }
   });
+  $('pb-stor').addEventListener('click', function(){ lukProducentStor(); });
 
   /* ---- Kø --------------------------------------------------------------- */
   // Tre prikker paa kortet: hvor har varen vaeret? Med én markedsplads var det
@@ -912,6 +914,73 @@
   // og en raekke pr. markedsplads. Hvor varen er, staar i raekken — ikke som
   // maerker, du selv skal pille af igen.
   var FOLD = {};   // varens side: er »Tekst og detaljer« foldet ud, pr. vare
+  // Producentens billeder af varen paa en person - kun til dig, som forlaeg.
+  // De ligger i fakta.producentBilleder (links) og kommer ALDRIG i photos:
+  // Vinted forbyder billeder, saelgeren ikke selv har taget.
+  var POSE_NAVN = { 'forfra-hel':'Forfra, hele figuren', trekvart:'Trekvart', bagfra:'Bagfra', naer:'Tæt på' };
+  function producentVaert(d){
+    try { return new URL(d.fakta.produktside).hostname.replace(/^www\./, ''); } catch(e){ return ''; }
+  }
+  function producentPille(vaert){
+    return '<span class="pb-pille">Fra producenten' + (vaert ? ' · ' + esc(vaert) : '') + '</span>';
+  }
+  function producentBlok(d, f){
+    var pb = (d.fakta && d.fakta.producentBilleder) || [];
+    if(!pb.length) return '';
+    var vaert = producentVaert(d);
+    // Et eget billede kan kun laegges til en faerdiganalyseret vare, der ikke
+    // er sendt afsted (samme regel som mode nytFoto paa serveren).
+    var kanTage = f === 'klar' && d.status === 'ny';
+    return '<div class="pb-blok sect"><span class="label">Sådan ser den ud på</span>' +
+      '<div class="pb-stribe">' + pb.map(function(b, i){
+        return '<button type="button" class="pb-kort" data-pb-i="' + i + '">' +
+          '<span class="pb-ramme"><img src="' + esc(b.url) + '" alt="' + esc(POSE_NAVN[b.pose] || '') + '" referrerpolicy="no-referrer">' +
+          producentPille(vaert) + '</span>' +
+          '<span class="pb-pose">' + esc(POSE_NAVN[b.pose] || b.pose) + '</span></button>';
+      }).join('') + '</div>' +
+      (kanTage ? '<button type="button" class="btn btn-secondary pb-tag" data-pb-tag="0">Tag dit eget som dette</button>' : '') +
+      '<div class="note pb-note">Kun til dig — producentens billeder kommer ikke med i annoncen.</div>' +
+      '</div>';
+  }
+  // Et billede, butikken har fjernet eller spaerret, skjules; er alle vaek,
+  // skjules blokken.
+  function producentKoblOp(d){
+    var blok = $('d-body').querySelector('.pb-blok');
+    if(!blok) return;
+    var pb = d.fakta.producentBilleder, vaert = producentVaert(d);
+    var tag = blok.querySelector('[data-pb-tag]');
+    Array.prototype.forEach.call(blok.querySelectorAll('.pb-kort'), function(k){
+      var i = Number(k.getAttribute('data-pb-i'));
+      var img = k.querySelector('img');
+      function vaek(){
+        k.hidden = true;
+        var tilbage = blok.querySelectorAll('.pb-kort:not([hidden])');
+        if(!tilbage.length){ blok.hidden = true; return; }
+        if(tag && tag.getAttribute('data-pb-tag') === String(i)) vael(tilbage[0]);
+      }
+      function vael(kort){
+        Array.prototype.forEach.call(blok.querySelectorAll('.pb-kort'), function(x){ x.classList.toggle('pb-valgt', x === kort); });
+        if(tag) tag.setAttribute('data-pb-tag', kort.getAttribute('data-pb-i'));
+      }
+      img.addEventListener('error', vaek);
+      if(img.complete && img.naturalWidth === 0 && img.src) vaek();
+      k.addEventListener('click', function(){
+        // Tryk: billedet stort, og det bliver forlaegget for »Tag dit eget«.
+        vael(k);
+        visProducentStor(pb[i], vaert);
+      });
+    });
+    var foerste = blok.querySelector('.pb-kort:not([hidden])');
+    if(foerste && tag) foerste.classList.add('pb-valgt');
+  }
+  function visProducentStor(b, vaert){
+    var o = $('pb-stor');
+    o.innerHTML = '<img src="' + esc(b.url) + '" alt="' + esc(POSE_NAVN[b.pose] || '') + '" referrerpolicy="no-referrer">' +
+      producentPille(vaert) + '<span class="pb-stor-pose">' + esc(POSE_NAVN[b.pose] || '') + '</span>';
+    o.hidden = false;
+  }
+  function lukProducentStor(){ var o = $('pb-stor'); o.hidden = true; o.innerHTML = ''; }
+
   function renderDetail(){
     var d = rows[currentId];
     if(!d) return;
@@ -946,6 +1015,7 @@
       html += '<div class="note">Tryk på et lille billede for at beskære det' +
         (faerdig ? ' · hold fingeren på det og træk for at flytte det' : '') + '.</div>';
     }
+    html += producentBlok(d, f);
     html += '</div><div class="d-info">';
 
     if(faerdig){
@@ -1018,6 +1088,7 @@
       }, { passive: true });
     }
 
+    producentKoblOp(d);
     var strip = $('d-strip');
     if(strip){
       strip.addEventListener('click', function(e){
@@ -1768,6 +1839,9 @@
   var STEPS = [
     { kind:'forfra', title:'Forfra', guide:G_HEL, hint:'Hele varen lige forfra, med lidt luft hele vejen rundt. Hold fødder, sengekant og møbler ude af billedet — det bliver coverbilledet, folk ser i søgeresultater.' },
     { kind:'bagfra', title:'Bagfra', guide:G_HEL, hint:'Hele varen set bagfra, samme afstand som forfra.' },
+    // Varen paa kroppen saelger bedre end fladt (pasform og fald kan ses);
+    // hele figuren forfra, ansigtet er ikke noedvendigt. Valgfrit som alle trin.
+    { kind:'paa-kroppen', title:'På kroppen', guide:G_HEL, hint:'Varen på, hele figuren lige forfra — eller fra halsen og ned, ansigtet er ikke nødvendigt. Rolig, ensfarvet baggrund, stå lidt til siden for midten.' },
     { kind:'maerke', title:'Mærket', guide:G_NAER, hint:'Nærbillede af brandmærket med luft omkring. Hold det vandret, så teksten kan læses.' },
     { kind:'stoerrelsesmaerke', title:'Størrelses- og vaskemærke', guide:G_NAER, hint:'Mærkatet med størrelse og materiale, vandret så teksten kan læses. Købere filtrerer på størrelse.' },
     { kind:'detalje', title:'Detalje', guide:G_NAER, hint:'Stof, tryk, lynlås eller knapper tæt på — med luft omkring, så intet skæres af kanten.' },

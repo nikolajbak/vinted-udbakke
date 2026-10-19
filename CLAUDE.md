@@ -220,6 +220,7 @@ i `function_logs`, beviser intet.
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
+| »Sådan ser den ud på« på varens side (`producentBlok`, `producentKoblOp`, `visProducentStor`, `POSE_NAVN`) og trinnet `paa-kroppen` i `STEPS` | `app.js`; `#pb-stor` i `index.html`; `.pb-…` i `style.css` |
 | Ét nyt billede i et klar-udkast optimeres alene (`mode:'nytFoto'`, kalder delkaldet `analyze-draft {id, photo}` med webhook-hemmeligheden; kun status `ny` og ikke sendt nogen steder hen; afviser `ikke_klar`, `findes_ikke`, `optimeret`, og `ikke_optimeret` når delkaldet ikke fik billedet optimeret; et fejlet delkald rører ikke prisnoten) | `…/vinted-fill-script/index.ts` |
 | Prisen som hele kroner (`helKroner`, `prisTekst`) | `supabase/functions/_shared/pris.ts` |
 | Børnestørrelser i cm (`boerneStoerrelse`, `erBoernetoej`) | `supabase/functions/_shared/stoerrelse.ts` |
@@ -341,6 +342,31 @@ Vinteds markedsrunde, DBA og Reshopper. Ny regel → ret dén fil OG listen her.
   `mode:'negotiate'`). **Afsendelsen sker stadig først ved dit tryk** — en bot,
   der svarer helt selv, kan få Vinted-kontoen lukket. Skal det ændres, er det
   din beslutning, og hånden (scriptet i samtalen) er ikke bygget endnu.
+
+## Producentens billeder
+
+Bestemt af dig 19. oktober: **producentens billeder af varen på en person
+bruges kun i appen, som forlæg — aldrig i en annonce.** Ønsket var at lægge
+dem i annoncen med en tekst om, at de er fra producenten; men Vinted
+forbyder det: »Sellers may not use photos they didn't take themselves«
+(Vinted Help 1120), og gentagelse efter en advarsel kan lukke kontoen.
+Produktfotos er desuden ophavsretligt beskyttet, også på DBA og Reshopper.
+Spec: `docs/superpowers/specs/2026-10-19-producentbilleder-design.md`.
+
+- **Opslaget finder dem** (se »Målt, ikke gættet → Produktsidernes
+  billeder«) og gemmer højst fire links i `fakta.producentBilleder`. De
+  ligger aldrig i `drafts.photos`, så ingen markedsplads kan få dem.
+- **Poserne** (research 19. oktober — vist på en person sælger tøj bedre
+  end fladt, hele figuren forfra fanger blikket, ansigtet er ikke
+  nødvendigt): forfra-hel → trekvart → bagfra → nær, én af hver.
+- **Varens side** viser dem under billederne som »Sådan ser den ud på«,
+  hvert med pillen »Fra producenten · <butik>« (HTML oven på billedet, ikke
+  brændt ind) og posens navn. Tryk = stort billede (`#pb-stor`, Esc eller
+  tryk lukker) og gør det til forlægget. Et billede, butikken har fjernet,
+  skjules; er alle væk, skjules blokken. På computerskærmen har den faste
+  billedkolonne sin egen rul, så blokken altid kan nås.
+- **Optagelsen** har trinnet **»På kroppen«** efter Bagfra (valgfrit som
+  alle trin): varen på, hele figuren forfra eller fra halsen og ned.
 
 ## Billedernes rækkefølge
 
