@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0139 — 2026-10-19 17:18
+
+Commit `93250cb` — Mærkatet: QR-koden tegnet som vektor modul for modul, varen og forsendelsesnummeret ved koden  
+App: `app.js?v=fec28501` · `style.css?v=45455880`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v98 | `c789b74b` |
+| dba-fill-script | v46 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v37 | `8b0e0533` |
+| vinted-fill-script | v126 | `f1292738` |
+| vinted-mail | v29 | `f40e42c1` |
+
 ## udgivelse-0138 — 2026-10-19 17:11
 
 Commit `032b2c1` — Mærkatet: QR-koden skåret ud og vist stort, den hvide A4-rest fjernet  
