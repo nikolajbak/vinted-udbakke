@@ -1311,6 +1311,13 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   gennemgangen.
 - **Favorit** → stille: prisen synkroniseres, og hjerterne tælles én op
   (`favourites`). Ingen push (bestemt af dig 9. oktober).
+- **Et hjertetal, der ikke blev fundet, er null, aldrig 0** (21. oktober).
+  Tilsynet læste `favourite_count` med ét fast feltmønster og skrev 0, når
+  det ikke passede — på telefonen (logget ind som sælger) skete det ved hver
+  måling siden 18. oktober, og mailenes hjerter blev nulstillet (tæppet 9 → 0,
+  Vinted viste 10). `hjerterPaaSiden` finder tallet i enhver rækkefølge, og
+  null får serveren til at beholde sit tal. Logger `hjerterne stod ikke på
+  siden`, hvis sælgerens side mangler tallet helt.
 - **Besked** → står købers ord i mailen, skriver køber-assistenten et udkast
   (`mode:'negotiate'` med `kilde:'mail'`), og forsiden viser opgaven »Køber
   skriver om …« med **Kopiér svaret**, **Åbn samtalen** og **Klaret**
