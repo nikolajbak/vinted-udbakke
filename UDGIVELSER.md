@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0146 — 2026-10-21 23:03
+
+Commit `38f0d85` — Hjerter: findes i enhver feltrækkefølge, og ikke fundet er null, ikke 0  
+App: `app.js?v=88f66e7c` · `style.css?v=4197740c`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v99 | `c789b74b` |
+| dba-fill-script | v47 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v38 | `8b0e0533` |
+| vinted-fill-script ← | v131 | `be13e10a` |
+| vinted-mail | v31 | `68f3750b` |
+
 ## udgivelse-0145 — 2026-10-21 16:41
 
 Commit `6653731` — Prisvagt: dagligt tjek via Genveje fjernet  
