@@ -270,7 +270,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` (rækkerne `vinted-runner`, `dba-runner`, `prisvagt` = sidste forespørgsel på forfaldne, `prisvagt-nu` = »Tjek priserne nu« i gang/færdig/fejl) | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
-| Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
+| Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin`; læses også af `nikolajbak/drift` (omkostningsoversigten, via Management API'et) — omdøb ikke tabellen eller `tid`/`model`/`usd` | `sql/013-forbrug.sql` |
 | Mailens læsning: `vinted_mails.laesning`; køberbeskeder fra mail: `koeber_beskeder.kilde`, `samtale`, `besvaret_at`, `vinted_mail_id` | `sql/014-mails-analyseres.sql` |
 | Din tekst skal stå: `drafts.tekst_rettet`; tekstrettelser i `rettelser` (felt `title`/`beskrivelse`) | `sql/015-tekstrettelser.sql` |
 | Billedernes rækkefølge: `drafts.fotos_sendt` (de billeder, der kom med op, pr. plads), `listings.fotos` (Vinteds billed-id'er parret med appens, `[{id, rod}]`) og `listings.published.fotos`; `pending.fotos` er en ventende rækkefølge | `sql/016-billedraekkefoelge.sql` |
