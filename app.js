@@ -3193,14 +3193,10 @@
         return [friskhed(x.sidst, 14),'hentet ' + relTime(x.sidst) + (x.detalje ? ' · ' + x.detalje : '')];
       }
       var v = auto('vinted-runner'), db = auto('dba-runner');
-      // Det daglige tjek er valgfrit: uden det er det ikke »galt«, bare ikke sat op.
-      var dg = p['prisvagt-dagligt'];
-      var dagligt = dg ? [friskhed(dg.sidst, 2) ? true : false, 'kørte ' + relTime(dg.sidst) + (dg.detalje ? ' · ' + dg.detalje : '')]
-                       : [null, 'ikke sat op'];
       var m = mail ? [friskhed(mail.at, 30), 'sidste mail ' + relTime(mail.at)]
                    : [false, 'ingen mails modtaget — ikke sat op'];
-      var res = { notif: notif, vinted: v, dagligt: dagligt, dba: db, mail: m };
-      var NAVN = { notif: 'Notifikationer', vinted: 'Vinted', dagligt: 'dagligt pristjek', dba: 'DBA', mail: 'mails' };
+      var res = { notif: notif, vinted: v, dba: db, mail: m };
+      var NAVN = { notif: 'Notifikationer', vinted: 'Vinted', dba: 'DBA', mail: 'mails' };
       var gale = Object.keys(res).filter(function(k){ return res[k][0] === false; });
       var ok = Object.keys(res).filter(function(k){ return res[k][0] === true; }).length;
       Object.keys(res).forEach(function(k){
@@ -3230,9 +3226,9 @@
       tegn(r[0].data || [], (r[1].data || [])[0] || null);
     }).catch(function(){});
   }
-  // Adressen, Genvejes automation aabner hver dag. #-flaget overlever Vinteds
-  // omdirigeringer (maalt 8. oktober), og runneren tager saa alt forfaldent.
-  var DAGLIGT_URL = 'https://www.vinted.dk/#udbakke=vagt';
+  // »Tjek priserne nu«. #-flaget overlever Vinteds omdirigeringer (maalt
+  // 8. oktober). Det daglige tjek via Genveje er fjernet 21. oktober: det
+  // kraevede, at telefonen var fremme og laast op.
   var VAGT_NU_URL = 'https://www.vinted.dk/#udbakke=vagt-nu';
   // »Tjek priserne nu« koerer i Safari. Tidspunktet for trykket huskes, og
   // naar du kommer tilbage til appen, siger den, om tjekket er faerdigt —
@@ -3261,12 +3257,6 @@
       hentOpgaver();
     }, function(){});
   }
-  $('m-dagligt-kopier').addEventListener('click', function(){
-    if(navigator.clipboard) navigator.clipboard.writeText(DAGLIGT_URL).then(function(){ toast('Adressen er kopieret'); },
-      function(){ toast(DAGLIGT_URL); });
-    else toast(DAGLIGT_URL);
-  });
-  $('m-dagligt-proev').addEventListener('click', function(){ aabnUdad(DAGLIGT_URL); });
   $('m-logout').addEventListener('click', function(){
     sb.auth.signOut().then(function(){ stack = []; show('login', { fade:true }); });
   });
@@ -4259,7 +4249,7 @@
 
     Promise.all([
       sb.from('listings').select('*').order('next_check_at', { ascending:true }).limit(100),
-      sb.from('puls').select('navn, sidst, detalje').in('navn', ['prisvagt', 'prisvagt-dagligt'])
+      sb.from('puls').select('navn, sidst, detalje').in('navn', ['prisvagt'])
     ]).then(function(r){
         var res = r[0];
         VAGT_PULS = {};
@@ -4292,43 +4282,35 @@
     var vagter = aktive.filter(function(l){ return l.status === 'aktiv' && l.auto; });
     var sidst = null;
     aktive.forEach(function(l){ if(l.last_check_at && (!sidst || l.last_check_at > sidst)) sidst = l.last_check_at; });
-    var p = puls.prisvagt, dagligt = puls['prisvagt-dagligt'];
+    var p = puls.prisvagt;
     if(p && (!sidst || p.sidst > sidst)) sidst = p.sidst;
     var forsinket = vagter.filter(function(l){
       return new Date(l.next_check_at).getTime() < Date.now() - 86400000;
     }).length;
-    var dagligOk = !!(dagligt && friskhed(dagligt.sidst, 2));
-    return { vagter: vagter, sidst: sidst, forsinket: forsinket, dagligOk: dagligOk, galt: forsinket > 0 && !dagligOk };
+    return { vagter: vagter, sidst: sidst, forsinket: forsinket, galt: forsinket > 0 };
   }
 
   function vagtStatus(aktive){
     var t = vagtTilstand(aktive, VAGT_PULS);
-    var vagter = t.vagter, sidst = t.sidst, forsinket = t.forsinket, dagligOk = t.dagligOk, galt = t.galt;
+    var vagter = t.vagter, sidst = t.sidst, forsinket = t.forsinket, galt = t.galt;
 
     var h = '<div class="vagt-status' + (galt ? ' galt' : '') + '">' +
       '<span class="tjek-prik ' + (galt ? 'maaske' : 'ok') + '" aria-hidden="true"></span><div>' +
       '<div class="vagt-status-tekst"><b>' + (vagter.length
         ? 'Holder øje med ' + vagter.length + (vagter.length === 1 ? ' annonce' : ' annoncer')
         : 'Ingen annoncer at holde øje med lige nu') + '</b>' +
-      '<span>' + (sidst ? 'Sidste tjek ' + esc(relTime(sidst)) : 'Ikke tjekket endnu') +
-        (dagligOk ? ' · dagligt tjek slået til' : '') + '</span>';
+      '<span>' + (sidst ? 'Sidste tjek ' + esc(relTime(sidst)) : 'Ikke tjekket endnu') + '</span>';
     // Teksten og knapperne i hver sin del: paa telefonen under hinanden, paa
     // computerskaermen side om side.
     if(galt){
       h += '<span>' + forsinket + (forsinket === 1 ? ' annonce venter' : ' annoncer venter') +
-        ' på et tjek. Prisvagten kan kun se Vinted gennem din Safari — med det daglige tjek sker det af sig selv.</span>' +
-        '</div><div class="vagt-status-knapper">' +
-        '<button type="button" class="btn btn-primary" id="vagt-dagligt">Slå dagligt tjek til</button>';
-    } else if(!dagligOk){
-      h += '</div><div class="vagt-status-knapper">' +
-        '<button type="button" class="vagt-link" id="vagt-dagligt">Tjek hver dag af sig selv →</button>';
-    } else {
-      h += '</div><div class="vagt-status-knapper">';
+        ' på et tjek. Prisvagten kan kun se Vinted gennem din Safari.</span>';
     }
+    h += '</div><div class="vagt-status-knapper">';
     // Manuelt tjek: appen kan ikke selv naa Vinted, saa knappen aabner
     // Vinted i Safari med #udbakke=vagt-nu, og runneren maaler dér.
     if(vagter.length){
-      h += '<button type="button" class="btn btn-secondary" id="vagt-nu">Tjek priserne nu</button>' +
+      h += '<button type="button" class="btn ' + (galt ? 'btn-primary' : 'btn-secondary') + '" id="vagt-nu">Tjek priserne nu</button>' +
         '<span class="vagt-nu-note">Åbner Vinted i Safari og tjekker alle dine annoncer, de længst utjekkede først. Lad skærmen være tændt — appen siger til, når det er færdigt. ' +
         'Nye priser kommer under Opgaver.</span>';
     }
@@ -4382,8 +4364,6 @@
     krop.innerHTML = h;
     hentLaerdomme();
 
-    var dk = $('vagt-dagligt');
-    if(dk) dk.addEventListener('click', aabnDagligt);
     var vn = $('vagt-nu');
     if(vn) vn.addEventListener('click', tjekPriserNu);
     Array.prototype.forEach.call(krop.querySelectorAll('.vagt-row [data-v]'), function(el){
@@ -4401,13 +4381,6 @@
       }
       el.addEventListener('click', function(){ vagtHandling(v, l, el); });
     });
-  }
-
-  // Opsaetningens trin for det daglige tjek, foldet ud.
-  function aabnDagligt(){
-    show('opsaet'); tegnTjek();
-    var t = document.querySelector('.trin[data-tjek="dagligt"]');
-    if(t){ t.open = true; setTimeout(function(){ t.scrollIntoView({ block:'start', behavior:'smooth' }); }, 50); }
   }
 
   function vagtHandling(v, l, btn){
@@ -4715,11 +4688,8 @@
         '<span class="mv-vagt-tekst"><b>' + (t ? (t.vagter.length
             ? 'Holder øje med ' + t.vagter.length + (t.vagter.length === 1 ? ' annonce' : ' annoncer')
             : 'Ingen annoncer at holde øje med') : 'Prisvagten kunne ikke hentes') + '</b>' +
-          (t ? '<span>' + (t.sidst ? 'Sidste tjek ' + esc(relTime(t.sidst)) : 'Ikke tjekket endnu') +
-            (t.pulsUkendt ? '' : ' · dagligt tjek ' + (t.dagligOk ? 'slået til' : 'ikke slået til')) + '</span>' : '') + '</span>' +
-        // Kunne pulsen ikke hentes, ved vi ikke, om det daglige tjek koerer -
-        // saa siger kortet hverken »Kører« eller »Forsinket«.
-        (t && !t.pulsUkendt ? '<span class="mv-pille ' + (t.galt ? 'adv' : 'ok') + '">' + (t.galt ? 'Forsinket' : 'Kører') + '</span>' : '') +
+          (t ? '<span>' + (t.sidst ? 'Sidste tjek ' + esc(relTime(t.sidst)) : 'Ikke tjekket endnu') + '</span>' : '') + '</span>' +
+        (t ? '<span class="mv-pille ' + (t.galt ? 'adv' : 'ok') + '">' + (t.galt ? 'Forsinket' : 'Kører') + '</span>' : '') +
         '<span class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></span></button>' +
         (t && t.vagter.length ? '<button type="button" class="btn btn-primary" id="mv-vagt-nu">Tjek priserne nu</button>' : '');
       $('mv-vagt-aabn').addEventListener('click', function(){ show('vagt'); hentVagt(); });
@@ -4729,15 +4699,13 @@
     if(!el.innerHTML) el.innerHTML = '<div class="mv-vagt-top"><span class="mv-vagt-tekst"><b>Prisvagten</b><span>Henter …</span></span></div>';
     Promise.all([
       sb.from('listings').select('id, status, auto, next_check_at, last_check_at').in('status', ['aktiv', 'pause']),
-      sb.from('puls').select('navn, sidst, detalje').in('navn', ['prisvagt', 'prisvagt-dagligt'])
+      sb.from('puls').select('navn, sidst, detalje').in('navn', ['prisvagt'])
     ]).then(function(r){
       if(r[0].error){ tegn(null); return; }
       var puls = {};
       (r[1].data || []).forEach(function(x){ puls[x.navn] = x; });
       var aktive = (r[0].data || []).filter(function(l){ return l.status === 'aktiv' || l.status === 'pause'; });
-      var t = vagtTilstand(aktive, puls);
-      t.pulsUkendt = !!r[1].error;
-      tegn(t);
+      tegn(vagtTilstand(aktive, puls));
     }, function(){ tegn(null); });
   }
 

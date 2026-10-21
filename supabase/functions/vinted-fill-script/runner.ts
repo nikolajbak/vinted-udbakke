@@ -889,13 +889,13 @@ function laesAnnonceside(t,id){
 }
 
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.
-// alle: det daglige tjek tager alt det forfaldne, ellers højst tre.
+// nu: »Tjek priserne nu« tager alle aktive annoncer, ellers højst tre forfaldne.
 // Intet forfaldent er {tom:true} — ikke det samme som en fejl (null).
-async function tilsynsrunde(alle,nu,vis){
+async function tilsynsrunde(nu,vis){
  var forfaldne=[];
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'due',alle:!!alle,nu:!!nu})},20000);
+   body:JSON.stringify({mode:'due',nu:!!nu})},20000);
   forfaldne=((await r.json())||{}).forfaldne||[];
  }catch(e){log('vagt: kunne ikke hente forfaldne');return null}
  if(!forfaldne.length){log('vagt: intet forfaldent');return {tom:true,beslutninger:[],poster:[]}}
@@ -920,7 +920,7 @@ async function tilsynsrunde(alle,nu,vis){
  for(var i=0;i<forfaldne.length;i++){
   var f=forfaldne[i];
   // Skærmen må ikke slukke midt i: så lægger iOS fanen til at sove.
-  if(alle)vaagen(3);
+  if(nu)vaagen(3);
   if(vis)vis(i+1,forfaldne.length);
   var set=await hentVare(f.itemId);
   if(!set){continue}
@@ -1304,7 +1304,7 @@ async function kvitter(v,udgivet){
 // kvitteret. Besøgte annoncer springes over, så en, der ikke vil gemme, ikke
 // sender runden i ring.
 var RUNDE='udbakke_ret_runde';
-// Appens flag (udbakke=vagt/synk/ret). Det staar efter # og ikke efter ?:
+// Appens flag (udbakke=vagt-nu/synk/ret). Det staar efter # og ikke efter ?:
 // Vinted omdirigerer /items/{id}?… til /items/{id}-titel og smider ?-delen
 // vaek, mens #-delen foelger med. Maalt 8. oktober. ?-formen laeses stadig,
 // for en app, der ikke er opdateret, sender den.
@@ -1461,12 +1461,11 @@ function vagtNuMeld(ok,tekst){
 }
 
 async function prisvagt(){
- // Det daglige tjek: Genvejes automation åbner vinted.dk/#udbakke=vagt.
- // Så måles alt det forfaldne, uden timegrænsen, og fanen lukker bagefter.
- // »Tjek priserne nu« i appen åbner #udbakke=vagt-nu: det samme, men uden at
- // vente på, at annoncerne er forfaldne — de længst utjekkede først.
- var nu=flag('vagt-nu');
- var bedt=nu||flag('vagt');
+ // »Tjek priserne nu« i appen åbner #udbakke=vagt-nu: alle aktive annoncer,
+ // de længst utjekkede først, forfaldne eller ej, uden timegrænsen, og fanen
+ // lukker bagefter. Det daglige tjek via Genveje er fjernet (21. oktober):
+ // telefonen skulle være fremme og låst op.
+ var nu=flag('vagt-nu'),bedt=nu;
 
  rundeAktiv();
  // Tjekket er gjort, og en godkendt pris er sat imens: fanen kom tilbage
@@ -1550,17 +1549,17 @@ async function prisvagt(){
 
  // Du har trykket i appen: vis, at der sker noget. Maalingen tager et par
  // sekunder pr. vare, og uden baand saa det ud, som om intet skete.
- var vt=nu?'Prisvagt: tjekker dine annoncer mod markedet':'Prisvagt: dagligt tjek af dine annoncer';
+ var vt='Prisvagt: tjekker dine annoncer mod markedet';
  var vb=bedt?baand(vt+' …',null,null):null;
  var vis=vb?function(i,n){
   var t=vb.querySelector('span');
   if(t)t.textContent=vt+' — '+i+' af '+n+'. Lad skærmen være tændt …';
  }:null;
- var res=await tilsynsrunde(bedt,nu,vis);
+ var res=await tilsynsrunde(nu,vis);
  if(vb)vb.remove();
  if(!res){
   if(bedt){
-   spor('vagt: '+(nu?'tjek nu':'dagligt tjek')+' fejlede (se log)');
+   spor('vagt: tjek nu fejlede (se log)');
    if(nu)vagtNuMeld(false,'tjekket kunne ikke gennemføres.');
    slip();
    baand('Prisvagt: tjekket kunne ikke gennemføres. Det prøves igen, næste gang Vinted er åben.',null,null);
@@ -1578,11 +1577,11 @@ async function prisvagt(){
    :'Prisvagt: '+n+(n===1?' annonce':' annoncer')+' tjekket'+
     (res.ikkeMaalt||res.fejl?' (af '+res.ialt+')':'')+' — '+
     (nf?nf+' prisforslag venter på din godkendelse i appen.':'ingen priser skal ned.');
-  spor('vagt: '+(nu?'tjek nu':'dagligt tjek')+', '+(res.tom?'intet at tjekke':n+' tjekket af '+res.ialt+', '+nf+' forslag'));
+  spor('vagt: tjek nu, '+(res.tom?'intet at tjekke':n+' tjekket af '+res.ialt+', '+nf+' forslag'));
   var vd=await ventende();
   if(vd){
    try{sessionStorage.setItem(VAGT_SLUT,tekst)}catch(e){}
-   if(selvTil(vd,'dagligt tjek'))return true;
+   if(selvTil(vd,'tjek priserne nu'))return true;
    try{sessionStorage.removeItem(VAGT_SLUT)}catch(e){}
   }
   if(nu)vagtNuMeld(true,tekst);

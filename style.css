@@ -715,10 +715,6 @@
   .vagt-status-knapper:empty{ display: none; }
   .vagt-status span:not(.tjek-prik){ font-size: var(--t-small); color: var(--ink-soft); }
   .vagt-status .btn{ margin: var(--s2) 0 0; }
-  .vagt-link{
-    align-self: flex-start; background: none; border: 0; padding: var(--s1) 0 0;
-    color: var(--accent); font: inherit; font-size: var(--t-small); font-weight: 600; cursor: pointer;
-  }
   .vagt-afsnit{ margin-top: var(--s4); }
   .vagt-afsnit > .note{ margin: var(--s1) 0 0; }
   .vagt-row{ padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
@@ -1385,7 +1381,7 @@
   .vagt-status > div{ flex-direction: row; align-items: flex-start; gap: var(--s6); }
   .vagt-status-knapper{ flex: 0 0 300px; }
   .vagt-status-knapper > .btn{ margin: 0; }
-  .vagt-status-knapper > .btn + .btn, .vagt-status-knapper > .vagt-link + .btn{ margin-top: var(--s2); }
+  .vagt-status-knapper > .btn + .btn{ margin-top: var(--s2); }
   .vagt-afsnit{
     display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
     gap: var(--s3); margin-top: var(--s6);

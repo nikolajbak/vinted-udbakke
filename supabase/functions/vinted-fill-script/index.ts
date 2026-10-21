@@ -1620,19 +1620,15 @@ Deno.serve(async (req: Request) => {
     // varen er solgt.
     if (body.mode === "due") {
       // I baggrunden (en Vinted-side er aaben) maales hoejst tre ad gangen:
-      // det koster data paa telefonen. Det daglige tjek (Genvejes automation
-      // aabner vinted.dk/#udbakke=vagt, `alle`) tager alt det forfaldne.
-      // »Tjek priserne nu« (`nu`) tager ALLE aktive annoncer (bestemt af dig
-      // 21. oktober), de længst utjekkede først, og tæller ikke som det
-      // daglige tjek. `prisvagt-nu` siger appen, at tjekket er i gang.
+      // det koster data paa telefonen. »Tjek priserne nu« (`nu`) tager ALLE
+      // aktive annoncer (bestemt af dig 21. oktober), de længst utjekkede
+      // først. `prisvagt-nu` siger appen, at tjekket er i gang.
       const tving = body.nu === true;
-      const alle = body.alle === true || tving;
-      const raekker = await hentForfaldne(tving ? 500 : alle ? 15 : 3, tving);
+      const raekker = await hentForfaldne(tving ? 500 : 3, tving);
       const nu = new Date().toISOString();
       const detalje = raekker.length + (raekker.length === 1 ? " vare" : " varer") + " til tjek";
       await supabase.from("puls").upsert(
-        alle && !tving ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-dagligt", sidst: nu, detalje }]
-        : tving ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-nu", sidst: nu, detalje: "i gang: " + detalje }]
+        tving ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-nu", sidst: nu, detalje: "i gang: " + detalje }]
         : [{ navn: "prisvagt", sidst: nu, detalje }],
       ).then(() => {}, () => {});
       return json({

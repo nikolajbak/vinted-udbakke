@@ -267,7 +267,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, køn sat af dig `koen`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`, producentens billeder af varen på en person `producentBilleder` (`[{url, pose}]`, kun links, kun til appen — aldrig i en annonce), butikkens ord om pasformen `pasform`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
-| Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` (rækkerne `vinted-runner`, `dba-runner`, `prisvagt` = sidste forespørgsel på forfaldne, `prisvagt-dagligt` = sidste daglige tjek, `prisvagt-nu` = »Tjek priserne nu« i gang/færdig/fejl) | `sql/009-lager.sql` |
+| Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` (rækkerne `vinted-runner`, `dba-runner`, `prisvagt` = sidste forespørgsel på forfaldne, `prisvagt-nu` = »Tjek priserne nu« i gang/færdig/fejl) | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
 | Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
@@ -1106,8 +1106,8 @@ status, værktøjer og lange engangsvejledninger stod i én lang side. Nu:
   i `style.css` (»Computerskaermen«).
 - **Mere** (19. oktober, redesignets trin 3), ovenfra: **prisvagtens kort**
   (`hentMereVagt`: »Holder øje med N«, pillen »Kører« grøn / »Forsinket«
-  rav — regnet af `vagtTilstand`, samme som Prisvagt-skærmen, og skjult,
-  hvis `puls` ikke kunne hentes — sidste tjek, dagligt tjek, og **Tjek
+  rav, når en annonce er over et døgn forsinket — regnet af
+  `vagtTilstand`, samme som Prisvagt-skærmen — sidste tjek, og **Tjek
   priserne nu**); et tryk på kortet åbner Prisvagt. Så rækker: Opsætning
   (med »Virker det?« som undertekst), Etiketter, Køb igen; Udseende
   (temaets tre knapper); Log ud i rødt. Kun én accent-knap. **Nederst står versionen**
@@ -1213,9 +1213,9 @@ har ingen række i `listings` endnu.
 
 - **Ingen runde på et ur.** Bestemt af dig 1. oktober: der må ikke tjekkes
   med et fast interval. En baggrundsrunde over alle annoncer blev bygget og
-  fjernet igen samme dag. Synkroniseringen sker på hændelser.
-  Undtagelse (bestemt af dig 18. oktober): prisvagtens daglige tjek, som
-  kører i din egen Safari via Genveje (se »Prisvagten → Ingen tjek-knap«).
+  fjernet igen samme dag. Synkroniseringen sker på hændelser. (Det
+  daglige tjek via Genveje, en undtagelse fra 18. oktober, er fjernet
+  igen 21. oktober — se »Prisvagten → Ingen tjek-knap«.)
 - **Salg, bud og beskeder når serveren som mail fra Vinted** (`vinted-mail`).
   Det er den eneste vej, der virker uden telefonen: Vinted blokerer
   datacenter-IP'er og har ingen webhooks. Se »Vinteds mails« nedenfor.
@@ -1985,37 +1985,30 @@ laver en liste til godkendelse.** Erstatter beslutningen fra 16. oktober
 
 Bestemt af dig 18. oktober: banneret og knappen »Tjek N varer mod markedet«
 gav ikke mening og virkede ikke ordentligt. **Priserne tjekkes i
-baggrunden, og automatisk dagligt.** Det manuelle tjek er væk fra forsiden
-og Prisvagt-skærmen.
+baggrunden**, og når du trykker »Tjek priserne nu«.
 
 - **I baggrunden**: hver gang en Vinted-side er åben i Safari, tjekker
   runneren højst tre forfaldne annoncer, højst én gang i timen (som før).
   Appen selv kan ikke nå Vinted — det er en anden side, og Vinted blokerer
   servere. Prøv det ikke.
-- **Dagligt**: en personlig automation i iPhonens **Genveje** (Tidspunkt på
-  dagen → Kør straks → Åbn URL'er) åbner `https://www.vinted.dk/#udbakke=vagt`.
-  Flaget `vagt` betyder nu kun »dagligt tjek«: runneren tager ALLE
-  forfaldne (`mode:'due'` med `alle`, op til 15), uden timegrænsen, laver
-  forslag, sætter en godkendt ændring, og lukker fanen
-  (»intet at tjekke i dag« / »N annoncer tjekket — N prisforslag venter …«).
-  Vejledningen står i Opsætning → **Dagligt pristjek** (`DAGLIGT_URL` i
-  `app.js`), og serveren skriver `puls` `prisvagt-dagligt`, så trinnet kan
-  vise, hvornår det sidst kørte. Det er det eneste ur, der rører Vinted, og
-  det kører i din egen Safari. **Ikke målt:** om Genveje åbner Safari, mens
-  telefonen er låst — vejledningen siger at vælge et tidspunkt, hvor
-  telefonen er i brug.
+- **Intet dagligt tjek via Genveje** (bestemt af dig 21. oktober; bygget
+  18. oktober): en automation i iPhonens Genveje, der åbnede
+  `vinted.dk/#udbakke=vagt` hver dag, er fjernet — det er ikke holdbart,
+  at telefonen skal være fremme og låst op, for at den kan køre. Trinnet
+  »Dagligt pristjek« i Opsætning, »Slå dagligt tjek til« og
+  `puls` `prisvagt-dagligt` er væk, og runneren reagerer ikke længere på
+  flaget `vagt`. Byg det ikke igen uden en vej, der ikke kræver telefonen.
 - **Manuelt: »Tjek priserne nu«** (bestemt af dig 18. oktober) på
   prisvagtens kort i Mere og i statuskortet på Prisvagt-skærmen. Appen kan ikke selv nå Vinted, så
   knappen åbner `https://www.vinted.dk/#udbakke=vagt-nu` i Safari
-  (`VAGT_NU_URL`). Runneren kører det daglige tjek, men `mode:'due'` med
-  `nu` tager **alle** aktive annoncer (bestemt af dig 21. oktober; før de
-  15), de længst utjekkede først, **forfaldne eller ej**, og skriver kun
-  `puls` `prisvagt` — det tæller ikke som det daglige tjek. Nedsættelser
+  (`VAGT_NU_URL`). `mode:'due'` med `nu` tager **alle** aktive annoncer
+  (bestemt af dig 21. oktober; før de 15), de længst utjekkede først,
+  **forfaldne eller ej**, uden timegrænsen, og sætter en godkendt ændring.
+  Nedsættelser
   bliver forslag til godkendelse som altid. `prisvagt.ts`' spærrer (5 dage
   mellem ændringer, loft over springet) gælder stadig.
   - **Skærmen holdes tændt, til tjekket er færdigt** (bestemt af dig
-    21. oktober): `vaagen(3)` fornys for hver annonce (også i det daglige
-    tjek), og båndet siger »… — 12 af 46. Lad skærmen være tændt …«.
+    21. oktober): `vaagen(3)` fornys for hver annonce, og båndet siger »… — 12 af 46. Lad skærmen være tændt …«.
     Tilsynet sendes i portioner på 5 (`mode:'watch'`), så ét kald ikke
     løber over serverens tid.
   - **Fanen lukkes, og appen bekræfter** (bestemt af dig 21. oktober):
@@ -2032,8 +2025,8 @@ og Prisvagt-skærmen.
     med flaget; `VAGT_SLUT` i `sessionStorage` gør, at der så ikke måles
     forfra, men afsluttes.
 - **Prisvagt-skærmen** (`tegnVagt`): et statuskort øverst (»Holder øje med N
-  annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede uden et
-  dagligt tjek — »Slå dagligt tjek til«). Så tre grupper med overskrift
+  annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede — rav
+  med »Tjek priserne nu« som primær knap). Så tre grupper med overskrift
   (forslagene står under Opgaver, se »Kun forslag«): **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »sættes
   af sig selv, næste gang Vinted er åben«; rav og en primær knap, når den
   har ventet over et døgn), **Holder øje** (seneste dom: »Tjekket for 2
