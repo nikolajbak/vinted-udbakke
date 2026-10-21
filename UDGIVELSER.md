@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0144 — 2026-10-21 11:37
+
+Commit `ac41403` — Tjek priserne nu: alle annoncer, skaermen taendt og bekraeftet i appen  
+App: `app.js?v=e7e674fa` · `style.css?v=c377b7d7`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v99 | `c789b74b` |
+| dba-fill-script | v47 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v38 | `8b0e0533` |
+| vinted-fill-script ← | v128 | `e1cfea9e` |
+| vinted-mail | v31 | `68f3750b` |
+
 ## udgivelse-0143 — 2026-10-19 18:56
 
 Commit `159c9c0` — vinted-mail: salget faar mailens tid, ogsaa ved genlaesning  
