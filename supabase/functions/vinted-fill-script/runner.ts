@@ -872,13 +872,14 @@ function laesAnnonceside(t,id){
  // søgningen viste den til 199 kr. Kun kroner er en pris her.
  var dkk=!tilbud.priceCurrency||tilbud.priceCurrency==='DKK';
  var pris=dkk?(helKroner(tilbud.price)||null):null;
- var mf=t.match(new RegExp('favourite_count\\\\?":(\\d+),\\\\?"is_favourite\\\\?":(?:true|false),\\\\?"item_id\\\\?":\\\\?"?'+id+'\\b'));
+ var hjerter=hjerterPaaSiden(t,id);
+ if(hjerter===null)log('vagt: '+id+' — hjerterne stod ikke på siden');
  var brand=p.brand&&(p.brand.name||p.brand);
  return {
   // Kun et udtrykkeligt "udsolgt" tæller som væk. At melde en annonce solgt,
   // der ikke er det, er værre end at opdage et salg en runde senere.
   gone:/SoldOut|OutOfStock|Discontinued/i.test(String(tilbud.availability||'')),
-  price:pris||0,favourites:mf?+mf[1]:0,views:0,
+  price:pris||0,favourites:hjerter,views:0,
   udgivet:{price:pris,
            title:p.name?String(p.name):null,
            description:p.description?String(p.description):null,
@@ -886,6 +887,18 @@ function laesAnnonceside(t,id){
            size:null,condition:null,
            color:p.color?String(p.color):null,
            url:location.origin+'/items/'+id,kilde:'side'}};
+}
+
+// Hjerterne står i et lille objekt med favourite_count og varens nummer. Før
+// blev de kun fundet i rækkefølgen favourite_count, is_favourite, item_id —
+// og ellers som 0, som overskrev de hjerter, mails havde talt op (21. oktober:
+// tæppet gik fra 9 til 0, mens Vinted viste 10). Nu: enhver rækkefølge, item_id
+// eller id, og intet fund er null = ikke målt, så serveren beholder sit tal.
+function hjerterPaaSiden(t,id){
+ var re=/\{[^{}]*favourite_count\\?":(\d+)[^{}]*\}/g,m;
+ var eget=new RegExp('"(?:item_)?id\\\\?":\\\\?"?'+id+'(?!\\d)');
+ while((m=re.exec(t)))if(eget.test(m[0]))return +m[1];
+ return null;
 }
 
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.

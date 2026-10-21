@@ -1767,7 +1767,8 @@ Deno.serve(async (req: Request) => {
       const opd: Record<string, unknown> = { synced_at: new Date().toISOString() };
       if (snap) opd.published = { ...snap, fotos: (r.published as Record<string, unknown> | null)?.fotos ?? null };
       if (nu > 0) opd.price = nu;
-      if (Number.isFinite(Number(body.favourites))) opd.favourites = Number(body.favourites);
+      // null = hjerterne blev ikke maalt; Number(null) er 0 og ville slette dem.
+      if (body.favourites != null && Number.isFinite(Number(body.favourites))) opd.favourites = Number(body.favourites);
 
       // Rettet paa Vinted, ikke i appen. Det skal staa i historikken som
       // enhver anden aendring: prisvagten regner sin ro fra last_change_at, og
