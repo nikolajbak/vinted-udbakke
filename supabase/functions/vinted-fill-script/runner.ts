@@ -651,14 +651,16 @@ function koeSkriv(k){
 // side, og en fane, du selv har åbnet, skal aldrig lukke under dig.
 var FRA_APP='udbakke_fra_app';
 // Mac-webappen: appen kom hertil i sit eget vindue med &tilbage=<fane>, og
-// vinduet skal tilbage til appen i stedet for at lukkes (lukFanen).
-var TILBAGE='udbakke_tilbage';
+// vinduet skal tilbage til appen i stedet for at lukkes (lukFanen). Eget
+// navn: prisvagtens TILBAGE (siden, den gik fra) overskrev det før, og så
+// kunne fanen ende på /items/…/menu eller appen på #fane-https://….
+var TIL_APP='udbakke_tilbage';
 var APP_URL='https://nikolajbak.github.io/vinted-udbakke/';
 function tilbageTil(){
  try{
   var m=/[?&#]tilbage=(queue|opgaver|vagt|konto|menu)(?:&|$)/.exec(location.search+location.hash);
-  if(m)sessionStorage.setItem(TILBAGE,m[1]);
-  return sessionStorage.getItem(TILBAGE);
+  if(m)sessionStorage.setItem(TIL_APP,m[1]);
+  return sessionStorage.getItem(TIL_APP);
  }catch(e){return null}
 }
 function fraApp(){
@@ -684,7 +686,7 @@ function lukFanen(tekst){
  spor('luk: '+tekst+(kan()?'':' (uden Udbakke luk)')+' [opener: '+(aabner?'ja':'nej')+', historik '+history.length+']');
  var hjem=tilbageTil();
  if(hjem){
-  try{sessionStorage.removeItem(TILBAGE)}catch(e){}
+  try{sessionStorage.removeItem(TIL_APP)}catch(e){}
   baand(tekst+' Tilbage til appen …',null,null);
   setTimeout(function(){location.href=APP_URL+'#fane-'+hjem},1500);
   return;
@@ -889,7 +891,7 @@ function laesAnnonceside(t,id){
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.
 // alle: det daglige tjek tager alt det forfaldne, ellers højst tre.
 // Intet forfaldent er {tom:true} — ikke det samme som en fejl (null).
-async function tilsynsrunde(alle,nu){
+async function tilsynsrunde(alle,nu,vis){
  var forfaldne=[];
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
@@ -899,9 +901,27 @@ async function tilsynsrunde(alle,nu){
  if(!forfaldne.length){log('vagt: intet forfaldent');return {tom:true,beslutninger:[],poster:[]}}
  log('vagt: '+forfaldne.length+' vare(r) til tjek');
 
- var maalinger=[];
+ // Tilsynet sendes i portioner: ét kald med alle annoncer (»Tjek priserne
+ // nu« tager dem alle) ville løbe over serverens tid, og det målte går ikke
+ // tabt, hvis fanen dør undervejs.
+ var maalinger=[],b=[],poster=[],sendt=0,fejl=false;
+ async function send(){
+  var del=maalinger.slice(sendt);
+  if(!del.length)return;
+  sendt=maalinger.length;
+  try{
+   var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'watch',maalinger:del})},90000);
+   var j=await sv.json();
+   if(!sv.ok||!j||!j.beslutninger)throw new Error('status '+sv.status);
+   b=b.concat(j.beslutninger);
+  }catch(e){fejl=true;log('vagt: tilsynet fejlede ('+(e&&e.message)+')')}
+ }
  for(var i=0;i<forfaldne.length;i++){
   var f=forfaldne[i];
+  // Skærmen må ikke slukke midt i: så lægger iOS fanen til at sove.
+  if(alle)vaagen(3);
+  if(vis)vis(i+1,forfaldne.length);
   var set=await hentVare(f.itemId);
   if(!set){continue}
   if(set.gone){maalinger.push({id:f.id,gone:true});continue}
@@ -911,22 +931,16 @@ async function tilsynsrunde(alle,nu){
   maalinger.push({id:f.id,price:set.price,favourites:set.favourites,
                   views:set.views,comparables:felt,udgivet:set.udgivet,
                   fotos:await fotoIds(f.itemId)});
+  if(maalinger.length-sendt>=5)await send();
  }
- if(!maalinger.length)return null;
-
- try{
-  var sv=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({mode:'watch',maalinger:maalinger})},90000);
-  var j=await sv.json();
-  var b=(j&&j.beslutninger)||[];
-  var poster=[];
-  for(var k=0;k<b.length;k++){
-   if(b[k].handling==='saenk'&&b[k].nyPris>0&&b[k].externalId)
-    poster.push({listing:b[k].id,itemId:String(b[k].externalId),pris:b[k].nyPris,fra:b[k].fraPris});
-  }
-  log('vagt: '+b.length+' afgjort, '+poster.length+' prisforslag');
-  return {beslutninger:b,poster:poster};
- }catch(e){log('vagt: tilsynet fejlede');return null}
+ await send();
+ if(!maalinger.length||(fejl&&!b.length))return null;
+ for(var k=0;k<b.length;k++){
+  if(b[k].handling==='saenk'&&b[k].nyPris>0&&b[k].externalId)
+   poster.push({listing:b[k].id,itemId:String(b[k].externalId),pris:b[k].nyPris,fra:b[k].fraPris});
+ }
+ log('vagt: '+b.length+' afgjort, '+poster.length+' prisforslag');
+ return {beslutninger:b,poster:poster,ialt:forfaldne.length,ikkeMaalt:forfaldne.length-maalinger.length,fejl:fejl};
 }
 
 // Skriv de ændringer, der venter, ind på annoncens redigeringsside og gem.
@@ -1439,6 +1453,13 @@ async function stilleSynk(){
  try{var j=await sendSynk(num[1],set);if(j&&!j.ukendt)log('synk: '+num[1]+' læst')}catch(e){}
 }
 
+// »Tjek priserne nu«: appen viser, at tjekket er færdigt (puls prisvagt-nu).
+var VAGT_SLUT='udbakke_vagt_slut';
+function vagtNuMeld(ok,tekst){
+ try{timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,
+  body:JSON.stringify({mode:'vagtNu',ok:ok,tekst:String(tekst).replace(/^Prisvagt: /,'')})},15000).catch(function(){})}catch(e){}
+}
+
 async function prisvagt(){
  // Det daglige tjek: Genvejes automation åbner vinted.dk/#udbakke=vagt.
  // Så måles alt det forfaldne, uden timegrænsen, og fanen lukker bagefter.
@@ -1448,6 +1469,18 @@ async function prisvagt(){
  var bedt=nu||flag('vagt');
 
  rundeAktiv();
+ // Tjekket er gjort, og en godkendt pris er sat imens: fanen kom tilbage
+ // med flaget i adressen. Mål ikke det hele igen — afslut.
+ if(bedt&&!/^\/items\/\d+\/edit/.test(location.pathname)){
+  var slut=null; try{slut=sessionStorage.getItem(VAGT_SLUT);sessionStorage.removeItem(VAGT_SLUT)}catch(e){}
+  if(slut){
+   var vd0=await ventende();
+   if(vd0&&selvTil(vd0,'tjekket er gjort')){try{sessionStorage.setItem(VAGT_SLUT,slut)}catch(e){}return true}
+   if(nu)vagtNuMeld(true,slut);
+   lukFanen(slut);
+   return false;
+  }
+ }
  // 1) Lige gemt en pris? Så skal den bekræftes, før noget andet.
  var mk=hentMarkoer();
  var kv0=await bekraeft();
@@ -1517,12 +1550,19 @@ async function prisvagt(){
 
  // Du har trykket i appen: vis, at der sker noget. Maalingen tager et par
  // sekunder pr. vare, og uden baand saa det ud, som om intet skete.
- var vb=bedt?baand(nu?'Prisvagt: tjekker dine annoncer mod markedet …':'Prisvagt: dagligt tjek af dine annoncer …',null,null):null;
- var res=await tilsynsrunde(bedt,nu);
+ var vt=nu?'Prisvagt: tjekker dine annoncer mod markedet':'Prisvagt: dagligt tjek af dine annoncer';
+ var vb=bedt?baand(vt+' …',null,null):null;
+ var vis=vb?function(i,n){
+  var t=vb.querySelector('span');
+  if(t)t.textContent=vt+' — '+i+' af '+n+'. Lad skærmen være tændt …';
+ }:null;
+ var res=await tilsynsrunde(bedt,nu,vis);
  if(vb)vb.remove();
  if(!res){
   if(bedt){
-   spor('vagt: dagligt tjek fejlede (se log)');
+   spor('vagt: '+(nu?'tjek nu':'dagligt tjek')+' fejlede (se log)');
+   if(nu)vagtNuMeld(false,'tjekket kunne ikke gennemføres.');
+   slip();
    baand('Prisvagt: tjekket kunne ikke gennemføres. Det prøves igen, næste gang Vinted er åben.',null,null);
   }
   return false;
@@ -1534,12 +1574,19 @@ async function prisvagt(){
  if(bedt){
   // Venter en godkendt ændring, sættes den med det samme. Bagefter føres
   // fanen hertil igen, og så er der intet tilbage at måle.
+  var tekst=res.tom?(nu?'Prisvagt: ingen aktive annoncer at tjekke.':'Prisvagt: intet at tjekke i dag.')
+   :'Prisvagt: '+n+(n===1?' annonce':' annoncer')+' tjekket'+
+    (res.ikkeMaalt||res.fejl?' (af '+res.ialt+')':'')+' — '+
+    (nf?nf+' prisforslag venter på din godkendelse i appen.':'ingen priser skal ned.');
+  spor('vagt: '+(nu?'tjek nu':'dagligt tjek')+', '+(res.tom?'intet at tjekke':n+' tjekket af '+res.ialt+', '+nf+' forslag'));
   var vd=await ventende();
-  if(vd&&selvTil(vd,'dagligt tjek'))return true;
-  spor('vagt: dagligt tjek, '+(res.tom?'intet forfaldent':n+' tjekket, '+nf+' forslag'));
-  lukFanen(res.tom?'Prisvagt: intet at tjekke i dag.'
-   :'Prisvagt: '+n+(n===1?' annonce':' annoncer')+' tjekket — '+
-    (nf?nf+' prisforslag venter på din godkendelse i appen.':'ingen priser skal ned.'));
+  if(vd){
+   try{sessionStorage.setItem(VAGT_SLUT,tekst)}catch(e){}
+   if(selvTil(vd,'dagligt tjek'))return true;
+   try{sessionStorage.removeItem(VAGT_SLUT)}catch(e){}
+  }
+  if(nu)vagtNuMeld(true,tekst);
+  lukFanen(tekst);
   return false;
  }
  if(nf){

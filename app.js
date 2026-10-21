@@ -84,11 +84,11 @@
     try{ if(navigator.vibrate) navigator.vibrate(ms || 10); }catch(e){}
   }
 
-  function toast(msg){
+  function toast(msg, ms){
     var t = document.createElement('div');
     t.className = 'toast'; t.textContent = msg;
     document.body.appendChild(t);
-    setTimeout(function(){ t.remove(); }, 3200);
+    setTimeout(function(){ t.remove(); }, ms || 3200);
   }
 
   /* ---- Router ----------------------------------------------------------- */
@@ -2016,6 +2016,7 @@
   document.addEventListener('visibilitychange', function(){
     if(document.hidden || !started) return;
     hentKoe(true);
+    vagtNuKvittering();
     // Kvitteringen fra Vinted rydder rettelsen paa serveren; uden det her
     // stod den stadig som "klar", til du gik ud af skaermen og ind igen.
     if(!screenEl('vagt').hidden) hentVagt();
@@ -3233,6 +3234,33 @@
   // omdirigeringer (maalt 8. oktober), og runneren tager saa alt forfaldent.
   var DAGLIGT_URL = 'https://www.vinted.dk/#udbakke=vagt';
   var VAGT_NU_URL = 'https://www.vinted.dk/#udbakke=vagt-nu';
+  // »Tjek priserne nu« koerer i Safari. Tidspunktet for trykket huskes, og
+  // naar du kommer tilbage til appen, siger den, om tjekket er faerdigt —
+  // runneren skriver puls `prisvagt-nu` (»i gang: …«, »færdig: …«, »fejl: …«).
+  var VAGT_NU_KEY = 'udbakke-vagtnu';
+  function tjekPriserNu(){
+    try{ localStorage.setItem(VAGT_NU_KEY, String(Date.now())); }catch(e){}
+    aabnUdad(VAGT_NU_URL);
+  }
+  function vagtNuKvittering(){
+    var t0 = 0;
+    try{ t0 = +(localStorage.getItem(VAGT_NU_KEY) || 0); }catch(e){}
+    if(!t0) return;
+    if(Date.now() - t0 > 3 * 3600000){ try{ localStorage.removeItem(VAGT_NU_KEY); }catch(e){} return; }
+    sb.from('puls').select('sidst, detalje').eq('navn', 'prisvagt-nu').maybeSingle().then(function(r){
+      var p = r && r.data;
+      // Skrevet foer trykket (et minuts slaek for urene): tjekket er ikke startet.
+      if(!p || new Date(p.sidst).getTime() < t0 - 60000) return;
+      var d = String(p.detalje || '');
+      if(/^i gang/.test(d)){ toast('Pristjekket kører stadig i Safari …', 4000); return; }
+      try{ localStorage.removeItem(VAGT_NU_KEY); }catch(e){}
+      var tekst = d.replace(/^(færdig|fejl): /, '');
+      toast(/^fejl/.test(d) ? 'Pristjekket blev ikke færdigt: ' + tekst : 'Pristjekket er færdigt: ' + tekst, 7000);
+      hentMereVagt();
+      if(!screenEl('vagt').hidden) hentVagt();
+      hentOpgaver();
+    }, function(){});
+  }
   $('m-dagligt-kopier').addEventListener('click', function(){
     if(navigator.clipboard) navigator.clipboard.writeText(DAGLIGT_URL).then(function(){ toast('Adressen er kopieret'); },
       function(){ toast(DAGLIGT_URL); });
@@ -4301,7 +4329,7 @@
     // Vinted i Safari med #udbakke=vagt-nu, og runneren maaler dér.
     if(vagter.length){
       h += '<button type="button" class="btn btn-secondary" id="vagt-nu">Tjek priserne nu</button>' +
-        '<span class="vagt-nu-note">Åbner Vinted i Safari og tjekker op til 15 annoncer, de længst utjekkede først. ' +
+        '<span class="vagt-nu-note">Åbner Vinted i Safari og tjekker alle dine annoncer, de længst utjekkede først. Lad skærmen være tændt — appen siger til, når det er færdigt. ' +
         'Nye priser kommer under Opgaver.</span>';
     }
     h += '</div></div></div>';
@@ -4357,7 +4385,7 @@
     var dk = $('vagt-dagligt');
     if(dk) dk.addEventListener('click', aabnDagligt);
     var vn = $('vagt-nu');
-    if(vn) vn.addEventListener('click', function(){ aabnUdad(VAGT_NU_URL); });
+    if(vn) vn.addEventListener('click', tjekPriserNu);
     Array.prototype.forEach.call(krop.querySelectorAll('.vagt-row [data-v]'), function(el){
       var raekke = el.closest('.vagt-row');
       var l = alle.filter(function(x){ return x.id === raekke.getAttribute('data-l'); })[0];
@@ -4696,7 +4724,7 @@
         (t && t.vagter.length ? '<button type="button" class="btn btn-primary" id="mv-vagt-nu">Tjek priserne nu</button>' : '');
       $('mv-vagt-aabn').addEventListener('click', function(){ show('vagt'); hentVagt(); });
       var nu = $('mv-vagt-nu');
-      if(nu) nu.addEventListener('click', function(){ aabnUdad(VAGT_NU_URL); });
+      if(nu) nu.addEventListener('click', tjekPriserNu);
     }
     if(!el.innerHTML) el.innerHTML = '<div class="mv-vagt-top"><span class="mv-vagt-tekst"><b>Prisvagten</b><span>Henter …</span></span></div>';
     Promise.all([
@@ -4954,6 +4982,7 @@
     hentKoe();   // henter ogsaa opgaverne, naar koeen er der
     tegnTjek();   // tallet paa Mere-fanen, hvis noget i opsaetningen er gaaet i staa
     aabnFraAdresse();
+    vagtNuKvittering();   // Mac-webappen kommer tilbage med en ny indlaesning
 
     sb.channel('drafts-live').on('postgres_changes',
       { event:'*', schema:'public', table:'drafts' }, function(p){

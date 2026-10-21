@@ -223,6 +223,7 @@ i `function_logs`, beviser intet.
 | Forsendelsen læst af Vinteds mails (`erForsendelse`, `laesForsendelse`, `fletForsendelse`, `vaelgMaerkat`, rene og testet med `node --test tools/test-forsendelse.mjs`); mærkatet gemt i `vinted-mail` | `supabase/functions/_shared/forsendelse.ts`, `vinted-mail/index.ts` |
 | Forsendelsen på varens side (`forsendelseBlok`, `hentMaerkater`, `fristTekst`, `fsHandling`) og opgaverne »Lav fragtmærkatet«/»Send pakken«; mærkatet i fuld skærm (`visMaerkat`, `hentPdfJs`), lagt ind af dig (`laegMaerkatInd`), afleveret (`fsAfleveret`), sporingen (`fsSporLink`) | `app.js`, `#fs-stor`/`#fs-fil` i `index.html`, `.fs-…` i `style.css` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
+| »Tjek priserne nu«: alle annoncer, kvitteringen i appen (`tjekPriserNu`, `vagtNuKvittering`; runnerens `vagtNuMeld`; `mode:'vagtNu'` → `puls` `prisvagt-nu`) | `app.js`, `runner.ts`, `…/vinted-fill-script/index.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
 | »Sådan ser den ud på« på varens side (`producentBlok`, `producentKoblOp`, `visProducentStor`, `POSE_NAVN`), »Tag dit eget som dette« (`aabnForlaeg`, `gemForlaegsbillede`, `POSE_TEKST`) og trinnet `paa-kroppen` i `STEPS` | `app.js`; `#pb-stor` og `#s-pbtag` i `index.html`; `.pb-…` i `style.css` |
@@ -266,7 +267,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Opslåede fakta om varen: `drafts.fakta` (ny, nypris, mål, fejl, mærkernes tekst `maerker`, farvenavnet `maerkeFarve`, køn sat af dig `koen`, varens produktside `produktside`/`produktNavn`/`produktTekst`/`produktMaerke`, opslagets tidspunkt `opslaaet`, producentens billeder af varen på en person `producentBilleder` (`[{url, pose}]`, kun links, kun til appen — aldrig i en annonce), butikkens ord om pasformen `pasform`) | `sql/006-fakta.sql` |
 | Læring: `listings.sold_price`, `koeber_beskeder`, `laerdomme`, ugentligt `laering-puls` (vault: `shortcut_key`) | `sql/007-laering.sql` |
 | Vinteds mails, gemt og tolket: `vinted_mails` | `sql/008-vinted-mails.sql` |
-| Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` (rækkerne `vinted-runner`, `dba-runner`, `prisvagt` = sidste forespørgsel på forfaldne, `prisvagt-dagligt` = sidste daglige tjek) | `sql/009-lager.sql` |
+| Taget ned efter salg andetsteds: `drafts.taget_ned`; automatikkens sidste hentning: `puls` (rækkerne `vinted-runner`, `dba-runner`, `prisvagt` = sidste forespørgsel på forfaldne, `prisvagt-dagligt` = sidste daglige tjek, `prisvagt-nu` = »Tjek priserne nu« i gang/færdig/fejl) | `sql/009-lager.sql` |
 | Brugerscripternes versionsnumre: `brugerscripter`, `brugerscript_udgave(navn, hash)` | `sql/010-brugerscripter.sql` |
 | Runnerens spor, gemt (30 dage): `spor` (tid, draft_id, sti, tekst); hele udfyldningens log kommer med »clear« som `sti = 'udfyldning (log)'` | `sql/011-spor.sql` |
 | Hvad hvert modelkald koster: `forbrug` (trin, model, tokens, søgninger, `usd`) og visningerne `forbrug_pr_vare`, `forbrug_pr_trin` | `sql/013-forbrug.sql` |
@@ -1476,6 +1477,11 @@ Hver af disse kostede en fejlsøgning. Lav dem ikke om uden at måle igen.
   kørte først«, hvis nogen havde sat den gamle, og hvert kald bærer `&r=2`
   (`RUNNER_GEN` i `index.ts`): et kald fra vinted.dk uden afvises og noteres i
   `spor` som »forældet runner«. Hæv tallet kun sammen med `runner.ts`.
+- **To `var` med samme navn i runneren overskriver hinanden** — den er ét
+  script. Prisvagtens `TILBAGE` (siden, den gik fra) og Mac-webappens
+  (fanen i appen) hed begge `TILBAGE`, så efter en godkendt pris kunne
+  vinduet ende på `/items/…/menu` (fundet 21. oktober; Mac-webappens hedder
+  nu `TIL_APP`). `check-runner.mjs` fanger det ikke.
 - **`window.__UDBAKKE_*` må ikke omdøbes.** Et installeret bogmærke sætter dem,
   før det henter automatikken; et andet navn brækker det uden varsel.
 - **Alt, der skal åbne i RIGTIG Safari, skal have `x-safari-` foran.** I den
@@ -2002,11 +2008,29 @@ og Prisvagt-skærmen.
   prisvagtens kort i Mere og i statuskortet på Prisvagt-skærmen. Appen kan ikke selv nå Vinted, så
   knappen åbner `https://www.vinted.dk/#udbakke=vagt-nu` i Safari
   (`VAGT_NU_URL`). Runneren kører det daglige tjek, men `mode:'due'` med
-  `nu` tager de 15 længst utjekkede aktive annoncer (`last_check_at`),
-  **forfaldne eller ej**, og skriver kun `puls` `prisvagt` — det tæller
-  ikke som det daglige tjek. Nedsættelser bliver forslag til godkendelse
-  som altid, og fanen lukkes bagefter. `prisvagt.ts`' spærrer (5 dage
+  `nu` tager **alle** aktive annoncer (bestemt af dig 21. oktober; før de
+  15), de længst utjekkede først, **forfaldne eller ej**, og skriver kun
+  `puls` `prisvagt` — det tæller ikke som det daglige tjek. Nedsættelser
+  bliver forslag til godkendelse som altid. `prisvagt.ts`' spærrer (5 dage
   mellem ændringer, loft over springet) gælder stadig.
+  - **Skærmen holdes tændt, til tjekket er færdigt** (bestemt af dig
+    21. oktober): `vaagen(3)` fornys for hver annonce (også i det daglige
+    tjek), og båndet siger »… — 12 af 46. Lad skærmen være tændt …«.
+    Tilsynet sendes i portioner på 5 (`mode:'watch'`), så ét kald ikke
+    løber over serverens tid.
+  - **Fanen lukkes, og appen bekræfter** (bestemt af dig 21. oktober):
+    `mode:'due'` med `nu` skriver `puls` `prisvagt-nu` »i gang: …«, og
+    runneren melder til sidst `mode:'vagtNu'` → »færdig: N annoncer tjekket
+    — …« (eller »fejl: …«), før `lukFanen`. Appen husker trykket
+    (`localStorage` `udbakke-vagtnu`, `tjekPriserNu`) og viser, når den ses
+    igen, »Pristjekket er færdigt: …« / »kører stadig« (`vagtNuKvittering`,
+    ved `visibilitychange` og ved opstart). På Mac'en sender `lukFanen`
+    vinduet tilbage til appen; på iPhonen lukkes Safari-fanen, og du åbner
+    selv appen (iOS kan ikke åbne en hjemmeskærms-webapp, se »Fanen lukker
+    sig selv«).
+  - Sættes en godkendt pris efter tjekket (`selvTil`), kommer fanen tilbage
+    med flaget; `VAGT_SLUT` i `sessionStorage` gør, at der så ikke måles
+    forfra, men afsluttes.
 - **Prisvagt-skærmen** (`tegnVagt`): et statuskort øverst (»Holder øje med N
   annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede uden et
   dagligt tjek — »Slå dagligt tjek til«). Så tre grupper med overskrift

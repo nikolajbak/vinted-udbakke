@@ -1622,16 +1622,18 @@ Deno.serve(async (req: Request) => {
       // I baggrunden (en Vinted-side er aaben) maales hoejst tre ad gangen:
       // det koster data paa telefonen. Det daglige tjek (Genvejes automation
       // aabner vinted.dk/#udbakke=vagt, `alle`) tager alt det forfaldne.
-      // »Tjek priserne nu« (`nu`) tager de 15 længst utjekkede, forfaldne
-      // eller ej, og tæller ikke som det daglige tjek.
+      // »Tjek priserne nu« (`nu`) tager ALLE aktive annoncer (bestemt af dig
+      // 21. oktober), de længst utjekkede først, og tæller ikke som det
+      // daglige tjek. `prisvagt-nu` siger appen, at tjekket er i gang.
       const tving = body.nu === true;
       const alle = body.alle === true || tving;
-      const raekker = await hentForfaldne(alle ? 15 : 3, tving);
+      const raekker = await hentForfaldne(tving ? 500 : alle ? 15 : 3, tving);
       const nu = new Date().toISOString();
       const detalje = raekker.length + (raekker.length === 1 ? " vare" : " varer") + " til tjek";
       await supabase.from("puls").upsert(
         alle && !tving ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-dagligt", sidst: nu, detalje }]
-             : [{ navn: "prisvagt", sidst: nu, detalje }],
+        : tving ? [{ navn: "prisvagt", sidst: nu, detalje }, { navn: "prisvagt-nu", sidst: nu, detalje: "i gang: " + detalje }]
+        : [{ navn: "prisvagt", sidst: nu, detalje }],
       ).then(() => {}, () => {});
       return json({
         forfaldne: raekker.map((r) => ({
@@ -1642,6 +1644,17 @@ Deno.serve(async (req: Request) => {
           price: Number(r.price),
         })),
       });
+    }
+
+    // »Tjek priserne nu« er færdig (eller fejlede): appen viser det, når du
+    // kommer tilbage til den (`prisvagt-nu` i puls).
+    if (body.mode === "vagtNu") {
+      const tekst = String(body.tekst ?? "").slice(0, 300);
+      await supabase.from("puls").upsert({
+        navn: "prisvagt-nu", sidst: new Date().toISOString(),
+        detalje: (body.ok === false ? "fejl: " : "færdig: ") + tekst,
+      }).then(() => {}, () => {});
+      return json({ ok: true });
     }
 
     // Redigeringssiden spoerger selv: skal DENNE annonce have en ny pris?
