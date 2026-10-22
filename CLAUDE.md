@@ -678,6 +678,35 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
   - **Googles søgning har ingen gratiskvote** (`google_search` → 429 på alle modeller, mens almindelige kald og `url_context` svarede). Derfor er `opslag:nypris_maal` = `claude`.
   - `gemini-2.5-flash` svarer 404 (»no longer available to new users«), og `gemini-3.8-flash` gav 403 fra serveren; begge sættes på pause.
   - Gemini er langsommere end Claude: et billedkald tog 7-52 s og indkøbsanalysen 13 s. Se `ms` i `modelkald`, før et trin, som telefonen venter på (`vinted:*`, `dba:*`), skiftes til `gemini`.
+- **Skyggen gennemgået 22. oktober** (kald fra 19.-21. oktober): 38 par i alt,
+  og **intet trin er skiftet til `gemini`**. Der er ikke analyseret en eneste
+  ny vare siden 19. oktober, så billedanalysen, mærkerne, teksten, `dba:*`
+  og resten af `vinted:*` har ingen par endnu.
+
+  | Trin | Par | Fejl | ms (median) | Dom |
+  |---|---|---|---|---|
+  | `vinted:saet_ny_pris` | 34 | 102 | 7.200 (3-19 s) | **dårligere** → sat til `claude` |
+  | `indkob` | 2 | 2 | 13.600 | for få data (begge par lige så gode) |
+  | `laering` | 0 | 4 | — | for få data |
+  | `vinted:ny_beskrivelse` | 0 | 1 | — | for få data |
+  | analysen, mærkerne, `dba:*` | 0 | 0 | — | ikke kørt |
+
+  - **Prisvagten (`saet_ny_pris`)**: 10 af 34 gange en anden handling end
+    Claude, og Gemini sænker mindre (nr. 54: 130 mod 75 kr, median 45;
+    nr. 121: 130 mod 99). Tre gange »stop«/»tag den hjem« med 30 dage, hvor
+    Claude lavede et stort spring (id 55, 70), og én gang (id 10) sænkede
+    Gemini en vare, hvor Claude rigtigt sagde, at prisen ikke var problemet
+    (0 hjerter under medianen). Begrundelserne er kortere og nævner sjældent
+    tallene. Den er sat til `claude` — skyggen gav ikke mere at vide, og den
+    brugte kvoten.
+  - **Gratiskvoten slipper op ved et pristjek af alle annoncer.** 21. oktober
+    kl. 9.24 og 21.26 (»Tjek priserne nu«) svarede alle modeller 429 »You
+    exceeded your current quota« efter ~20 kald, og 3.8 Flash løb 20 gange
+    ind i fristen på 40 s. Ellers 503 »high demand« (19. og 21. oktober).
+    Kun 34 af 136 forsøg lykkedes. Et trin i `gemini`, der kører i byger,
+    ville derfor ofte vente 40 s og så gå til Claude — telefonen venter.
+  - Næste gennemgang, når der er analyseret varer: `select trin, count(*)
+    from modelkald where skygge group by 1`.
 
 ## Forsendelsen
 
