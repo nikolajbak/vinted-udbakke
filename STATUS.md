@@ -1,7 +1,8 @@
 # Status — 8. oktober 2026
 
 Hvor projektet står lige nu. `CLAUDE.md` rummer det, der er **målt** og ikke må
-laves om; denne fil rummer det, der er **i gang** og går til.
+laves om; denne fil rummer det, der er **i gang** og går til. (Siden 22. oktober står de fleste afsnit, der
+henvises til som »CLAUDE.md »X««, i `.claude/rules/` — se tabellen nederst i CLAUDE.md.)
 
 ## Virker og er ude
 
