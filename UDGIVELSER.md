@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0147 — 2026-10-23 17:17
+
+Commit `b96c471` — Hjerter fra garderoben: sælgerens egen annonceside har intet favourite_count  
+App: `app.js?v=88f66e7c` · `style.css?v=4197740c`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v99 | `c789b74b` |
+| dba-fill-script | v47 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v38 | `8b0e0533` |
+| vinted-fill-script ← | v132 | `9725b9cc` |
+| vinted-mail | v31 | `68f3750b` |
+
 ## udgivelse-0146 — 2026-10-21 23:03
 
 Commit `38f0d85` — Hjerter: findes i enhver feltrækkefølge, og ikke fundet er null, ikke 0  
