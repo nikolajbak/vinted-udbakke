@@ -189,6 +189,7 @@ tilbage: `begin; select f(); rollback;`.
 - Ny beslutning eller nyt målt fund → under sit emne i den regelfil, emnet hører til (tabellen herunder). Et nyt emne
   får en ny regelfil med `paths:`. Ret ikke et målt fund uden at måle igen.
 - Dansk i brugerflade, navne og commits.
+- **Tokenforbrugende kørsler ligger uden for Anthropics spidstid** (Nikolaj 2026-10-23): hverdage 05–11 PT ≈ 14–20 dansk tid. En planlagt kørsel, der kalder en model (routine, Actions, pg_cron → edge-funktion), startes ikke man–fre kl. 12:00–18:59 UTC (dækker både sommer- og vintertid); weekenden er fri. Brugerudløste og tidskritiske kørsler (kundebeskeder, ordrer, påmindelser på et fast klokkeslæt) er undtaget. pg_cron: `prisvagt-puls` 08 UTC og `laering-puls` man 05:30 UTC; analyse af kladder er brugerudløst.
 
 ## Mere
 
