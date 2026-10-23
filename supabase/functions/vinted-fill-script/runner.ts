@@ -824,16 +824,18 @@ async function hentVare(id,kunApi){
  // Står du på annoncen, er siden her allerede. Vinted skifter adresse uden at
  // genindlæse, så sidens data skal bære det rigtige nummer, før de bruges.
  if(new RegExp('^/items/'+id+'(?:\\D|$)').test(location.pathname)){
-  var her=laesAnnonceside(document.documentElement.outerHTML,id);
-  if(her){log('vagt: '+id+' målt på den åbne side');return her}
+  var aaben=document.documentElement.outerHTML;
+  var her=laesAnnonceside(aaben,id);
+  if(her){log('vagt: '+id+' målt på den åbne side');return await medHjerter(her,aaben,id)}
  }
  if(kunApi){log('synk: '+id+' svarede ikke via api');return null}
  try{
   var h=await timedFetch('/items/'+id,{credentials:'include'},15000);
   if(h.status===404||h.status===410){log('vagt: '+id+' findes ikke (side)');return {gone:true}}
   if(!h.ok)return null;
-  var set=laesAnnonceside(await h.text(),id);
-  if(set){log('vagt: '+id+' målt via annoncesiden');return set}
+  var tekst=await h.text();
+  var set=laesAnnonceside(tekst,id);
+  if(set){log('vagt: '+id+' målt via annoncesiden');return await medHjerter(set,tekst,id)}
  }catch(e){}
  log('vagt: '+id+' kunne ikke måles');
  return null;
@@ -899,6 +901,41 @@ function hjerterPaaSiden(t,id){
  var eget=new RegExp('"(?:item_)?id\\\\?":\\\\?"?'+id+'(?!\\d)');
  while((m=re.exec(t)))if(eget.test(m[0]))return +m[1];
  return null;
+}
+
+// Sælgerens egen annonceside har slet ikke hjerterne (målt 23. oktober i
+// browserruden, logget ind: intet favourite_count, kun anonymt). Tilsynet
+// henter siden som sælger, så siden 18. oktober er intet hjerte målt — Acne
+// stod til 4 i appen og 19 på Vinted. Garderoben har dem for alle varer i ét
+// kald, og view_count er her det rigtige tal (90 på tæppet), ikke 0.
+// Sælgerens nummer står ved varens eget nummer på siden.
+var GARDEROBE=null;
+async function garderoben(bruger){
+ if(GARDEROBE&&GARDEROBE.bruger===bruger&&Date.now()-GARDEROBE.tid<120000)return GARDEROBE.varer;
+ var varer={};
+ for(var side=1;side<=5;side++){
+  var r=await timedFetch('/api/v2/wardrobe/'+bruger+'/items?page='+side+'&per_page=96&order=newest_first',
+   {headers:{'Accept':'application/json'},credentials:'include'},15000);
+  if(!r.ok){spor('garderobe: '+r.status);return null}
+  var j=await r.json();
+  (j.items||[]).forEach(function(it){
+   varer[String(it.id)]={hjerter:+(it.favourite_count||0),vist:+(it.view_count||0)};
+  });
+  if(!(j.pagination&&j.pagination.total_pages>side))break;
+ }
+ GARDEROBE={bruger:bruger,tid:Date.now(),varer:varer};
+ return varer;
+}
+async function medHjerter(set,t,id){
+ if(!set||set.gone||set.favourites!==null)return set;
+ var m=t.match(new RegExp('item_id\\\\?":\\\\?"?'+id+'\\\\?"?,\\\\?"seller_id\\\\?":\\\\?"?(\\d+)'));
+ if(!m){log('vagt: '+id+' — sælgeren stod ikke på siden');return set}
+ try{
+  var g=await garderoben(m[1]),v=g&&g[id];
+  if(v){set.favourites=v.hjerter;set.views=v.vist;log('vagt: '+id+' hjerter fra garderoben')}
+  else log('vagt: '+id+' — ikke i garderoben');
+ }catch(e){log('vagt: garderoben svarede ikke')}
+ return set;
 }
 
 // Ét tilsyn: hvad er forfaldent, hvordan står det til, og hvad siger serveren.

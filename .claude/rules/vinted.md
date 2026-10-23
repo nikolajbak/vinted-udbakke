@@ -389,6 +389,13 @@ intet på dig, lukkes den, når runneren er færdig.**
   skåret til to og springes over på en målt forbindelse.
 - **`favourite_count` er brugbar, `view_count` er altid 0.** Mange hjerter på en
   vare, der stadig ligger der, er et loft, ikke et mål.
+- **Sælgerens egen annonceside har ingen hjerter** (23. oktober, logget ind i
+  browserruden): intet `favourite_count` i HTML'en, kun i den anonyme side.
+  Tilsynet henter siden som sælger, så intet hjerte var målt siden 18. oktober
+  (Acne: appen 4, Vinted 19). `medHjerter` tager dem fra garderoben
+  (`/api/v2/wardrobe/{bruger}/items`, alle varer i ét kald, gemt to minutter),
+  og dér er `view_count` det rigtige tal. Sælgerens nummer læses ved varens
+  eget `item_id` på siden.
 
 ## Vinted: billederne i en annonce
 

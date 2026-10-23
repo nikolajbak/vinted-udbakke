@@ -211,7 +211,10 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   måling siden 18. oktober, og mailenes hjerter blev nulstillet (tæppet 9 → 0,
   Vinted viste 10). `hjerterPaaSiden` finder tallet i enhver rækkefølge, og
   null får serveren til at beholde sit tal. Logger `hjerterne stod ikke på
-  siden`, hvis sælgerens side mangler tallet helt.
+  siden`, hvis sælgerens side mangler tallet helt — og det gør den altid
+  (23. oktober), så hjerterne kommer fra garderoben (`medHjerter`, se
+  `vinted.md`). Vinted sender ikke en mail for hvert hjerte: skaljakken fik
+  tre mails og havde ti.
 - **Besked** → står købers ord i mailen, skriver køber-assistenten et udkast
   (`mode:'negotiate'` med `kilde:'mail'`), og forsiden viser opgaven »Køber
   skriver om …« med **Kopiér svaret**, **Åbn samtalen** og **Klaret**
