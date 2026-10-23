@@ -108,8 +108,8 @@ og `npm:`), så det, der kører, er præcis det pushede commit. Prøv først på
 midlertidig funktion. Cloud-sessionen kan ikke selv kalde supabase.co
 (proxy 403), så tjek med `net.http_get` fra databasen og læs
 `net._http_response`; nøglen tages fra vault (`shortcut_key`) inde i SQL'en.
-MCP'en kan ikke slette en funktion — `vinted-fill-proeve` står som en tom
-stub (410) og kan slettes i Supabase.
+MCP'en kan ikke slette en funktion; den midlertidige slettes bagefter lokalt med
+`supabase functions delete <navn> --project-ref gjycsqshkvkcupdnvgvf`.
 
 `tilbage.sh` skriver aldrig historien om. Den henter indholdet fra mærket og
 lægger det oven på som et nyt commit, så selve tilbagerulningen også kan
