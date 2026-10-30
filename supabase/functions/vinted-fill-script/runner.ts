@@ -56,17 +56,33 @@ function spor(s,id){
 // stille. Holdes kun i et begraenset tidsrum (vaagen(min)) og slippes, naar
 // arbejdet er gjort. Laasen forsvinder, naar fanen skjules, og tages igen, naar
 // den vises. Vil Safari ikke give den uden et tryk, tages den ved det foerste.
-var LAAS=null,VAAGEN_TIL=0,VAAGEN_SIDST='',VAAGEN_UR=null;
+// Safari afviser den paa naesten hver side uden et tryk (maalt 30. oktober:
+// NotAllowedError ved hvert prisskift), og prisskiftet skifter side for hver
+// annonce. Derfor beder et baand nederst om trykket.
+var LAAS=null,VAAGEN_TIL=0,VAAGEN_SIDST='',VAAGEN_UR=null,VAAGEN_BAAND=null;
 function vaagenMeld(s){if(s!==VAAGEN_SIDST){VAAGEN_SIDST=s;spor('vaagen: '+s)}}
+function vaagenBaand(vis){
+ if(!vis){if(VAAGEN_BAAND){VAAGEN_BAAND.remove();VAAGEN_BAAND=null}return}
+ if(VAAGEN_BAAND||!document.body)return;
+ var b=document.createElement('button');
+ b.type='button';b.textContent='Tryk her, så skærmen holder sig tændt, mens runneren arbejder';
+ b.setAttribute('style','position:fixed;left:0;right:0;bottom:0;z-index:2147483647;border:0;'+
+  'background:#b45309;color:#fff;font:600 15px/1.4 -apple-system,system-ui,sans-serif;'+
+  'padding:14px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -2px 10px rgba(0,0,0,.25)');
+ b.addEventListener('click',tagLaas);
+ document.body.appendChild(b);
+ VAAGEN_BAAND=b;
+}
 function tagLaas(){
  if(LAAS||document.hidden||Date.now()>=VAAGEN_TIL)return;
  if(!navigator.wakeLock){vaagenMeld('findes ikke i denne browser');return}
  navigator.wakeLock.request('screen').then(function(l){
   if(Date.now()>=VAAGEN_TIL){l.release().catch(function(){});return}
-  LAAS=l;vaagenMeld('skaermen holdes taendt');
+  LAAS=l;vaagenMeld('skaermen holdes taendt');vaagenBaand(false);
   l.addEventListener('release',function(){if(LAAS===l)LAAS=null});
  },function(e){
   vaagenMeld('afvist ('+(e&&e.name)+'), venter paa et tryk');
+  vaagenBaand(true);
   document.addEventListener('touchend',tagLaas,{once:true,capture:true});
  });
 }
@@ -76,7 +92,7 @@ function vaagen(min){
  tagLaas();
 }
 function slip(){
- VAAGEN_TIL=0;clearTimeout(VAAGEN_UR);
+ VAAGEN_TIL=0;clearTimeout(VAAGEN_UR);vaagenBaand(false);
  if(LAAS){var l=LAAS;LAAS=null;l.release().catch(function(){})}
 }
 document.addEventListener('visibilitychange',function(){if(!document.hidden)tagLaas()});
@@ -1532,6 +1548,8 @@ async function prisvagt(){
  }
  // 1) Lige gemt en pris? Så skal den bekræftes, før noget andet.
  var mk=hentMarkoer();
+ // Priserne sættes side for side: skærmen må ikke slukke undervejs.
+ if(mk)vaagen(3);
  var kv0=await bekraeft();
  if(kv0){videre(mk.itemId,kv0);return true}
 
@@ -1556,6 +1574,7 @@ async function prisvagt(){
   // og de skal godkendes i appen først (18. oktober). Den ryddes her.
   try{localStorage.removeItem(VAGT_KOE)}catch(e){}
   if(post){
+   vaagen(3);
    var kv=await anvend(post);
    if(kv&&kv.ok)videre(red[1],kv);
    else{

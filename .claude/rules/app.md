@@ -78,11 +78,15 @@ stå. `vaagen(min)`/`slip()` i begge runnere (Screen Wake Lock API).
   en fane åbnet fra appen (5 min, sluppet af `lukFanen`), formularen væk
   efter Upload (3 min, sluppet ved tilknytningen), landet efter Upload uden
   for `/items/` (2 min). DBA: valget af Markedspladsen (2 min) og
-  udfyldningen (10 min).
-- Låsen forsvinder, når fanen skjules, og tages igen, når den vises. Afviser
-  Safari den uden et tryk, tages den ved første tryk.
+  udfyldningen (10 min). Prisvagten, når den sætter en pris — også uden
+  for appen — og kvitterer bagefter (3 min pr. side; Nikolaj 2026-10-30).
+- Låsen forsvinder, når fanen skjules, og tages igen, når den vises.
+- **Safari afviser den uden et tryk på næsten hver side** (målt i `spor`
+  2026-10-30: `NotAllowedError` ved hvert prisskift; kun holdt én gang, efter
+  et tryk). Derfor viser Vinted-runneren et orange bånd nederst, »Tryk her, så
+  skærmen holder sig tændt …« (`vaagenBaand`); trykket tager låsen, båndet
+  går, og `slip()` fjerner det. DBA-runneren har ikke båndet endnu.
 - `spor` »vaagen: …« siger, om den blev holdt, afvist eller ikke findes.
-  **Ikke målt på telefonen endnu.**
 
 ## Appens opbygning
 
