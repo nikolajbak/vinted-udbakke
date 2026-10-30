@@ -740,6 +740,8 @@
      prisvagtens forslag, saa salgspriserne. Forslagene ligger i listings og
      hentes for sig; null = ikke hentet, 'fejl' = kunne ikke hentes. */
   var OPG_FORSLAG = null;
+  // Godkendte priser (og dine rettelser), der endnu ikke er sat paa Vinted.
+  var OPG_VENTER = [];
   // Forslag, der er sendt afsted, men ikke svaret paa: de kan ikke trykkes
   // igen, heller ikke naar skaermen tegnes om imens (realtid).
   var OPG_I_GANG = {};
@@ -752,11 +754,16 @@
   }
   function hentOpgaver(){
     var seq = ++OPG_SEQ;
-    return sb.from('listings').select('*').eq('status', 'aktiv').not('forslag', 'is', null)
-      .then(function(res){
-        if(seq === OPG_SEQ) OPG_FORSLAG = res.error ? 'fejl' : (res.data || []).filter(harForslag);
-      }, function(){ if(seq === OPG_SEQ) OPG_FORSLAG = 'fejl'; })
-      .then(function(){
+    return Promise.all([
+      sb.from('listings').select('*').eq('status', 'aktiv').not('forslag', 'is', null)
+        .then(function(res){
+          if(seq === OPG_SEQ) OPG_FORSLAG = res.error ? 'fejl' : (res.data || []).filter(harForslag);
+        }, function(){ if(seq === OPG_SEQ) OPG_FORSLAG = 'fejl'; }),
+      sb.from('listings').select('*').eq('status', 'aktiv').not('pending', 'is', null).order('pending_since')
+        .then(function(res){
+          if(seq === OPG_SEQ && !res.error) OPG_VENTER = (res.data || []).filter(kanSaettes);
+        }, function(){})
+    ]).then(function(){
         if(seq !== OPG_SEQ) return;
         if(!screenEl('opgaver').hidden) tegnOpgaveSkaerm();
         opdaterOpgaveTal();
@@ -810,7 +817,7 @@
     if(!KOE_HENTET){ el.innerHTML = OPG_SKELET; return; }
     if(!OPG_FANE){
       if(akut.length) OPG_FANE = 'nu';
-      else if(OPG_FORSLAG !== null) OPG_FANE = fo.length || OPG_FORSLAG === 'fejl' ? 'forslag' : stille.length ? 'salg' : 'nu';
+      else if(OPG_FORSLAG !== null) OPG_FANE = fo.length || OPG_VENTER.length || OPG_FORSLAG === 'fejl' ? 'forslag' : stille.length ? 'salg' : 'nu';
     }
     var ned = fo.reduce(function(n, l){ return n + Math.max(0, (prisTal(l.price) || 0) - (prisTal(l.forslag.price) || 0)); }, 0);
     var h = '<div class="lager-felter" role="tablist" id="opg-faner">' +
@@ -820,7 +827,7 @@
       opgFelt('salg', stille.length, 'Salgspris') + '</div>';
     var liste = function(k){ return '<div class="opg-liste">' + k.map(function(x){ return x.h; }).join('') + '</div>'; };
     if(!OPG_FANE) h += OPG_SKELET;
-    else if(!akut.length && !stille.length && Array.isArray(OPG_FORSLAG) && !fo.length){
+    else if(!akut.length && !stille.length && Array.isArray(OPG_FORSLAG) && !fo.length && !OPG_VENTER.length){
       h += opgTom('Intet venter på dig', 'Nye opgaver dukker op her, fx når en vare er solgt eller en køber skriver.', true);
     } else if(OPG_FANE === 'nu'){
       h += akut.length ? liste(akut) : opgTom('Intet haster', 'Her står det, der ikke kan vente: en solgt vare, der stadig er ude andre steder, en køber, der skriver.');
@@ -831,8 +838,9 @@
     } else if(OPG_FORSLAG === 'fejl'){
       h += '<div class="opg-grp opg-fejl"><span>Prisforslagene kunne ikke hentes.</span>' +
         '<button type="button" class="opg-alle" id="opg-igen">Prøv igen</button></div>';
-    } else if(fo.length){
-      h += (fo.length > 1 ? '<div class="opg-grp"><span class="label">Foreslået af prisvagten</span>' +
+    } else if(fo.length || OPG_VENTER.length){
+      h += saetBlok(OPG_VENTER, 'opg-saet');
+      if(fo.length) h += (fo.length > 1 ? '<div class="opg-grp"><span class="label">Foreslået af prisvagten</span>' +
           '<button type="button" class="opg-alle" id="opg-godkend-alle"' +
           (Object.keys(OPG_I_GANG).length ? ' disabled' : '') + '>Godkend alle</button></div>' : '') +
         '<div class="opg-liste">' + fo.map(forslagRaekke).join('') + '</div>';
@@ -859,6 +867,8 @@
         if(d) openDetail(d.id);
       });
     });
+    var saet = $('opg-saet');
+    if(saet) saet.addEventListener('click', function(){ saetPaaVinted(OPG_VENTER); });
     var igen = $('opg-igen');
     if(igen) igen.addEventListener('click', hentOpgaver);
     var alle = $('opg-godkend-alle');
@@ -870,7 +880,7 @@
         return godkendForslag(l).catch(function(){ return false; }).then(function(ok){ forslagSendt(l); return ok; });
       })).then(function(r){
         var ok = r.filter(Boolean).length, galt = r.length - ok;
-        toast(ok ? ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — sættes, næste gang Vinted er åben' +
+        toast(ok ? ok + ' ' + (ok === 1 ? 'pris godkendt' : 'priser godkendt') + ' — tryk »Sæt på Vinted nu«' +
           (galt ? ' · ' + galt + ' kunne ikke gemmes' : '') : 'Ingen af priserne kunne gemmes — prøv igen');
         hentOpgaver();
       });
@@ -886,7 +896,7 @@
         OPG_I_GANG[l.id] = 1;
         Array.prototype.forEach.call(r.querySelectorAll('[data-f]'), function(k){ k.disabled = true; });
         (godkend ? godkendForslag(l) : afvisForslag(l)).catch(function(){ return false; }).then(function(ok){
-          if(ok) toast(godkend ? 'Godkendt — sættes, næste gang Vinted er åben' : 'Afvist — prisen bliver, hvor den er');
+          if(ok) toast(godkend ? 'Godkendt — tryk »Sæt på Vinted nu«' : 'Afvist — prisen bliver, hvor den er');
           forslagSendt(l);
           hentOpgaver();
         });
@@ -1313,7 +1323,7 @@
     if(harForslag(l)) return 'Prisvagt: foreslår ' + kr(l.forslag.price) + ' — venter på din godkendelse under Prisvagt';
     var pv = l.pending && l.pending.price;
     if(pv) return 'Prisvagt: ny pris ' + kr(pv) + ' på vej — ' +
-      (sidderFast(l) ? 'Vinted har ikke været åben i Safari' : 'sættes, næste gang Vinted er åben');
+      (sidderFast(l) ? 'Vinted har ikke været åben i Safari' : 'ikke sat på Vinted endnu');
     if(l.status === 'pause') return 'Prisvagt: på pause';
     if(!l.auto) return 'Prisvagt: sætter ikke længere ned' + (l.note ? ' — ' + l.note : '');
     return 'Prisvagt: ' + (l.last_check_at ? 'tjekket ' + relTime(l.last_check_at) : 'ikke tjekket endnu') +
@@ -4204,7 +4214,7 @@
            (pv && l.pending_note ? '<span>' + esc(l.pending_note) + '</span>' : '') +
            '<span>' + (sidderFast(l)
              ? 'Besluttet ' + esc(relTime(l.pending_since) || 'for over et døgn siden') + ', men Vinted har ikke været åben i Safari siden.'
-             : 'Sættes af sig selv, næste gang Vinted er åben i Safari.') + '</span>' +
+             : 'Ikke sat på Vinted endnu.') + '</span>' +
            '<button type="button" class="btn ' + (sidderFast(l) ? 'btn-primary' : 'btn-secondary') + '" data-v="saet">Sæt den på Vinted nu</button></div>';
     } else if(l.status === 'pause'){
       h += '<div class="vagt-stop"><span>Sat på pause af dig. Prisen bliver, hvor den er.</span>' +
@@ -4348,7 +4358,9 @@
     oeje.sort(function(a, b){ return String(a.next_check_at).localeCompare(String(b.next_check_at)); });
 
     var h = vagtStatus(aktive);
-    h += vagtAfsnit('Ny pris på vej', 'Sættes af sig selv, næste gang Vinted er åben.', paaVej);
+    // Én annonce har sin egen knap i raekken; blokken er til flere ad gangen.
+    if(paaVej.filter(kanSaettes).length > 1) h += saetBlok(paaVej.filter(kanSaettes), 'vagt-saet');
+    h += vagtAfsnit('Ny pris på vej', '', paaVej);
     h += vagtAfsnit('Holder øje', 'Foreslår en lavere pris, når den står højt mod lignende varer.', oeje);
     h += vagtAfsnit('Rører ikke prisen', 'På pause eller stoppet.', fri);
     if(solgte.length){
@@ -4366,6 +4378,8 @@
 
     var vn = $('vagt-nu');
     if(vn) vn.addEventListener('click', tjekPriserNu);
+    var vs = $('vagt-saet');
+    if(vs) vs.addEventListener('click', function(){ saetPaaVinted(paaVej.filter(kanSaettes)); });
     Array.prototype.forEach.call(krop.querySelectorAll('.vagt-row [data-v]'), function(el){
       var raekke = el.closest('.vagt-row');
       var l = alle.filter(function(x){ return x.id === raekke.getAttribute('data-l'); })[0];
@@ -4422,8 +4436,29 @@
     }
   }
 
-  // Godkendt: prisen lægges i pending som en rettelse fra dig, og runneren
-  // sætter den, næste gang Vinted er åben. Forslaget ryddes.
+  // Kan runneren saette det, der venter? Kun en Vinted-annonce med et nummer.
+  function kanSaettes(l){
+    return !!(l && l.platform === 'vinted' && l.external_id && venterFelter(l).length);
+  }
+  // Det godkendte saettes med det samme i stedet for ved naeste besoeg: den
+  // foerste annonces redigeringsside med #udbakke=ret, og runnerens runde gaar
+  // selv videre til den naeste, der venter (serverens »naeste«), og lukker
+  // fanen til sidst.
+  function saetPaaVinted(liste){
+    if(!liste.length) return;
+    aabnUdad('https://www.vinted.dk/items/' + liste[0].external_id + '/edit#udbakke=ret');
+  }
+  function saetBlok(liste, id){
+    if(!liste.length) return '';
+    var n = liste.length;
+    return '<div class="saet-blok"><span><b>' + n + (n === 1 ? ' ændring venter' : ' ændringer venter') +
+      ' på at blive sat på Vinted</b>Åbner Vinted i Safari og gemmer ' + (n === 1 ? 'den' : 'dem én efter én') +
+      '. Lad skærmen være tændt.</span>' +
+      '<button type="button" class="btn btn-primary" id="' + id + '">Sæt på Vinted nu</button></div>';
+  }
+
+  // Godkendt: prisen lægges i pending som en rettelse fra dig, og »Sæt på
+  // Vinted nu« (eller naeste besoeg paa Vinted) saetter den. Forslaget ryddes.
   function godkendForslag(l){
     var fo = l.forslag, nu = Object.assign({}, l.pending || {}, { price: Number(fo.price) });
     return sb.from('listings').update({

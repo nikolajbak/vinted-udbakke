@@ -148,6 +148,13 @@ laver en liste til godkendelse.** Erstatter beslutningen fra 16. oktober
   `pending_note` »Godkendt af dig: …«, `forslag` ryddes, `price_events`
   `godkendt`. Så sætter runneren den selv, næste gang en Vinted-side er
   åben (`selvTil`) — dit ja er trykket.
+- **»Sæt på Vinted nu«** (Nikolaj 2026-10-30: appen skal ikke bare sige »sættes
+  næste gang Vinted er åben«): Opgaver → Prisforslag viser over forslagene en
+  blok med alt godkendt/rettet, der venter i `pending` (`OPG_VENTER`,
+  `kanSaettes`, `saetBlok`); Prisvagt-skærmen viser den over »Ny pris på vej«,
+  når 2+ venter (én har rækkens egen knap). Knappen (`saetPaaVinted`) åbner den
+  ældste ventendes redigeringsside med `#udbakke=ret`; runnerens runde
+  (`rundeAktiv`, serverens `naeste`) gemmer dem én efter én og lukker fanen.
 - **Afvis** (`afvisForslag`): `forslag` ryddes, næste tjek om 7 dage,
   `price_events` `afvist`. `historikLinjer` i `prisvagt.ts` viser modellen
   afvisningen, så den ikke bare foreslår det samme igen.
@@ -205,8 +212,8 @@ baggrunden**, og når du trykker »Tjek priserne nu«.
 - **Prisvagt-skærmen** (`tegnVagt`): et statuskort øverst (»Holder øje med N
   annoncer«, sidste tjek, og — er annoncer over et døgn forsinkede — rav
   med »Tjek priserne nu« som primær knap). Så tre grupper med overskrift
-  (forslagene står under Opgaver, se »Kun forslag«): **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »sættes
-  af sig selv, næste gang Vinted er åben«; rav og en primær knap, når den
+  (forslagene står under Opgaver, se »Kun forslag«): **Ny pris på vej** (pris med den gamle overstreget, begrundelsen, »ikke sat
+  på Vinted endnu« og »Sæt den på Vinted nu«; rav og en primær knap, når den
   har ventet over et døgn), **Holder øje** (seneste dom: »Tjekket for 2
   dage siden · 40 lignende til ca. 150,00 kr« og »Næste tjek: om 3 dage«),
   **Rører ikke prisen** (pause eller stoppet, med grunden og Genoptag/Tjek

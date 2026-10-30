@@ -43,6 +43,7 @@ set -a; . ./.env.secrets; set +a      # nøglerne i miljøet
 | Forsendelsen læst af Vinteds mails (`erForsendelse`, `laesForsendelse`, `fletForsendelse`, `vaelgMaerkat`, rene og testet med `node --test tools/test-forsendelse.mjs`); mærkatet gemt i `vinted-mail` | `supabase/functions/_shared/forsendelse.ts`, `vinted-mail/index.ts` |
 | Forsendelsen på varens side (`forsendelseBlok`, `hentMaerkater`, `fristTekst`, `fsHandling`) og opgaverne »Lav fragtmærkatet«/»Send pakken«; mærkatet i fuld skærm (`visMaerkat`, `hentPdfJs`), lagt ind af dig (`laegMaerkatInd`), afleveret (`fsAfleveret`), sporingen (`fsSporLink`) | `app.js`, `#fs-stor`/`#fs-fil` i `index.html`, `.fs-…` i `style.css` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |
+| »Sæt på Vinted nu«: det godkendte i `pending` sat med det samme som én runde (`saetPaaVinted`, `saetBlok`, `kanSaettes`, `OPG_VENTER` → `#udbakke=ret`) | `app.js` |
 | »Tjek priserne nu«: alle annoncer, kvitteringen i appen (`tjekPriserNu`, `vagtNuKvittering`; runnerens `vagtNuMeld`; `mode:'vagtNu'` → `puls` `prisvagt-nu`) | `app.js`, `runner.ts`, `…/vinted-fill-script/index.ts` |
 | Reglerne for annoncetekst + opslag af nypris/mål | `supabase/functions/_shared/beskrivelse.ts` |
 | Producentens billeder af varen på en person (kun til appen): kandidaterne fra produktsidens HTML og udvælgelsen (`billedKandidater`, `udvaelg`, rene og testet med `node --test tools/test-producentbilleder.mjs`); modelkaldet `vaelgBilleder` | `supabase/functions/_shared/producentbilleder.ts`; `vaelgBilleder` i `_shared/beskrivelse.ts` |
