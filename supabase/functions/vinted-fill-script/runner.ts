@@ -55,34 +55,46 @@ function spor(s,id){
 // den fanen til at sove, og saa staar udfyldningen eller vagten efter Upload
 // stille. Holdes kun i et begraenset tidsrum (vaagen(min)) og slippes, naar
 // arbejdet er gjort. Laasen forsvinder, naar fanen skjules, og tages igen, naar
-// den vises. Vil Safari ikke give den uden et tryk, tages den ved det foerste.
-// Safari afviser den paa naesten hver side uden et tryk (maalt 30. oktober:
-// NotAllowedError ved hvert prisskift), og prisskiftet skifter side for hver
-// annonce. Derfor beder et baand nederst om trykket.
-var LAAS=null,VAAGEN_TIL=0,VAAGEN_SIDST='',VAAGEN_UR=null,VAAGEN_BAAND=null;
+// den vises.
+// Safari afviser Wake Lock uden et tryk paa naesten hver side (maalt 30.-31.
+// oktober: NotAllowedError ved hvert sideskift; et tryk gav laasen, men den var
+// vaek paa naeste side). Et baand, der bad om trykket, blev fjernet 31. oktober
+// (Nikolaj: der skal ikke trykkes). I stedet afspilles en lydloes video uden
+// tryk: WebKit lader skaermen vaere taendt, mens en video med lydspor spiller
+// og ikke har loop (derfor springer den tilbage selv). Om det holder paa
+// telefonen, siger spor »vaagen: video …« og »vaagen: skjult mens …«.
+// Videoen er NoSleep.js' (MIT, Rich Tibbett).
+var LAAS=null,VAAGEN_TIL=0,VAAGEN_SIDST='',VAAGEN_UR=null,VAAGEN_VIDEO=null;
+var VAAGEN_MP4='data:video/mp4;base64,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';
 function vaagenMeld(s){if(s!==VAAGEN_SIDST){VAAGEN_SIDST=s;spor('vaagen: '+s)}}
-function vaagenBaand(vis){
- if(!vis){if(VAAGEN_BAAND){VAAGEN_BAAND.remove();VAAGEN_BAAND=null}return}
- if(VAAGEN_BAAND||!document.body)return;
- var b=document.createElement('button');
- b.type='button';b.textContent='Tryk her, så skærmen holder sig tændt, mens runneren arbejder';
- b.setAttribute('style','position:fixed;left:0;right:0;bottom:0;z-index:2147483647;border:0;'+
-  'background:#b45309;color:#fff;font:600 15px/1.4 -apple-system,system-ui,sans-serif;'+
-  'padding:14px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -2px 10px rgba(0,0,0,.25)');
- b.addEventListener('click',tagLaas);
- document.body.appendChild(b);
- VAAGEN_BAAND=b;
+function vaagenVideo(){
+ if(!document.body)return;
+ var v=VAAGEN_VIDEO;
+ if(!v){
+  v=document.createElement('video');
+  v.muted=true;v.defaultMuted=true;v.setAttribute('muted','');
+  v.setAttribute('playsinline','');v.setAttribute('aria-hidden','true');
+  v.setAttribute('style','position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:.01;pointer-events:none;z-index:2147483647');
+  v.src=VAAGEN_MP4;
+  v.addEventListener('timeupdate',function(){if(v.currentTime>0.5)v.currentTime=Math.random()*0.5});
+  document.body.appendChild(v);
+  VAAGEN_VIDEO=v;
+ }
+ if(!v.paused)return;
+ var p=v.play();
+ if(p&&p.then)p.then(function(){vaagenMeld('video spiller')},function(e){vaagenMeld('video afvist ('+(e&&e.name)+')')});
 }
 function tagLaas(){
  if(LAAS||document.hidden||Date.now()>=VAAGEN_TIL)return;
- if(!navigator.wakeLock){vaagenMeld('findes ikke i denne browser');return}
+ if(!navigator.wakeLock){vaagenMeld('findes ikke i denne browser');vaagenVideo();return}
  navigator.wakeLock.request('screen').then(function(l){
   if(Date.now()>=VAAGEN_TIL){l.release().catch(function(){});return}
-  LAAS=l;vaagenMeld('skaermen holdes taendt');vaagenBaand(false);
+  LAAS=l;vaagenMeld('skaermen holdes taendt');
+  if(VAAGEN_VIDEO)VAAGEN_VIDEO.pause();
   l.addEventListener('release',function(){if(LAAS===l)LAAS=null});
  },function(e){
-  vaagenMeld('afvist ('+(e&&e.name)+'), venter paa et tryk');
-  vaagenBaand(true);
+  vaagenMeld('afvist ('+(e&&e.name)+'), proever video');
+  vaagenVideo();
   document.addEventListener('touchend',tagLaas,{once:true,capture:true});
  });
 }
@@ -92,10 +104,14 @@ function vaagen(min){
  tagLaas();
 }
 function slip(){
- VAAGEN_TIL=0;clearTimeout(VAAGEN_UR);vaagenBaand(false);
+ VAAGEN_TIL=0;clearTimeout(VAAGEN_UR);
+ if(VAAGEN_VIDEO){VAAGEN_VIDEO.pause();VAAGEN_VIDEO.remove();VAAGEN_VIDEO=null}
  if(LAAS){var l=LAAS;LAAS=null;l.release().catch(function(){})}
 }
-document.addEventListener('visibilitychange',function(){if(!document.hidden)tagLaas()});
+document.addEventListener('visibilitychange',function(){
+ if(!document.hidden){tagLaas();return}
+ if(Date.now()<VAAGEN_TIL)spor('vaagen: skjult mens runneren arbejder ('+(LAAS?'laas':VAAGEN_VIDEO&&!VAAGEN_VIDEO.paused?'video':'intet')+')');
+});
 
 // Hvert eneste ventetraek herunder er begraenset, saa udfyldningen kan ikke gaa
 // i staa. Et kaplaeb mod en tidsudloeser ville ikke standse det, den gav op

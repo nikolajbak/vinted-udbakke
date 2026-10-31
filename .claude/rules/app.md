@@ -82,11 +82,16 @@ stå. `vaagen(min)`/`slip()` i begge runnere (Screen Wake Lock API).
   for appen — og kvitterer bagefter (3 min pr. side; Nikolaj 2026-10-30).
 - Låsen forsvinder, når fanen skjules, og tages igen, når den vises.
 - **Safari afviser den uden et tryk på næsten hver side** (målt i `spor`
-  2026-10-30: `NotAllowedError` ved hvert prisskift; kun holdt én gang, efter
-  et tryk). Derfor viser Vinted-runneren et orange bånd nederst, »Tryk her, så
-  skærmen holder sig tændt …« (`vaagenBaand`); trykket tager låsen, båndet
-  går, og `slip()` fjerner det. DBA-runneren har ikke båndet endnu.
-- `spor` »vaagen: …« siger, om den blev holdt, afvist eller ikke findes.
+  2026-10-30/31: `NotAllowedError` ved hvert sideskift; et tryk gav låsen,
+  men den var væk på næste side). Det orange bånd »Tryk her …« blev fjernet
+  31. oktober — **der skal ikke trykkes for at holde skærmen tændt** (Nikolaj
+  2026-10-31). I stedet afspiller Vinted-runneren en lydløs 4 px-video
+  (`vaagenVideo`, NoSleep.js' mp4 med lydspor, uden `loop` — WebKit lader
+  skærmen sove ved loop). Et tryk et vilkårligt sted tager stadig låsen
+  usynligt. Ikke målt på telefonen endnu. DBA-runneren har ikke videoen.
+- `spor` »vaagen: …« siger, om låsen blev holdt eller afvist, om videoen
+  spiller (»video spiller«/»video afvist«), og »skjult mens runneren
+  arbejder (laas|video|intet)«, når skærmen slukkede alligevel.
 
 ## Appens opbygning
 
