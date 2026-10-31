@@ -1014,6 +1014,30 @@ async function tilsynsrunde(nu,vis){
 // ikke når felterne ser rigtige ud. Det er den samme lære som fra DBA:
 // DOM'en lyver, kilden gør ikke.
 var FELT_TIL_INPUT={price:'#price',title:'#title',description:'#description'};
+// 31. oktober havde titel, beskrivelse og pris mistet deres id'er på
+// redigeringssiden — de hed _r_c_, _r_d_, _r_h_ (Reacts egne), mens
+// vælgerne (category, brand …) beholdt deres. Feltet findes derfor først på
+// id, så name/data-testid, så den label, der står ved det.
+var FELT_ORD={price:/^pris\b/,title:/^titel/,description:/^beskriv/};
+function feltNavn(el){
+ var l=el.id&&document.querySelector('label[for="'+el.id+'"]');
+ var lb=el.getAttribute('aria-labelledby');
+ var t=l?l.textContent:lb&&document.getElementById(lb)?document.getElementById(lb).textContent:
+  el.closest('label')?el.closest('label').textContent:el.getAttribute('aria-label')||el.getAttribute('placeholder')||'';
+ return norm(t);
+}
+function felt(navn){
+ // Kun felter: <meta name="description"> ville ellers blive taget.
+ var el=q('#'+navn)||q('input[name="'+navn+'"],textarea[name="'+navn+'"]')||
+  q('input[data-testid="'+navn+'--input"],textarea[data-testid="'+navn+'--input"]');
+ if(el)return el;
+ var alle=document.querySelectorAll('input,textarea');
+ for(var i=0;i<alle.length;i++){
+  if(alle[i].type==='hidden'||alle[i].type==='checkbox'||alle[i].type==='radio')continue;
+  if(FELT_ORD[navn].test(feltNavn(alle[i])))return alle[i];
+ }
+ return null;
+}
 
 // Billedernes rækkefølge (bestemt af dig 17. oktober), se fotos.ts.
 // /api/v2/item_upload/items/{id} giver annoncens billed-id'er i Vinteds
@@ -1173,7 +1197,7 @@ async function anvend(post){
  // ikke på redigeringssiden endnu.
  // 30 s, ikke 15: 30.–31. oktober fandt den ingen felter efter 15 s (årsagen
  // ikke målt — sporet herunder viser siden, hvis det sker igen).
- for(var i=0;i<120;i++){ if(q('#price')||q('#title'))break; await sleep(250) }
+ for(var i=0;i<120;i++){ if(felt('price')||felt('title'))break; await sleep(250) }
  // Nye billeder først: et upload kan tegne formularen om.
  var nyePar=[];
  if(Array.isArray(f.fotos)&&f.fotos.some(function(x){return x&&typeof x==='object'})){
@@ -1184,7 +1208,7 @@ async function anvend(post){
  var sat=[],manglende=[],allerede=[];
  for(var navn in FELT_TIL_INPUT){
   if(!(navn in f)||f[navn]===null||f[navn]==='')continue;
-  var el=q(FELT_TIL_INPUT[navn]);
+  var el=felt(navn);
   if(!el){manglende.push(navn);continue}
   // Redigeringssiden viser det, Vinted har gemt. Står ændringen der allerede
   // — fordi Gem gik igennem sidst, men kvitteringen aldrig nåede frem — er
@@ -1210,7 +1234,7 @@ async function anvend(post){
  if(!sat.length&&allerede.length){
   spor('anvend: '+allerede.join(', ')+' stod allerede i annoncen');
   var fra={kilde:'formular',url:location.origin+'/items/'+post.itemId};
-  for(var fn in FELT_TIL_INPUT){var fe=q(FELT_TIL_INPUT[fn]);if(fe)fra[fn]=fn==='price'?helKroner(fe.value):fe.value}
+  for(var fn in FELT_TIL_INPUT){var fe=felt(fn);if(fe)fra[fn]=fn==='price'?helKroner(fe.value):fe.value}
   var kv=await kvitter(post,fra);
   if(kv&&kv.ok&&!(kv.tilbage||[]).length)kv.tekst='Ændringen stod allerede i annoncen — kvitteret i appen.';
   else baand('Kunne ikke kvittere i appen. Prøv igen fra appen.',null,null);
@@ -1219,11 +1243,12 @@ async function anvend(post){
  if(!sat.length){
   // Hvad stod der så? 30.–31. oktober fejlede én annonce to gange, og log()
   // når ikke serveren, så det kunne ikke ses, om siden var en anden.
-  var felt=[].slice.call(document.querySelectorAll('input,textarea')).slice(0,25)
-   .map(function(e){return e.id||e.name||e.getAttribute('data-testid')||e.type}).join(',');
+  var fl=[].slice.call(document.querySelectorAll('input,textarea'))
+   .filter(function(e){return !/^ot-/.test(e.id)}).slice(0,25)
+   .map(function(e){return (e.id||e.name||e.type)+(e.getAttribute('data-testid')?'['+e.getAttribute('data-testid')+']':'')+'='+feltNavn(e).slice(0,30)}).join(', ');
   var h1=q('h1');
   spor('anvend: ingen felter ('+manglende.join(',')+') · '+location.href+' · h1 »'+
-   (h1?norm(h1.textContent).slice(0,80):'')+'« · felter: '+felt+' · tekst: '+
+   (h1?norm(h1.textContent).slice(0,80):'')+'« · felter: '+fl+' · tekst: '+
    norm(document.body?document.body.innerText:'').slice(0,300));
   log('anvend: ingen felter kunne sættes ('+manglende.join(',')+')');
   baand('Felterne kunne ikke findes på redigeringssiden.',null,null);
@@ -1277,9 +1302,9 @@ function findGemKnap(){
 async function efterGem(){
  for(var i=0;i<600;i++){
   await sleep(1000);
-  if(!/\/edit/.test(location.pathname)||!q('#title'))break;
+  if(!/\/edit/.test(location.pathname)||!felt('title'))break;
  }
- if(/\/edit/.test(location.pathname)&&q('#title')){
+ if(/\/edit/.test(location.pathname)&&felt('title')){
   spor('anvend: formularen står stadig efter 10 min');
   baand('Vinted har ikke gemt ændringen endnu. Tjek formularen, og tryk Gem.',null,null);
   return null;
@@ -1836,7 +1861,7 @@ async function nyesteIGarderoben(bruger){
 // mangle endnu.
 async function waitForm(){
  for(var i=0;i<80;i++){
-  if(q('#title')&&q('#description')&&q('#price'))return true;
+  if(felt('title')&&felt('description')&&felt('price'))return true;
   await sleep(250);
  }
  return false;
@@ -2031,7 +2056,7 @@ try{
   price=rettet;
  }
 
- var t2=q('#title'),de2=q('#description'),pe2=q('#price');
+ var t2=felt('title'),de2=felt('description'),pe2=felt('price');
  if(t2)setv(t2,bedre.title||d.title);
  if(de2)setv(de2,bedre.description||d.description);
  if(pe2)setPris(pe2,price);
@@ -2064,7 +2089,7 @@ try{
   if(!hentAfventer()){clearInterval(vagtAdr);return}
   var sti=location.pathname,nu=Date.now();
   var nySti=sti!==sidstSti; sidstSti=sti;
-  if(q('#title'))vaekTid=0; else if(!vaekTid){vaekTid=nu;spor('formularen er vaek',DRAFT_ID);vaagen(3)}
+  if(felt('title'))vaekTid=0; else if(!vaekTid){vaekTid=nu;spor('formularen er vaek',DRAFT_ID);vaagen(3)}
   var hvert=!vaekTid?60000:(nu-vaekTid<120000?3000:30000);
   if(!nySti&&nu-sidstKig<hvert)return;
   sidstKig=nu; travl=true;

@@ -327,6 +327,16 @@ intet på dig, lukkes den, når runneren er færdig.**
   vælger, der skiftes ud midt i et klik, åbner ikke.
 - **Billeder kan lægges i `[data-testid="add-photos-input"]`** via `DataTransfer`
   — en side må ikke åbne filvælgeren, men godt fylde feltet.
+- **Titel, beskrivelse og pris har ikke længere faste id'er** (31. oktober,
+  set i `spor` på redigeringssiden): de hed `_r_c_`, `_r_d_`, `_r_h_` —
+  Reacts egne, og de kan skifte — mens vælgerne (`category`, `brand`, `size`
+  …) beholdt deres. `#price` fandtes ikke, så »Sæt på Vinted nu« fejlede med
+  »Felterne kunne ikke findes« (30.–31. oktober), og udfyldningen ville
+  heller ikke finde dem. Find dem altid med `felt(navn)`: id → `name`/
+  `data-testid` (kun `input`/`textarea` — `<meta name="description">`
+  ramte ellers) → label-teksten (`FELT_ORD`: »Titel«, »Beskriv…«, »Pris«).
+  **Label-teksterne er gættet, ikke målt.** Fejler det, skriver `spor`
+  »anvend: ingen felter …« hvert felts id og label.
 - **Prisfeltet skrives med `setPris`, aldrig `setv`.** Det er et valutafelt,
   der kun tager et råt tal, mens det har fokus. Uden fokus bliver teksten
   formateret som valuta: på redigeringssiden (»149,00 kr.«) gav »120« en TOM
