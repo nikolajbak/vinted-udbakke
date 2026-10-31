@@ -1171,7 +1171,9 @@ async function anvend(post){
  var f=post.felter||{};
  // Prisfeltet er det eneste, der altid er der. Er det ikke dukket op, er vi
  // ikke på redigeringssiden endnu.
- for(var i=0;i<60;i++){ if(q('#price')||q('#title'))break; await sleep(250) }
+ // 30 s, ikke 15: 30.–31. oktober fandt den ingen felter efter 15 s (årsagen
+ // ikke målt — sporet herunder viser siden, hvis det sker igen).
+ for(var i=0;i<120;i++){ if(q('#price')||q('#title'))break; await sleep(250) }
  // Nye billeder først: et upload kan tegne formularen om.
  var nyePar=[];
  if(Array.isArray(f.fotos)&&f.fotos.some(function(x){return x&&typeof x==='object'})){
@@ -1215,6 +1217,14 @@ async function anvend(post){
   return kv;
  }
  if(!sat.length){
+  // Hvad stod der så? 30.–31. oktober fejlede én annonce to gange, og log()
+  // når ikke serveren, så det kunne ikke ses, om siden var en anden.
+  var felt=[].slice.call(document.querySelectorAll('input,textarea')).slice(0,25)
+   .map(function(e){return e.id||e.name||e.getAttribute('data-testid')||e.type}).join(',');
+  var h1=q('h1');
+  spor('anvend: ingen felter ('+manglende.join(',')+') · '+location.href+' · h1 »'+
+   (h1?norm(h1.textContent).slice(0,80):'')+'« · felter: '+felt+' · tekst: '+
+   norm(document.body?document.body.innerText:'').slice(0,300));
   log('anvend: ingen felter kunne sættes ('+manglende.join(',')+')');
   baand('Felterne kunne ikke findes på redigeringssiden.',null,null);
   return false;
