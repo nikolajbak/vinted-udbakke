@@ -90,8 +90,10 @@ stå. `vaagen(min)`/`slip()` i begge runnere (Screen Wake Lock API).
   skærmen sove ved loop). Et tryk et vilkårligt sted tager stadig låsen
   usynligt. Ikke målt på telefonen endnu. DBA-runneren har ikke videoen.
 - `spor` »vaagen: …« siger, om låsen blev holdt eller afvist, om videoen
-  spiller (»video spiller«/»video afvist«), og »skjult mens runneren
-  arbejder (laas|video|intet)«, når skærmen slukkede alligevel.
+  spiller (»video spiller«/»video afvist«), og »siden var væk i N s mens
+  runneren arbejdede (laas|video|intet)«, når samme side kom frem igen efter
+  over 3 s. `hidden` alene siger intet: det kommer ved hvert sideskift
+  (fejlmålt 31. oktober).
 
 ## Appens opbygning
 
