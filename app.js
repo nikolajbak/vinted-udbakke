@@ -1586,21 +1586,31 @@
     if(fs.fragtkode) h += '<div class="fs-stor-kode"><span>Sig fragtkoden</span><b class="mono">' + esc(fs.fragtkode) + '</b></div>';
     if(fs.sporingskode) h += '<div class="fs-stor-nr"><span>Forsendelsesnummer</span><b class="mono">' + esc(fs.sporingskode) +
       '</b></div>';
-    if(fs.maerkat) h += '<div class="fs-stor-fil">' + (url ? 'Henter mærkatet …' : 'Mærkatet hentes — prøv igen om et øjeblik.') + '</div>';
+    if(fs.maerkat) h += '<button type="button" class="btn btn-quiet fs-stor-hele" data-fs-hele hidden>Vis hele mærkatet</button>' +
+      '<div class="fs-stor-fil">' + (url ? 'Henter mærkatet …' : 'Mærkatet hentes — prøv igen om et øjeblik.') + '</div>';
     h += '</div><div class="fs-stor-bund">' + (fs.maerkat ? 'Skru op for lysstyrken, og lad personalet scanne koden.' : '') +
       (url ? ' <a href="' + esc(url) + '" target="_blank" rel="noopener">Åbn filen</a>' : '') + '</div>';
     o.innerHTML = h;
     o.hidden = false;
     o.querySelector('[data-fs-luk]').addEventListener('click', lukFsStor);
     if(!url){ if(fs.maerkat) hentMaerkater(); return; }
-    var fil = o.querySelector('.fs-stor-fil'), qrPlads = o.querySelector('.fs-stor-qr');
-    // Appen kan ikke zoomes: et tryk paa maerkatet goer det 2,5 gange
-    // stoerre (rul hen til koden), et tryk til tilbage.
-    fil.addEventListener('click', function(e){ if(e.target.closest('img, canvas')) fil.classList.toggle('stor'); });
+    var fil = o.querySelector('.fs-stor-fil'), qrPlads = o.querySelector('.fs-stor-qr'), hele = o.querySelector('[data-fs-hele]');
+    // Er koden fundet og vist stort, foldes hele maerkatet sammen bag en
+    // knap (2. november: det stod under koden som rod, og et tryk-zoom
+    // kunne man ikke komme ud af). Uden kode staar maerkatet fremme; vil du
+    // zoome, giver »Åbn filen« telefonens egen visning.
+    var efterKode = function(){
+      if(qrPlads.hidden || o.hidden || !fil.isConnected) return;
+      fil.hidden = true; hele.hidden = false;
+    };
+    hele.addEventListener('click', function(){
+      fil.hidden = !fil.hidden;
+      hele.textContent = fil.hidden ? 'Vis hele mærkatet' : 'Skjul mærkatet';
+    });
     if(fs.maerkat_type !== 'pdf'){
       fil.innerHTML = '<img src="' + esc(url) + '" alt="Fragtmærkatet" crossorigin="anonymous">';
       var im = fil.querySelector('img');
-      im.addEventListener('load', function(){ fremhaevKode(im, qrPlads); });
+      im.addEventListener('load', function(){ fremhaevKode(im, qrPlads).then(efterKode); });
       return;
     }
     hentPdfJs().then(function(pdfjs){ return pdfjs.getDocument(url).promise; }).then(function(pdf){
@@ -1621,7 +1631,7 @@
           });
         });
       })(n);
-      return tegn.then(function(){ if(foerste) return fremhaevKode(foerste, qrPlads); });
+      return tegn.then(function(){ if(foerste) return fremhaevKode(foerste, qrPlads).then(efterKode); });
     }).catch(function(){
       fil.innerHTML = 'PDF\'en kan ikke vises her — <a href="' + esc(url) + '" target="_blank" rel="noopener">åbn den</a>.';
     });

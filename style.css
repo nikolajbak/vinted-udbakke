@@ -1495,7 +1495,9 @@
 .fs-stor-kode b{ display: block; font-size: 44px; letter-spacing: .04em; overflow-wrap: anywhere; }
 .fs-stor-fil{ width: 100%; max-width: 900px; text-align: center; color: #555; }
 .fs-stor-fil img, .fs-stor-fil canvas{ display: block; width: 100%; height: auto; margin: 0 auto 12px; background: #fff; }
-.fs-stor-fil.stor{ width: 250%; max-width: none; }
+.fs-stor-fil[hidden]{ display: none; }
+.fs-stor-hele{ width: auto; flex: 0 0 auto; color: #0F6E72; background: transparent; border-color: #ccc; }
+.fs-stor-hele[hidden]{ display: none; }
 .fs-stor-vare{ text-align: center; max-width: 520px; }
 .fs-stor-vare b{ display: block; font-size: 17px; line-height: 1.3; }
 .fs-stor-vare i{ display: block; font-style: normal; font-weight: 700; font-size: 34px; letter-spacing: .04em; line-height: 1.1; margin-bottom: 4px; }
@@ -1507,8 +1509,6 @@
 .fs-stor-nr{ text-align: center; }
 .fs-stor-nr span{ display: block; font-size: 13px; color: #555; }
 .fs-stor-nr b{ display: block; font-size: 30px; letter-spacing: .05em; overflow-wrap: anywhere; }
-.fs-stor-fil img, .fs-stor-fil canvas{ cursor: zoom-in; }
-.fs-stor-fil.stor img, .fs-stor-fil.stor canvas{ cursor: zoom-out; }
 .fs-stor-top .btn{ color: #0F6E72; background: transparent; border-color: #ccc; }
 .fs-stor-bund{ font-size: 13px; color: #555; text-align: center; }
 .fs-stor-bund a{ color: #0F6E72; }

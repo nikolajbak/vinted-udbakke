@@ -58,7 +58,7 @@ sender ingen mails.
     `#fs-stor`) på hvid bund, også i mørkt tema, så personalet scanner
     QR-koden af telefonen. En PDF tegnes af pdf.js 3.11.174 fra cdnjs
     (hentet først ved tryk, op til tre sider), et billede vises som det er.
-    Appen kan ikke zoomes, så et tryk på mærkatet gør det 2,5 × større.
+    **Er koden fundet, foldes hele mærkatet sammen bag »Vis hele mærkatet«/»Skjul mærkatet«** (`efterKode`; bestemt af dig 2. november: bunden var rod, og tryk-zoomet på 2,5 × kunne man ikke komme ud af — det er fjernet). Uden kode står mærkatet fremme; zoom giver »Åbn filen« (telefonens egen visning).
     **QR-koden står stort øverst i fuld opløsning** (bestemt af dig
     19. oktober; `fremhaevKode`, `moduler`, jsQR 1.4.0 fra jsdelivr): på
     det rigtige mærkat var den ellers ~70 px bred på telefonen. Siden
