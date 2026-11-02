@@ -1847,8 +1847,8 @@ async function meldPostet(){
  var num=location.pathname.match(/^\/items\/(\d+)/);
  var itemId=(num&&!AFVISTE[num[1]])?num[1]:null;
  if(!itemId&&v.foer){
-  var ny=await nyesteIGarderoben(v.bruger);
-  if(ny&&ny>v.foer&&!AFVISTE[ny])itemId=String(ny);
+  var ny=await nyesteIGarderoben(v.bruger,AFVISTE);
+  if(ny&&ny>v.foer)itemId=String(ny);
   else spor('venter: nyeste '+(ny||'ukendt')+', foer '+v.foer,v.id);
  }else if(!itemId)spor('venter: intet foer-nummer',v.id);
  if(!itemId)return false;
@@ -1896,8 +1896,9 @@ function hentAfventer(){
 }
 // Det hoejeste annoncenummer i din garderobe. Kun fem raekker, nyeste foerst -
 // det kaldes hvert femte sekund, mens du retter i formularen. En Vinted-kladde
-// taeller ikke: den kan dukke op, foer du har trykket Upload.
-async function nyesteIGarderoben(bruger){
+// taeller ikke: den kan dukke op, foer du har trykket Upload. `uden`: numre,
+// serveren har afvist (en anden fanes annonce), springes over.
+async function nyesteIGarderoben(bruger,uden){
  if(!bruger)return null;
  try{
   var r=await timedFetch('/api/v2/wardrobe/'+bruger+'/items?page=1&per_page=5&order=newest_first',
@@ -1906,7 +1907,7 @@ async function nyesteIGarderoben(bruger){
   var j=await r.json(),maks=0;
   (j.items||[]).forEach(function(it){
    var n=+(it&&it.id)||0;
-   if(n>maks&&!it.is_draft)maks=n;
+   if(n>maks&&!it.is_draft&&!(uden&&uden[n]))maks=n;
   });
   return maks||null;
  }catch(e){spor('garderobe: '+e.message);return null}

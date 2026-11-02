@@ -530,3 +530,11 @@ Målt 17. oktober, logget ind i browserruden.
   `mode:'posted'` afviser (`afvist`) en annonce, der hører til et andet udkast
   eller er ÆLDRE end den nyeste tilknyttede — Vinteds numre stiger. Ved en
   afvisning lægges markøren tilbage, og runneren venter videre.
+- **To faner med Upload samtidig ser samme »nyeste« i garderoben** (2. november).
+  Nr. 87's vest og nr. 85's Adidas-trøje blev fyldt ud 40 s fra hinanden med
+  samme `foer`; trøjen kom op først, og vesten fik trøjens nummer. Da trøjen
+  blev lagt op igen og den første slettet, meldte prisvagten vesten solgt, og
+  appen bad om en salgspris. Derfor afviser `posted` også en annonce, hvis titel
+  ligner udkastets under 0,25 (`anden_vare`; vest/trøje 0,00, alle 66 tilknyttede
+  annoncer ≥ 0,33 undtagen nr. 57, der blev omdøbt på Vinted bagefter), og
+  `nyesteIGarderoben` springer afviste numre over, så fanen kan finde sin egen.

@@ -1943,6 +1943,18 @@ Deno.serve(async (req: Request) => {
         if (!sin && Number(nr) <= nyeste) {
           return json({ ok: false, afvist: "aeldre_annonce" });
         }
+        // To faner med Upload samtidig ser samme »nyeste« i garderoben. 1.
+        // november fik nr. 87's vest nr. 85's Adidas-trøje (lagt op 40 s
+        // foer); da trøjen blev slettet, meldte prisvagten vesten solgt. En
+        // annonce, hvis titel intet har til fælles med udkastets, er en
+        // anden vare. Grænsen er lav: markedsrunden og du må gerne rette.
+        const titel = (body.udgivet as { title?: unknown } | null)?.title;
+        if (!sin && titel) {
+          const { data: dr } = await supabase.from("drafts").select("title").eq("id", body.id).maybeSingle();
+          if (dr?.title && titelLighed(dr.title, titel) < 0.25) {
+            return json({ ok: false, afvist: "anden_vare" });
+          }
+        }
       }
       const { data: nu } = await supabase
         .from("drafts").select("posted_to").eq("id", body.id).single();
