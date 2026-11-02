@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0157 — 2026-11-02 21:32
+
+Commit `cf2a1db` — Vinteds vælgere: Radix-knapperne virker igen, og rettede vælgere går fra appen til Vinted  
+App: `app.js?v=cc34bbbf` · `style.css?v=55aa579b`  
+Udrullet: analyze-draft, dba-fill-script, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v100 | `c789b74b` |
+| dba-fill-script ← | v48 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft ← | v39 | `8b0e0533` |
+| vinted-fill-script ← | v141 | `a0a9821d` |
+| vinted-mail ← | v32 | `68f3750b` |
+
 ## udgivelse-0156 — 2026-11-02 20:27
 
 Commit `8657042` — Garderobe-synk: alle annoncer læst fra Vinteds garderobe, når en Vinted-side er åben  
