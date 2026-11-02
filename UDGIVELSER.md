@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0158 — 2026-11-02 22:24
+
+Commit `de7ff26` — Mærkatet: QR-koden findes i flere størrelser, så der zoomes ind på den  
+App: `app.js?v=d318ba3d` · `style.css?v=55aa579b`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v100 | `c789b74b` |
+| dba-fill-script | v48 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v39 | `8b0e0533` |
+| vinted-fill-script | v141 | `a0a9821d` |
+| vinted-mail | v32 | `68f3750b` |
+
 ## udgivelse-0157 — 2026-11-02 21:32
 
 Commit `cf2a1db` — Vinteds vælgere: Radix-knapperne virker igen, og rettede vælgere går fra appen til Vinted  
