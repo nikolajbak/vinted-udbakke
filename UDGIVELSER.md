@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0154 — 2026-11-02 17:53
+
+Commit `df160ed` — udgiv.sh og tilbage.sh: --yes til functions deploy (ny Supabase-CLI kræver det fra en agent)  
+App: `app.js?v=8f40abac` · `style.css?v=55aa579b`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v99 | `c789b74b` |
+| dba-fill-script | v47 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v38 | `8b0e0533` |
+| vinted-fill-script ← | v138 | `d772ddca` |
+| vinted-mail | v31 | `68f3750b` |
+
 ## udgivelse-0153 — 2026-10-31 09:59
 
 Commit `5d42674` — Runneren: måler kun et slukket skærmbillede, når samme side kommer frem igen — ikke ved hvert sideskift  
