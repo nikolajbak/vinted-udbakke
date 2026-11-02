@@ -1896,7 +1896,7 @@ function hentAfventer(){
 }
 // Det hoejeste annoncenummer i din garderobe. Kun fem raekker, nyeste foerst -
 // det kaldes hvert femte sekund, mens du retter i formularen. En Vinted-kladde
-// taeller ikke: den kan dukke op, foer du har trykket Upload. `uden`: numre,
+// taeller ikke: den kan dukke op, foer du har trykket Upload. uden: numre,
 // serveren har afvist (en anden fanes annonce), springes over.
 async function nyesteIGarderoben(bruger,uden){
  if(!bruger)return null;
