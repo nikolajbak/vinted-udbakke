@@ -493,10 +493,11 @@ Målt 17. oktober, logget ind i browserruden.
   runner blev hentet bagefter, for brugerscriptet matchede kun `/items/*`.
   Nr. 36 og 44 blev ikke meldt; nr. 36 blev først fundet af efterløbet ved
   næste udfyldning. Derfor matcher brugerscriptet nu **hele vinted.dk**, og
-  uden for `/items/` gør runneren KUN to ting: melder markøren (fanens
+  uden for `/items/` gør runneren kun dette: melder markøren (fanens
   `sessionStorage` overlever sideskiftet) med op til 2 min. venten på
-  garderoben, og kører efterløbet. Prisvagt og synkronisering kører stadig
-  kun på `/items/`. Begge veje er dækket: skifter Vinted i siden, ser vagten
+  garderoben, kører efterløbet, boost-runden og garderobe-synken (se
+  mails.md »Synkronisering af annoncerne«). Prisvagt og annoncens egen
+  synkronisering kører stadig kun på `/items/`. Begge veje er dækket: skifter Vinted i siden, ser vagten
   det; indlæser den en ny side, starter runneren dér.
 - **Den nye annonce findes i garderoben, ikke på en adresse.** At Vinted
   sender en videre til annoncens side efter Upload, var et gæt, og det holdt

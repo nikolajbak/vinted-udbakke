@@ -113,6 +113,26 @@ har ingen række i `listings` endnu.
 - **Salg, bud og beskeder når serveren som mail fra Vinted** (`vinted-mail`).
   Det er den eneste vej, der virker uden telefonen: Vinted blokerer
   datacenter-IP'er og har ingen webhooks. Se »Vinteds mails« nedenfor.
+- **Alle annoncer læses af garderoben** (bestemt af dig 2. november:
+  rettes en annonce i Vinteds egen app, skal appen vide det, uden at du
+  åbner den). Hver gang en Vinted-side er åben i Safari — en hvilken som
+  helst, ikke kun `/items/` — henter runneren garderoben (`garderobeSynk`,
+  højst én gang i timen pr. telefon, `localStorage` `udbakke_garderobe_sidst`)
+  og sender den i portioner på 25 (`mode:'garderobe'` → `synkAnnonce` med
+  `flet`). Garderoben har titel, pris, mærke, størrelse, stand, hjerter og
+  `is_closed`/`item_closing_action` (målt 2. november: 65 varer, 840 kB, ét
+  kald); **ikke** beskrivelse og farve — de beholdes i `published` og kommer
+  stadig fra annoncen selv. Kun aktive annoncer opdateres; kun `sold` er
+  solgt (en annonce, der mangler i garderoben, røres ikke); en annonce læst
+  af sig selv inden for 15 min (`synced_at`, også sat af `anvendt`) springes
+  over, så en garderobe et øjeblik bagud ikke melder en lige sendt rettelse
+  tilbage. Billedrækkefølgen tages ikke fra garderoben (fotoSynk kan
+  genkende billeder og er for tung til 55 annoncer). Det er ikke et ur: uden
+  en åben Vinted-side sker intet (Vinted blokerer servere).
+- **Størrelsen sammenlignes lempeligt i appen** (`sammeStoerrelse`): Vinted
+  skriver »5 år / 110 cm« og »M / 38 / 10«, udkastet »110« og »M«. Ens, når
+  et af udkastets led står som et helt led i Vinteds (målt på garderobens 55
+  aktive: »S« ≠ »XXXS / 30 / 2«, »W30 L34« ≠ »M / 38 / 10«).
 - **Pris, titel og beskrivelse rettet på Vinted læses af den annonce, du står
   på.** Retter du i Vinteds formular i Safari og trykker Gem, lander du på
   annoncen, og runneren læser den stille. Den stille aflæsning må aldrig
@@ -120,7 +140,7 @@ har ingen række i `listings` endnu.
   404) og læser ellers kun den side, der allerede er åben (`hentVare(id,
   kunApi)`). Rettes der i Vinteds egen app, sender Vinted ingen mail; så
   kommer det hjem, når du åbner annoncen i Safari, trykker **Opdatér fra
-  Vinted**, eller prisvagten måler den.
+  Vinted**, prisvagten måler den, eller garderoben læses (ikke beskrivelsen).
 - **Appen → Vinted sker ved Gem.** Redigeringen starter fra annoncens egne ord
   (`published`), ikke udkastets, og kun det, der afviger fra ANNONCEN, sendes
   ud — en titel rettet på Vinted skrives ikke tilbage, fordi du bagefter rettede

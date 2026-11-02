@@ -1947,6 +1947,20 @@
     return n(a) === n(b);
   }
 
+  // Vinted skriver stoerrelsen ud: »110« i udkastet er »5 år / 110 cm« paa
+  // Vinted, »M« er »M / 38 / 10«, »30« er »EU 46 | W30« (maalt i garderoben
+  // 2. november). Samme stoerrelse, naar et af udkastets led staar som et
+  // helt led i Vinteds.
+  function sammeStoerrelse(udkast, vinted){
+    var led = function(x){
+      return String(x == null ? '' : x).toLowerCase().replace(/½/g, '.5').replace(/(\d),(\d)/g, '$1.$2')
+        .split(/[\s\/|,()-]+/).map(function(t){ return t.replace(/^(w|l|eu|uk)(?=\d)/, ''); })
+        .filter(Boolean);
+    };
+    var v = led(vinted);
+    return led(udkast).some(function(t){ return /\d|^[xsml]+$/.test(t) && v.indexOf(t) > -1; });
+  }
+
   var UDGIVET_FELTER = [
     { k:'title',       navn:'Titel',       u:'title' },
     { k:'description', navn:'Beskrivelse', u:'description' },
@@ -1990,13 +2004,14 @@
         var v = p[f.u];
         if(!v) return;
         if(ensLyd(v, d && d[f.k])) return;
+        if(f.k === 'size' && sammeStoerrelse(d && d.size, v)) return;
         aendret++;
         raekker += udgivetRaekke(f.navn, v, 'ændret');
       });
       h += '<div class="udgivet-liste">' + raekker + '</div>';
       if(!aendret) h += '<p class="note">Resten står, som det blev sendt afsted.</p>';
       h += '<p class="note">Aflæst ' + esc(relTime(x.synced_at)) +
-           (p.kilde === 'side' ? ' fra annoncesiden' : '') + '.</p>';
+           (p.kilde === 'side' ? ' fra annoncesiden' : p.kilde === 'garderobe' ? ' fra garderoben' : '') + '.</p>';
     }
 
     // En solgt eller lukket annonce har intet nyt at sige.

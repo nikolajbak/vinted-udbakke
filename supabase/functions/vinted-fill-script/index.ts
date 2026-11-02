@@ -847,7 +847,8 @@ function renUdgivet(u: unknown): Record<string, unknown> | null {
   const o = u as Record<string, unknown>;
   const tekst = (v: unknown) => {
     const t = typeof v === "string" ? v.trim() : "";
-    return t ? t.slice(0, 4000) : null;
+    // Et maerke laest som objekt blev engang til teksten "[object Object]".
+    return t && t !== "[object Object]" ? t.slice(0, 4000) : null;
   };
   const pris = Math.round(Number(o.price) || 0);
   return {
@@ -868,6 +869,99 @@ function renUdgivet(u: unknown): Record<string, unknown> | null {
 function ensLyd(a: unknown, b: unknown): boolean {
   const n = (x: unknown) => String(x ?? "").replace(/\s+/g, " ").trim().toLowerCase();
   return n(a) === n(b);
+}
+
+// Én annonce laest paa Vinted: af annoncen selv (mode synk) eller af
+// garderoben (mode garderobe, flet = kun de felter, garderoben har).
+// r er listings-raekken (id, price, status, published, pending, draft_id, title).
+// deno-lint-ignore no-explicit-any
+async function synkAnnonce(r: any, body: any, flet: boolean): Promise<Record<string, unknown>> {
+  if (body.gone) {
+    // En lukket annonce kan blive laest igen — og mailen fra Vinted kan
+    // have meldt den solgt foerst. Den er solgt én gang.
+    if (r.status !== "aktiv") return { ok: true, gone: true };
+    await supabase.from("listings").update({
+      status: "solgt", sold_at: new Date().toISOString(),
+      pending: null, pending_note: null, synced_at: new Date().toISOString(),
+    }).eq("id", r.id);
+    await supabase.from("price_events").insert({
+      listing_id: r.id, kind: "solgt", price: Number(r.price),
+      note: "annoncen findes ikke længere på Vinted",
+    });
+    laerIBaggrunden();
+    await puf("Solgt!", (r.title || "En vare") + " er væk fra Vinted." +
+      await ogsaaNedePaa([r.draft_id]));
+    return { ok: true, gone: true };
+  }
+
+  const snap = renUdgivet(body.udgivet);
+  const nu = Math.round(Number(body.price) || 0);
+  const opd: Record<string, unknown> = { synced_at: new Date().toISOString() };
+  if (snap) {
+    // Garderoben har hverken beskrivelse eller farve: det, den ikke har
+    // maalt, beholdes. Annoncen selv (synk) erstatter — undtagen stoerrelse
+    // og stand, som annoncesiden ikke har (null = ikke maalt); ellers ville
+    // hvert besoeg paa annoncen slette dem, garderoben satte.
+    const gl = (r.published ?? {}) as Record<string, unknown>;
+    opd.published = flet
+      ? { ...gl, ...Object.fromEntries(Object.entries(snap).filter(([, v]) => v != null)) }
+      : { ...snap, size: snap.size ?? gl.size ?? null, condition: snap.condition ?? gl.condition ?? null,
+        fotos: gl.fotos ?? null };
+  }
+  if (nu > 0) opd.price = nu;
+  // null = hjerterne blev ikke maalt; Number(null) er 0 og ville slette dem.
+  if (body.favourites != null && Number.isFinite(Number(body.favourites))) opd.favourites = Number(body.favourites);
+
+  // Rettet paa Vinted, ikke i appen. Det skal staa i historikken som
+  // enhver anden aendring: prisvagten regner sin ro fra last_change_at, og
+  // gennemgangen af salgene taeller nedsaettelser. En pris, der stille
+  // flyttede sig uden at blive noteret, ville se ud som den startpris,
+  // varen aldrig solgte til.
+  const forPris = Number(r.price);
+  if (nu > 0 && nu !== forPris) {
+    opd.last_change_at = new Date().toISOString();
+    await supabase.from("price_events").insert({
+      listing_id: r.id, kind: "aendret", price: nu, from_price: forPris,
+      note: "rettet på Vinted",
+    });
+  }
+  const foer = (r.published ?? {}) as Record<string, unknown>;
+  const tekstRettet = snap && r.published
+    ? (["title", "description"] as const).filter((k) =>
+      snap[k] && !ensLyd(snap[k], foer[k]))
+    : [];
+  if (tekstRettet.length) {
+    await supabase.from("price_events").insert({
+      listing_id: r.id, kind: "rettet",
+      note: "rettet på Vinted: " +
+        tekstRettet.map((k) => k === "title" ? "titel" : "beskrivelse").join(", "),
+    });
+  }
+
+  // Staar det, der ventede paa at komme ud, allerede i annoncen — fordi du
+  // har skrevet det ind paa Vinted selv — er der intet at sende. Ellers
+  // ville naeste tur forbi redigeringssiden skrive det samme ind igen.
+  const p = r.pending as Record<string, unknown> | null;
+  if (snap && p && Object.keys(p).length) {
+    const rest: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(p)) {
+      const ude = snap[k];
+      // Billedernes raekkefoelge afgoer fotoSynk herunder.
+      const passer = k === "fotos" ? false : k === "price"
+        ? Math.round(Number(ude)) === Math.round(Number(v))
+        : ensLyd(ude, v);
+      if (!passer) rest[k] = v;
+    }
+    if (Object.keys(rest).length !== Object.keys(p).length) {
+      const tom = !Object.keys(rest).length;
+      opd.pending = tom ? null : rest;
+      if (tom) { opd.pending_note = null; opd.pending_since = null; }
+    }
+  }
+
+  await supabase.from("listings").update(opd).eq("id", r.id);
+  const fs = body.fotos ? await fotoSynk(supabase, String(r.id), body.fotos, "annoncen") : null;
+  return { ok: true, published: snap, fotoOmordnet: !!fs?.omordnet, fotoGemt: !!fs?.gemt };
 }
 
 // Din profil paa Vinted (vinted.dk/member/3125670782). Garderoben dér er det
@@ -1744,82 +1838,35 @@ Deno.serve(async (req: Request) => {
         .eq("platform", "vinted").eq("external_id", it).maybeSingle();
       if (!r) return json({ ukendt: true });
 
-      if (body.gone) {
-        // En lukket annonce kan blive laest igen — og mailen fra Vinted kan
-        // have meldt den solgt foerst. Den er solgt én gang.
-        if (r.status !== "aktiv") return json({ ok: true, gone: true });
-        await supabase.from("listings").update({
-          status: "solgt", sold_at: new Date().toISOString(),
-          pending: null, pending_note: null, synced_at: new Date().toISOString(),
-        }).eq("id", r.id);
-        await supabase.from("price_events").insert({
-          listing_id: r.id, kind: "solgt", price: Number(r.price),
-          note: "annoncen findes ikke længere på Vinted",
-        });
-        laerIBaggrunden();
-        await puf("Solgt!", (r.title || "En vare") + " er væk fra Vinted." +
-          await ogsaaNedePaa([r.draft_id]));
-        return json({ ok: true, gone: true });
-      }
+      return json(await synkAnnonce(r, body, false));
+    }
 
-      const snap = renUdgivet(body.udgivet);
-      const nu = Math.round(Number(body.price) || 0);
-      const opd: Record<string, unknown> = { synced_at: new Date().toISOString() };
-      if (snap) opd.published = { ...snap, fotos: (r.published as Record<string, unknown> | null)?.fotos ?? null };
-      if (nu > 0) opd.price = nu;
-      // null = hjerterne blev ikke maalt; Number(null) er 0 og ville slette dem.
-      if (body.favourites != null && Number.isFinite(Number(body.favourites))) opd.favourites = Number(body.favourites);
-
-      // Rettet paa Vinted, ikke i appen. Det skal staa i historikken som
-      // enhver anden aendring: prisvagten regner sin ro fra last_change_at, og
-      // gennemgangen af salgene taeller nedsaettelser. En pris, der stille
-      // flyttede sig uden at blive noteret, ville se ud som den startpris,
-      // varen aldrig solgte til.
-      const forPris = Number(r.price);
-      if (nu > 0 && nu !== forPris) {
-        opd.last_change_at = new Date().toISOString();
-        await supabase.from("price_events").insert({
-          listing_id: r.id, kind: "aendret", price: nu, from_price: forPris,
-          note: "rettet på Vinted",
-        });
+    // Alle annoncer fra garderoben (bestemt af dig 2. november: rettes en
+    // annonce i Vinteds egen app, skal appen vide det uden, at du aabner den).
+    // Uden varer svares med brugeren, saa runneren ved, hvis garderobe den
+    // skal hente. Kun aktive annoncer opdateres, og »solgt« kun, naar Vinted
+    // siger sold — en annonce, der mangler i garderoben, roeres ikke.
+    if (body.mode === "garderobe") {
+      if (!Array.isArray(body.varer)) return json({ bruger: VINTED_BRUGER });
+      // deno-lint-ignore no-explicit-any
+      const varer = (body.varer as any[]).filter((v) => v && v.item_id).slice(0, 50);
+      const { data: rk } = await supabase.from("listings")
+        .select("id, external_id, price, status, published, pending, draft_id, title, synced_at")
+        .eq("platform", "vinted").in("external_id", varer.map((v) => String(v.item_id)));
+      const efter = new Map((rk ?? []).map((r) => [String(r.external_id), r]));
+      let laest = 0, solgt = 0;
+      for (const v of varer) {
+        const r = efter.get(String(v.item_id));
+        if (!r || r.status !== "aktiv") continue;
+        // Annoncen selv er laest for nylig (du stod paa den, eller en rettelse
+        // er lige kvitteret): den aflaesning er friskere end garderoben, som
+        // kan vaere et oejeblik bagud, og ville ellers melde rettelsen tilbage.
+        if (!v.gone && r.synced_at && Date.now() - Date.parse(r.synced_at) < 15 * 60000) continue;
+        await synkAnnonce(r, v, true);
+        laest++;
+        if (v.gone) solgt++;
       }
-      const foer = (r.published ?? {}) as Record<string, unknown>;
-      const tekstRettet = snap && r.published
-        ? (["title", "description"] as const).filter((k) =>
-          snap[k] && !ensLyd(snap[k], foer[k]))
-        : [];
-      if (tekstRettet.length) {
-        await supabase.from("price_events").insert({
-          listing_id: r.id, kind: "rettet",
-          note: "rettet på Vinted: " +
-            tekstRettet.map((k) => k === "title" ? "titel" : "beskrivelse").join(", "),
-        });
-      }
-
-      // Staar det, der ventede paa at komme ud, allerede i annoncen — fordi du
-      // har skrevet det ind paa Vinted selv — er der intet at sende. Ellers
-      // ville naeste tur forbi redigeringssiden skrive det samme ind igen.
-      const p = r.pending as Record<string, unknown> | null;
-      if (snap && p && Object.keys(p).length) {
-        const rest: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(p)) {
-          const ude = snap[k];
-          // Billedernes raekkefoelge afgoer fotoSynk herunder.
-          const passer = k === "fotos" ? false : k === "price"
-            ? Math.round(Number(ude)) === Math.round(Number(v))
-            : ensLyd(ude, v);
-          if (!passer) rest[k] = v;
-        }
-        if (Object.keys(rest).length !== Object.keys(p).length) {
-          const tom = !Object.keys(rest).length;
-          opd.pending = tom ? null : rest;
-          if (tom) { opd.pending_note = null; opd.pending_since = null; }
-        }
-      }
-
-      await supabase.from("listings").update(opd).eq("id", r.id);
-      const fs = body.fotos ? await fotoSynk(supabase, String(r.id), body.fotos, "annoncen") : null;
-      return json({ ok: true, published: snap, fotoOmordnet: !!fs?.omordnet, fotoGemt: !!fs?.gemt });
+      return json({ ok: true, laest, solgt });
     }
 
     if (body.mode === "watch") {

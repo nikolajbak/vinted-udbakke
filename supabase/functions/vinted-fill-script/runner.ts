@@ -949,7 +949,7 @@ function laesAnnonceside(t,id){
  var pris=dkk?(helKroner(tilbud.price)||null):null;
  var hjerter=hjerterPaaSiden(t,id);
  if(hjerter===null)log('vagt: '+id+' — hjerterne stod ikke på siden');
- var brand=p.brand&&(p.brand.name||p.brand);
+ var brand=p.brand&&(typeof p.brand==='string'?p.brand:p.brand.name);
  return {
   // Kun et udtrykkeligt "udsolgt" tæller som væk. At melde en annonce solgt,
   // der ikke er det, er værre end at opdage et salg en runde senere.
@@ -1597,9 +1597,8 @@ async function sendSynk(itemId,set){
 // formular og trykker Gem, sender Vinted dig hertil — så er appen ajour, før
 // du er færdig med at kigge. Ingen bånd og ingen navigation.
 //
-// Der er bevidst ingen runde over de andre annoncer. Salg, bud og beskeder
-// når serveren som mail fra Vinted (vinted-mail), og en runde på et ur var
-// netop dét, du ikke ville have.
+// De andre annoncer læses af garderoben (garderobeSynk), højst én gang i
+// timen og kun, når en Vinted-side alligevel er åben — ikke på et ur.
 async function stilleSynk(){
  // /items/1234567890-nike-jakke: nummeret, og en sti der ikke fortsætter.
  var num=location.pathname.match(/^\/items\/(\d+)(?:-[^\/]*)?\/?$/);
@@ -1784,6 +1783,58 @@ async function efterloeb(){
   (sj&&sj.fundet||[]).forEach(function(f){spor('efterloeb: nr '+f.nr+' er '+f.item_id)});
  }catch(e){spor('efterloeb: '+e.message)}
 }
+// Synkroniseringen tilbage fra Vinted for ALLE annoncer (bestemt af dig
+// 2. november: rettes en annonce i Vinteds egen app, skal appen vide det,
+// uden at du aabner annoncen). Garderoben har titel, pris, maerke,
+// stoerrelse, stand og »solgt« for alle varer i ét kald (maalt 2. november:
+// 65 varer, 840 kB). Hoejst én gang i timen pr. telefon, og kun naar en
+// Vinted-side alligevel er aaben - det er ikke et ur. Beskrivelse og farve
+// staar ikke i garderoben; de kommer stadig fra annoncen selv (stilleSynk).
+async function garderobeSynk(){
+ try{
+  var nu=Date.now(),sidst=0;
+  try{sidst=Number(localStorage.getItem('udbakke_garderobe_sidst'))||0}catch(e){}
+  if(nu-sidst<3600000)return;
+  try{localStorage.setItem('udbakke_garderobe_sidst',String(nu))}catch(e){}
+  var glem=function(){try{localStorage.removeItem('udbakke_garderobe_sidst')}catch(e){}};
+  var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({mode:'garderobe'})},15000);
+  var j=await r.json();
+  if(!j||!j.bruger){glem();spor('garderobe-synk: intet svar fra serveren');return}
+  var varer=[];
+  for(var side=1;side<=5;side++){
+   var g=await timedFetch('/api/v2/wardrobe/'+j.bruger+'/items?page='+side+'&per_page=96&order=newest_first',
+    {headers:{'Accept':'application/json'},credentials:'include'},20000);
+   if(!g.ok){glem();spor('garderobe-synk: side '+side+' '+g.status);return}
+   var gj=await g.json();
+   (gj.items||[]).forEach(function(it){var v=garderobeVare(it);if(v)varer.push(v)});
+   if(!(gj.pagination&&gj.pagination.total_pages>side))break;
+  }
+  var laest=0,solgt=0;
+  for(var i=0;i<varer.length;i+=25){
+   var s=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'garderobe',varer:varer.slice(i,i+25)})},20000);
+   var sj=await s.json();
+   laest+=(sj&&sj.laest)||0;solgt+=(sj&&sj.solgt)||0;
+  }
+  log('garderobe-synk: '+laest+' af '+varer.length+' læst'+(solgt?', '+solgt+' solgt':''));
+ }catch(e){try{localStorage.removeItem('udbakke_garderobe_sidst')}catch(x){}spor('garderobe-synk: '+e.message)}
+}
+// En vare i garderoben i samme form som hentVare. Lukket af en anden grund
+// end salg (skjult, slettet) roeres ikke; kun »sold« er solgt.
+function garderobeVare(it){
+ if(!it||!it.id||it.is_draft)return null;
+ var solgt=!!(it.is_closed&&it.item_closing_action==='sold');
+ if(it.is_closed&&!solgt)return null;
+ var p=it.price,valuta=(p&&p.currency_code)||it.currency||'DKK';
+ var pris=valuta==='DKK'?(helKroner((p&&typeof p==='object')?p.amount:p)||null):null;
+ var tekst=function(x){return typeof x==='string'&&x.trim()?x.trim():null};
+ return {item_id:String(it.id),gone:solgt,price:pris,
+  favourites:it.favourite_count!=null?+it.favourite_count:null,
+  udgivet:{price:pris,title:tekst(it.title),brand:tekst(it.brand),size:tekst(it.size),
+   condition:tekst(it.status),url:tekst(it.url),kilde:'garderobe'}};
+}
+
 // Betalt boost (bestemt af dig 19. oktober, se boost.ts). Hoejst én gang i
 // timen pr. fane: spoerg serveren, om en faktura venter paa sine varer (så
 // hentes garderoben, og de med promoted meldes), og hvilke boostede varer
@@ -1988,6 +2039,8 @@ if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
 // udfyldning eller et tilsyn.
 efterloeb();
 boostRunde();
+// Ikke på opret-siden: 840 kB midt i en udfyldning.
+if(!/\/items\/new/.test(location.pathname))garderobeSynk();
 // Kom fanen fra appen? Noteres nu, mens flaget stadig staar i adressen. Saa
 // er der arbejde, du venter paa, og skaermen holdes taendt imens.
 if(fraApp())vaagen(5);

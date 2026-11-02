@@ -20,6 +20,17 @@ henvises til som »CLAUDE.md »X««, i `.claude/rules/` — se tabellen nederst
 
 ## Ikke afprøvet — start her
 
+0. **Garderobe-synk — 2. november.** Alle annoncers titel, pris, mærke,
+   størrelse, stand og »solgt« læses af garderoben, højst én gang i timen,
+   når en Vinted-side er åben (mails.md »Synkronisering af annoncerne«).
+   **Afprøvet:** garderoben læst i browserruden (65 varer, alle felter som
+   ventet, i dag ens med `listings` på pris og titel); størrelsens
+   sammenligning på 16 målte par. **Ikke afprøvet på telefonen:** se `spor`
+   / loggen »garderobe-synk: N af N læst«, og at størrelse og stand nu står
+   i `published` på de aktive annoncer. **Ikke bygget:** at appen sender
+   mærke, størrelse, stand, farve og kategori UD til en annonce, der
+   allerede er på Vinted (vælgerne på redigeringssiden).
+
 0. **Forsendelsen på varen — 19. oktober** (udgivelse-0135/-0136). Regler i
    CLAUDE.md »Forsendelsen«. **Afprøvet:** mail 7-49 genlæst — alle fire
    solgte varer har status, frist, sporing og DAO's fragtkode; Opgaver og
