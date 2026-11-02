@@ -1469,12 +1469,21 @@
   function fremhaevKode(kilde, plads){
     return scannerKlar().then(function(){
       var w = kilde.naturalWidth || kilde.width, h = kilde.naturalHeight || kilde.height;
-      var k = Math.min(1, 900 / w), sm = document.createElement('canvas');
-      sm.width = Math.round(w * k); sm.height = Math.round(h * k);
-      var x = sm.getContext('2d', { willReadFrequently: true });
-      x.fillStyle = '#fff'; x.fillRect(0, 0, sm.width, sm.height);
-      x.drawImage(kilde, 0, 0, sm.width, sm.height);
-      var q = window.jsQR(x.getImageData(0, 0, sm.width, sm.height).data, sm.width, sm.height);
+      // jsQR finder koden i nogle stoerrelser og ikke i andre: flyverdragtens
+      // maerkat (2. november) blev ikke fundet i 900 og 1600 px, men i 1200
+      // og 2400. Derfor proeves flere, til koden er fundet.
+      var q = null, k = 1;
+      [900, 1200, 1800, 2400].some(function(b, i, a){
+        if(i && a[i - 1] >= w) return true;
+        k = Math.min(1, b / w);
+        var sm = document.createElement('canvas');
+        sm.width = Math.round(w * k); sm.height = Math.round(h * k);
+        var x = sm.getContext('2d', { willReadFrequently: true });
+        x.fillStyle = '#fff'; x.fillRect(0, 0, sm.width, sm.height);
+        x.drawImage(kilde, 0, 0, sm.width, sm.height);
+        q = window.jsQR(x.getImageData(0, 0, sm.width, sm.height).data, sm.width, sm.height);
+        return !!q;
+      });
       if(!q || !plads.isConnected) return;
       var p = q.location, xs = [p.topLeftCorner.x, p.topRightCorner.x, p.bottomLeftCorner.x, p.bottomRightCorner.x],
         ys = [p.topLeftCorner.y, p.topRightCorner.y, p.bottomLeftCorner.y, p.bottomRightCorner.y];

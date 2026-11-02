@@ -74,7 +74,7 @@ sender ingen mails.
     billedet i PDF'en, ikke tekst, og kan ikke læses. Den hvide rest af
     A4-siden skæres fra (`udenHvidt`). Findes koden ikke, vises mærkatet
     bare. Prøvet med mail 50's mærkat: vektorkoden læst i 1200 px gav samme
-    bytes som PDF'en. pdf.js tegner ikke, mens browserruden er skjult — tag et
+    bytes som PDF'en. **jsQR finder koden i nogle størrelser og ikke i andre** (2. november, flyverdragtens mærkat: ikke fundet i 900 og 1600 px, men i 1200 og 2400 — så stod mærkatet uden zoom på koden). Derfor prøves 900, 1200, 1800 og 2400 px, til koden findes. pdf.js tegner ikke, mens browserruden er skjult — tag et
     skærmbillede, før der ledes efter en fejl.
     Lukkes kun med Luk og ved navigation. **Vis mærkat står også, efter
     pakken er afleveret** (bestemt af dig 19. oktober), som en almindelig
