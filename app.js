@@ -3382,9 +3382,9 @@
      kan kun din egen session. Saa en rettelse her bliver til en besked, der
      ligger og venter paa annoncen, indtil den er skrevet ind.
 
-     Kun titel, pris og beskrivelse: det er dem, Vinteds redigeringsformular
-     har som almindelige tekstfelter. Kategori, maerke og stoerrelse er
-     vaelgere, og de hoerer til, naar annoncen oprettes. */
+     Titel, pris og beskrivelse er tekstfelter. Kategori, maerke, stoerrelse,
+     stand, farve og materiale er Vinteds vaelgere; runneren saetter dem paa
+     redigeringssiden — bestemt af dig 2. november. */
 
   var REDIGERES = null;
   var VAELGERE = ['brand', 'size', 'color', 'condition', 'material'];
@@ -3568,8 +3568,8 @@
     tegnFarver(); tegnStande(); tegnKoen((d.fakta || {}).koen || '');
     forslag();
     // Felterne kan altid rettes: de bruges hver gang varen sendes til en
-    // markedsplads. En annonce, der allerede er ude paa Vinted, faar dem dog
-    // ikke — Vinteds vaelgere kan kun saettes i Vinteds egen formular.
+    // markedsplads. Er annoncen ude paa Vinted, gaar en rettelse ogsaa dertil
+    // (noten skiftes, naar annoncen er slaaet op herunder).
     $('e-vaelgere-note').textContent = fase(d) === 'klar'
       ? 'Bruges af Vinted, DBA og Reshopper, når varen sendes derhen.'
       : 'Bruges, når varen sendes til en ny markedsplads.';
@@ -3595,9 +3595,8 @@
             $('e-price').value = String(nu.price);
           $('e-save').textContent = 'Gem og send til Vinted';
         }
-        if(vinted) $('e-vaelgere-note').innerHTML = 'Bruges, når varen sendes til DBA eller Reshopper. ' +
-          'Annoncen på Vinted har sine egne — dem retter du på <a href="x-safari-https://www.vinted.dk/items/' +
-          esc(vinted.external_id) + '/edit">Vinted</a>.';
+        if(vinted) $('e-vaelgere-note').textContent = 'Retter du et felt her, sættes det også i annoncen på Vinted ' +
+          '— og bruges, når varen sendes til DBA eller Reshopper.';
         var p = l.map(function(x){ return markedsNavn(x.platform); });
         // Det, der i forvejen ligger i postkassen, gaar med ud ved samme tryk.
         // Det skal du vide, foer du trykker — ikke opdage paa Vinted.
@@ -3710,6 +3709,20 @@
       // Varetypen paa kortet er kategoriens sidste led.
       if(sti.length) vaelg.category = sti[sti.length - 1];
     }
+    // Vinteds vaelgere gaar ogsaa ud (bestemt af dig 2. november) — men kun
+    // det, du har rettet nu, og kun naar annoncen ikke allerede siger det.
+    // En stoerrelse, du har rettet paa Vinted, skrives ikke tilbage, fordi du
+    // rettede prisen i appen. Runneren saetter dem paa redigeringssiden.
+    var pub = (annonce && annonce.published) || {};
+    ['brand', 'size', 'condition', 'color', 'material'].forEach(function(k){
+      if(!(k in vaelg) || !vaelg[k]) return;
+      var ude = pub[k];
+      var samme = k === 'size' ? (ude && sammeStoerrelse(vaelg[k], ude)) : ensLyd(vaelg[k], ude);
+      // Vinted tager hoejst to farver og to materialer.
+      if(!samme) aendret[k] = (k === 'color' || k === 'material')
+        ? vaelg[k].split(/\s*,\s*/).filter(Boolean).slice(0, 2).join(', ') : vaelg[k];
+    });
+    if(vaelg.category_path && !ensLyd(vaelg.category, pub.category)) aendret.category = vaelg.category_path;
     // Plaggets mål, du selv har målt, er de sikreste. De ligger i fakta,
     // og Vinted-runneren skriver dem i »Længde« og »Skulderbredde«. Koennet
     // (DBA og Reshopper) ligger ogsaa i fakta.
@@ -4134,7 +4147,8 @@
 
   // Hvilke felter venter paa at blive skrevet ind i annoncen? Baade
   // prisvagtens forslag og dine egne rettelser ligger i den samme postkasse.
-  var FELT_NAVNE = { price:'pris', title:'titel', description:'beskrivelse', fotos:'billeder' };
+  var FELT_NAVNE = { price:'pris', title:'titel', description:'beskrivelse', fotos:'billeder',
+    category:'kategori', brand:'mærke', size:'størrelse', condition:'stand', color:'farve', material:'materiale' };
   function venterFelter(l){
     var p = (l && l.pending) || null;
     if(!p) return [];

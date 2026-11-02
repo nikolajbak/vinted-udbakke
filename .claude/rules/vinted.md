@@ -186,10 +186,26 @@ i udkastet; DBA og Reshopper oversætter selv til deres ordlyd.
   ellers som før. Rettes et felt, slettes Reshoppers gemte oversættelse
   (`drafts.reshopper`), så den laves forfra.
 - **Felterne kan rettes, også når varen er ude** — de bruges, når varen
-  sendes til en ny markedsplads. En annonce, der allerede er på Vinted,
-  får dem ikke: Vinteds vælgere kan kun sættes i Vinteds egen formular, og
-  skærmen siger det med et link. (Ikke bygget: at runneren sætter dem på
-  redigeringssiden — Gem kan ikke afprøves fra browserruden.)
+  sendes til en ny markedsplads. **Er annoncen på Vinted, går en rettelse
+  også dertil** (bestemt af dig 2. november): kategori, mærke, størrelse,
+  stand, farve og materiale lægges i `pending` (`category` er hele stien),
+  men kun det, du har rettet nu, og kun når annoncen ikke allerede siger det
+  (`published`; størrelsen lempeligt). Runneren sætter dem på
+  redigeringssiden i `anvend` — kategorien først — med samme funktioner som
+  udfyldningen; uden udkast spørges serveren ikke, så kun Vinteds egen
+  ordlyd rammer (størrelsen også lempeligt, men kun et entydigt fund).
+  Kvitteringen (`medValg`) læser `/api/v2/item_upload/items/{id}`: mærke og
+  farver som tekst, standen som id (`STAND_ID`: 6 Ny med, 1 Ny uden, 2 Meget
+  god, 3 God, 4 Tilfredsstillende), kategori, størrelse og materiale kun som
+  id — de kvitteres med formularens tekst, hvis id'et har flyttet sig siden
+  før Gem. Sammenligningen står i `_shared/valg.ts` (`passerUde`) og som kopi
+  i runneren (`sammeValg`). **En værdi, der ikke kan sættes** (Vinted har
+  den ikke, fx materialet »Strik«), tages af `pending` (`afvist` →
+  `anvendt`) med `price_events` »kunne ikke sættes på Vinted (ret det selv
+  dér): …« — ellers gik runneren til redigeringssiden igen og igen. Appen
+  sender højst to farver/materialer. Skiftes kategorien, sættes de andre
+  vælgere igen med det, de viste før, hvis skiftet tømte dem. **Gem er ikke afprøvet** (DataDome afviser det
+  fra browserruden); se `spor` »anvend: … blev ikke sat …« og »bekræft: …«.
 - »Skriv beskrivelsen forfra« ser også rettet kategori og køn.
 
 ## Fanen lukker sig selv
@@ -337,6 +353,27 @@ intet på dig, lukkes den, når runneren er færdig.**
   ramte ellers) → label-teksten (`FELT_ORD`: »Titel«, »Beskriv…«, »Pris«).
   **Label-teksterne er gættet, ikke målt.** Fejler det, skriver `spor`
   »anvend: ingen felter …« hvert felts id og label.
+- **Vælgerne er knapper med en Radix-menu** (målt 2. november i browserruden,
+  opret- og redigeringssiden). Hvert felt er et skjult `input[name=category|brand|size|condition|color|material]`
+  (`aria-hidden`, altid tom `value`) og ved siden af en `button[aria-haspopup=menu]` med
+  `data-testid` (`catalog-select-dropdown-input`, `brand-select-dropdown-input`,
+  `category-size-single-grid_chips-input`, `category-condition-single-list-input`,
+  `color-select-dropdown-input`, `category-material-multi-list-input`). Knappen åbner på
+  **`pointerdown`, ikke `click`** (`trykNed`), og har intet `onClick`, så `reactReady` ventede
+  15 s forgæves. Menuen er elementet, `aria-controls` peger på (`role=menu`, `radixMenu()`); dens
+  rækker har stadig `onClick`. Et enkelt valg lukker menuen selv, og kategoriens blad gør det
+  også — der er ingen Gem. Farve og materiale er afkrydsning (`role=checkbox`, `aria-checked`)
+  og lukkes med Escape (`lukMenu`); farvegitteret viser de valgte to gange (oversigten øverst),
+  og to klik lige efter hinanden fjernede kun den ene (`fillFlere`). Knappens tekst er værdien;
+  tom har den `data-placeholder` (`vaerdi`, `filled`). Mærke, størrelse osv. tegnes først ~1 s
+  efter, at kategorien er valgt (`open` venter op til ~3 s). **Det kostede:** fra ca.
+  1. november satte udfyldningen hverken kategori, mærke, størrelse, stand, farve eller
+  materiale (spor »kategori: nåede ikke i bund« på 0 s, »siden klar false« efter 15 s) — mindst
+  ti udfyldninger 1. november er ramt (sporet), og flere annoncer har en anden stand på Vinted
+  end i udkastet.
+  Afprøvet efter rettelsen i browserruden (bred skærm): alle seks felter på opret-siden og
+  mærke, størrelse, stand, farve og materiale på redigeringssiden; **ikke målt på telefonens
+  smalle skærm.**
 - **Vælgernes felter slås op med `vaelger(id)`, aldrig `q('#'+id)`.** 1. november fandt
   runneren ikke `#category` på opret-siden i 13 af 13 udfyldninger (17. oktober: 10 af 10
   »siden klar true«). Så sprang den kategori, mærke, størrelse, stand, farve og materiale over,

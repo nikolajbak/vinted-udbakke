@@ -16,6 +16,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
+import { passerUde } from "../_shared/valg.ts";
 import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
 import { beslutPris, type Maaling, type Vagt } from "./prisvagt.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
@@ -859,6 +860,9 @@ function renUdgivet(u: unknown): Record<string, unknown> | null {
     size: tekst(o.size),
     condition: tekst(o.condition),
     color: tekst(o.color),
+    // Kun fra redigeringssiden (knappens tekst): kategoriens blad og materialet.
+    category: tekst(o.category),
+    material: tekst(o.material),
     url: tekst(o.url),
     kilde: tekst(o.kilde),
   };
@@ -945,11 +949,8 @@ async function synkAnnonce(r: any, body: any, flet: boolean): Promise<Record<str
   if (snap && p && Object.keys(p).length) {
     const rest: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(p)) {
-      const ude = snap[k];
       // Billedernes raekkefoelge afgoer fotoSynk herunder.
-      const passer = k === "fotos" ? false : k === "price"
-        ? Math.round(Number(ude)) === Math.round(Number(v))
-        : ensLyd(ude, v);
+      const passer = k !== "fotos" && passerUde(k, snap[k], v);
       if (!passer) rest[k] = v;
     }
     if (Object.keys(rest).length !== Object.keys(p).length) {
@@ -1902,14 +1903,18 @@ Deno.serve(async (req: Request) => {
       const rest: Record<string, unknown> = {};
       const gemt: string[] = [];
       for (const [k, v] of Object.entries(p)) {
-        const ude = udgivet[k];
-        const passer = k === "fotos" ? false : k === "price"
-          ? Math.round(Number(ude)) === Math.round(Number(v))
-          : ensLyd(ude, v);
+        const passer = k !== "fotos" && passerUde(k, udgivet[k], v);
         if (passer) gemt.push(k); else rest[k] = v;
       }
+      // Vaelgere, runneren ikke kunne saette (Vinted har ikke vaerdien): ud
+      // af rettelsen, med en note — ellers gik runneren dertil igen og igen.
+      const afvist = (Array.isArray(body.afvist) ? body.afvist : []).map(String).filter((k) => k in rest);
+      for (const k of afvist) delete rest[k];
       const tom = !Object.keys(rest).length;
-      const navne: Record<string, string> = { price: "pris", title: "titel", description: "beskrivelse", fotos: "billeder" };
+      const navne: Record<string, string> = {
+        price: "pris", title: "titel", description: "beskrivelse", fotos: "billeder",
+        category: "kategori", brand: "mærke", size: "størrelse", condition: "stand", color: "farve", material: "materiale",
+      };
 
       const ny = Math.round(Number(snap?.price) || Number(body.price) || 0);
       const opd: Record<string, unknown> = {
@@ -1931,6 +1936,13 @@ Deno.serve(async (req: Request) => {
       const fs = body.fotos ? await fotoSynk(supabase, id, body.fotos, "efter gem", body.fotoNye) : null;
       if (fs?.gemt) delete rest.fotos;
 
+      if (afvist.length) {
+        await supabase.from("price_events").insert({
+          listing_id: id, kind: "rettet",
+          note: "kunne ikke sættes på Vinted (ret det selv dér): " +
+            afvist.map((k) => (navne[k] ?? k) + " »" + String(Array.isArray(p[k]) ? (p[k] as unknown[]).join(" › ") : p[k]) + "«").join(", "),
+        });
+      }
       if (gemt.length || prisSat) {
         await supabase.from("price_events").insert({
           listing_id: id,
@@ -1955,6 +1967,7 @@ Deno.serve(async (req: Request) => {
         ok: true,
         gemt: [...gemt, ...(fs?.gemt ? ["fotos"] : [])].map((k) => navne[k] ?? k),
         tilbage: Object.keys(rest).map((k) => navne[k] ?? k),
+        afvist: afvist.map((k) => navne[k] ?? k),
         naeste: naeste ? String(naeste.external_id) : null,
       });
     }

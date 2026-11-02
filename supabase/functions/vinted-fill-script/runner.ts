@@ -172,12 +172,22 @@ var picker = null;
 // og materiale over. Titel og pris mistede deres id 31. oktober paa samme
 // maade. Derfor: id -> name -> Vinteds data-testid -> label-teksten, som felt().
 // Label-teksterne er gaettet, ikke maalt.
-var VAELGER_TESTID={category:'catalog-select-dropdown-input',size:'category-size-single-grid-input'};
+// Fra ca. 1. november (maalt 2. november i browserruden, opret- og
+// redigeringssiden): hvert felt er et SKJULT input med navnet (aria-hidden,
+// altid tom value) og ved siden af en knap, der viser vaerdien og aabner en
+// Radix-menu paa pointerdown - ikke paa click. Knappen er feltet, og dens
+// data-testid staar her. Tom knap har attributten data-placeholder.
+var VAELGER_TESTID={category:'catalog-select-dropdown-input',brand:'brand-select-dropdown-input',
+ size:'category-size-single-grid_chips-input',condition:'category-condition-single-list-input',
+ color:'color-select-dropdown-input',material:'category-material-multi-list-input'};
 var VAELGER_ORD={category:/^kategori/,brand:/^m(æ|ae)rke/,size:/^st(ø|oe)rrelse/,
  condition:/^stand/,color:/^farve/,material:/^materiale/};
 function vaelger(id){
- var el=q('#'+id)||q('input[name="'+id+'"]')||
-  (VAELGER_TESTID[id]&&q('input[data-testid="'+VAELGER_TESTID[id]+'"]'));
+ var el=(VAELGER_TESTID[id]&&q('[data-testid="'+VAELGER_TESTID[id]+'"]'))||q('#'+id)||q('input[name="'+id+'"]');
+ if(el&&el.tagName==='INPUT'&&el.getAttribute('aria-hidden')==='true'&&el.parentElement){
+  var knap=el.parentElement.querySelector('button[aria-haspopup]');
+  if(knap)return knap;
+ }
  if(el||!VAELGER_ORD[id])return el||null;
  var alle=document.querySelectorAll('input');
  for(var i=0;i<alle.length;i++){
@@ -204,7 +214,26 @@ function panelFor(id){
 function modal(){
  var m=document.querySelector('.ReactModal__Content');
  if(m)return m;
+ var rm=radixMenu();
+ if(rm)return rm;
  return (picker&&picker.isConnected&&picker.offsetHeight>0)?picker:null;
+}
+// Den aabne vaelger-menu: knappen med data-state=open peger paa den med
+// aria-controls.
+function radixMenu(){
+ var t=document.querySelector('button[aria-haspopup="menu"][data-state="open"]');
+ var c=t&&document.getElementById(t.getAttribute('aria-controls')||'');
+ return (c&&c.isConnected)?c:null;
+}
+function trykNed(el){
+ el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,button:0,pointerType:'mouse',isPrimary:true}));
+}
+// Vaelgerne med flere valg (farve, materiale) lukker ikke selv.
+async function lukMenu(){
+ for(var i=0;i<3&&radixMenu();i++){
+  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  await sleep(400);
+ }
 }
 
 // En dialog midt i skærmen er i vejen, når man ikke selv har bedt om noget.
@@ -257,6 +286,9 @@ async function waitChange(before,ms){
 
 async function save(){
  var m=modal();if(!m)return;
+ // Radix-menuen har ingen Gem: et enkelt valg lukker den selv, og »Gem«
+ // kunne ramme et maerke, der hedder noget med gem.
+ if(m===radixMenu()){await lukMenu();return}
  var b=m.querySelector('[data-testid="input-dropdown-save-button"]')||pick(m,'Gem');
  if(b){b.click();await sleep(800)}
 }
@@ -266,6 +298,7 @@ async function save(){
 async function closeStray(){
  for(var i=0;i<3;i++){
   var m=modal();if(!m)return;
+  if(m===radixMenu()){await lukMenu();continue}
   var c=m.querySelector('[data-testid$="close-button"]');
   if(!c)return;
   c.click();await sleep(500);
@@ -289,12 +322,17 @@ async function open(id){
   var p0=panelFor(id);
   if(p0){picker=p0;return p0}
   var el=vaelger(id);
+  // Maerke, stoerrelse osv. tegnes foerst et oejeblik efter, at kategorien er
+  // valgt (maalt 2. november: ikke der straks, der efter ~1 s).
+  if(!el&&forsoeg<8){await sleep(400);continue}
   if(!el){spor(id+': feltet findes ikke · felter: '+feltListe(),DRAFT_ID);return null}
   // Uden onClick efter to runder klikkes der alligevel: Vinted kan have flyttet
   // handleren, og ellers gaar der 18 s paa et felt, der aldrig aabnes.
-  if(reactReady(el)||forsoeg>=2)el.click();
+  if(el.tagName==='BUTTON'&&el.getAttribute('aria-haspopup')){
+   if(el.getAttribute('data-state')!=='open')trykNed(el);
+  }else if(reactReady(el)||forsoeg>=2)el.click();
   for(var i=0;i<6;i++){
-   m=document.querySelector('.ReactModal__Content');
+   m=document.querySelector('.ReactModal__Content')||radixMenu();
    if(m)return m;
    var p=panelFor(id);
    if(p){picker=p;return p}
@@ -305,13 +343,22 @@ async function open(id){
  return null;
 }
 
-function filled(id){var e=vaelger(id);return !!(e&&norm(e.value))}
+// Det, feltet viser. Knappen: dens tekst, medmindre den staar tom
+// (data-placeholder, »Vælg en kategori«).
+function vaerdi(id){
+ var e=vaelger(id);
+ if(!e)return '';
+ if(e.tagName==='BUTTON')return e.hasAttribute('data-placeholder')?'':(e.textContent||'').replace(/\s+/g,' ').trim();
+ return e.value||'';
+}
+function filled(id){return !!norm(vaerdi(id))}
 
 // Sidste sikring: passer det, der endte i feltet, overhovedet til varen?
 // Kan der ikke spørges, godkendes valget — et tomt felt er værre end et,
 // der måske kunne have været mere præcist.
 async function verify(kind,value){
- if(!value)return true;
+ // Uden udkast (redigeringssiden) er vaerdien din egen, ikke et gaet.
+ if(!value||!DRAFT_ID)return true;
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({id:DRAFT_ID,mode:'verify',kind:kind,value:value})},30000);
@@ -440,7 +487,7 @@ async function fillBrand(brand){
  t.click();await sleep(900);
  await save();await closeStray();
  if(!filled('brand'))return 'mærke';
- return await verify('mærke',vaelger('brand').value)?null:'mærke (tjek det)';
+ return await verify('mærke',vaerdi('brand'))?null:'mærke (tjek det)';
 }
 
 async function fillSize(size,scale){
@@ -448,11 +495,49 @@ async function fillSize(size,scale){
  var m=await open('size');if(!m)return 'størrelse';
  if(scale){var c=pick(m,scale);if(c){c.click();await sleep(800)}}
  var t=await choose(modal()||m,'størrelse',[],size);
+ // Redigeringssiden har intet udkast at spoerge serveren om: saa Vinteds
+ // egen ordlyd (»5 år / 110 cm« for »110«), men kun et entydigt fund.
+ if(!t&&!DRAFT_ID){
+  var lige=options(modal()||m,[]).filter(function(o){return sammeStoerrelse(size,o.t)});
+  if(lige.length===1)t=lige[0].e;
+ }
  if(!t){await closeStray();return 'størrelse'}
  t.click();await sleep(800);
  await save();await closeStray();
  if(!filled('size'))return 'størrelse';
- return await verify('størrelse',vaelger('size').value)?null:'størrelse (tjek den)';
+ return await verify('størrelse',vaerdi('size'))?null:'størrelse (tjek den)';
+}
+
+// Farve og materiale: flere valg, og Vinted tager hoejst to farver. Det, der
+// ikke skal staa der, fjernes foerst; menuen lukker ikke selv.
+async function fillFlere(id,oenske,name){
+ var oensk=String(oenske||'').split(/\s*,\s*/).filter(Boolean).slice(0,2);
+ if(!oensk.length)return null;
+ var m=await open(id);if(!m)return name;
+ // Gitteret viser de valgte to gange: øverst som oversigt og i gitteret.
+ // Den sidste med samme testid er gitterets (maalt 2. november).
+ var navn=function(e){return norm(e.getAttribute('aria-label')||e.textContent)};
+ var raekker=function(){
+  var c=modal();if(!c)return [];
+  var sidste={};
+  [].slice.call(c.querySelectorAll('[role=checkbox]')).forEach(function(e){sidste[e.getAttribute('data-testid')||navn(e)]=e});
+  return Object.keys(sidste).map(function(k){return sidste[k]});
+ };
+ var vil=function(e){return oensk.some(function(o){return norm(o)===navn(e)})};
+ // Én ad gangen og slået op paa ny: to klik lige efter hinanden fjernede
+ // kun den ene (maalt 2. november, »Lyserød, Blå« -> »Lyserød, Sort«).
+ for(var f=0;f<4;f++){
+  var ud=raekker().filter(function(e){return e.getAttribute('aria-checked')==='true'&&!vil(e)})[0];
+  if(!ud)break;
+  ud.click();await sleep(500);
+ }
+ for(var i=0;i<oensk.length;i++){
+  var e=raekker().filter(function(x){return navn(x)===norm(oensk[i])})[0];
+  if(!e){log(name+': »'+oensk[i]+'« findes ikke');await lukMenu();return name}
+  if(e.getAttribute('aria-checked')!=='true'){e.click();await sleep(400)}
+ }
+ await lukMenu();
+ return sammeValg(id,vaerdi(id),oenske)?null:name;
 }
 
 async function fillPick(id,label,name){
@@ -463,7 +548,7 @@ async function fillPick(id,label,name){
  t.click();await sleep(800);
  await save();await closeStray();
  if(!filled(id))return name;
- return await verify(name,vaelger(id).value)?null:name+' (tjek det)';
+ return await verify(name,vaerdi(id))?null:name+' (tjek det)';
 }
 
 // Vinteds »Mål (anbefales)«: plaggets Længde og Skulderbredde i cm. Felterne
@@ -543,7 +628,7 @@ async function fillPhotos(urls){
 function reactReady(el){
  if(!el)return false;
  var k=Object.keys(el).find(function(k){return k.indexOf('__reactProps')===0});
- return !!(k&&el[k].onClick);
+ return !!(k&&(el[k].onClick||el[k].onPointerDown));
 }
 async function waitReady(){
  for(var i=0;i<60;i++){
@@ -1278,6 +1363,38 @@ async function anvend(post){
   sat.push(navn);
   await sleep(150);
  }
+ // Vinteds vælgere (bestemt af dig 2. november): rettet i appen, sat her.
+ // Kategorien først — de andre felter afhænger af den. Uden et udkast kan
+ // serveren ikke vælge for os, så kun Vinteds egen ordlyd rammer (stien er
+ // Vinteds, standen og farven er Vinteds lister).
+ var valgt={},valgFoer=null,afvist=[],genSaet={};
+ var VALG=[['category','kategori'],['brand','mærke'],['size','størrelse'],
+  ['condition','stand'],['color','farve'],['material','materiale']];
+ for(var vi=0;vi<VALG.length;vi++){
+  var vk=VALG[vi][0],vv=f[vk];
+  // Et kategoriskift kan tømme de andre vælgere (ikke målt). Det, der stod,
+  // sættes igen bagefter, hvis det er væk og ikke selv skal rettes.
+  if(vv==null&&genSaet[vk]&&!filled(vk)&&vaelger(vk))vv=genSaet[vk];
+  if(vv==null||vv===''||(Array.isArray(vv)&&!vv.length))continue;
+  if(!vaelger(vk)){manglende.push(vk);continue}
+  if(sammeValg(vk,vaerdi(vk),vv)){allerede.push(vk);continue}
+  if(vk==='category')VALG.slice(1).forEach(function(x){if(!(x[0] in f)&&filled(x[0]))genSaet[x[0]]=vaerdi(x[0])});
+  if(!valgFoer)valgFoer=await laesValg(post.itemId);
+  var vmiss=vk==='category'?await fillCategory(Array.isArray(vv)?vv:String(vv).split(/\s*[›>]\s*/))
+   :vk==='brand'?await fillBrand(String(vv))
+   :vk==='size'?await fillSize(String(vv),null)
+   :(vk==='color'||vk==='material')?await fillFlere(vk,String(vv),VALG[vi][1])
+   :await fillPick(vk,String(vv),VALG[vi][1]);
+  if(!sammeValg(vk,vaerdi(vk),vv)){
+   spor('anvend: '+VALG[vi][1]+' blev ikke sat ('+(vmiss||'?')+') — står »'+vaerdi(vk)+'«, ønsket »'+vv+'«',null);
+   // Vinted har ikke værdien (fx materialet »Strik«), eller vælgeren ville
+   // ikke: den tages af pending, ellers gik runneren hertil igen og igen.
+   if(vk in f)afvist.push(vk);
+   continue;
+  }
+  if(vk in f){valgt[vk]=vaerdi(vk);sat.push(vk)}
+ }
+
  // Rækkefølgen sættes ikke i et felt, men i Gem-kaldet (fotoKrog). Serveren
  // har allerede tjekket, at den ikke står der i forvejen.
  if(Array.isArray(f.fotos)&&f.fotos.length){
@@ -1288,12 +1405,14 @@ async function anvend(post){
   fotoKrog(String(post.itemId));
   sat.push('fotos');
  }
- if(!sat.length&&allerede.length){
-  spor('anvend: '+allerede.join(', ')+' stod allerede i annoncen');
+ if(!sat.length&&(allerede.length||afvist.length)){
+  spor('anvend: '+(allerede.length?allerede.join(', ')+' stod allerede i annoncen':'')+(afvist.length?' · afvist: '+afvist.join(', '):''));
   var fra={kilde:'formular',url:location.origin+'/items/'+post.itemId};
   for(var fn in FELT_TIL_INPUT){var fe=felt(fn);if(fe)fra[fn]=fn==='price'?helKroner(fe.value):fe.value}
-  var kv=await kvitter(post,fra);
-  if(kv&&kv.ok&&!(kv.tilbage||[]).length)kv.tekst='Ændringen stod allerede i annoncen — kvitteret i appen.';
+  allerede.forEach(function(k){if(!(k in FELT_TIL_INPUT))fra[k]=vaerdi(k)});
+  var kv=await kvitter({listing:post.listing,itemId:post.itemId,satte:[],afvist:afvist},fra);
+  if(kv&&kv.ok&&(kv.afvist||[]).length)kv.tekst='Kunne ikke sættes på Vinted: '+kv.afvist.join(', ')+'. Ret det selv dér.';
+  else if(kv&&kv.ok&&!(kv.tilbage||[]).length)kv.tekst='Ændringen stod allerede i annoncen — kvitteret i appen.';
   else baand('Kunne ikke kvittere i appen. Prøv igen fra appen.',null,null);
   return kv;
  }
@@ -1312,7 +1431,8 @@ async function anvend(post){
  log('anvend: satte '+sat.join(', ')+(manglende.length?' — manglede '+manglende.join(','):''));
  await sleep(300);
  try{localStorage.setItem('udbakke_prisvagt_sat',JSON.stringify(
-  {listing:post.listing,itemId:post.itemId,felter:f,satte:sat,nye:nyePar,tid:Date.now()}))}catch(e){}
+  {listing:post.listing,itemId:post.itemId,felter:f,satte:sat,nye:nyePar,tid:Date.now(),
+   valgt:valgt,valgFoer:valgFoer,afvist:afvist}))}catch(e){}
 
  // Findes knappen ikke, står ændringerne i felterne, og du trykker selv —
  // ventetiden herunder kvitterer alligevel, når formularen forsvinder.
@@ -1374,6 +1494,49 @@ function ensLyd(a,b){
  var n=function(x){return String(x==null?'':x).replace(/\s+/g,' ').trim().toLowerCase()};
  return n(a)===n(b);
 }
+// Samme regler som _shared/valg.ts (passerUde) - ret dem sammen.
+function sammeStoerrelse(udkast,vinted){
+ if(ensLyd(udkast,vinted))return true;
+ var led=function(x){
+  return String(x==null?'':x).toLowerCase().replace(/½/g,'.5').replace(/(\d),(\d)/g,'$1.$2')
+   .split(/[\s\/|,()-]+/).map(function(t){return t.replace(/^(w|l|eu|uk)(?=\d)/,'')}).filter(Boolean);
+ };
+ var v=led(vinted);
+ return led(udkast).some(function(t){return /\d|^[xsml]+$/.test(t)&&v.indexOf(t)>-1});
+}
+function sammeValg(k,ude,oensket){
+ if(ude==null||ude==='')return false;
+ if(k==='price')return Math.round(Number(ude))===Math.round(Number(oensket));
+ if(k==='size')return sammeStoerrelse(oensket,ude);
+ if(k==='color'||k==='material'){
+  var s=function(x){return String(x==null?'':x).toLowerCase().split(/\s*,\s*/).filter(Boolean).sort().join(',')};
+  return s(ude)===s(oensket);
+ }
+ if(k==='category'){
+  var blad=function(x){return Array.isArray(x)?x[x.length-1]:x};
+  return ensLyd(blad(ude),blad(oensket));
+ }
+ return ensLyd(ude,oensket);
+}
+
+// Vaelgernes vaerdier, som Vinted har gemt dem (din egen annonce,
+// /api/v2/item_upload/items/{id}, ~23 kB; maalt 2. november): maerket og
+// farverne som tekst, standen som id (testid condition-N paa opret-siden),
+// kategori, stoerrelse og materiale kun som id. Et id, der har flyttet sig
+// siden foer Gem, betyder, at det valgte er gemt.
+var STAND_ID={6:'Ny med prismærker',1:'Ny uden prismærker',2:'Meget god',3:'God',4:'Tilfredsstillende'};
+async function laesValg(id){
+ try{
+  var r=await timedFetch('/api/v2/item_upload/items/'+id,
+   {headers:{'Accept':'application/json'},credentials:'include',cache:'no-store'},15000);
+  if(!r.ok)return null;
+  var j=await r.json(),it=(j&&(j.item||j))||{},ids={category:it.catalog_id};
+  (it.item_attributes||[]).forEach(function(a){if(a&&a.code)ids[a.code]=(a.ids||[]).join(',')});
+  return {brand:(it.brand_dto&&it.brand_dto.title)||null,
+   color:[it.color1,it.color2].filter(Boolean).join(', ')||null,
+   condition:STAND_ID[ids.condition]||null,ids:ids};
+ }catch(e){return null}
+}
 
 var MARKOER='udbakke_prisvagt_sat';
 function hentMarkoer(){
@@ -1418,12 +1581,10 @@ async function bekraeftNu(v){
   if(forsoeg)await sleep(3000);
   set=await laesFrisk(v.itemId);
   if(!set||!set.udgivet)continue;
+  if(v.valgt&&Object.keys(v.valgt).length)await medValg(set.udgivet,v);
   ikke=(v.satte||[]).filter(function(navn){
    if(navn==='fotos')return false;
-   var oenske=v.felter[navn], faktisk=set.udgivet[navn];
-   return !((navn==='price')
-    ? (Math.round(Number(faktisk))===Math.round(Number(oenske)))
-    : ensLyd(faktisk,oenske));
+   return !sammeValg(navn,set.udgivet[navn],v.felter[navn]);
   });
   if(!ikke.length)break;
  }
@@ -1439,8 +1600,25 @@ async function bekraeftNu(v){
  spor('bekræft: '+v.itemId+' — '+(kv&&kv.ok?'kvitteret'+((kv.tilbage||[]).length?', mangler '+kv.tilbage.join(','):''):'kunne ikke kvittere'));
  if(!kv||!kv.ok)baand('Gemt på Vinted, men appen kunne ikke kvittere. Prøv igen fra appen.',null,null);
  else if((kv.tilbage||[]).length)baand('Gik ikke igennem på Vinted: '+kv.tilbage.join(', ')+'. Den står stadig som klar i appen.',null,null);
+ else if((kv.afvist||[]).length)baand('Gemt, men kunne ikke sættes på Vinted: '+kv.afvist.join(', ')+'. Ret det selv dér.',null,null);
  else kv.tekst='Gemt på Vinted og kvitteret i appen.';
  return kv;
+}
+
+// Vaelgerne efter Gem: maerke, farve og stand som Vinted har gemt dem;
+// kategori, stoerrelse og materiale som det, formularen viste, men kun hvis
+// deres id har flyttet sig siden foer Gem (ellers er de ikke gemt).
+async function medValg(u,v){
+ var efter=await laesValg(v.itemId);
+ if(!efter){spor('bekræft: vælgerne kunne ikke læses',null);return}
+ if(efter.brand)u.brand=efter.brand;
+ if(efter.color)u.color=efter.color;
+ if(efter.condition)u.condition=efter.condition;
+ var foer=(v.valgFoer&&v.valgFoer.ids)||null;
+ ['category','size','material'].forEach(function(k){
+  if(!(k in v.valgt)||!foer)return;
+  if(String(efter.ids[k]==null?'':efter.ids[k])!==String(foer[k]==null?'':foer[k]))u[k]=v.valgt[k];
+ });
 }
 
 async function kvitter(v,udgivet){
@@ -1450,7 +1628,7 @@ async function kvitter(v,udgivet){
  try{
   var r=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({mode:'anvendt',listing:v.listing,price:udgivet.price,
-    udgivet:udgivet,besoegt:rundeBesoegt(),fotos:ids,fotoNye:v.nye||null})},20000);
+    udgivet:udgivet,besoegt:rundeBesoegt(),fotos:ids,fotoNye:v.nye||null,afvist:v.afvist||[]})},20000);
   return await r.json();
  }catch(e){return null}
 }

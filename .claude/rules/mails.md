@@ -141,7 +141,8 @@ har ingen række i `listings` endnu.
   kunApi)`). Rettes der i Vinteds egen app, sender Vinted ingen mail; så
   kommer det hjem, når du åbner annoncen i Safari, trykker **Opdatér fra
   Vinted**, prisvagten måler den, eller garderoben læses (ikke beskrivelsen).
-- **Appen → Vinted sker ved Gem.** Redigeringen starter fra annoncens egne ord
+- **Appen → Vinted sker ved Gem** — også Vinteds vælgere (se vinted.md
+  »Felterne til markedspladserne«). Redigeringen starter fra annoncens egne ord
   (`published`), ikke udkastets, og kun det, der afviger fra ANNONCEN, sendes
   ud — en titel rettet på Vinted skrives ikke tilbage, fordi du bagefter rettede
   prisen i appen. Gem lægger ændringen i `pending` og åbner straks

@@ -27,9 +27,19 @@ henvises til som »CLAUDE.md »X««, i `.claude/rules/` — se tabellen nederst
    ventet, i dag ens med `listings` på pris og titel); størrelsens
    sammenligning på 16 målte par. **Ikke afprøvet på telefonen:** se `spor`
    / loggen »garderobe-synk: N af N læst«, og at størrelse og stand nu står
-   i `published` på de aktive annoncer. **Ikke bygget:** at appen sender
-   mærke, størrelse, stand, farve og kategori UD til en annonce, der
-   allerede er på Vinted (vælgerne på redigeringssiden).
+   i `published` på de aktive annoncer.
+
+0. **Vinteds vælgere — 2. november.** Vinted gjorde vælgerne til Radix-knapper
+   omkring 1. november, og udfyldningen satte derefter hverken kategori, mærke,
+   størrelse, stand, farve eller materiale. Det er rettet. Samtidig sendes en
+   rettet vælger fra appen nu ud til en annonce, der allerede er på Vinted
+   (vinted.md »Vinted: formularen« og »Felterne til markedspladserne«).
+   **Afprøvet** i browserruden uden Gem/Upload: alle seks felter på
+   opret-siden; mærke, størrelse (lempeligt), stand, farve og materiale på
+   redigeringssiden, sat og sat tilbage. **Ikke afprøvet:** telefonens smalle
+   skærm, Gem på redigeringssiden og kvitteringen (`medValg`), og at skifte
+   kategori på en eksisterende annonce (Vinted kan nulstille størrelsen).
+   Næste udfyldning: læs `spor` for »kategori«, og at felterne står udfyldt.
 
 0. **Forsendelsen på varen — 19. oktober** (udgivelse-0135/-0136). Regler i
    CLAUDE.md »Forsendelsen«. **Afprøvet:** mail 7-49 genlæst — alle fire
