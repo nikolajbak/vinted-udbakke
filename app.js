@@ -1574,7 +1574,7 @@
     var url = fs.maerkat && MAERKAT[fs.maerkat];
     var d = rows[l.draft_id] || Object.keys(rows).map(function(k){ return rows[k]; })
       .find(function(r){ return annoncer(r).indexOf(l) >= 0; }) || {};
-    var h = '<div class="fs-stor-top"><b>' + esc((fs.transportoer ? fs.transportoer + ' · ' : '') + (fs.maerkat ? 'Fragtmærkat' : 'Fragtkode')) +
+    var h = '<div class="fs-stor-top"><b>' + (fs.maerkat ? 'Fragtmærkat' : 'Fragtkode') +
       '</b><button type="button" class="btn btn-quiet" data-fs-luk>Luk</button></div><div class="fs-stor-krop">';
     // Varen og forsendelsesnummeret paa samme side som koden (bestemt af
     // dig 19. oktober), saa du kan se, hvilken pakke koden hoerer til.
@@ -1582,6 +1582,11 @@
     h += '<div class="fs-stor-vare">' + (d.nr ? '<i class="mono">' + esc(fmtNr(d.nr)) + '</i>' : '') +
       '<b>' + esc(l.title || d.title || '') + '</b>' +
       (fs.pakke ? '<span>' + esc(fs.pakke) + '</span>' : '') + '</div>';
+    // Fragtfirmaet og modtageren tydeligt ved koden (bestemt af dig
+    // 2. november). Modtageren staar kun i maerkatet; den laeses af PDF'ens
+    // tekst (`maerkatTekst`), naar den er hentet.
+    h += '<div class="fs-stor-hvem"><b class="fs-stor-fragt"' + (fs.transportoer ? '' : ' hidden') + '>' + esc(fs.transportoer || '') + '</b>' +
+      '<div class="fs-stor-modt" hidden><span>Modtager</span><b></b></div></div>';
     if(fs.maerkat) h += '<div class="fs-stor-qr" hidden></div>';
     if(fs.fragtkode) h += '<div class="fs-stor-kode"><span>Sig fragtkoden</span><b class="mono">' + esc(fs.fragtkode) + '</b></div>';
     if(fs.sporingskode) h += '<div class="fs-stor-nr"><span>Forsendelsesnummer</span><b class="mono">' + esc(fs.sporingskode) +
@@ -1631,10 +1636,37 @@
           });
         });
       })(n);
+      pdf.getPage(1).then(function(side){ return side.getTextContent(); }).then(function(t){
+        var m = maerkatTekst(t.items);
+        if(!o.contains(fil)) return;
+        var fr = o.querySelector('.fs-stor-fragt'), md = o.querySelector('.fs-stor-modt');
+        if(!fs.transportoer && m.transportoer){ fr.textContent = m.transportoer; fr.hidden = false; }
+        if(m.modtager){ md.querySelector('b').textContent = m.modtager; md.hidden = false; }
+      }).catch(function(){});
       return tegn.then(function(){ if(foerste) return fremhaevKode(foerste, qrPlads).then(efterKode); });
     }).catch(function(){
       fil.innerHTML = 'PDF\'en kan ikke vises her — <a href="' + esc(url) + '" target="_blank" rel="noopener">åbn den</a>.';
     });
+  }
+  // Modtageren og fragtfirmaet af maerkatets tekst. pdf.js giver ikke
+  // teksten i laeserækkefoelge (Vinteds GLS-maerkat: navnet foer
+  // »Modtager«), saa navnet er teksten naermest under »Modtager«.
+  var FRAGTFIRMAER = ['GLS', 'DAO', 'PostNord', 'Bring', 'DHL', 'UPS', 'Budbee', 'Instabox'];
+  function maerkatTekst(items){
+    var tk = items.filter(function(i){ return i.str && i.str.trim(); }), r = {};
+    var lbl = tk.find(function(i){ return /^modtager:?$/i.test(i.str.trim()); });
+    if(lbl){
+      var x = lbl.transform[4], y = lbl.transform[5];
+      var under = tk.filter(function(i){ return i !== lbl && i.transform[5] < y && y - i.transform[5] < 60 && Math.abs(i.transform[4] - x) < 40; })
+        .sort(function(a, b){ return b.transform[5] - a.transform[5]; });
+      if(under.length) r.modtager = under[0].str.trim();
+    }
+    tk.some(function(i){
+      var f = FRAGTFIRMAER.find(function(n){ return n.toLowerCase() === i.str.trim().toLowerCase(); });
+      if(f) r.transportoer = f;
+      return !!f;
+    });
+    return r;
   }
   function lukFsStor(){ var o = $('fs-stor'); if(!o || o.hidden) return; o.hidden = true; o.innerHTML = ''; }
   // Mærkatet lagt ind af dig (sql/025): PDF'en fra mailen eller et

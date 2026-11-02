@@ -69,7 +69,7 @@ sender ingen mails.
     udsnittet af mærkatet. **Kod den ikke forfra**: GLS-koden er version
     11 med UTF-8 og ECI (modtagerens adresse med æøå, målt på mail 50), og
     qrcode-generator kan ikke skrive ECI. Over koden står løbenummeret
-    stort (som på etiketten på pakken), varens titel og pakkestørrelsen, under den **Forsendelsesnummer**
+    stort (som på etiketten på pakken), varens titel og pakkestørrelsen, **fragtfirmaet stort og modtagerens navn** (bestemt af dig 2. november; `maerkatTekst`: modtageren findes kun i PDF'ens tekst, som pdf.js ikke giver i læserækkefølge — navnet er teksten nærmest under »Modtager«; firmaet fra `transportoer`, ellers af mærkatets tekst), under den **Forsendelsesnummer**
     (sporingskoden) stort. Pakkenummeret under GLS' kode er en del af
     billedet i PDF'en, ikke tekst, og kan ikke læses. Den hvide rest af
     A4-siden skæres fra (`udenHvidt`). Findes koden ikke, vises mærkatet
