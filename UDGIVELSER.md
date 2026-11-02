@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0159 — 2026-11-02 22:35
+
+Commit `962cc14` — Mærkatet: hele mærkatet foldet bag en knap, når QR-koden vises; tryk-zoomet fjernet  
+App: `app.js?v=9d1f5c67` · `style.css?v=4ad2f8e4`  
+Udrullet: ingen funktioner (kun noteret)
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v100 | `c789b74b` |
+| dba-fill-script | v48 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v39 | `8b0e0533` |
+| vinted-fill-script | v141 | `a0a9821d` |
+| vinted-mail | v32 | `68f3750b` |
+
 ## udgivelse-0158 — 2026-11-02 22:24
 
 Commit `de7ff26` — Mærkatet: QR-koden findes i flere størrelser, så der zoomes ind på den  
