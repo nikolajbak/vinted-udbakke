@@ -101,7 +101,7 @@ trap halvt EXIT
 
 for f in $udrul; do
   echo "Udruller $f …"
-  npx --yes supabase@latest functions deploy "$f" --no-verify-jwt --project-ref "$PROJEKT" >/dev/null
+  npx --yes supabase@latest functions deploy "$f" --no-verify-jwt --yes --project-ref "$PROJEKT" >/dev/null
 done
 
 # Kontrollen gaar mod det, der faktisk udleveres — ikke mod det, vi sendte.

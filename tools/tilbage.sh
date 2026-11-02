@@ -118,7 +118,7 @@ staar uroert, saa selve tilbagerulningen kan ogsaa fortrydes."
 
 for f in $udrul; do
   echo "Udruller $f …"
-  npx --yes supabase@latest functions deploy "$f" --no-verify-jwt --project-ref "$PROJEKT" >/dev/null
+  npx --yes supabase@latest functions deploy "$f" --no-verify-jwt --yes --project-ref "$PROJEKT" >/dev/null
 done
 
 echo "Kontrollerer at live svarer til git …"
