@@ -166,8 +166,35 @@ function setPris(el,v){
 // Derfor slaas panelet op ud fra feltet frem for at lede efter "en dialog".
 var picker = null;
 
+// Vaelgerens felt. Til 17. oktober havde alle seks et fast id (#category …);
+// 1. november fandt runneren ikke #category paa opret-siden i 13 af 13
+// udfyldninger, og saa sprang den kategori, maerke, stoerrelse, stand, farve
+// og materiale over. Titel og pris mistede deres id 31. oktober paa samme
+// maade. Derfor: id -> name -> Vinteds data-testid -> label-teksten, som felt().
+// Label-teksterne er gaettet, ikke maalt.
+var VAELGER_TESTID={category:'catalog-select-dropdown-input',size:'category-size-single-grid-input'};
+var VAELGER_ORD={category:/^kategori/,brand:/^m(æ|ae)rke/,size:/^st(ø|oe)rrelse/,
+ condition:/^stand/,color:/^farve/,material:/^materiale/};
+function vaelger(id){
+ var el=q('#'+id)||q('input[name="'+id+'"]')||
+  (VAELGER_TESTID[id]&&q('input[data-testid="'+VAELGER_TESTID[id]+'"]'));
+ if(el||!VAELGER_ORD[id])return el||null;
+ var alle=document.querySelectorAll('input');
+ for(var i=0;i<alle.length;i++){
+  if(alle[i].type==='hidden'||alle[i].type==='checkbox'||alle[i].type==='radio')continue;
+  if(VAELGER_ORD[id].test(feltNavn(alle[i])))return alle[i];
+ }
+ return null;
+}
+// Formularens felter, som de staar, til spor naar et felt ikke kan findes.
+function feltListe(){
+ return [].slice.call(document.querySelectorAll('input,textarea'))
+  .filter(function(e){return !/^ot-/.test(e.id)&&e.type!=='hidden'}).slice(0,25)
+  .map(function(e){return (e.id||e.name||e.type)+(e.getAttribute('data-testid')?'['+e.getAttribute('data-testid')+']':'')+'='+feltNavn(e).slice(0,30)}).join(', ');
+}
+
 function panelFor(id){
- var el=q('#'+id); if(!el)return null;
+ var el=vaelger(id); if(!el)return null;
  var tid=el.getAttribute('data-testid')||'';
  if(!/-input$/.test(tid))return null;
  var p=document.querySelector('[data-testid="'+tid.replace(/-input$/,'-content')+'"]');
@@ -261,9 +288,11 @@ async function open(id){
   if(m)return m;
   var p0=panelFor(id);
   if(p0){picker=p0;return p0}
-  var el=q('#'+id);
-  if(!el)return null;
-  if(reactReady(el))el.click();
+  var el=vaelger(id);
+  if(!el){spor(id+': feltet findes ikke · felter: '+feltListe(),DRAFT_ID);return null}
+  // Uden onClick efter to runder klikkes der alligevel: Vinted kan have flyttet
+  // handleren, og ellers gaar der 18 s paa et felt, der aldrig aabnes.
+  if(reactReady(el)||forsoeg>=2)el.click();
   for(var i=0;i<6;i++){
    m=document.querySelector('.ReactModal__Content');
    if(m)return m;
@@ -276,7 +305,7 @@ async function open(id){
  return null;
 }
 
-function filled(id){var e=q('#'+id);return !!(e&&norm(e.value))}
+function filled(id){var e=vaelger(id);return !!(e&&norm(e.value))}
 
 // Sidste sikring: passer det, der endte i feltet, overhovedet til varen?
 // Kan der ikke spørges, godkendes valget — et tomt felt er værre end et,
@@ -411,7 +440,7 @@ async function fillBrand(brand){
  t.click();await sleep(900);
  await save();await closeStray();
  if(!filled('brand'))return 'mærke';
- return await verify('mærke',q('#brand').value)?null:'mærke (tjek det)';
+ return await verify('mærke',vaelger('brand').value)?null:'mærke (tjek det)';
 }
 
 async function fillSize(size,scale){
@@ -423,7 +452,7 @@ async function fillSize(size,scale){
  t.click();await sleep(800);
  await save();await closeStray();
  if(!filled('size'))return 'størrelse';
- return await verify('størrelse',q('#size').value)?null:'størrelse (tjek den)';
+ return await verify('størrelse',vaelger('size').value)?null:'størrelse (tjek den)';
 }
 
 async function fillPick(id,label,name){
@@ -434,7 +463,7 @@ async function fillPick(id,label,name){
  t.click();await sleep(800);
  await save();await closeStray();
  if(!filled(id))return name;
- return await verify(name,q('#'+id).value)?null:name+' (tjek det)';
+ return await verify(name,vaelger(id).value)?null:name+' (tjek det)';
 }
 
 // Vinteds »Mål (anbefales)«: plaggets Længde og Skulderbredde i cm. Felterne
@@ -518,7 +547,11 @@ function reactReady(el){
 }
 async function waitReady(){
  for(var i=0;i<60;i++){
-  if(reactReady(q('#category')))return true;
+  var el=vaelger('category');
+  if(reactReady(el))return true;
+  // Formularen staar allerede (waitForm). Er feltet der ikke efter 3 s,
+  // kommer det ikke: 1. november ventede hver udfyldning de fulde 15 s forgaeves.
+  if(!el&&i>=12)return false;
   await sleep(250);
  }
  return false;
@@ -1267,9 +1300,7 @@ async function anvend(post){
  if(!sat.length){
   // Hvad stod der så? 30.–31. oktober fejlede én annonce to gange, og log()
   // når ikke serveren, så det kunne ikke ses, om siden var en anden.
-  var fl=[].slice.call(document.querySelectorAll('input,textarea'))
-   .filter(function(e){return !/^ot-/.test(e.id)}).slice(0,25)
-   .map(function(e){return (e.id||e.name||e.type)+(e.getAttribute('data-testid')?'['+e.getAttribute('data-testid')+']':'')+'='+feltNavn(e).slice(0,30)}).join(', ');
+  var fl=feltListe();
   var h1=q('h1');
   spor('anvend: ingen felter ('+manglende.join(',')+') · '+location.href+' · h1 »'+
    (h1?norm(h1.textContent).slice(0,80):'')+'« · felter: '+fl+' · tekst: '+
@@ -2023,18 +2054,10 @@ try{
   return String(Math.max(MIN_PRIS,Math.round(n)));
  }
 
- var price=d.price,note='foreløbig pris';
- var marked=await markedsanalyse(d);
- if(marked){
-  if(marked.title)bedre.title=marked.title;
-  if(marked.description)bedre.description=marked.description;
-  if(marked.price)price=marked.price;
-  note=marked.note||note;
- }else{
-  note='Prisen er IKKE tjekket mod markedet: '+(MARKED_FEJL||'ukendt fejl')+
-   '. '+(helKroner(price)>0?helKroner(price)+' kr':'Prisen')+' er analysens skøn — se den efter, før du trykker Upload';
- }
- spor('pris: '+note,DRAFT_ID);
+ // Markedsopslaget (Vinteds soegning + serverens pris, 6-8 s, en gang 48 s
+ // maalt 1. november) koerer, mens felterne udfyldes: det roerer ikke
+ // formularen, og prisen og teksten saettes foerst til sidst.
+ var markedP=markedsanalyse(d).catch(function(e){MARKED_FEJL='opslaget fejlede ('+(e.message||e)+')';return null});
 
  // Felterne først, billederne til sidst. Fotouploaden tegner formularen om,
  // mens den kører, og en vælger, der bliver skiftet ud midt i et klik, åbner
@@ -2070,6 +2093,19 @@ try{
   var mm=await fillMaal(d);
   if(mm)mangler.push(mm);
  }
+
+ var price=d.price,note='foreløbig pris';
+ var marked=await markedP;
+ if(marked){
+  if(marked.title)bedre.title=marked.title;
+  if(marked.description)bedre.description=marked.description;
+  if(marked.price)price=marked.price;
+  note=marked.note||note;
+ }else{
+  note='Prisen er IKKE tjekket mod markedet: '+(MARKED_FEJL||'ukendt fejl')+
+   '. '+(helKroner(price)>0?helKroner(price)+' kr':'Prisen')+' er analysens skøn — se den efter, før du trykker Upload';
+ }
+ spor('pris: '+note,DRAFT_ID);
 
  // Teksten til sidst, så ingen dialog kan nå at rydde den. Felterne slås op
  // igen her: React har tegnet formularen om, siden vi startede, og de gamle

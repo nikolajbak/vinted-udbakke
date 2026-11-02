@@ -337,6 +337,17 @@ intet på dig, lukkes den, når runneren er færdig.**
   ramte ellers) → label-teksten (`FELT_ORD`: »Titel«, »Beskriv…«, »Pris«).
   **Label-teksterne er gættet, ikke målt.** Fejler det, skriver `spor`
   »anvend: ingen felter …« hvert felts id og label.
+- **Vælgernes felter slås op med `vaelger(id)`, aldrig `q('#'+id)`.** 1. november fandt
+  runneren ikke `#category` på opret-siden i 13 af 13 udfyldninger (17. oktober: 10 af 10
+  »siden klar true«). Så sprang den kategori, mærke, størrelse, stand, farve og materiale over,
+  og ventede 15 s forgæves i `waitReady`. `vaelger`: id → `name` → kendt `data-testid`
+  (`VAELGER_TESTID`) → label-teksten (`VAELGER_ORD`, **gættet, ikke målt**). Findes feltet
+  ikke, skriver `spor` »<id>: feltet findes ikke · felter: …« med alle felternes id, testid
+  og label — læs dem dér og ret `VAELGER_TESTID`. `open` klikker også uden `onClick` fra
+  tredje runde.
+- **Markedsopslaget kører samtidig med felterne** (2. november). Det rører ikke formularen
+  (Vinteds søgning med `fetch` + `mode:'market'`), og pris og tekst sættes først til sidst.
+  Målt 1. november: 6–8 s, én gang 48 s, som før lå før kategorien.
 - **Prisfeltet skrives med `setPris`, aldrig `setv`.** Det er et valutafelt,
   der kun tager et råt tal, mens det har fokus. Uden fokus bliver teksten
   formateret som valuta: på redigeringssiden (»149,00 kr.«) gav »120« en TOM
