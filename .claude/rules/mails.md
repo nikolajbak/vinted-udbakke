@@ -221,36 +221,12 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
 - **Solgt** → annoncen sættes til `solgt` med salgsprisen, hændelse,
   gennemgangen af salgene, og en push. Dit eget køb (»du har købt«, »dit
   køb«) er ikke et salg.
-- **Bud** → push, prisen synkroniseres (»i stedet for kr.100.00«), og buddet
-  gemmes i `koeber_beskeder` (`intent:'bud'`, allerede »besvaret«) til
-  gennemgangen. **Vinted sender ikke længere bud-mails** (den sidste kom
-  17. oktober; 3. november kom to bud uden mail — set i Mail), så buddene
-  kommer nu fra indbakken (se »Bud fra Vinteds indbakke«).
-
-## Bud fra Vinteds indbakke
-
-Bestemt af dig 3. november: **buddene skal med i appen.** Målt samme dag,
-logget ind i browserruden:
-
-- `/api/v2/inbox?page=1&per_page=20` giver samtalerne (`id`, `description`,
-  `unread`, `updated_at`) men ikke varen. `/api/v2/conversations/{id}` giver
-  `transaction` (`item_id`, `item_title`, `buyer_id`, `current_user_side`)
-  og `messages`; et bud er `entity_type: 'offer_request_message'` med
-  `offer_request_id`, `user_id`, `price`/`original_price` (`{amount,
-  currency_code}`), `status` (10 = »Afventer«; set også 20 og 30 på
-  besvarede) og `current`. **Opslaget markerer ikke samtalen læst.**
-- Runneren (`budSynk`) læser indbakken, når en Vinted-side er åben, højst
-  hvert 5. minut, og kun samtaler ændret siden sidst og inden for 7 dage.
-  Kun bud fra køberen på en samtale, hvor du er sælger, og kun i DKK.
-- Serveren (`mode:'bud'`) gemmer hvert bud én gang i `koeber_beskeder`
-  (`kilde:'vinted'`, `vinted_bud`, `offer`, `bud_udbudt`, `samtale`), kun
-  på vores egne annoncer, og sender en push for et nyt ventende bud. Ikke
-  længere ventende (status ≠ 10 eller ikke `current`) → `besvaret_at`.
-- Appen viser et ventende bud som opgave på forsiden (»Bud«, beløbet, hvad
-  den står til og procenten, **Svar på Vinted** og **Klaret**). Det
-  forsvinder selv, når Vinted siger, det er besvaret.
-- **Uden en åben Vinted-side i Safari ser appen ikke buddet** — Vinted
-  blokerer serveren. Det er ikke et ur.
+- **Bud** → prisen synkroniseres (»i stedet for kr.100.00«), og buddet
+  bliver en opgave »Bud« i appen (`koeber_beskeder`, `intent:'bud'`,
+  `kilde:'mail'`) med en push — medmindre indbakken har set det først (se
+  »Bud fra Vinteds indbakke«). **Bud-mailen kommer sent eller slet ikke**
+  (3. november: to bud kl. 08.08–08.10, mailene kl. 08.23–08.25; buddet på
+  skaljakken 2. november kl. 22.54 fik ingen mail).
 - **Favorit** → stille: prisen synkroniseres, og hjerterne tælles én op
   (`favourites`). Ingen push (bestemt af dig 9. oktober).
 - **Et hjertetal, der ikke blev fundet, er null, aldrig 0** (21. oktober).
@@ -283,6 +259,37 @@ logget ind i browserruden:
 - **En push med en vare åbner varen** (`#v<nr>`), også når appen allerede er
   åben — `sw.js` navigerer den åbne rude. Det samme gælder en fane
   (`#fane-opgaver`, prisforslagenes push).
+
+## Bud fra Vinteds indbakke
+
+Bestemt af dig 3. november: **buddene skal med i appen** — både fra mail og fra
+indbakken, for mailen kan komme sent eller slet ikke. Målt samme dag,
+logget ind i browserruden:
+
+- `/api/v2/inbox?page=1&per_page=20` giver samtalerne (`id`, `description`,
+  `unread`, `updated_at`) men ikke varen. `/api/v2/conversations/{id}` giver
+  `transaction` (`item_id`, `item_title`, `buyer_id`, `current_user_side`)
+  og `messages`; et bud er `entity_type: 'offer_request_message'` med
+  `offer_request_id`, `user_id`, `price`/`original_price` (`{amount,
+  currency_code}`), `status` (10 = »Afventer«; set også 20 og 30 på
+  besvarede) og `current`. **Opslaget markerer ikke samtalen læst.**
+- Runneren (`budSynk`) læser indbakken, når en Vinted-side er åben, højst
+  hvert 5. minut, og kun samtaler ændret siden sidst og inden for 7 dage.
+  Kun bud fra køberen på en samtale, hvor du er sælger, og kun i DKK.
+- Serveren (`mode:'bud'`) gemmer hvert bud én gang i `koeber_beskeder`
+  (`kilde:'vinted'`, `vinted_bud`, `offer`, `bud_udbudt`, `samtale`), kun
+  på vores egne annoncer, og sender en push for et nyt ventende bud. Ikke
+  længere ventende (status ≠ 10 eller ikke `current`) → `besvaret_at`.
+- **Mail og indbakke er samme bud, når annonce og beløb er ens inden for et
+  døgn** (`budTvilling` i `vinted-mail`; samme opslag i `mode:'bud'`). Den,
+  der kommer sidst, skriver sit id på rækken (`vinted_mail_id` /
+  `vinted_bud`) og sender ingen push. Ellers talte gennemgangen hvert bud to
+  gange (3. november: række 11/13 og 12/14).
+- Appen viser et ventende bud som opgave på forsiden (»Bud«, beløbet, hvad
+  den står til og procenten, **Svar på Vinted** og **Klaret**). Det
+  forsvinder selv, når Vinted siger, det er besvaret.
+- **Indbakken kræver en åben Vinted-side i Safari** — Vinted blokerer
+  serveren. Uden den kommer buddet med mailen, når den kommer.
 
 ## Mails bruges til alt, de kan
 

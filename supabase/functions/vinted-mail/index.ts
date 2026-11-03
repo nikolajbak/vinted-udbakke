@@ -553,18 +553,33 @@ Deno.serve(async (req: Request) => {
   } else if (kind === "bud") {
     const nu = prisFoerBud(tekst) ?? (laest?.pris || 0);
     const synk = l && l.status === "aktiv" ? await synkPris(l, nu, "bud-mail") : "";
-    await push(titel ? "Bud på " + titel : "Nyt bud på Vinted",
-      bud ? kr(bud) + (nu || l ? " — den står til " + kr(nu || l!.price) : "") : (m.emne || "Se buddet på Vinted"),
-      appUrl);
-    // Buddet er en koebersamtale: gennemgangen af kommunikationen laerer af det.
-    if (!stille || !(await harKoeberRaekke(gemtId))) {
-      await supabase.from("koeber_beskeder").insert({
-        listing_id: l?.id ?? null, platform: "vinted", item_title: titel.slice(0, 200) || null,
-        offer: bud, intent: "bud", kilde: "mail", samtale: samtaleUrl(links),
-        vinted_mail_id: gemtId, besvaret_at: new Date().toISOString(),
-      });
+    // Buddet kommer ogsaa fra Vinteds indbakke (runnerens budSynk), og mailen
+    // kan komme et kvarter efter (3. november) - eller aldrig. Har indbakken
+    // allerede buddet (samme annonce og beloeb inden for et doegn), er det
+    // samme bud: kun mailens id noteres, og ingen ny push. Ellers bliver det
+    // en opgave »Bud« i appen, til du trykker Klaret, eller indbakken siger,
+    // at det er besvaret.
+    const tvilling = l && bud ? await budTvilling(l.id, bud, mailTid) : null;
+    if (tvilling) {
+      if (!tvilling.vinted_mail_id) {
+        await supabase.from("koeber_beskeder").update({ vinted_mail_id: gemtId }).eq("id", tvilling.id);
+      }
+      handling = "bud (set i indbakken først)" + (synk ? "; " + synk : "");
+    } else {
+      await push(titel ? "Bud på " + titel : "Nyt bud på Vinted",
+        bud ? kr(bud) + (nu || l ? " — den står til " + kr(nu || l!.price) : "") : (m.emne || "Se buddet på Vinted"),
+        appUrl);
+      // Buddet er en koebersamtale: gennemgangen af kommunikationen laerer af det.
+      if (!stille || !(await harKoeberRaekke(gemtId))) {
+        await supabase.from("koeber_beskeder").insert({
+          listing_id: l?.id ?? null, platform: "vinted", item_title: titel.slice(0, 200) || null,
+          offer: bud, intent: "bud", kilde: "mail", samtale: samtaleUrl(links),
+          vinted_mail_id: gemtId, bud_udbudt: (nu || l?.price) ? Math.round(Number(nu || l!.price)) : null,
+          besvaret_at: l ? null : new Date().toISOString(),
+        });
+      }
+      handling = "bud meldt" + (synk ? "; " + synk : "");
     }
-    handling = "bud meldt" + (synk ? "; " + synk : "");
   } else if (kind === "forsendelse") {
     // Fragtmaerkatet og forsendelsens gang paa varen (bestemt af dig
     // 19. oktober). Ingen push: Vinted har selv sendt mailen.
@@ -678,6 +693,17 @@ Deno.serve(async (req: Request) => {
   await supabase.from("vinted_mails").update({ handling }).eq("id", gemtId);
   return json({ ok: true, kind, listing: l?.id ?? null, handling });
 });
+
+// Samme bud set fra indbakken: samme annonce og beloeb inden for et doegn.
+async function budTvilling(listingId: string, beloeb: number, tid: string):
+  Promise<{ id: number; vinted_mail_id: number | null } | null> {
+  const t = Date.parse(tid) || Date.now();
+  const { data } = await supabase.from("koeber_beskeder").select("id, vinted_mail_id")
+    .eq("listing_id", listingId).eq("intent", "bud").eq("offer", beloeb)
+    .gte("at", new Date(t - 86400000).toISOString()).lte("at", new Date(t + 86400000).toISOString())
+    .order("at", { ascending: false }).limit(1);
+  return data?.[0] ?? null;
+}
 
 async function harKoeberRaekke(mailId: number): Promise<boolean> {
   const { count } = await supabase.from("koeber_beskeder").select("id", { count: "exact", head: true })

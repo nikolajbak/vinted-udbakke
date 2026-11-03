@@ -40,7 +40,7 @@ set -a; . ./.env.secrets; set +a      # nøglerne i miljøet
 | Vinteds mails → læst af en model og brugt: solgt, bud, besked, favorit, pris (nøgle: `MAIL_KEY`) | `supabase/functions/vinted-mail/` |
 | Mailens titel parret med annoncen, når titlen er rettet på Vinted (`bedsteTitel`, `titelLighed`, `emneTitel`, rene og testet med `node --test tools/test-titellighed.mjs`) | `supabase/functions/_shared/titellighed.ts` |
 | Køberbeskeder fra mail som opgave på forsiden (`SVAR`, `hentSvar`) | `app.js` |
-| Bud fra Vinteds indbakke (`budSynk` → `mode:'bud'` → `koeber_beskeder`, `kilde:'vinted'`), vist som opgave »Bud« | `runner.ts`, `…/vinted-fill-script/index.ts`, `app.js` |
+| Bud fra Vinteds indbakke (`budSynk` → `mode:'bud'`) og fra mail (`budTvilling` i `vinted-mail`), én række pr. bud i `koeber_beskeder`, vist som opgave »Bud« | `runner.ts`, `…/vinted-fill-script/index.ts`, `app.js` |
 | Forsendelsen læst af Vinteds mails (`erForsendelse`, `laesForsendelse`, `fletForsendelse`, `vaelgMaerkat`, rene og testet med `node --test tools/test-forsendelse.mjs`); mærkatet gemt i `vinted-mail` | `supabase/functions/_shared/forsendelse.ts`, `vinted-mail/index.ts` |
 | Forsendelsen på varens side (`forsendelseBlok`, `hentMaerkater`, `fristTekst`, `fsHandling`) og opgaverne »Lav fragtmærkatet«/»Send pakken«; mærkatet i fuld skærm (`visMaerkat`, `hentPdfJs`), lagt ind af dig (`laegMaerkatInd`), afleveret (`fsAfleveret`), sporingen (`fsSporLink`) | `app.js`, `#fs-stor`/`#fs-fil` i `index.html`, `.fs-…` i `style.css` |
 | Prisvagtens beslutning | `…/vinted-fill-script/prisvagt.ts` |

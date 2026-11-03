@@ -1902,11 +1902,27 @@ Deno.serve(async (req: Request) => {
         if (!l) continue;
         const pris = helKroner(b.pris) || null, udbudt = helKroner(b.udbudt) || null;
         const titel = String(l.title || l.published?.title || b.titel || "").slice(0, 200) || null;
+        const tid = typeof b.at === "string" && !isNaN(Date.parse(b.at)) ? Date.parse(b.at) : Date.now();
+        // Kom bud-mailen foerst (vinted-mail), er det samme bud: samme annonce
+        // og beloeb inden for et doegn. Raekken faar Vinteds id og status, og
+        // der kommer ingen push mere.
+        const { data: fraMail } = pris ? await supabase.from("koeber_beskeder").select("id, besvaret_at")
+          .eq("listing_id", l.id).eq("intent", "bud").eq("offer", pris).is("vinted_bud", null)
+          .gte("at", new Date(tid - 86400000).toISOString()).lte("at", new Date(tid + 86400000).toISOString())
+          .limit(1) : { data: null };
+        if (fraMail?.[0]) {
+          await supabase.from("koeber_beskeder").update({
+            vinted_bud: Number(b.id), bud_udbudt: udbudt,
+            samtale: typeof b.samtale === "string" ? b.samtale.slice(0, 300) : null,
+            ...(!b.venter && !fraMail[0].besvaret_at ? { besvaret_at: nu } : {}),
+          }).eq("id", fraMail[0].id);
+          continue;
+        }
         const { error } = await supabase.from("koeber_beskeder").insert({
           listing_id: l.id, platform: "vinted", item_title: titel, offer: pris, intent: "bud",
           kilde: "vinted", samtale: typeof b.samtale === "string" ? b.samtale.slice(0, 300) : null,
           vinted_bud: Number(b.id), bud_udbudt: udbudt,
-          at: typeof b.at === "string" && !isNaN(Date.parse(b.at)) ? new Date(b.at).toISOString() : nu,
+          at: new Date(tid).toISOString(),
           besvaret_at: b.venter ? null : nu,
         });
         if (error) { console.error("bud", error); continue; }

@@ -716,9 +716,9 @@
     // Koeberbeskeder fra Vinteds mails, med koeber-assistentens udkast.
     // Afsendelsen er dit tryk: kopiér, aabn samtalen, saet ind (bestemt af dig).
     SVAR.forEach(function(k){
-      // Et bud fra Vinteds indbakke: beloebet og prisen, det kom paa. Det
-      // forsvinder selv, naar Vinted siger, det er besvaret.
-      if(k.kilde === 'vinted' && k.intent === 'bud'){
+      // Et bud (fra Vinteds indbakke eller mail): beloebet og prisen, det kom
+      // paa. Det forsvinder selv, naar indbakken siger, det er besvaret.
+      if(k.intent === 'bud'){
         var bk = udkastMedTitel(alle, k.item_title);
         var bid = ' data-svar="' + esc(String(k.id)) + '"';
         var tal = k.offer ? kr(k.offer) : 'Et bud';
