@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0163 — 2026-11-03 08:47
+
+Commit `a1e06d1` — Modbud på bud fra appen, sat på Vinted af runneren  
+App: `app.js?v=8b91ccb0` · `style.css?v=57092ac2`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v100 | `c789b74b` |
+| dba-fill-script | v48 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v39 | `8b0e0533` |
+| vinted-fill-script ← | v144 | `980cc954` |
+| vinted-mail | v33 | `09ce417f` |
+
 ## udgivelse-0162 — 2026-11-03 08:33
 
 Commit `07d0289` — Bud: mail og indbakke er samme bud; bud fra mail vises også i appen  
