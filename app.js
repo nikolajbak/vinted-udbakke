@@ -716,6 +716,18 @@
     // Koeberbeskeder fra Vinteds mails, med koeber-assistentens udkast.
     // Afsendelsen er dit tryk: kopiér, aabn samtalen, saet ind (bestemt af dig).
     SVAR.forEach(function(k){
+      // Et bud fra Vinteds indbakke: beloebet og prisen, det kom paa. Det
+      // forsvinder selv, naar Vinted siger, det er besvaret.
+      if(k.kilde === 'vinted' && k.intent === 'bud'){
+        var bk = udkastMedTitel(alle, k.item_title);
+        var bid = ' data-svar="' + esc(String(k.id)) + '"';
+        var tal = k.offer ? kr(k.offer) : 'Et bud';
+        if(k.offer && k.bud_udbudt) tal += ' — den står til ' + kr(k.bud_udbudt) + ' (' + Math.round(100 * k.offer / k.bud_udbudt) + ' %)';
+        kort.push(opgaveKort(bk ? 'Bud' : 'Bud på ' + esc(k.item_title || 'en vare'), esc(tal),
+          (k.samtale ? '<button type="button" class="btn btn-primary" data-op="svar-aabn"' + bid + '>Svar på Vinted</button>' : '') +
+          '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + bid + '>Klaret</button>', 'svar', bk));
+        return;
+      }
       var under = k.buyer_message ? '»' + esc(k.buyer_message) + '«' : 'Mailen viste ikke beskeden — se den på Vinted.';
       var forslag = '';
       if(k.counter_price) forslag += '<b>Modbud: ' + esc(kr(k.counter_price)) + '</b> ';
@@ -5005,8 +5017,8 @@
   var SVAR = [], KOE_HENTET = false;
   function hentSvar(){
     sb.from('koeber_beskeder')
-      .select('id, at, item_title, buyer_message, reply, intent, counter_price, samtale')
-      .eq('kilde', 'mail').is('besvaret_at', null).order('at', { ascending:true })
+      .select('id, at, item_title, buyer_message, reply, intent, counter_price, samtale, offer, bud_udbudt, kilde')
+      .in('kilde', ['mail', 'vinted']).is('besvaret_at', null).order('at', { ascending:true })
       .then(function(res){
         if(res.error) return;
         SVAR = res.data || [];

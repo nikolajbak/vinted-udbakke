@@ -1870,6 +1870,55 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, laest, solgt });
     }
 
+    // Bud fra Vinteds indbakke (bestemt af dig 3. november: buddene skal med
+    // i appen; Vinted sender ikke laengere en mail om dem). Hvert bud er én
+    // raekke i koeber_beskeder paa Vinteds eget id (`vinted_bud`), saa intet
+    // kommer to gange. Et ventende bud staar som opgave paa forsiden, til du
+    // trykker Klaret, eller Vinted siger, det er besvaret (taget imod, afslaaet
+    // eller afloest af et modbud) - saa saettes besvaret_at.
+    if (body.mode === "bud") {
+      // deno-lint-ignore no-explicit-any
+      const bud = (Array.isArray(body.bud) ? body.bud as any[] : [])
+        .filter((b) => b && /^\d+$/.test(String(b.id)) && /^\d+$/.test(String(b.item_id))).slice(0, 100);
+      if (!bud.length) return json({ ok: true, nye: 0 });
+      const { data: rk } = await supabase.from("listings").select("id, external_id, title, published")
+        .eq("platform", "vinted").in("external_id", bud.map((b) => String(b.item_id)));
+      const annonce = new Map((rk ?? []).map((r) => [String(r.external_id), r]));
+      const { data: kendte } = await supabase.from("koeber_beskeder").select("id, vinted_bud, besvaret_at")
+        .in("vinted_bud", bud.map((b) => Number(b.id)));
+      const kendt = new Map((kendte ?? []).map((k) => [String(k.vinted_bud), k]));
+      const nu = new Date().toISOString();
+      let nye = 0;
+      for (const b of bud) {
+        const k = kendt.get(String(b.id));
+        if (k) {
+          if (!b.venter && !k.besvaret_at) {
+            await supabase.from("koeber_beskeder").update({ besvaret_at: nu }).eq("id", k.id);
+          }
+          continue;
+        }
+        // Kun bud paa VORES annoncer (som mails, 16. oktober).
+        const l = annonce.get(String(b.item_id));
+        if (!l) continue;
+        const pris = helKroner(b.pris) || null, udbudt = helKroner(b.udbudt) || null;
+        const titel = String(l.title || l.published?.title || b.titel || "").slice(0, 200) || null;
+        const { error } = await supabase.from("koeber_beskeder").insert({
+          listing_id: l.id, platform: "vinted", item_title: titel, offer: pris, intent: "bud",
+          kilde: "vinted", samtale: typeof b.samtale === "string" ? b.samtale.slice(0, 300) : null,
+          vinted_bud: Number(b.id), bud_udbudt: udbudt,
+          at: typeof b.at === "string" && !isNaN(Date.parse(b.at)) ? new Date(b.at).toISOString() : nu,
+          besvaret_at: b.venter ? null : nu,
+        });
+        if (error) { console.error("bud", error); continue; }
+        nye++;
+        if (b.venter) {
+          await puf("Bud på " + (titel || "en vare"),
+            (pris ? pris + " kr." : "Et bud") + (udbudt ? " — den står til " + udbudt + " kr." : ""));
+        }
+      }
+      return json({ ok: true, nye });
+    }
+
     if (body.mode === "watch") {
       const m = Array.isArray(body.maalinger) ? body.maalinger : [];
       try {

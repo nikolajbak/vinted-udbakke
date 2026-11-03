@@ -1998,6 +1998,53 @@ async function garderobeSynk(){
   log('garderobe-synk: '+laest+' af '+varer.length+' læst'+(solgt?', '+solgt+' solgt':''));
  }catch(e){try{localStorage.removeItem('udbakke_garderobe_sidst')}catch(x){}spor('garderobe-synk: '+e.message)}
 }
+// Bud fra Vinteds indbakke (bestemt af dig 3. november: buddene skal med i
+// appen). Vinted sender ikke laengere en mail om et bud (den sidste kom
+// 17. oktober), saa runneren laeser indbakken, naar en Vinted-side alligevel
+// er aaben - hoejst hvert 5. minut, og kun samtaler, der er aendret siden
+// sidst (`udbakke_bud_set`: id -> updated_at). Et opslag paa samtalen
+// markerer den ikke laest (maalt 3. november). Buddet er en
+// offer_request_message; varen staar i samtalens transaction.
+async function budSynk(){
+ try{
+  var nu=Date.now(),sidst=0,set={};
+  try{sidst=Number(localStorage.getItem('udbakke_bud_sidst'))||0}catch(e){}
+  if(nu-sidst<300000)return;
+  try{localStorage.setItem('udbakke_bud_sidst',String(nu))}catch(e){}
+  try{set=JSON.parse(localStorage.getItem('udbakke_bud_set')||'{}')||{}}catch(e){}
+  var hent=function(u){return timedFetch(u,{headers:{'Accept':'application/json'},credentials:'include'},15000)};
+  var r=await hent('/api/v2/inbox?page=1&per_page=20');
+  if(!r.ok){spor('bud-synk: indbakken '+r.status);return}
+  var ib=await r.json(),bud=[],nyeSet={},grense=nu-7*86400000;
+  var cs=ib.conversations||[];
+  for(var ci=0;ci<cs.length;ci++){
+   var c=cs[ci];
+   nyeSet[c.id]=c.updated_at;
+   if(set[c.id]===c.updated_at||Date.parse(c.updated_at)<grense)continue;
+   var s=await hent('/api/v2/conversations/'+c.id);
+   if(!s.ok){delete nyeSet[c.id];continue}
+   var k=(await s.json()).conversation||{},t=k.transaction||{};
+   if(t.current_user_side!=='seller'||!t.item_id)continue;
+   (k.messages||[]).forEach(function(m){
+    var e=m.entity_type==='offer_request_message'&&m.entity;
+    if(!e||!e.offer_request_id||e.user_id!==t.buyer_id)return;
+    if((e.price&&e.price.currency_code)!=='DKK')return;
+    bud.push({id:String(e.offer_request_id),item_id:String(t.item_id),titel:t.item_title||null,
+     pris:helKroner(e.price.amount),udbudt:e.original_price?helKroner(e.original_price.amount):null,
+     venter:e.status===10&&e.current===true,at:m.created_at_ts||null,
+     samtale:location.origin+'/inbox/'+c.id,koeber:(k.opposite_user&&k.opposite_user.login)||null});
+   });
+  }
+  if(bud.length){
+   var a=await timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'bud',bud:bud})},20000);
+   var aj=await a.json();
+   if(!aj||!aj.ok){spor('bud-synk: serveren svarede '+JSON.stringify(aj).slice(0,200));return}
+   log('bud-synk: '+bud.length+' bud, '+(aj.nye||0)+' nye');
+  }
+  try{localStorage.setItem('udbakke_bud_set',JSON.stringify(nyeSet))}catch(e){}
+ }catch(e){try{localStorage.removeItem('udbakke_bud_sidst')}catch(x){}spor('bud-synk: '+e.message)}
+}
 // En vare i garderoben i samme form som hentVare. Lukket af en anden grund
 // end salg (skjult, slettet) roeres ikke; kun »sold« er solgt.
 function garderobeVare(it){
@@ -2219,6 +2266,7 @@ efterloeb();
 boostRunde();
 // Ikke på opret-siden: 840 kB midt i en udfyldning.
 if(!/\/items\/new/.test(location.pathname))garderobeSynk();
+budSynk();
 // Kom fanen fra appen? Noteres nu, mens flaget stadig staar i adressen. Saa
 // er der arbejde, du venter paa, og skaermen holdes taendt imens.
 if(fraApp())vaagen(5);

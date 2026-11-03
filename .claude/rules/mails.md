@@ -223,7 +223,34 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
   køb«) er ikke et salg.
 - **Bud** → push, prisen synkroniseres (»i stedet for kr.100.00«), og buddet
   gemmes i `koeber_beskeder` (`intent:'bud'`, allerede »besvaret«) til
-  gennemgangen.
+  gennemgangen. **Vinted sender ikke længere bud-mails** (den sidste kom
+  17. oktober; 3. november kom to bud uden mail — set i Mail), så buddene
+  kommer nu fra indbakken (se »Bud fra Vinteds indbakke«).
+
+## Bud fra Vinteds indbakke
+
+Bestemt af dig 3. november: **buddene skal med i appen.** Målt samme dag,
+logget ind i browserruden:
+
+- `/api/v2/inbox?page=1&per_page=20` giver samtalerne (`id`, `description`,
+  `unread`, `updated_at`) men ikke varen. `/api/v2/conversations/{id}` giver
+  `transaction` (`item_id`, `item_title`, `buyer_id`, `current_user_side`)
+  og `messages`; et bud er `entity_type: 'offer_request_message'` med
+  `offer_request_id`, `user_id`, `price`/`original_price` (`{amount,
+  currency_code}`), `status` (10 = »Afventer«; set også 20 og 30 på
+  besvarede) og `current`. **Opslaget markerer ikke samtalen læst.**
+- Runneren (`budSynk`) læser indbakken, når en Vinted-side er åben, højst
+  hvert 5. minut, og kun samtaler ændret siden sidst og inden for 7 dage.
+  Kun bud fra køberen på en samtale, hvor du er sælger, og kun i DKK.
+- Serveren (`mode:'bud'`) gemmer hvert bud én gang i `koeber_beskeder`
+  (`kilde:'vinted'`, `vinted_bud`, `offer`, `bud_udbudt`, `samtale`), kun
+  på vores egne annoncer, og sender en push for et nyt ventende bud. Ikke
+  længere ventende (status ≠ 10 eller ikke `current`) → `besvaret_at`.
+- Appen viser et ventende bud som opgave på forsiden (»Bud«, beløbet, hvad
+  den står til og procenten, **Svar på Vinted** og **Klaret**). Det
+  forsvinder selv, når Vinted siger, det er besvaret.
+- **Uden en åben Vinted-side i Safari ser appen ikke buddet** — Vinted
+  blokerer serveren. Det er ikke et ur.
 - **Favorit** → stille: prisen synkroniseres, og hjerterne tælles én op
   (`favourites`). Ingen push (bestemt af dig 9. oktober).
 - **Et hjertetal, der ikke blev fundet, er null, aldrig 0** (21. oktober).
