@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0161 — 2026-11-03 08:26
+
+Commit `9f333d3` — Bud-synk: ingen backticks i runnerens kommentar (String.raw)  
+App: `app.js?v=fca08653` · `style.css?v=cf43b5d5`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v100 | `c789b74b` |
+| dba-fill-script | v48 | `efdfae13` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe | v5 | `989f990f` |
+| reshopper-draft | v39 | `8b0e0533` |
+| vinted-fill-script ← | v142 | `43f8c93f` |
+| vinted-mail | v32 | `68f3750b` |
+
 ## udgivelse-0160 — 2026-11-02 22:43
 
 Commit `d627f02` — Mærkatet: fragtfirmaet stort og modtagerens navn ved QR-koden  
