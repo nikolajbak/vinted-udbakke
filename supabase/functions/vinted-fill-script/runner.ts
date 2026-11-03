@@ -2002,7 +2002,7 @@ async function garderobeSynk(){
 // appen). Vinted sender ikke laengere en mail om et bud (den sidste kom
 // 17. oktober), saa runneren laeser indbakken, naar en Vinted-side alligevel
 // er aaben - hoejst hvert 5. minut, og kun samtaler, der er aendret siden
-// sidst (`udbakke_bud_set`: id -> updated_at). Et opslag paa samtalen
+// sidst (udbakke_bud_set: id -> updated_at). Et opslag paa samtalen
 // markerer den ikke laest (maalt 3. november). Buddet er en
 // offer_request_message; varen staar i samtalens transaction.
 async function budSynk(){
