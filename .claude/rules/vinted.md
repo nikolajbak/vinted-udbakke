@@ -290,6 +290,10 @@ intet på dig, lukkes den, når runneren er færdig.**
   (fanen i appen) hed begge `TILBAGE`, så efter en godkendt pris kunne
   vinduet ende på `/items/…/menu` (fundet 21. oktober; Mac-webappens hedder
   nu `TIL_APP`). `check-runner.mjs` fanger det ikke.
+- **Ingen backticks i runneren — heller ikke i en kommentar.** Den lever i
+  en `String.raw`-tekst, og en backtick afslutter teksten. 3. november
+  stoppede `udgiv.sh` på »Expected ";" but found …« efter en kommentar med
+  `` `udbakke_bud_set` ``; `check-runner.mjs` og `node --test` så intet.
 - **`window.__UDBAKKE_*` må ikke omdøbes.** Et installeret bogmærke sætter dem,
   før det henter automatikken; et andet navn brækker det uden varsel.
 - **Alt, der skal åbne i RIGTIG Safari, skal have `x-safari-` foran.** I den
