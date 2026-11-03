@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0164 — 2026-11-03 18:17
+
+Commit `0a92a08` — Klientnøglen ud af koden: hentes efter login, gammel nøgle i en overgang  
+App: `app.js?v=ae93c5b4` · `style.css?v=57092ac2`  
+Udrullet: analyze-draft, dba-fill-script, push-subscribe, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v101 | `c789b74b` |
+| dba-fill-script ← | v49 | `48788f46` |
+| push-send | v5 | `cce82c40` |
+| push-subscribe ← | v6 | `d858f120` |
+| reshopper-draft ← | v40 | `2087d804` |
+| vinted-fill-script ← | v145 | `7c4b82bc` |
+| vinted-mail ← | v34 | `09ce417f` |
+
 ## udgivelse-0163 — 2026-11-03 08:47
 
 Commit `a1e06d1` — Modbud på bud fra appen, sat på Vinted af runneren  
