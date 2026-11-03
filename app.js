@@ -724,7 +724,9 @@
         var tal = k.offer ? kr(k.offer) : 'Et bud';
         if(k.offer && k.bud_udbudt) tal += ' — den står til ' + kr(k.bud_udbudt) + ' (' + Math.round(100 * k.offer / k.bud_udbudt) + ' %)';
         kort.push(opgaveKort(bk ? 'Bud' : 'Bud på ' + esc(k.item_title || 'en vare'), esc(tal),
-          (k.samtale ? '<button type="button" class="btn btn-primary" data-op="svar-aabn"' + bid + '>Svar på Vinted</button>' : '') +
+          MODBUD.id === k.id && kanModbud(k) ? modbudFelt(k) :
+          (kanModbud(k) ? '<button type="button" class="btn btn-primary" data-op="modbud"' + bid + '>Modbud</button>' : '') +
+          (k.samtale ? '<button type="button" class="btn ' + (kanModbud(k) ? 'btn-secondary' : 'btn-primary') + '" data-op="svar-aabn"' + bid + '>Svar på Vinted</button>' : '') +
           '<button type="button" class="btn btn-secondary" data-op="svar-klaret"' + bid + '>Klaret</button>', 'svar', bk));
         return;
       }
@@ -870,11 +872,12 @@
     Array.prototype.forEach.call(el.querySelectorAll('[data-op]'), function(b){
       b.addEventListener('click', function(){ opgave(b.getAttribute('data-op'), b); });
     });
+    modbudKoblOp(el);
     // Et tryk paa raekken ved siden af knapperne aabner varen, som paa Lager.
     Array.prototype.forEach.call(el.querySelectorAll('.opg-r[data-id]'), function(r){
       r.addEventListener('click', function(e){
         // Svarets tekst skal kunne markeres uden at aabne varen.
-        if(e.target.closest('button, .svar-forslag')) return;
+        if(e.target.closest('button, input, .svar-forslag')) return;
         var d = rows[r.getAttribute('data-id')];
         if(d) openDetail(d.id);
       });
@@ -916,6 +919,58 @@
     });
   }
 
+  // Modbud paa et bud fra Vinteds indbakke (bestemt af dig 3. november).
+  // Appen aabner samtalen med beloebet i adressen, og runneren afviser
+  // buddet og giver modbuddet paa Vinted (modbudFraApp i runner.ts). Kun
+  // et bud med Vinteds eget id og en samtale i indbakken kan findes dér.
+  function kanModbud(k){
+    return !!(k.vinted_bud && k.offer && /\/inbox\/\d+/.test(k.samtale || ''));
+  }
+  // Forslaget: midt mellem buddet og prisen, rundet op til 5 kr.
+  function modbudForslag(k){
+    var top = k.bud_udbudt || 0;
+    if(!(top > k.offer)) return '';
+    return String(Math.min(top, Math.ceil((k.offer + top) / 2 / 5) * 5));
+  }
+  // Den aabne formular og det tastede overlever en omtegning (realtid,
+  // genhentning): kortet tegnes med formularen, saa laenge MODBUD.id staar.
+  var MODBUD = { id: null, vaerdi: '' };
+  function modbudFelt(k){
+    return '<div class="salg-form modbud-form" data-mbid="' + esc(String(k.id)) + '">' +
+      '<input type="number" inputmode="numeric" min="1" step="1" class="salg-pris" ' +
+      'value="' + esc(MODBUD.vaerdi) + '" aria-label="Modbud i kroner">' +
+      '<button type="button" class="btn btn-primary" data-mb="send">Send</button>' +
+      '<button type="button" class="btn btn-secondary" data-mb="fortryd">Fortryd</button></div>';
+  }
+  function modbudForm(k){
+    MODBUD = { id: k.id, vaerdi: modbudForslag(k) };
+    tegnOpgaveSkaerm();
+    var inp = document.querySelector('.modbud-form input');
+    if(inp) inp.focus();
+  }
+  function modbudKoblOp(el){
+    var f = el.querySelector('.modbud-form');
+    if(!f) return;
+    var k = SVAR.filter(function(x){ return String(x.id) === f.getAttribute('data-mbid'); })[0];
+    var inp = f.querySelector('input');
+    inp.addEventListener('input', function(){ MODBUD.vaerdi = inp.value; });
+    f.querySelector('[data-mb="fortryd"]').addEventListener('click', function(){
+      MODBUD = { id: null, vaerdi: '' };
+      tegnOpgaveSkaerm();
+    });
+    f.querySelector('[data-mb="send"]').addEventListener('click', function(){
+      if(!k) return;
+      var beloeb = Math.round(Number(inp.value));
+      if(!(beloeb > k.offer)){ toast('Modbuddet skal være over buddet (' + kr(k.offer) + ')'); return; }
+      if(k.bud_udbudt && beloeb > k.bud_udbudt){ toast('Højst prisen, den står til (' + kr(k.bud_udbudt) + ')'); return; }
+      MODBUD = { id: null, vaerdi: '' };
+      tegnOpgaveSkaerm();
+      // Forsiden, ikke samtalen: /inbox/{id} omdirigeres, og #-delen gaar tabt.
+      aabnUdad('https://www.vinted.dk/#udbakke=modbud&samtale=' + k.samtale.match(/\/inbox\/(\d+)/)[1] +
+        '&bud=' + encodeURIComponent(String(k.vinted_bud)) + '&kr=' + beloeb);
+    });
+  }
+
   var MARKED_FORSIDE = { dba: 'https://www.dba.dk/', reshopper: 'reshopper://' };
   function opgave(op, b){
     var d = rows[b.getAttribute('data-id')];
@@ -926,6 +981,7 @@
       return;
     }
     if(op === 'svar-aabn' && svar){ aabnUdad(svar.samtale); return; }
+    if(op === 'modbud' && svar){ modbudForm(svar); return; }
     if(op === 'svar-klaret' && svar){
       SVAR = SVAR.filter(function(k){ return k !== svar; });
       renderQueue();
@@ -5017,7 +5073,7 @@
   var SVAR = [], KOE_HENTET = false;
   function hentSvar(){
     sb.from('koeber_beskeder')
-      .select('id, at, item_title, buyer_message, reply, intent, counter_price, samtale, offer, bud_udbudt, kilde')
+      .select('id, at, item_title, buyer_message, reply, intent, counter_price, samtale, offer, bud_udbudt, kilde, vinted_bud')
       .in('kilde', ['mail', 'vinted']).is('besvaret_at', null).order('at', { ascending:true })
       .then(function(res){
         if(res.error) return;

@@ -20,6 +20,15 @@ henvises til som »CLAUDE.md »X««, i `.claude/rules/` — se tabellen nederst
 
 ## Ikke afprøvet — start her
 
+0. **Modbud fra appen — 3. november.** Kortet »Bud« har **Modbud**; runneren
+   afviser buddet og giver modbuddet på Vinted (mails.md »Modbud fra
+   appen«). **Afprøvet:** CSRF-headeren mod Vinted (403 uden, 200 med, på et
+   kald uden virkning); runnerens forløb mod et rigtigt ventende bud med
+   afvisning og tilbud udskiftet med attrapper (ok, for lavt, allerede
+   besvaret, Vinted afviser tilbuddet); appen i prøve-appen 375 px.
+   **Ikke afprøvet:** de to rigtige skrivekald og telefonen — næste modbud:
+   se `spor` »modbud: …« og at samtalen viser Afvist + dit tilbud.
+
 0. **Garderobe-synk — 2. november.** Alle annoncers titel, pris, mærke,
    størrelse, stand og »solgt« læses af garderoben, højst én gang i timen,
    når en Vinted-side er åben (mails.md »Synkronisering af annoncerne«).

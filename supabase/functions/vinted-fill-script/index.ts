@@ -1935,6 +1935,28 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, nye });
     }
 
+    // Modbud fra appen, meldt af runneren (bestemt af dig 3. november).
+    // Runneren har afvist buddet og givet modbuddet paa Vinted; her noteres
+    // det, og opgaven er besvaret. Var buddet allerede besvaret paa Vinted
+    // (`besvaret`), er opgaven ogsaa klaret - uden modbud.
+    if (body.mode === "modbud") {
+      const bud = String(body.bud ?? "");
+      if (!/^\d+$/.test(bud)) return json({ error: "mangler bud" }, 400);
+      const nu = new Date().toISOString();
+      const kr = helKroner(body.kr);
+      if (body.ok === true && kr > 0) {
+        const { error } = await supabase.from("koeber_beskeder").update({ modbud: kr, modbud_at: nu })
+          .eq("vinted_bud", Number(bud));
+        if (error) return json({ error: error.message }, 500);
+      }
+      if ((body.ok === true && kr > 0) || body.besvaret === true) {
+        const { error } = await supabase.from("koeber_beskeder").update({ besvaret_at: nu })
+          .eq("vinted_bud", Number(bud)).is("besvaret_at", null);
+        if (error) return json({ error: error.message }, 500);
+      }
+      return json({ ok: true });
+    }
+
     if (body.mode === "watch") {
       const m = Array.isArray(body.maalinger) ? body.maalinger : [];
       try {

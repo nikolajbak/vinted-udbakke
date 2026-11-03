@@ -291,6 +291,43 @@ logget ind i browserruden:
 - **Indbakken kræver en åben Vinted-side i Safari** — Vinted blokerer
   serveren. Uden den kommer buddet med mailen, når den kommer.
 
+## Modbud fra appen
+
+Bestemt af dig 3. november: **et bud kan besvares med et modbud i appen, og
+det sættes på Vinted.**
+
+- Kortet »Bud« har **Modbud**, når buddet har Vinteds id (`vinted_bud`) og
+  en samtale i indbakken. Feltet foreslår midt mellem buddet og prisen,
+  rundet op til 5 kr.; modbuddet skal være over buddet og højst prisen.
+  Den åbne formular og det tastede overlever en omtegning (`MODBUD`).
+- Appen åbner **Vinteds forside** med
+  `#udbakke=modbud&samtale=<id>&bud=<offer_request_id>&kr=<beløb>`, ikke
+  samtalen: `/inbox/{id}` omdirigeres til `/inbox/{uuid}?referrer=…`, og
+  `#`-delen forsvinder (målt 3. november i browserruden).
+- Runneren (`modbudFraApp`) gør som Vinteds egen knap: læser samtalen,
+  tjekker at buddet stadig venter (status 10, `current`), at beløbet er over
+  buddet og inden for `…/offers/seller_options`, **afviser buddet**
+  (`PUT /api/v2/transactions/{t}/offer_requests/{bud}/reject`) og **giver
+  modbuddet** (`POST /api/v2/transactions/{t}/offers` med
+  `{offer:{price:"150", currency:"DKK"}}`). Vinted viser først »Giv dit
+  tilbud«, når buddet er afvist — læst i Vinteds kode og set i en samtale,
+  hvor du selv gjorde det (Afvist 250,68, så tilbud 350).
+- **Vinteds skrivekald kræver `X-CSRF-Token` og `X-Anon-Id`** (målt 3.
+  november: uden 403 »access_denied«, med 200). Nøglen står som
+  `CSRF_TOKEN` i sidens HTML, `anon_id` er en cookie (`vintedSkriv`).
+- Lykkes det, melder runneren `mode:'modbud'` (`ok`), og serveren skriver
+  `modbud`, `modbud_at` og `besvaret_at`; fanen lukkes. Var buddet allerede
+  besvaret, eller blev buddet afvist uden at modbuddet kom med, er opgaven
+  klaret (`besvaret`), og båndet på Vinted siger, hvad der skete. Samme bud
+  sendes ikke to gange fra samme fane (`sessionStorage`).
+- **Med `#udbakke=modbud` gør runneren intet andet** (`await`, så `return`,
+  før `meldPostet`, prisvagten og synkerne): prisvagtens `selvTil` kunne
+  ellers skifte side mellem afvisning og modbud (fundet af review 3.
+  november), og så var buddet afvist uden modbud.
+- **Ikke afprøvet på telefonen** — afvisning og modbud er kun kørt med
+  attrapper i browserruden (et rigtigt kald ville svare køberen). Se `spor`
+  »modbud: …«.
+
 ## Mails bruges til alt, de kan
 
 Bestemt af dig 9. oktober: **hver indgående mail fra Vinted analyseres

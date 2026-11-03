@@ -1123,6 +1123,8 @@
 .ann-ny .note{ margin-top: var(--s2); }
 .salg-form{ display: flex; gap: var(--s2); margin-top: var(--s2); }
 .salg-form .btn{ width: auto; flex: 0 0 auto; }
+.modbud-form{ flex: 1 1 100%; min-width: 0; margin-top: 0; flex-wrap: wrap; }
+.modbud-form .salg-pris{ flex: 1 1 5em; width: 5em; }
 .salg-pris{
   flex: 1 1 auto; min-width: 0; min-height: var(--tap); padding: 0 var(--s3);
   border: 1px solid var(--line); border-radius: 8px; background: var(--raised);

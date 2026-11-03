@@ -2045,6 +2045,81 @@ async function budSynk(){
   try{localStorage.setItem('udbakke_bud_set',JSON.stringify(nyeSet))}catch(e){}
  }catch(e){try{localStorage.removeItem('udbakke_bud_sidst')}catch(x){}spor('bud-synk: '+e.message)}
 }
+// Modbud fra appen (bestemt af dig 3. november): appen aabner Vinteds forside
+// med #udbakke=modbud&samtale=<id>&bud=<offer_request_id>&kr=<beloeb> - ikke
+// samtalen selv: /inbox/{id} omdirigeres til /inbox/{uuid}?referrer=..., og
+// #-delen forsvinder (maalt 3. november i browserruden). Som Vinteds egen
+// knap: buddet afvises (PUT .../offer_requests/{id}/reject), og saa gives
+// modbuddet (POST /transactions/{id}/offers, prisen som tekst). Vinted viser
+// foerst »Giv dit tilbud«, naar buddet er afvist - maalt 3. november i
+// Vinteds kode og i en samtale, hvor du gjorde det selv (Afvist, saa 350).
+// Skrivekald kraever X-CSRF-Token (sidens CSRF_TOKEN) og X-Anon-Id
+// (cookien anon_id); uden svarede Vinted 403.
+function vintedSkriv(metode,sti,krop){
+ var tok=(document.documentElement.innerHTML.match(/CSRF_TOKEN\\*":\\*"([0-9a-f-]{36})/)||[])[1];
+ var anon=(document.cookie.match(/(?:^|; )anon_id=([^;]+)/)||[])[1];
+ if(!tok)throw new Error('Vinteds CSRF-nøgle findes ikke på siden');
+ var hd={'Accept':'application/json','Content-Type':'application/json','X-CSRF-Token':tok};
+ if(anon)hd['X-Anon-Id']=decodeURIComponent(anon);
+ return timedFetch('/api/v2'+sti,{method:metode,headers:hd,credentials:'include',body:krop?JSON.stringify(krop):undefined},15000);
+}
+async function vintedSvar(r,hvad){
+ var j=null;try{j=await r.json()}catch(e){}
+ if(r.ok&&(!j||!j.code))return j;
+ var f=j&&((j.errors&&j.errors[0]&&j.errors[0].value)||j.message);
+ throw new Error(hvad+' ('+r.status+(f?': '+f:'')+')');
+}
+async function modbudFraApp(){
+ if(!flag('modbud'))return;
+ var a=location.search+location.hash;
+ var bm=a.match(/[?&#]bud=(\d+)/),km=a.match(/[?&#]kr=(\d+)/),sm=a.match(/[?&#]samtale=(\d+)/);
+ if(!bm||!km||!sm){spor('modbud: mangler bud, beløb eller samtale ('+a+')');return}
+ var bud=bm[1],kr=Number(km[1]),noegle='udbakke_modbud_'+bud;
+ // En genindlaesning af fanen maa ikke sende det to gange.
+ try{if(sessionStorage.getItem(noegle))return;sessionStorage.setItem(noegle,'1')}catch(e){}
+ var meld=function(m){
+  return timedFetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify(Object.assign({mode:'modbud',bud:bud,kr:kr},m))},15000).catch(function(){});
+ };
+ try{
+  var s=await timedFetch('/api/v2/conversations/'+sm[1],{headers:{'Accept':'application/json'},credentials:'include'},15000);
+  if(!s.ok)throw new Error('samtalen svarede '+s.status);
+  var k=(await s.json()).conversation||{},t=k.transaction||{},e=null;
+  (k.messages||[]).forEach(function(m){
+   if(m.entity_type==='offer_request_message'&&m.entity&&String(m.entity.offer_request_id)===bud)e=m.entity;
+  });
+  if(!e||!t.id)throw new Error('buddet findes ikke i samtalen');
+  if(t.current_user_side!=='seller')throw new Error('du er ikke sælger i samtalen');
+  if(!(e.status===10&&e.current===true)){
+   await meld({besvaret:true});
+   spor('modbud: buddet var allerede besvaret ('+(e.status_title||e.status)+')');
+   baand('Buddet er allerede besvaret på Vinted ('+(e.status_title||e.status)+') — modbuddet er ikke sendt.',null,null);
+   return;
+  }
+  var pris=Number(e.price&&e.price.amount)||0;
+  if(!(kr>pris))throw new Error('modbuddet skal være over buddet ('+pris+' kr.)');
+  var o=await timedFetch('/api/v2/transactions/'+t.id+'/offers/seller_options',{headers:{'Accept':'application/json'},credentials:'include'},15000);
+  var oj=o.ok?((await o.json()).seller_offer_options||{}):{};
+  var mn=oj.min_price&&Number(oj.min_price.amount),mx=oj.max_price&&Number(oj.max_price.amount);
+  if(mn&&kr<mn)throw new Error('Vinted tager mindst '+mn+' kr.');
+  if(mx&&kr>mx)throw new Error('Vinted tager højst '+mx+' kr.');
+  await vintedSvar(await vintedSkriv('PUT','/transactions/'+t.id+'/offer_requests/'+bud+'/reject'),'buddet kunne ikke afvises');
+  try{
+   await vintedSvar(await vintedSkriv('POST','/transactions/'+t.id+'/offers',{offer:{price:String(kr),currency:'DKK'}}),'modbuddet blev afvist');
+  }catch(x){
+   // Buddet er afvist, men modbuddet kom ikke med: det skal du vide.
+   await meld({besvaret:true});
+   throw new Error('buddet er afvist, men '+x.message+' — giv modbuddet selv i samtalen');
+  }
+  await meld({ok:true});
+  spor('modbud: '+kr+' kr. givet på bud '+bud+' ('+pris+' kr.)');
+  lukFanen('Modbud på '+kr+' kr. er sendt.');
+ }catch(err){
+  try{sessionStorage.removeItem(noegle)}catch(x){}
+  spor('modbud: '+err.message);
+  baand('Modbuddet er ikke sendt: '+err.message,null,null);
+ }
+}
 // En vare i garderoben i samme form som hentVare. Lukket af en anden grund
 // end salg (skjult, slettet) roeres ikke; kun »sold« er solgt.
 function garderobeVare(it){
@@ -2257,6 +2332,10 @@ if(ANDEN_RUNNER){
  spor('en anden runner koerte foerst (gammelt brugerscript?)');
  baand('Udbakke: et gammelt brugerscript kører også. Slet det i Userscripts — kun »Udbakke« 2.0 skal være der.',null,null);
 }
+// Et modbud fra appen er fanens eneste arbejde: intet andet maa skifte side,
+// mens buddet afvises og modbuddet gives (prisvagtens selvTil kunne gaa midt
+// imellem, og saa var buddet afvist uden modbud).
+if(flag('modbud')){await modbudFraApp();return}
 // Laa der en markoer fra en udfyldning, der ikke blev meldt, saa kig efter den
 // nu. Paa opret-siden skal en ny udfyldning stadig koere bagefter.
 if(await meldPostet()===true&&!/\/items\/new/.test(location.pathname))return;
