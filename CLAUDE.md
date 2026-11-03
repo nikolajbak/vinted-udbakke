@@ -26,6 +26,7 @@ python3 tools/tjek-live.py            # kører telefonen det, git siger?
 node --test tools/test-*.mjs          # de rene funktioners tests
 sh tools/proeve.sh                    # prøve-appen på http://localhost:8765/proeve.html (se afproevning.md)
 set -a; . ./.env.secrets; set +a      # nøglerne i miljøet
+sh tools/skift-noegle.sh [dage]       # ny klientnøgle; den gamle virker i overgangen (kør selv)
 ```
 
 ## Arkitektur
@@ -184,6 +185,12 @@ tilbage: `begin; select f(); rollback;`.
 - `forbrug` læses også af `nikolajbak/drift` — omdøb ikke tabellen eller `tid`/`model`/`usd`.
 - Alle nøgler: `.env.secrets` (chmod 600, gitignored). I Supabase: `GEMINI_API_KEY`, `MAIL_KEY` m.fl.; i vault:
   `shortcut_key`.
+- **Klientnøglen (`SHORTCUT_KEY`) står aldrig i koden** (Nikolaj 2026-11-03: intet offentligt). Repoet og siden er
+  offentlige, og nøglen stod i `app.js` fra start. Appen henter den efter login med `klientnoegle()` (`sql/028`,
+  kun `authenticated`) og husker den i `localStorage`. Funktionerne tjekker den med `_shared/noegle.ts`.
+  Skiftes med `sh tools/skift-noegle.sh [dage]`, som du selv kører: den gamle virker til
+  `SHORTCUT_KEY_GAMMEL_TIL`, men får hverken `.user.js` eller `.meta.js` (de bærer den nye). Brugerscript og bogmærke
+  viser imens et bånd til `#opsaet` i appen.
 
 ## Konventioner
 

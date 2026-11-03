@@ -7,8 +7,28 @@
   var SUPABASE_URL = 'https://gjycsqshkvkcupdnvgvf.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqeWNzcXNoa3ZrY3VwZG52Z3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjE0MDUsImV4cCI6MjEwNDUzNzQwNX0.hENgHUL5IJRDf13KdoyWrR4p3jhkcx176JESAWCQu34';
   var LOGIN_EMAIL = 'adgang@udbakke.local';
-  var FILL_API = 'https://gjycsqshkvkcupdnvgvf.supabase.co/functions/v1/vinted-fill-script?key=a4deb2bc4156ae08d2772aca72de6a70';
-  var BOOKMARKLET = "javascript:%28function%28%29%7Bvar%20A%3D%27https%3A%2F%2Fgjycsqshkvkcupdnvgvf.supabase.co%2Ffunctions%2Fv1%2Fvinted-fill-script%3Fkey%3Da4deb2bc4156ae08d2772aca72de6a70%27%3Bwindow.__UDBAKKE_API__%3DA%3Bfetch%28A%2B%27%26script%3D1%27%2C%7Bcache%3A%27no-store%27%7D%29.then%28function%28r%29%7Breturn%20r.text%28%29%7D%29.then%28function%28t%29%7B%280%2Ceval%29%28t%29%7D%29.catch%28function%28e%29%7Balert%28%27VintedAuto%3A%20kunne%20ikke%20hente%20scriptet%20-%20%27%2Be.message%29%7D%29%3B%7D%29%28%29%3B";
+  // Noeglen til funktionerne staar ikke i koden: repoet og siden er
+  // offentlige. Den hentes efter login (klientnoegle(), sql/028) og huskes paa
+  // enheden, saa appen ogsaa virker, naar forbindelsen er langsom.
+  var FILL_API = '', BOOKMARKLET = '', RESHOPPER_API = '', DBA_API = '', PUSH_SUB_API = '';
+  function saetNoegle(k){
+    FILL_API = SUPABASE_URL + '/functions/v1/vinted-fill-script?key=' + k;
+    BOOKMARKLET = "javascript:%28function%28%29%7Bvar%20A%3D%27https%3A%2F%2Fgjycsqshkvkcupdnvgvf.supabase.co%2Ffunctions%2Fv1%2Fvinted-fill-script%3Fkey%3DNOEGLE%27%3Bwindow.__UDBAKKE_API__%3DA%3Bfetch%28A%2B%27%26script%3D1%27%2C%7Bcache%3A%27no-store%27%7D%29.then%28function%28r%29%7Breturn%20r.text%28%29%7D%29.then%28function%28t%29%7B%280%2Ceval%29%28t%29%7D%29.catch%28function%28e%29%7Balert%28%27VintedAuto%3A%20kunne%20ikke%20hente%20scriptet%20-%20%27%2Be.message%29%7D%29%3B%7D%29%28%29%3B".replace('NOEGLE', k);
+    RESHOPPER_API = FILL_API.replace('vinted-fill-script', 'reshopper-draft');
+    DBA_API = FILL_API.replace('vinted-fill-script', 'dba-fill-script');
+    PUSH_SUB_API = FILL_API.replace('vinted-fill-script', 'push-subscribe');
+  }
+  function hentNoegle(){
+    var gemt = null;
+    try{ gemt = localStorage.getItem('udbakke_noegle'); }catch(e){}
+    if(gemt) saetNoegle(gemt);
+    var frisk = sb.rpc('klientnoegle').then(function(res){
+      if(res.error || !res.data) return;
+      saetNoegle(res.data);
+      try{ localStorage.setItem('udbakke_noegle', res.data); }catch(e){}
+    });
+    return gemt ? Promise.resolve() : frisk;
+  }
 
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var rows = {};
@@ -2344,9 +2364,7 @@
 
      De korte felter læses én gang og tastes; kun overskrift og beskrivelse
      kopieres, for hvert kopieret felt koster et skift frem og tilbage. */
-  var RESHOPPER_API = FILL_API.replace('vinted-fill-script', 'reshopper-draft');
-  var DBA_API = FILL_API.replace('vinted-fill-script', 'dba-fill-script');
-  var PUSH_SUB_API = FILL_API.replace('vinted-fill-script', 'push-subscribe');
+  // RESHOPPER_API, DBA_API og PUSH_SUB_API saettes af saetNoegle() oeverst.
   var VAPID_PUBLIC = 'BMp994zMZHBAr9aT92AhhbdjYBB_wsE4vAX3DVk0uMjYOLMepNHI-V9C6cxmvj2N5iyrBuKjFEAh-GQ6-t4hbnw';
   // base64url -> Uint8Array, som applicationServerKey kraever.
   function vapidBytes(b64){
@@ -3402,6 +3420,7 @@
     }, function(){});
   }
   $('m-logout').addEventListener('click', function(){
+    try{ localStorage.removeItem('udbakke_noegle'); }catch(e){}
     sb.auth.signOut().then(function(){ stack = []; show('login', { fade:true }); });
   });
   // Userscripts genkender en .user.js-adresse og tilbyder at gemme den. Derfra
@@ -4244,6 +4263,13 @@
       try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
       if(fane[1] === 'vagt'){ skiftFane('menu'); show('vagt'); hentVagt(); }
       else skiftFane(fane[1]);
+      return;
+    }
+    // #opsaet: baandet paa Vinted/DBA, naar noeglen er skiftet
+    // (_shared/brugerscript.ts, nyNoegleVarsel).
+    if(location.hash === '#opsaet'){
+      try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
+      skiftFane('menu'); show('opsaet'); tegnTjek();
       return;
     }
     var nr = nummerFra(location.hash || '');
@@ -5132,8 +5158,11 @@
 
     hentKoe();   // henter ogsaa opgaverne, naar koeen er der
     tegnTjek();   // tallet paa Mere-fanen, hvis noget i opsaetningen er gaaet i staa
-    aabnFraAdresse();
-    vagtNuKvittering();   // Mac-webappen kommer tilbage med en ny indlaesning
+    // Adressen kan bede om noget, der kalder funktionerne, saa noeglen foerst.
+    hentNoegle().catch(function(){}).then(function(){
+      aabnFraAdresse();
+      vagtNuKvittering();   // Mac-webappen kommer tilbage med en ny indlaesning
+    });
 
     sb.channel('drafts-live').on('postgres_changes',
       { event:'*', schema:'public', table:'drafts' }, function(p){

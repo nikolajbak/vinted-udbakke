@@ -2,10 +2,10 @@
 // notifikationer til. Én pr. enhed; endpoint er noeglen, saa samme telefon
 // ikke faar to. Beskyttet med SHORTCUT_KEY som resten af klientens kald.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { klientNoegle } from "../_shared/noegle.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SHORTCUT_KEY = Deno.env.get("SHORTCUT_KEY")!;
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const CORS = {
@@ -19,7 +19,7 @@ const json = (b: unknown, s = 200) =>
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   const url = new URL(req.url);
-  if (url.searchParams.get("key") !== SHORTCUT_KEY) return json({ error: "unauthorized" }, 401);
+  if (!klientNoegle(url)) return json({ error: "unauthorized" }, 401);
 
   let body: { subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } } };
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }

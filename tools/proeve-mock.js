@@ -48,6 +48,8 @@
       if(!f.status) return Promise.reject(new TypeError('Failed to fetch'));
       return Promise.resolve(new Response(JSON.stringify({ message: 'prøvefejl' }), { status: f.status, headers: { 'Content-Type': 'application/json' } }));
     }
+    // Klientnoeglen hentes efter login (app.js, hentNoegle).
+    if(/\/rest\/v1\/rpc\/klientnoegle/.test(url)) return Promise.resolve(new Response('"proeve"', { status: 200, headers: { 'Content-Type': 'application/json' } }));
     // »Køb igen« regnes af serveren (og kalder en model) - her et fast
     // eksempel i samme form, saa skaermen kan ses uden at koste noget.
     var mode = ''; try { mode = JSON.parse(opt && opt.body || '{}').mode || ''; } catch(e){}

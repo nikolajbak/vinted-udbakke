@@ -44,6 +44,8 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Mærkatet lagt ind fra appen: logget ind må lægge filer i `maerkater` | `sql/025-maerkat-fra-appen.sql` |
 | Bud fra Vinteds indbakke: `koeber_beskeder.vinted_bud` (Vinteds `offer_request_id`, unik) og `bud_udbudt`; `kilde = 'vinted'` | `sql/026-bud-fra-indbakken.sql` |
 | Modbud fra appen, sat af runneren: `koeber_beskeder.modbud` (hele kroner) og `modbud_at` | `sql/027-modbud.sql` |
+| Klientnøglen til logget ind: `klientnoegle()` læser vault `shortcut_key` (kun `authenticated`) | `sql/028-klientnoegle.sql` |
+| Interne funktioner lukket for `anon`/`authenticated`: `set_draft_photo`, `notify_new_draft`, `noter_rettelse` | `sql/029-luk-interne-funktioner.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi

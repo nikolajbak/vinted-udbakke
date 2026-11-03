@@ -7,7 +7,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { RUNNER } from "./runner.ts";
-import { type Brugerscript, brugerscriptSvar, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
+import { type Brugerscript, brugerscriptSvar, nyNoegleVarsel, udgave, udgaveTekst, varsel } from "../_shared/brugerscript.ts";
+import { klientNoegle } from "../_shared/noegle.ts";
 import { BESKRIVELSE_REGLER, faktaTekst, ingenVersaler, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { modelKald } from "../_shared/model.ts";
@@ -319,7 +320,12 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const url = new URL(req.url);
-  if (url.searchParams.get("key") !== SHORTCUT_KEY) return json({ error: "unauthorized" }, 401);
+  const adgang = klientNoegle(url);
+  if (!adgang) return json({ error: "unauthorized" }, 401);
+  // Den gamle noegle faar ingen brugerscripter: de baerer den nye.
+  if (adgang === "gammel" && (/\.(user|meta)\.js$/.test(url.pathname) || url.searchParams.has("userscript"))) {
+    return json({ error: "unauthorized" }, 401);
+  }
 
   // Userscripts (iOS) tilbyder kun installation, hvis selve STIEN ender paa
   // .user.js, og filen skal udleveres som ren tekst. Samme greb som Vinteds -
@@ -340,7 +346,7 @@ Deno.serve(async (req: Request) => {
       navn: "dba-runner", sidst: new Date().toISOString(),
       detalje: browserNavn(req.headers.get("user-agent") || "") + udgaveTekst(url, version),
     }).then(() => {}, () => {});
-    return new Response(varsel(BRUGERSCRIPT, version) + RUNNER, {
+    return new Response((adgang === "gammel" ? nyNoegleVarsel(BRUGERSCRIPT) : varsel(BRUGERSCRIPT, version)) + RUNNER, {
       headers: { ...CORS, "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
     });
   }

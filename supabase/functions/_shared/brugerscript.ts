@@ -116,16 +116,34 @@ export function udgaveTekst(url: URL, version: string | null): string {
 // baandet. Lukker du det, kommer det igen om seks timer.
 export function varsel(b: Brugerscript, version: string | null): string {
   if (!version) return "";
-  const n = JSON.stringify({ v: version, url: installAdresse(b), k: "udbakke_opdater_" + b.fil });
+  return baand(
+    { url: installAdresse(b), k: "udbakke_opdater_" + b.fil, t: `${b.navn} har en ny udgave. Tryk Opdatér, og så ᴀA → Userscripts → Update/Install.` },
+    `if(!window.${b.autoVar}||window.${b.verVar}===${JSON.stringify(version)})return;`,
+  );
+}
+
+// Kaldt med den gamle noegle (_shared/noegle.ts): baade brugerscriptet og
+// bogmaerket faar baandet. Det peger paa appen, ikke paa en .user.js-adresse,
+// for den baerer den nye noegle, og den skal kun ud til den, der er logget ind.
+export function nyNoegleVarsel(b: Brugerscript): string {
+  return baand(
+    { url: APP_OPSAET, k: "udbakke_noegle_" + b.fil, t: `${b.navn} har fået en ny nøgle. Tryk Opdatér, log ind og installér den igen under Opsætning.` },
+    "",
+  );
+}
+
+const APP_OPSAET = "https://nikolajbak.github.io/vinted-udbakke/#opsaet";
+
+function baand(n: { url: string; k: string; t: string }, stop: string): string {
   return `(function(){try{
-var N=${n};
-if(!window.${b.autoVar}||window.${b.verVar}===N.v)return;
+var N=${JSON.stringify(n)};
+${stop}
 try{var s=+localStorage.getItem(N.k)||0;if(Date.now()-s<21600000)return}catch(e){}
 function vis(){
  var d=document.createElement('div');
  d.setAttribute('style','position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#7a4b00;color:#fff;font:14px/1.4 -apple-system,system-ui,sans-serif;padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.25)');
  var t=document.createElement('span');
- t.textContent='${b.navn} har en ny udgave. Tryk Opdatér, og så ᴀA → Userscripts → Update/Install.';
+ t.textContent=N.t;
  var k=document.createElement('button');k.type='button';k.textContent='Opdatér';
  k.setAttribute('style','background:#fff;color:#7a4b00;border:0;border-radius:6px;padding:6px 12px;font:600 14px -apple-system,system-ui,sans-serif');
  k.addEventListener('click',function(){location.href=N.url});

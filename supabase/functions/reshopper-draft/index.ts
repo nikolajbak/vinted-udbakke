@@ -9,6 +9,7 @@
 // (swagger.json), ikke gaettet.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { klientNoegle } from "../_shared/noegle.ts";
 import { BESKRIVELSE_REGLER, faktaTekst } from "../_shared/beskrivelse.ts";
 import { hentErfaringer } from "../_shared/laering.ts";
 import { modelKald } from "../_shared/model.ts";
@@ -17,7 +18,6 @@ import { helKroner } from "../_shared/pris.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SHORTCUT_KEY = Deno.env.get("SHORTCUT_KEY")!;
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -84,7 +84,7 @@ const TOOL = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   const url = new URL(req.url);
-  if (url.searchParams.get("key") !== SHORTCUT_KEY) return json({ error: "unauthorized" }, 401);
+  if (!klientNoegle(url)) return json({ error: "unauthorized" }, 401);
 
   let id = "";
   try { id = (await req.json()).id; } catch { /* ignoreres */ }
