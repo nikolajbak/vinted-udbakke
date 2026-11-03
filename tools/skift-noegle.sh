@@ -19,13 +19,18 @@ REF=gjycsqshkvkcupdnvgvf
 API="https://$REF.supabase.co/functions/v1/vinted-fill-script"
 P="host=aws-0-eu-central-1.pooler.supabase.com port=6543 dbname=postgres user=postgres.$REF sslmode=require"
 
+PSQL() { PGPASSWORD="$SUPABASE_DB_PASSWORD" /opt/homebrew/opt/libpq/bin/psql "$P" -qAt -v ON_ERROR_STOP=1 -v ny="$NY" "$@"; }
+# psql udfylder kun :'ny' i SQL fra stdin, ikke i -c (3. november: scriptet
+# stoppede efter trin 1, og den nye noegle gik tabt). Proev derfor forbindelsen
+# og variablen, foer noget skrives.
+[ "$(echo "select length(:'ny')" | PSQL)" = 32 ] || { echo "psql-tjekket fejlede; intet er aendret."; exit 1; }
+
 # 1) Funktionerne foerst: de kender begge noegler, foer nogen faar den nye.
 supabase secrets set --project-ref "$REF" \
   SHORTCUT_KEY="$NY" SHORTCUT_KEY_GAMMEL="$GAMMEL" SHORTCUT_KEY_GAMMEL_TIL="$TIL" >/dev/null
 
 # 2) Vault: SQL'ens egne kald og appen (klientnoegle()) faar den nye.
-PGPASSWORD="$SUPABASE_DB_PASSWORD" /opt/homebrew/opt/libpq/bin/psql "$P" -q -v ny="$NY" \
-  -c "select vault.update_secret(id, :'ny') from vault.secrets where name = 'shortcut_key'" >/dev/null
+echo "select vault.update_secret(id, :'ny') from vault.secrets where name = 'shortcut_key'" | PSQL >/dev/null
 
 # 3) Lokalt.
 sed -i '' "s/^SHORTCUT_KEY=.*/SHORTCUT_KEY=$NY/" .env.secrets
