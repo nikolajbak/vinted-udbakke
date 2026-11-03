@@ -5,13 +5,23 @@
 # installerer igen (_shared/noegle.ts, nyNoegleVarsel). Appen henter selv den
 # nye efter login (klientnoegle(), sql/028).
 #
-#   sh tools/skift-noegle.sh [DAGE]
+#   sh tools/skift-noegle.sh [-f] [DAGE]
 #
 # Koeres af dig, ikke af Claude: noegleskift er dit (CLAUDE.md).
 set -e
 cd "$(dirname "$0")/.."
 set -a; . ./.env.secrets; set +a
 DAGE=${1:-14}
+# En ny koersel i overgangen goer den nyss udleverede noegle til den gamle,
+# og den oprindelige, som brugerscripterne baerer, holder op med at virke
+# (3. november: koert to gange efter hinanden). Derfor kun, naar overgangen
+# er ovre, eller med -f.
+if [ "$1" != "-f" ] && [ -n "${SHORTCUT_KEY_GAMMEL_TIL:-}" ] \
+   && [ "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \< "$SHORTCUT_KEY_GAMMEL_TIL" ]; then
+  echo "Noeglen blev skiftet for nylig; den gamle virker til $SHORTCUT_KEY_GAMMEL_TIL. Intet aendret (-f tvinger)."
+  exit 1
+fi
+[ "$1" = "-f" ] && DAGE=${2:-14}
 GAMMEL=$SHORTCUT_KEY
 NY=$(openssl rand -hex 16)
 TIL=$(date -u -v+"${DAGE}"d +%Y-%m-%dT%H:%M:%SZ)
@@ -34,6 +44,9 @@ echo "select vault.update_secret(id, :'ny') from vault.secrets where name = 'sho
 
 # 3) Lokalt.
 sed -i '' "s/^SHORTCUT_KEY=.*/SHORTCUT_KEY=$NY/" .env.secrets
+grep -q '^SHORTCUT_KEY_GAMMEL_TIL=' .env.secrets \
+  && sed -i '' "s/^SHORTCUT_KEY_GAMMEL_TIL=.*/SHORTCUT_KEY_GAMMEL_TIL=$TIL/" .env.secrets \
+  || echo "SHORTCUT_KEY_GAMMEL_TIL=$TIL" >> .env.secrets
 
 # Nye instanser laeser de nye secrets; giv dem et ojeblik.
 sleep 20
