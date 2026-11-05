@@ -20,6 +20,10 @@ henvises til som »CLAUDE.md »X««, i `.claude/rules/` — se tabellen nederst
 
 ## Ikke afprøvet — start her
 
+0. **Nye varer i prisvagten — 5. november.** Regler i pris.md »En ny vare i prisvagten«. **Afprøvet:** `beslutPris` med
+   `node --test`. **Ikke afprøvet:** en rigtig runde. Efter næste »Tjek priserne nu«: se `price_events` for de nye
+   varer, at `median` kun bygger på nye annoncer, og at ingen forslag ligger under gulvet.
+
 0. **Kvitteringen og den lukkede nøgle — 5. november.** Regler i vinted.md »Kvitteringen efter Gem«. **Afprøvet:**
    runnerens egen kode og indlæseren med `node --test`. **Ikke afprøvet:** på telefonen. Ved næste prisrunde: læs
    `spor` »bekræft: … kunne ikke læses (…)« for årsagen. Enheden med brugerscript 2.0.1 er ikke fundet; den skal

@@ -1169,6 +1169,10 @@ async function tilsyn(maalinger: Maaling[]) {
   if (!ids.length) return { beslutninger: [] as unknown[] };
 
   const { data: raekker } = await supabase.from("listings").select("*").in("id", ids);
+  const udkastIds = (raekker ?? []).map((r) => r.draft_id).filter(Boolean);
+  const { data: udkast } = udkastIds.length
+    ? await supabase.from("drafts").select("id, fakta, condition").in("id", udkastIds)
+    : { data: [] };
   const { data: hist } = await supabase.from("price_events")
     .select("listing_id, at, kind, price, from_price, favourites")
     .in("listing_id", ids).order("at", { ascending: false }).limit(200);
@@ -1203,7 +1207,12 @@ async function tilsyn(maalinger: Maaling[]) {
       continue;
     }
 
+    // Annoncens egne ord om standen gaar forud for udkastets.
+    const u = (udkast ?? []).find((x) => x.id === r.draft_id);
+    const stand = (r.published as Record<string, unknown> | null)?.condition || u?.condition;
     const v: Vagt = {
+      ny: !!u && erNy(u.fakta, stand),
+      ramme: u ? nyprisRamme(u.fakta, stand) : null,
       id: r.id, title: r.title ?? "", platform: r.platform,
       price: Number(r.price), start_price: Number(r.start_price),
       floor_price: r.floor_price === null ? null : Number(r.floor_price),

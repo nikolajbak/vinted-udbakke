@@ -124,6 +124,18 @@ modellens 45 kr længere ned. Reglen står i `_shared/pris.ts` (`NYPRIS_REGEL`,
 
 Delingen mellem server og telefon: se »Telefonen og serveren«.
 
+### En ny vare i prisvagten
+
+Bestemt af dig 5. november: en ubrugt vare til 800 kr i butikken skal ikke til 70 kr, fordi det er medianen for jakker
+af den type på Vinted. Prisvagten kendte hverken standen eller nyprisen, kun udbudsprisen. Dens bund var 40 % af
+udbudsprisen, og feltet var mest brugte varer. Reglen fra »En ny vare« gælder nu også her (`beslutPris`):
+
+- **Gulvet er 40 % af nyprisen** (35 % uden prismærke), eller en højere `floor_price`.
+- **Kun nye annoncer er felt.** Under tre nye er der intet felt, og de brugte når ikke modellen.
+- **En ny vare uden fundet nypris sættes ikke ned**, ligesom i markedsrunden.
+- **Står varen allerede under gulvet, holdes den**, tjekkes igen om mindst 14 dage og stoppes ikke. Vagten sætter aldrig
+  en pris op af sig selv.
+
 ### Kun forslag — du godkender hver ny pris
 
 Bestemt af dig 18. oktober: **prisvagten må ikke selv ændre priser, men

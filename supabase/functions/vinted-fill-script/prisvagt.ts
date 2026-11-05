@@ -9,6 +9,8 @@
 // rykkede noget, er et argument MOD at saenke igen - ikke for. Uden den
 // spaerre ender enhver automatisk prisvagt paa bunden.
 
+import { erNyAnnonce } from "../_shared/pris.ts";
+
 export type Vagt = {
   id: string;
   title: string;
@@ -24,6 +26,9 @@ export type Vagt = {
   historik: Array<{ at: string; kind: string; price: number | null; from_price: number | null; favourites: number | null }>;
   // Betalt boost inden for de sidste 30 dage (boostLinje i _shared/annoncering.ts).
   boost?: string;
+  // En ny vare holdes op mod sin nypris, ikke mod brugte varer (_shared/pris.ts).
+  ny?: boolean;
+  ramme?: { nypris: number; gulv: number; loft: number } | null;
 };
 
 export type Maaling = {
@@ -173,8 +178,15 @@ export async function beslutPris(
   m: Maaling,
   callTool: (system: string, content: unknown, tool: unknown) => Promise<Record<string, unknown>>,
 ): Promise<Beslutning> {
-  const felt = stats((m.comparables ?? []).map((c) => Number(c.price)));
-  const gulv = bund(v);
+  // En ny vare sammenlignes kun med nye (bestemt af dig 5. november: en jakke
+  // til 800 kr i butikken skal ikke til 70 kr, fordi brugte jakker koster det).
+  // Under tre nye er der intet felt, og de brugte naar slet ikke modellen.
+  const ny = !!v.ny;
+  const ramme = ny ? v.ramme ?? null : null;
+  const nyeAnnoncer = ny ? (m.comparables ?? []).filter((c) => erNyAnnonce(c.condition)) : [];
+  const brugbare = !ny ? (m.comparables ?? []) : nyeAnnoncer.length >= 3 ? nyeAnnoncer : [];
+  const felt = stats(brugbare.map((c) => Number(c.price)));
+  const gulv = ramme ? Math.max(bund(v), ramme.gulv) : bund(v);
   const nu = Math.round(m.price && m.price > 0 ? m.price : v.price);
   const paaMarkedet = dage(v.listed_at);
   const sidenAendring = v.last_change_at ? dage(v.last_change_at) : paaMarkedet;
@@ -183,13 +195,13 @@ export async function beslutPris(
   // Placeringen i feltet er det, der goer forskel paa "for dyr" og "allerede
   // billigst". Uden den ville modellen saenke en vare, der i forvejen ligger
   // under alle andre.
-  const priser = (m.comparables ?? []).map((c) => Number(c.price)).filter((n) => n > 0);
+  const priser = brugbare.map((c) => Number(c.price)).filter((n) => n > 0);
   const under = priser.filter((p) => p > nu).length;
   const placering = priser.length
     ? Math.round((priser.filter((p) => p < nu).length / priser.length) * 100)
     : null;
 
-  const feltLinjer = (m.comparables ?? []).slice(0, 40).map((c, i) =>
+  const feltLinjer = brugbare.slice(0, 40).map((c, i) =>
     `${i}: ${c.price} kr | ${c.favourites || 0} hjerter | ${c.brand || "uden mærke"} | ` +
     `str. ${c.size || "?"} | ${c.condition || "?"} | ${String(c.title || "").slice(0, 60)}`
   ).join("\n");
@@ -197,6 +209,11 @@ export async function beslutPris(
   const text =
     `Varen: ${v.title}\n` +
     `Lagt op for ${paaMarkedet} dage siden til ${v.start_price} kr. Koster nu ${nu} kr.\n` +
+    (ny
+      ? "Varen er ny og ubrugt. Den skal holdes op mod sin nypris og mod andre nye varer; brugte varer " +
+        "er en anden vare og siger ikke, hvad den er værd. " +
+        (ramme ? `Nypris: ${ramme.nypris} kr.\n` : "Nyprisen er ikke fundet.\n")
+      : "") +
     `Sidste prisændring: ${v.last_change_at ? `for ${sidenAendring} dage siden` : "ingen"}. ` +
     `Tjek nr. ${v.checks + 1}.\n` +
     `Hjerter: ${hjerter} (ved sidste tjek: ${v.favourites_prev}).\n` +
@@ -210,8 +227,11 @@ export async function beslutPris(
         `${felt.min}-${felt.max} kr, p25 ${felt.p25}, median ${felt.median}, p75 ${felt.p75} kr. ` +
         `Vores pris ligger over ${placering}% af dem; ${under} annoncer er dyrere end vores.\n\n` +
         `${feltLinjer}\n\n`
-      : "Der er ingen brugbare sammenlignelige annoncer denne gang — døm ud fra historikken alene, " +
-        "og vær tilbageholdende.\n\n") +
+      : (ny
+        ? "Der er færre end tre nye sammenlignelige annoncer, og brugte tæller ikke — døm ud fra historikken " +
+          "alene, og vær tilbageholdende.\n\n"
+        : "Der er ingen brugbare sammenlignelige annoncer denne gang — døm ud fra historikken alene, " +
+          "og vær tilbageholdende.\n\n")) +
     "Afgør handlingen.";
 
   const out = await callTool(SYSTEM, text, VAGT_TOOL);
@@ -224,6 +244,20 @@ export async function beslutPris(
   const modelPris = pris;
   let spaerret: string | null = null;
   let bremset = false;
+
+  // En ny vare uden fundet nypris har intet gulv at staa paa: udbudsprisen kan
+  // selv vaere forkert (nr. 54 stod til 70 kr). Samme regel som markedsrunden.
+  if (handling === "saenk" && ny && !ramme) {
+    handling = "behold";
+    spaerret = "en ny vare uden fundet nypris sættes ikke ned";
+  }
+  // Staar en ny vare allerede under gulvet, skal den hverken laengere ned eller
+  // ud af vagten. Prisvagten saetter ikke op: det er din beslutning.
+  const underRammen = !!ramme && nu < ramme.gulv;
+  if (underRammen) {
+    handling = "behold";
+    spaerret = `prisen ligger under ${ramme!.gulv},00 kr, gulvet for en ny vare med nypris ${ramme!.nypris},00 kr`;
+  }
 
   // ---- Spaerrerne. Rekkefoelgen er ikke tilfaeldig: afrundingen skal ske
   // FOER bunden, ellers kan en oprunding skubbe prisen under den igen.
@@ -259,7 +293,7 @@ export async function beslutPris(
   }
   // Er vi paa bunden, er prisen ikke laengere et haandtag. Sig det, i stedet
   // for at blive ved med at kigge forbi hver uge og lade som ingenting.
-  if (handling !== "stop" && nu <= gulv && handling !== "saenk") {
+  if (handling !== "stop" && nu <= gulv && handling !== "saenk" && !underRammen) {
     handling = "stop";
     spaerret = spaerret || "mindsteprisen er nået";
   }
@@ -270,6 +304,8 @@ export async function beslutPris(
   // Bremsede vi springet, er beslutningen kun halvt gennemfoert. Saa skal der
   // kigges igen snart, ikke om en maaned.
   if (bremset) naeste = Math.min(naeste, 7);
+  // Under gulvet er der intet at afgoere, foer du har sat prisen.
+  if (underRammen) naeste = Math.max(naeste, 14);
 
   // Begrundelsen er skrevet FOER spaerrerne, saa den kan naevne et andet tal
   // end det, der faktisk bliver sat. Sig det, i stedet for at lade to tal staa
@@ -278,6 +314,8 @@ export async function beslutPris(
   if (handling === "saenk" && pris !== modelPris) {
     begrundelse += ` Prisvagten foreslår ${pris},00 kr denne gang — ${spaerret}. ` +
       "Resten kan komme næste runde.";
+  } else if (underRammen) {
+    begrundelse = `Prisen bliver stående på ${nu},00 kr: ${spaerret}.`;
   } else if (handling === "behold" && modelPris < nu) {
     begrundelse += ` Prisen bliver stående på ${nu},00 kr: ${spaerret}.`;
   }
