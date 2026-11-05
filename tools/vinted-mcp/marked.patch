@@ -1,0 +1,446 @@
+From f85708ff57988f8417076230971f47504cdf0446 Mon Sep 17 00:00:00 2001
+From: Nikolaj Bak <noreply@anthropic.com>
+Date: Thu, 5 Nov 2026 17:13:37 +0100
+Subject: [PATCH] Prisopslag og hjerter paa det danske marked; compare_prices
+ og like_item fjernet
+
+---
+ src/index.ts                               |  12 +--
+ src/tools/compare-prices.ts                |  46 --------
+ src/tools/get-trending.ts                  | 117 +++++++++++++++------
+ src/tools/like-item.ts                     |  39 -------
+ src/tools/marked.ts                        |  50 +++++++++
+ src/tools/price-lookup.ts                  |  64 +++++++++++
+ src/vinted-core/parsers/response-parser.ts |   2 +
+ 7 files changed, 203 insertions(+), 127 deletions(-)
+ delete mode 100644 src/tools/compare-prices.ts
+ delete mode 100644 src/tools/like-item.ts
+ create mode 100644 src/tools/marked.ts
+ create mode 100644 src/tools/price-lookup.ts
+
+diff --git a/src/index.ts b/src/index.ts
+index dc0ee67..6ab6ee6 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -12,15 +12,14 @@ import {
+ import { getRuntimeConfig } from "./env";
+ import { getCategoriesData, categoriesResource } from "./resources/categories";
+ import { getCountriesData, countriesResource } from "./resources/countries";
+-import { comparePricesTool, handleComparePrices } from "./tools/compare-prices";
+ import { getItemTool, handleGetItem } from "./tools/get-item";
+ import { getSellerTool, handleGetSeller } from "./tools/get-seller";
+ import { getTrendingTool, handleGetTrending } from "./tools/get-trending";
+-import { handleLikeItem, likeItemTool } from "./tools/like-item";
++import { handlePriceLookup, priceLookupTool } from "./tools/price-lookup";
+ import { handleSearchItems, searchItemsTool } from "./tools/search-items";
+ import { VintedAPIClient } from "./vinted-core";
+ 
+-const TOOLS = [searchItemsTool, getItemTool, getSellerTool, comparePricesTool, getTrendingTool, likeItemTool];
++const TOOLS = [searchItemsTool, getItemTool, getSellerTool, priceLookupTool, getTrendingTool];
+ const RESOURCES = [countriesResource, categoriesResource];
+ const RESOURCE_TEMPLATES = [
+   {
+@@ -162,15 +161,12 @@ export function createServer(): Server {
+         case "get_seller":
+           result = await handleGetSeller(apiClient, args);
+           break;
+-        case "compare_prices":
+-          result = await handleComparePrices(apiClient, args);
++        case "price_lookup":
++          result = await handlePriceLookup(apiClient, args);
+           break;
+         case "get_trending":
+           result = await handleGetTrending(apiClient, args);
+           break;
+-        case "like_item":
+-          result = await handleLikeItem(apiClient, args);
+-          break;
+         default:
+           throw new Error(`Unknown tool: ${name}`);
+       }
+diff --git a/src/tools/compare-prices.ts b/src/tools/compare-prices.ts
+deleted file mode 100644
+index 13d9a65..0000000
+--- a/src/tools/compare-prices.ts
++++ /dev/null
+@@ -1,46 +0,0 @@
+-import type { VintedAPIClient } from "../vinted-core";
+-
+-export const comparePricesTool = {
+-  name: "compare_prices",
+-  description:
+-    "Compare prices for a search query across multiple Vinted countries. Great for finding arbitrage opportunities.",
+-  inputSchema: {
+-    type: "object",
+-    properties: {
+-      query: { type: "string", description: "Search keywords to compare" },
+-      countries: {
+-        type: "array",
+-        items: { type: "string" },
+-        description: "Country codes to compare (default: fr, de, it, es, nl, pl)",
+-        default: ["fr", "de", "it", "es", "nl", "pl"]
+-      },
+-      limit: { type: "integer", description: "Items per country to analyse", default: 20 }
+-    },
+-    required: ["query"]
+-  }
+-};
+-
+-export async function handleComparePrices(client: VintedAPIClient, args: any): Promise<string> {
+-  const countries = args.countries || ["fr", "de", "it", "es", "nl", "pl"];
+-  const comparison = await client.comparePrices(args.query, countries, args.limit || 20);
+-
+-  return JSON.stringify(
+-    {
+-      query: comparison.query,
+-      summary: {
+-        bestBuyCountry: comparison.bestBuyCountry,
+-        bestSellCountry: comparison.bestSellCountry,
+-        arbitrageSpread: `${comparison.arbitrageSpreadPct}%`
+-      },
+-      countries: comparison.comparisons.map((entry) => ({
+-        country: entry.country,
+-        avgPrice: `${entry.avgPrice} ${entry.currency}`,
+-        medianPrice: `${entry.medianPrice} ${entry.currency}`,
+-        priceRange: `${entry.minPrice} - ${entry.maxPrice} ${entry.currency}`,
+-        itemCount: entry.itemCount
+-      }))
+-    },
+-    null,
+-    2
+-  );
+-}
+diff --git a/src/tools/get-trending.ts b/src/tools/get-trending.ts
+index 136dc81..47bbe00 100644
+--- a/src/tools/get-trending.ts
++++ b/src/tools/get-trending.ts
+@@ -1,52 +1,101 @@
+ import type { VintedAPIClient } from "../vinted-core";
++import { hentMarked } from "./marked";
+ 
+ export const getTrendingTool = {
+   name: "get_trending",
+   description:
+-    "Find recently listed Vinted items ranked by engagement (favourites, then views). Note: the catalogue API no longer returns listing timestamps or view counts, so the ranking is coarse and favourite counts are often 0 on promoted results.",
++    "Efterspørgsel på det danske Vinted for en søgning: de varer med flest hjerter nu og, når søgningen er kørt før, " +
++    "de varer der har fået flest nye hjerter siden. Hver kørsel gemmes som et øjebliksbillede lokalt.",
+   inputSchema: {
+     type: "object",
+     properties: {
+-      query: { type: "string", description: "Search keywords (optional)" },
+-      country: { type: "string", description: "Country code", default: "fr" },
+-      categoryId: { type: "integer", description: "Category ID filter" },
+-      limit: { type: "integer", description: "Max items to return", default: 20 }
+-    }
++      query: { type: "string", description: "Søgeord, fx 'Ganni kjole'" },
++      limit: { type: "integer", description: "Antal varer i hver liste", default: 10 },
++      pages: { type: "integer", description: "Sider à 96 annoncer (1-3)", default: 2 }
++    },
++    required: ["query"]
+   }
+ };
+ 
++const MIN_TIMER = 1;
++
++function historikFil(): string {
++  const path = require("path") as { join: (...p: string[]) => string };
++  const os = require("os") as { homedir: () => string };
++  return process.env.VINTED_HISTORIK?.trim() || path.join(os.homedir(), ".local", "share", "vinted-mcp", "historik.jsonl");
++}
++
++interface Billede { tid: number; query: string; hjerter: Record<string, number>; }
++
++function forrige(fil: string, query: string, nu: number): Billede | null {
++  const fs = require("fs") as any;
++  if (!fs.existsSync(fil)) return null;
++  let fundet: Billede | null = null;
++  for (const linje of fs.readFileSync(fil, "utf8").split("\n")) {
++    if (!linje.trim()) continue;
++    try {
++      const b = JSON.parse(linje) as Billede;
++      if (b.query === query && nu - b.tid >= MIN_TIMER * 3600000) fundet = b;
++    } catch {
++      // En halv linje fra et afbrudt skriv tæller ikke.
++    }
++  }
++  return fundet;
++}
++
++function gem(fil: string, billede: Billede): void {
++  const fs = require("fs") as any;
++  const path = require("path") as any;
++  fs.mkdirSync(path.dirname(fil), { recursive: true });
++  fs.appendFileSync(fil, JSON.stringify(billede) + "\n");
++}
++
+ export async function handleGetTrending(client: VintedAPIClient, args: any): Promise<string> {
+-  const country = args.country || "fr";
+-  const limit = Math.min(args.limit || 20, 100);
+-
+-  const result = await client.searchItems({
+-    query: args.query,
+-    country,
+-    categoryId: args.categoryId,
+-    sortBy: "newest_first",
+-    perPage: Math.min(limit * 2, 48),
+-    page: 1
+-  });
+-
+-  const trending = result.items
+-    .map((item: any) => ({
+-      id: item.id,
+-      title: item.title,
+-      price: `${item.price} ${item.currency}`,
+-      brand: item.brand,
+-      favourites: item.favouriteCount || 0,
+-      views: item.viewCount || 0,
+-      url: item.url
+-    }))
+-    .sort((a: any, b: any) => b.favourites - a.favourites || b.views - a.views)
+-    .slice(0, limit);
++  const query = String(args.query || "").trim();
++  if (!query) throw new Error("query mangler");
++  const limit = Math.max(1, Math.min(Number(args.limit) || 10, 50));
++  const sider = Math.max(1, Math.min(Number(args.pages) || 2, 3));
++  const noegle = query.toLowerCase();
++  const { items, total, fremhaevet } = await hentMarked(client, query, sider);
++
++  const nu = Date.now();
++  const fil = historikFil();
++  const foer = forrige(fil, noegle, nu);
++  gem(fil, { tid: nu, query: noegle, hjerter: Object.fromEntries(items.map((i: any) => [String(i.id), i.favouriteCount || 0])) });
++
++  const vis = (i: any) => ({ id: i.id, hjerter: i.favouriteCount || 0, pris: `${i.price} ${i.currency}`, titel: i.title, maerke: i.brand, url: i.url });
++  const mestNu = [...items].sort((a: any, b: any) => (b.favouriteCount || 0) - (a.favouriteCount || 0)).slice(0, limit).map(vis);
++
++  let vaekst: any = null;
++  if (foer) {
++    const faelles = items.filter((i: any) => String(i.id) in foer.hjerter);
++    const stigning = (i: any) => (i.favouriteCount || 0) - foer.hjerter[String(i.id)];
++    vaekst = {
++      siden: new Date(foer.tid).toISOString(),
++      timer: Math.round((nu - foer.tid) / 360000) / 10,
++      varerFulgt: faelles.length,
++      nyeHjerterIAlt: faelles.reduce((sum: number, i: any) => sum + Math.max(0, stigning(i)), 0),
++      nyeAnnoncer: items.length - faelles.length,
++      forsvundet: Object.keys(foer.hjerter).filter((id) => !items.some((i: any) => String(i.id) === id)).length,
++      stigende: faelles
++        .filter((i: any) => stigning(i) > 0)
++        .sort((a: any, b: any) => stigning(b) - stigning(a))
++        .slice(0, limit)
++        .map((i: any) => ({ ...vis(i), nyeHjerter: stigning(i) }))
++    };
++  }
+ 
+   return JSON.stringify(
+     {
+-      country,
+-      query: args.query || null,
+-      note: "Ranked by favourites then views; Vinted no longer exposes listing age or view counts in search results.",
+-      trendingItems: trending
++      query,
++      traeffPaaVinted: total,
++      fulgt: items.length,
++      fremhaevetFrasorteret: fremhaevet,
++      note: foer
++        ? "Forsvundne annoncer kan være solgt, taget ned eller bare faldet ud af de hentede sider."
++        : `Første måling af denne søgning. Væksten vises, når den køres igen om mindst ${MIN_TIMER} time.`,
++      mestEftertragtedeNu: mestNu,
++      vaekst
+     },
+     null,
+     2
+diff --git a/src/tools/like-item.ts b/src/tools/like-item.ts
+deleted file mode 100644
+index c2698d5..0000000
+--- a/src/tools/like-item.ts
++++ /dev/null
+@@ -1,39 +0,0 @@
+-import { parseItemUrl } from "./get-item";
+-import type { VintedAPIClient } from "../vinted-core";
+-
+-export const likeItemTool = {
+-  name: "like_item",
+-  description:
+-    "Add a Vinted item to your favourites (or remove it with unlike). Requires a logged-in session: run 'npx @andrijdavid/vinted-mcp login' once.",
+-  inputSchema: {
+-    type: "object",
+-    properties: {
+-      itemId: { type: "integer", description: "Vinted item ID" },
+-      url: { type: "string", description: "Vinted item URL (alternative to itemId)" },
+-      country: { type: "string", description: "Country code", default: "fr" },
+-      unlike: { type: "boolean", description: "Remove the item from favourites instead of adding it", default: false }
+-    }
+-  }
+-};
+-
+-export async function handleLikeItem(client: VintedAPIClient, args: any): Promise<string> {
+-  let itemId: number;
+-  let country: string;
+-
+-  if (args.url) {
+-    const parsed = parseItemUrl(args.url);
+-    if (!parsed) {
+-      throw new Error(`Invalid Vinted item URL: ${args.url}`);
+-    }
+-    itemId = parsed.id;
+-    country = parsed.country;
+-  } else if (args.itemId) {
+-    itemId = args.itemId;
+-    country = args.country || "fr";
+-  } else {
+-    throw new Error("Either itemId or url must be provided");
+-  }
+-
+-  const result = await client.setFavourite(itemId, country, !args.unlike);
+-  return JSON.stringify(result, null, 2);
+-}
+diff --git a/src/tools/marked.ts b/src/tools/marked.ts
+new file mode 100644
+index 0000000..8297c15
+--- /dev/null
++++ b/src/tools/marked.ts
+@@ -0,0 +1,50 @@
++import type { VintedAPIClient } from "../vinted-core";
++
++// Vinteds søgning svarer på sessionens marked, uanset domæne (målt 5. november:
++// dk, de og fr gav de samme 96 varer i DKK). Derfor kun Danmark.
++export const LAND = "dk";
++const PR_SIDE = 96;
++
++const STANDE: Array<[RegExp, string]> = [
++  [/neuf avec|ny med|new with/i, "Ny med prismærke"],
++  [/neuf sans|ny uden|new without/i, "Ny uden prismærke"],
++  [/très bon|meget god|very good/i, "Meget god"],
++  [/bon état|^god$|good/i, "God"],
++  [/satisfaisant|tilfreds|satisfactory/i, "Tilfredsstillende"]
++];
++
++export function dansk(stand: unknown): string {
++  const tekst = String(stand || "");
++  for (const [re, navn] of STANDE) {
++    if (re.test(tekst)) return navn;
++  }
++  return tekst || "Ukendt";
++}
++
++/** Annoncer på markedet: fremhævede er betalt plads, ikke relevans, og sorteres fra. */
++export async function hentMarked(client: VintedAPIClient, query: string, sider: number, categoryId?: number) {
++  const items: any[] = [];
++  const set = new Set<number>();
++  let total = 0;
++  let fremhaevet = 0;
++  for (let page = 1; page <= sider; page++) {
++    const svar: any = await client.searchItems({ query, country: LAND, categoryId, perPage: PR_SIDE, page, sortBy: "relevance" });
++    total = svar.totalCount || total;
++    for (const item of svar.items) {
++      if (set.has(item.id)) continue;
++      set.add(item.id);
++      if (item.promoted) fremhaevet++;
++      else items.push(item);
++    }
++    if (!svar.hasMore) break;
++  }
++  return { items, total, fremhaevet };
++}
++
++export function fraktil(sorteret: number[], p: number): number {
++  if (!sorteret.length) return 0;
++  const pos = (sorteret.length - 1) * p;
++  const lav = Math.floor(pos);
++  const hoej = Math.ceil(pos);
++  return Math.round(sorteret[lav] + (sorteret[hoej] - sorteret[lav]) * (pos - lav));
++}
+diff --git a/src/tools/price-lookup.ts b/src/tools/price-lookup.ts
+new file mode 100644
+index 0000000..ea6ae8e
+--- /dev/null
++++ b/src/tools/price-lookup.ts
+@@ -0,0 +1,64 @@
++import type { VintedAPIClient } from "../vinted-core";
++import { dansk, fraktil, hentMarked } from "./marked";
++
++export const priceLookupTool = {
++  name: "price_lookup",
++  description:
++    "Prisopslag på det danske Vinted: median, kvartiler og antal for en søgning, delt på stand, uden fremhævede annoncer. " +
++    "Tallene er aktive udbudspriser, ikke salgspriser. Pris er sælgerens pris uden køberbeskyttelse.",
++  inputSchema: {
++    type: "object",
++    properties: {
++      query: { type: "string", description: "Søgeord, fx 'Ganni kjole'" },
++      brand: { type: "string", description: "Kun dette mærke (eksakt, uanset store/små bogstaver)" },
++      size: { type: "string", description: "Kun denne størrelse (eksakt, fx 'M' eller 'EU 36')" },
++      condition: { type: "string", description: "Kun denne stand: Ny med prismærke, Ny uden prismærke, Meget god, God, Tilfredsstillende" },
++      pages: { type: "integer", description: "Sider à 96 annoncer (1-3)", default: 2 }
++    },
++    required: ["query"]
++  }
++};
++
++// Vinted skriver »EU 36« med et hårdt mellemrum, og nogle gange med et almindeligt.
++const norm = (v: unknown) => String(v || "").replace(/\s+/g, " ").trim().toLowerCase();
++const stoerrelse = (v: unknown) => norm(v).replace(/^eu /, "");
++const ens = (a: unknown, b: unknown) => norm(a) === norm(b);
++
++export function prisTal(priser: number[]) {
++  const s = [...priser].sort((a, b) => a - b);
++  return { antal: s.length, min: s[0] ?? 0, q1: fraktil(s, 0.25), median: fraktil(s, 0.5), q3: fraktil(s, 0.75), max: s[s.length - 1] ?? 0 };
++}
++
++export async function handlePriceLookup(client: VintedAPIClient, args: any): Promise<string> {
++  const sider = Math.max(1, Math.min(Number(args.pages) || 2, 3));
++  const { items, total, fremhaevet } = await hentMarked(client, args.query, sider);
++  const valgte = items.filter(
++    (i: any) =>
++      i.currency === "DKK" && i.price > 0 &&
++      (!args.brand || ens(i.brand, args.brand)) &&
++      (!args.size || stoerrelse(i.size) === stoerrelse(args.size)) &&
++      (!args.condition || ens(dansk(i.condition), args.condition))
++  );
++  const stande: Record<string, number[]> = {};
++  for (const i of valgte as any[]) (stande[dansk(i.condition)] ||= []).push(i.price);
++
++  return JSON.stringify(
++    {
++      query: args.query,
++      valuta: "DKK",
++      note: "Aktive udbudspriser på vinted.dk, ikke salgspriser.",
++      traeffPaaVinted: total,
++      hentet: items.length + fremhaevet,
++      fremhaevetFrasorteret: fremhaevet,
++      brugt: valgte.length,
++      pris: prisTal(valgte.map((i: any) => i.price)),
++      prisPrStand: Object.fromEntries(Object.entries(stande).map(([k, v]) => [k, prisTal(v)])),
++      mestEftertragtede: [...(valgte as any[])]
++        .sort((a, b) => b.favouriteCount - a.favouriteCount)
++        .slice(0, 5)
++        .map((i) => ({ hjerter: i.favouriteCount, pris: i.price, titel: i.title, stand: dansk(i.condition), url: i.url }))
++    },
++    null,
++    2
++  );
++}
+diff --git a/src/vinted-core/parsers/response-parser.ts b/src/vinted-core/parsers/response-parser.ts
+index c781332..f4063f6 100644
+--- a/src/vinted-core/parsers/response-parser.ts
++++ b/src/vinted-core/parsers/response-parser.ts
+@@ -30,6 +30,7 @@ export interface ParsedItem {
+   color: string | null;
+   photos: string[];
+   favouriteCount: number;
++  promoted: boolean;
+   viewCount: number;
+   isSold: boolean;
+   soldAt: string | null;
+@@ -69,6 +70,7 @@ export function parseItem(raw: any, country: string): ParsedItem {
+       )
+       .filter(Boolean),
+     favouriteCount: raw.favourite_count || raw.favorites_count || 0,
++    promoted: Boolean(raw.promoted) || /promoted/.test(String(raw.content_source || "")),
+     viewCount: raw.view_count || 0,
+     isSold: raw.is_closed || raw.is_sold || raw.status === "sold" || false,
+     soldAt: raw.closed_at || raw.sold_at || null,
+-- 
+2.54.0 (Apple Git-157)
+

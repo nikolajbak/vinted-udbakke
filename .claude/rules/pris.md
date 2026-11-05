@@ -386,3 +386,21 @@ ligger i Mere og regnes af `indkob.ts` (`mode:'indkob'`), hver gang skærmen
   `attribute_ids[catalog]=…&attribute_ids[status]=6`; `catalog_ids`/
   `status_ids` ignoreres stille (målt 5. oktober). Annoncens status kan ikke
   læses billigt: `/api/v2/items/{id}` og `/details` svarer 404/403.
+
+## Vinted-MCP'en
+
+Til Claude-sessioner, ikke til appen (bestilt af Nikolaj 5. november: prisopslag og trends). Appens priser kommer
+stadig fra runnerens søgning på telefonen. Målt 5. november:
+
+- **`compare_prices` kan ikke lade sig gøre herfra.** `api.vinted.dk`, `.de` og `.fr` gav de samme 96 varer i DKK, og
+  `currency` blev ignoreret. Hvorfor er ikke fundet (gæt: IP eller session). Værktøjet er fjernet, og alt slås op på dk.
+- **Hjerterne er rigtige, men `get_trending` kiggede for smalt.** Upstream hentede få varer, og få varer kan have 0
+  hjerter. Ganni-søgningen havde hjerter på 59 af 96 varer, højest 92. Nu hentes 96 pr. side.
+- **Søgesvaret har ingen alder og `view_count` 0**, så vækst kræver to målinger. `get_trending` gemmer hjerterne pr.
+  søgning i `historik.jsonl` og sammenligner med seneste måling, der er mindst 1 time gammel. Der måles kun, når
+  værktøjet kaldes.
+- **`price_lookup` viser udbudspriser, ikke salgspriser.** Vinted viser ikke salgspriser i søgningen. Prisen er
+  sælgerens (`price`), ikke købers (`total_item_price`). Fremhævede annoncer sorteres fra.
+- **Størrelsen står med hårdt mellemrum** (`EU\u00a036`) og nogle gange almindeligt, så den normaliseres.
+- **`like_item` er fjernet**, og MCP'en kører i `http`-tilstand uden login, så den ikke kan ændre noget på kontoen.
+- **npm-udgaven 0.1.2 er fra før Vinted flyttede søgningen**, så den bygges fra kilden med `tools/vinted-mcp/opsaet.sh`.

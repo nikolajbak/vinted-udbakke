@@ -27,6 +27,7 @@ node --test tools/test-*.mjs          # de rene funktioners tests
 sh tools/proeve.sh                    # prøve-appen på http://localhost:8765/proeve.html (se afproevning.md)
 set -a; . ./.env.secrets; set +a      # nøglerne i miljøet
 sh tools/skift-noegle.sh [dage]       # ny klientnøgle; den gamle virker i overgangen (kør selv)
+sh tools/vinted-mcp/opsaet.sh         # bygger Vinted-MCP'en til Claude-sessioner (prisopslag, trends)
 ```
 
 ## Arkitektur
@@ -70,6 +71,7 @@ sh tools/skift-noegle.sh [dage]       # ny klientnøgle; den gamle virker i over
 | Fanelukkeren »Udbakke luk« (`/udbakke-luk.user.js`) og `lukFanen()` | `LUK_SCRIPT` i `…/vinted-fill-script/index.ts`; `lukFanen`/`fraApp` i `…/vinted-fill-script/runner.ts` |
 | Vinteds vælgere (Radix-knapper: `vaelger`, `vaerdi`, `radixMenu`, `trykNed`, `lukMenu`, `fillFlere`) og rettede vælgere sat på redigeringssiden (`anvend`, kvitteret med `laesValg`/`medValg`); står det i annoncen (`passerUde`, rene og testet med `node --test tools/test-valg.mjs`) | `runner.ts`, `supabase/functions/_shared/valg.ts`, `…/vinted-fill-script/index.ts` |
 | Alle annoncer læst af garderoben (titel, pris, mærke, størrelse, stand, solgt) højst én gang i timen, når en Vinted-side er åben (`garderobeSynk`, `garderobeVare` → `mode:'garderobe'` → `synkAnnonce` med `flet`); størrelsen sammenlignet lempeligt i appen (`sammeStoerrelse`) | `runner.ts`, `…/vinted-fill-script/index.ts`, `app.js` |
+| Vinted-MCP til Claude-sessioner, ikke appen: `andrijdavid/vinted-mcp` på fast commit + vores `marked.patch` (`price_lookup`, `get_trending`). Bygges til `~/.local/share/vinted-mcp/`, hvor også `historik.jsonl` ligger | `tools/vinted-mcp/`; regler i `pris.md` »Vinted-MCP'en« |
 | Betalt annoncering: fakturaen, tragten og dommen (`laesFaktura`, `tragt`, `boostDom`, `boostSalg`, `boostLinje`, rene og testet med `node --test tools/test-annoncering.mjs`) | `supabase/functions/_shared/annoncering.ts` |
 | Boost-fakturaen fra mail → ordre (slags `boost`) | `vinted-mail/index.ts` |
 | Fakturaens varer fundet i garderoben, Vinteds tal gemt, dommene, prisvagtens pause (`mode:'boost'`, `boostKoerer`, `boostLinjer`); runnerens `boostRunde` | `…/vinted-fill-script/boost.ts`, `runner.ts` |
