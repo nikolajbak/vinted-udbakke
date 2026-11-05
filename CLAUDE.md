@@ -191,6 +191,12 @@ tilbage: `begin; select f(); rollback;`.
   Skiftes med `sh tools/skift-noegle.sh [dage]`, som du selv kører: den gamle virker til
   `SHORTCUT_KEY_GAMMEL_TIL`, men får hverken `.user.js` eller `.meta.js` (de bærer den nye). Brugerscript og bogmærke
   viser imens et bånd til `#opsaet` i appen.
+- **Appen må kun hente fra de værter, der står i CSP'en i `index.html`** (5. november 2026). Køberbeskeder og titler kommer
+  udefra og vises i appen, som har sessionen og klientnøglen i `localStorage`; CSP'en stopper indlejret kode, også hvis et
+  `esc()` bliver glemt. Derfor ingen inline-script eller `onclick=`; temaet ligger i `tema.js`. En ny vært (script, kald)
+  skrives ind i CSP'en. `supabase.js` har SRI: skiftes versionen, skal `integrity` beregnes igen.
+- **CORS er bevidst `*`.** Kaldene bærer nøglen i adressen og ingen cookies, så en snævrere liste beskytter ikke noget, og
+  telefonens brugerscript kan ikke afprøves herfra.
 
 ## Konventioner
 

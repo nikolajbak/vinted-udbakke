@@ -81,7 +81,7 @@ else
 fi
 
 if [ -n "$sidste" ] && [ -z "$udrul" ] && [ $# -eq 0 ]; then
-  if git diff --quiet "$sidste" HEAD -- index.html style.css app.js; then
+  if git diff --quiet "$sidste" HEAD -- index.html style.css app.js tema.js; then
     echo "Intet nyt siden $sidste."
     exit 0
   fi

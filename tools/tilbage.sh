@@ -15,7 +15,7 @@ cd "$(dirname "$0")/.."
 
 PROJEKT=gjycsqshkvkcupdnvgvf
 FUNKTIONER="analyze-draft dba-fill-script push-send push-subscribe reshopper-draft vinted-fill-script vinted-mail"
-APPFILER="index.html style.css app.js"
+APPFILER="index.html style.css app.js tema.js"
 
 [ -f .env.secrets ] || { echo "Mangler .env.secrets"; exit 1; }
 set -a; . ./.env.secrets; set +a
