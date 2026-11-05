@@ -85,6 +85,42 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
   - Næste gennemgang, når der er analyseret varer: `select trin, count(*)
     from modelkald where skygge group by 1`.
 
+- **Skyggen gennemgået 5. november** (kald fra 22. oktober-3. november): 39 par af 265 Claude-kald i
+  skygge, 414 fejlede Gemini-forsøg. **Kun `tekst:uden_forbudte` er skiftet til `gemini`.** »Par/kald« er par mod
+  Claude-kald (`forbrug`). Claude er ikke facit: en afvigelse viser, at trinnet ikke er bevist lige så godt.
+
+  | Trin | Par/kald | Forsøg, der fejlede | ms (median) | Dom |
+  |---|---|---|---|---|
+  | `tekst:uden_forbudte` | 6/6 | 0 | 5.600 (4,5-8 s) | **lige så god** → `gemini` |
+  | `analyse:skriv_annonce` | 12/12 | 0 | 10.100 (6-24 s) | **dårligere** |
+  | `analyse:tjek_billede` | 11/70 | 110 | 5.900 (3-20 s) | **dårligere** |
+  | `analyse:vurder_billede` | 4/70 | 128 | 19.000 (13-33 s) | **dårligere**, få par |
+  | `analyse:registrer_vare` | 2/12 | 19 | 18.500 | for få data (1 af 2 forkert varetype) |
+  | `dba:marked` | 1/9 | 14 | 25.800 | for få data |
+  | `dba:valg kategori`/`stand`/`pasform` | 1/26, 1/9, 1/8 | 40, 15, 12 | 2-11 s | for få data (samme valg i alle tre) |
+  | `analyse:maerker`, `vinted:skriv_annonce`, `vinted:saet_vinted_felter`, `laering`, `opslag:billeder`, `dba:valg farve`, `indkob`, `vinted:ny_beskrivelse` | 0 par | 23, 25, 12, 9, 3, 2, 1, 1 | — | for få data |
+  | `vinted:saet_ny_pris`, `opslag:nypris_maal`, `mail` | — | — | — | står på `claude` |
+
+  - **`tekst:uden_forbudte`**: rettelserne er næsten ordrette og uden forbudte vendinger. Koden afviser selv et svar,
+    der er for kort eller bærer vendingen, og ved en fejl tager Claude over. Forbehold: alle 6 par er fra samme
+    eftermiddag. Hænger Gemini, venter trinnet op til 40 s, også på telefonen (`vinted:*`, `dba:*`). Trinnet er dog ikke
+    kaldt fra dem siden 22. oktober, kun fra analysen.
+  - **`analyse:skriv_annonce`**: størrelsen mangler 2 af 12 gange, hvor Claude og annoncen har den (nr. 83 S, nr. 84 M).
+    Standen er ét trin højere 8 af 12 gange: 4 gange endte annoncen på Claudes »God«, 4 gange blev den rettet op. Det er
+    uafgjort, men »God« → »Meget god« lover køberen for meget. Gemini opfinder også (nr. 85 »tørrer lynhurtigt«), og
+    prompten skinner igennem (nr. 89 »præcis som angivet på vaskemærket«). Til Geminis fordel: 0 forbudte vendinger mod
+    Claudes 6 af 12, og færre XML-rester. Claude havde `</description>` i 2 af 12 svar, men `cleanText` fjerner dem, og
+    0 kladder har dem. **Skal prøves igen først**, når størrelsen er på plads.
+  - **Billedtrinnene drejer forskelligt**: `tjek_billede` er helt enig 5 af 11 gange. Rotationen er modsat eller
+    forskellig i id 318 (90 mod 270) og 292 (90 mod 0), og i `vurder_billede` id 232 (90 mod 270). Hvem der har ret, er
+    ikke målt. En forkert drejning ødelægger billedet, så de bliver hos Claude.
+  - **Kvoten er problemet, ikke kun kvaliteten.** Af 453 forsøg gav 356 fejlen 429, 41 løb ind i fristen og 17 gav 503.
+    Analysen sender omkring 140 billedkald i byger (12 varer 1. november), så 429 rammer alle modeller, og
+    `vinted:*`/`dba:*` får næsten ingen par. Siden 1. november kl. 21 dansk tid er 0 forsøg lykkedes (3.7 og 3.8).
+    `modeller()` prøver kun de to nyeste, og `gemini-3-flash-preview` (14 ok, 0 429) nås kun, når de andre er i
+    karantæne i samme isolat. Kun 3.8 og 3.7 løb ind i fristen på korte tekstkald (`dba:valg …`).
+  - Næste gennemgang: `select trin, count(*) from modelkald where skygge group by 1`.
+
 ## Modellerne
 
 - **Hvert kald til Anthropic noteres i `forbrug`** — via `noterForbrug(svar,
