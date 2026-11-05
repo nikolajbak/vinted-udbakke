@@ -1,11 +1,10 @@
 // Triggered by a Postgres webhook (see schema.sql / update_webhook.sql)
 // whenever a new "afventer" draft is inserted. Analyzes the photo with
-// Claude, grounds a price estimate in real Vinted listings, and writes
-// the finished draft back to the row.
+// Claude, sets a preliminary price, and writes the finished draft back to the
+// row. The market check happens on the phone when the ad is filled in.
 
 import { boerneStoerrelse, erBoernetoej, titelMedStoerrelse } from "../_shared/stoerrelse.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { searchWithFallback } from "./vinted.ts";
 import { GUIDANCE_TOOL, optimizePhoto } from "./optimize.ts";
 import { BESKRIVELSE_REGLER, type Fakta, faktaTekst, ingenVersaler, slaaOp, udenForbudte } from "../_shared/beskrivelse.ts";
 import { hentErfaringer, hentRettelser } from "../_shared/laering.ts";
@@ -921,31 +920,21 @@ Deno.serve(async (req: Request) => {
       }
     }).catch((err) => console.error("opslag af nypris/maal sprunget over", err));
 
-    // 2. Try to ground pricing here, but don't lean on it: Vinted blocks
-    // datacenter IPs intermittently. When this fails the phone does the
-    // lookup instead (same-origin from vinted.dk, never blocked) — see
-    // vinted-fill-script. One quick attempt only, so a blocked call doesn't
-    // hold the draft up.
+    // 2. Prisen her er kun foreløbig: markedet slås op fra telefonen, når annoncen
+    // udfyldes (`price_grounded: false` nedenfor er det, der beder runneren om det).
+    // Serveren søger ikke selv, se .claude/rules/vinted.md »Telefonen og serveren«.
     const erfaringerP = hentErfaringer(["tekst", "pris"]);
-    const { items, country, blocked } = await searchWithFallback(searchQuery, "dk", "fr", 12, 1);
     await opslag;
     const erfaringer = await erfaringerP;
-    const comparables = items.slice(0, 10).map((it) => `${it.title} — ${it.price} ${it.currency}`).join("\n");
 
-    // 3. Write the final ad: title, description, price AND a short sell-through strategy,
-    // grounded in whatever comparables we found. Same expert-seller persona, bigger model —
-    // this step is the one the seller actually has to trust.
-    const grounded = !blocked && items.length > 0;
-    const marketContext = !grounded
-      ? `Vinted-søgningen for "${searchQuery}" i ${country} gav intet brugbart resultat (${blocked ? "sandsynligvis blokeret" : "ingen fund"}). ` +
-        "Sæt en foreløbig pris efter dit eget erfarne skøn for denne varetype i Danmark. Skriv i priceNote at det er et foreløbigt skøn, " +
-        "der bliver markedstjekket når annoncen udfyldes — påstå ikke at den allerede er tjekket."
-      : `${items.length} sammenlignelige, AKTIVE annoncer fundet på Vinted (${country}):\n${comparables}\n\n` +
-        "Brug disse til at lægge en reel salgsstrategi: hvor ligger prisen i forhold til feltet, og hvorfor (fx lidt under median for hurtigt salg, " +
-        "eller i toppen hvis stand/mærke berettiger det)? Nævn det kort i priceNote.";
+    // 3. Write the final ad: title, description, a preliminary price. Same expert-seller
+    // persona, bigger model — this step is the one the seller actually has to trust.
+    const marketContext = "Der er ikke slået markedspriser op endnu. " +
+      "Sæt en foreløbig pris efter dit eget erfarne skøn for denne varetype i Danmark. Skriv i priceNote at det er et foreløbigt skøn, " +
+      "der bliver markedstjekket når annoncen udfyldes — påstå ikke at den allerede er tjekket.";
 
     const draft = await callClaudeJson(
-      SELLER_PERSONA + " Skriv et komplet annonce-udkast PÅ DANSK til Vinted for varen, ud fra produktanalysen og markedsdata nedenfor. " +
+      SELLER_PERSONA + " Skriv et komplet annonce-udkast PÅ DANSK til Vinted for varen, ud fra produktanalysen nedenfor. " +
         "Titel: mærke/type/størrelse først, det er det folk søger på — ikke sælger-sprog. " +
         "Beskrivelse: 4-7 linjer om mærke, størrelse, materiale og stand.\n" + BESKRIVELSE_REGLER + "\n" +
         (erfaringer ? erfaringer + "\n" : "") +
@@ -953,7 +942,7 @@ Deno.serve(async (req: Request) => {
         "Sælges flere dele samlet (se Fakta), så nævn dem alle i titlen (\"H&M sweatkjole og leggings str. 128\"), " +
         "og vælg en kategori for sæt, hvis Vinted har en — ellers hoveddelens. color er den farve, der fylder mest; " +
         "material er det, vaskemærket angiver mest af, med Vinteds ord.\n" +
-        "Pris: et konkret beløb i kr, sat som en reel salgsstrategi (se markedsdata), ikke bare et gennemsnit. " +
+        "Pris: et konkret beløb i kr, sat som en reel salgsstrategi, ikke bare et gennemsnit. " +
         NYPRIS_REGEL + " " +
         "Udfyld desuden Vinteds egne felter — categoryPath, brand, size, sizeScale, color, condition — med Vinteds " +
         "egen danske ordlyd, for de bliver klikket direkte ind i formularen. Er du i tvivl om mærke eller størrelse, " +
@@ -1008,7 +997,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
         price: prisTekst(cleanText(draft.price)),
         price_note: cleanText(draft.priceNote),
         search_query: searchQuery,
-        price_grounded: grounded,
+        price_grounded: false,
         fakta,
         // Vinteds egne felter. Bogmaerket klikker dem igennem, saa de gemmes
         // her praecis som modellen formulerede dem. draft vinder over vision:
@@ -1043,7 +1032,7 @@ console.log("annonce klar paa", Date.now() - t0, "ms");
       }
     } catch (_e) { /* push er en ekstra, ikke en betingelse */ }
 
-    return new Response(JSON.stringify({ ok: true, blocked }), {
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { "content-type": "application/json" },
     });
   } catch (err) {

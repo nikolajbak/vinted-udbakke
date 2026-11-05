@@ -262,7 +262,10 @@ intet på dig, lukkes den, når runneren er færdig.**
 
 - **Vinted blokerer datacenter-IP'er.** Hele markedsopslaget, al måling af
   annoncer og al udfyldning sker derfor fra telefonens egen session, ikke fra
-  serveren.
+  serveren. `analyze-draft` søger heller ikke længere selv (fjernet 5. november,
+  Nikolaj): `analyze-draft/vinted.ts` kaldte stadig `/api/v2/catalog/items`, der
+  har svaret 404 siden 1. oktober, så kaldet kunne ikke give træf. Analysens pris er
+  altid foreløbig (`price_grounded: false`), og telefonen sætter den endelige.
 - **Prisvagten kan ikke køre på serveren alene.** Den kan huske og beslutte,
   men den kan hverken se markedet eller ændre en pris: prisen sidder i Vinteds
   egen formular. Derfor er delingen fast — serveren beslutter, telefonen måler
