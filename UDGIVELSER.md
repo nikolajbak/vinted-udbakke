@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0168 — 2026-11-05 21:49
+
+Commit `239ff56` — Prisvagten holder nye varer op mod nyprisen, ikke mod brugte  
+App: `app.js?v=ae93c5b4` · `style.css?v=57092ac2`  
+Udrullet: vinted-fill-script
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft | v108 | `997abfe2` |
+| dba-fill-script | v55 | `48788f46` |
+| push-send | v10 | `cce82c40` |
+| push-subscribe | v12 | `d858f120` |
+| reshopper-draft | v46 | `2087d804` |
+| vinted-fill-script ← | v152 | `a9808afd` |
+| vinted-mail | v40 | `09ce417f` |
+
 ## udgivelse-0167 — 2026-11-05 20:53
 
 Commit `da7634c` — Kvitteringen venter på Vinteds fejlside, og den lukkede nøgle siger til  
