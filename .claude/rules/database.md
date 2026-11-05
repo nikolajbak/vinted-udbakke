@@ -46,6 +46,7 @@ Nye ændringer får næste nummer i `sql/` og en linje her.
 | Modbud fra appen, sat af runneren: `koeber_beskeder.modbud` (hele kroner) og `modbud_at` | `sql/027-modbud.sql` |
 | Klientnøglen til logget ind: `klientnoegle()` læser vault `shortcut_key` (kun `authenticated`) | `sql/028-klientnoegle.sql` |
 | Interne funktioner lukket for `anon`/`authenticated`: `set_draft_photo`, `notify_new_draft`, `noter_rettelse` | `sql/029-luk-interne-funktioner.sql` |
+| Mindste adgang: `anon` har ingen rettigheder i `public` (heller ikke på nye tabeller), `authenticated` har præcis det, politikkerne tillader, ingen sletning af `listings`, `photos` tager kun billeder (26 MB), `maerkater` højst 20 MB. **En ny tabel, som appen skal bruge, skal have sin `grant` med** | `sql/030-mindste-adgang.sql` |
 | Det, analysen tog fejl af: `rettelser` (kilde `dig` via triggeren `drafts_rettelse`, kilde `vinted` fra »clear«s `afvist`) | `sql/012-rettelser.sql` |
 
 **Udkastet og annoncen er to forskellige ting.** Udkastet (`drafts`) er det, vi

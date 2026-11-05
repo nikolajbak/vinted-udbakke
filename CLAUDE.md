@@ -193,6 +193,7 @@ tilbage: `begin; select f(); rollback;`.
   Skiftes med `sh tools/skift-noegle.sh [dage]`, som du selv kører: den gamle virker til
   `SHORTCUT_KEY_GAMMEL_TIL`, men får hverken `.user.js` eller `.meta.js` (de bærer den nye). Brugerscript og bogmærke
   viser imens et bånd til `#opsaet` i appen.
+- **Den gamle klientnøgle var offentlig i git-historikken og virkede i overgangen** (lukket 5. november 2026, 2 dage efter skiftet). Så snart loggen viser, at telefonen og Macen er på den nye, lukkes overgangen: `supabase secrets unset SHORTCUT_KEY_GAMMEL SHORTCUT_KEY_GAMMEL_TIL`.
 - **Appen må kun hente fra de værter, der står i CSP'en i `index.html`** (5. november 2026). Køberbeskeder og titler kommer
   udefra og vises i appen, som har sessionen og klientnøglen i `localStorage`; CSP'en stopper indlejret kode, også hvis et
   `esc()` bliver glemt. Derfor ingen inline-script eller `onclick=`; temaet ligger i `tema.js`. En ny vært (script, kald)
