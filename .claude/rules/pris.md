@@ -404,8 +404,5 @@ stadig fra runnerens søgning på telefonen. Målt 5. november:
 - **Størrelsen står med hårdt mellemrum** (`EU\u00a036`) og nogle gange almindeligt, så den normaliseres.
 - **`like_item` er fjernet**, og MCP'en kører i `http`-tilstand uden login, så den ikke kan ændre noget på kontoen.
 - **npm-udgaven 0.1.2 er fra før Vinted flyttede søgningen**, så den bygges fra kilden med `tools/vinted-mcp/opsaet.sh`.
-- **Dagens måling** (Nikolaj 5. november): launchd-jobbet `dk.nikolajbak.vinted-maaling` kører `tools/vinted-mcp/maal.mjs`
-  kl. 07:30 lokal tid, med 5 sekunders pause mellem søgningerne i `soegninger.txt` (de hyppigste mærker i `drafts`,
-  120 dage). Ingen modelkald, så reglen om spidstid gælder ikke. Log: `~/.local/share/vinted-mcp/maal.log`; historikken
-  beholdes 60 dage. Kører kun på Mac'en; slukket springes dagen over, sovende indhentes ved opvågning. Brede mærker
-  (Nike, Zara) følges kun på de ca. 190 varer, søgningen viser først, så væksten dér siger mindst.
+- **Intet må køre fast på Mac'en** (Nikolaj 5. november). En daglig launchd-måling blev sat op og fjernet samme dag.
+  Væksten måles derfor kun, når `get_trending` kaldes, så to målinger kan ligge langt fra hinanden.

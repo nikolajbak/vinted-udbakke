@@ -28,7 +28,6 @@ sh tools/proeve.sh                    # prøve-appen på http://localhost:8765/p
 set -a; . ./.env.secrets; set +a      # nøglerne i miljøet
 sh tools/skift-noegle.sh [dage]       # ny klientnøgle; den gamle virker i overgangen (kør selv)
 sh tools/vinted-mcp/opsaet.sh         # bygger Vinted-MCP'en til Claude-sessioner (prisopslag, trends)
-sh tools/vinted-mcp/installer-maaling.sh  # daglig måling af trends i launchd; søgningerne står i soegninger.txt
 ```
 
 ## Arkitektur
