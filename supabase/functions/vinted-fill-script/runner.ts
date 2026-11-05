@@ -1565,22 +1565,27 @@ async function bekraeft(){
 // beskrivelsen og prisen (målt 5. oktober: længderne passer tegn for tegn).
 async function laesFrisk(id){
  try{
-  var h=await timedFetch('/items/'+id,{credentials:'include',cache:'no-store'},20000);
-  if(h.status===404||h.status===410)return {gone:true};
-  if(!h.ok)return null;
-  return laesAnnonceside(await h.text(),id);
- }catch(e){return null}
+  var h=await timedFetch('/items/'+id,{credentials:'include',cache:'no-store'},15000);
+  if(!h.ok)return {fejl:'http '+h.status};
+  return laesAnnonceside(await h.text(),id)||{fejl:'siden kunne ikke tolkes'};
+ }catch(e){return {fejl:e.message}}
 }
 
 async function bekraeftNu(v){
  try{localStorage.removeItem(MARKOER)}catch(e){}
  var b=baand('Tjekker, at Vinted har gemt ændringen …',null,null);
- var set=null,ikke=[];
- // Vinted kan være et øjeblik om at udlevere den nye tekst.
- for(var forsoeg=0;forsoeg<4;forsoeg++){
-  if(forsoeg)await sleep(3000);
-  set=await laesFrisk(v.itemId);
-  if(!set||!set.udgivet)continue;
+ var set=null,ikke=[],grund='',forsoeg=0;
+ // Vinted kan være et øjeblik om at udlevere den nye tekst: de første fire
+ // forsøg. Vinted kan også svare med en fejlside i op til ca. 70 s efter Gem
+ // (målt 5. november, Roly-jakken): så venter de sidste fire, ca. 79 s i alt.
+ var pauser=[0,3000,3000,3000,10000,15000,20000,25000];
+ for(;forsoeg<pauser.length;forsoeg++){
+  if(forsoeg>=4&&set)break;
+  if(pauser[forsoeg])await sleep(pauser[forsoeg]);
+  var frisk=await laesFrisk(v.itemId);
+  if(frisk&&frisk.gone){grund='solgt';break}
+  if(!frisk||!frisk.udgivet){grund=(frisk&&frisk.fejl)||'ingen data';continue}
+  set=frisk;
   if(v.valgt&&Object.keys(v.valgt).length)await medValg(set.udgivet,v);
   ikke=(v.satte||[]).filter(function(navn){
    if(navn==='fotos')return false;
@@ -1590,7 +1595,7 @@ async function bekraeftNu(v){
  }
  if(b)b.remove();
  if(!set||!set.udgivet){
-  spor('bekræft: '+v.itemId+' kunne ikke læses');
+  spor('bekræft: '+v.itemId+' kunne ikke læses ('+grund+', '+Math.min(forsoeg+1,pauser.length)+' forsøg)');
   baand('Annoncen kunne ikke læses bagefter. Rettelsen står stadig som klar i appen.',null,null);
   return null;
  }

@@ -192,7 +192,7 @@ tilbage: `begin; select f(); rollback;`.
   kun `authenticated`) og husker den i `localStorage`. Funktionerne tjekker den med `_shared/noegle.ts`.
   Skiftes med `sh tools/skift-noegle.sh [dage]`, som du selv kører: den gamle virker til
   `SHORTCUT_KEY_GAMMEL_TIL`, men får hverken `.user.js` eller `.meta.js` (de bærer den nye). Brugerscript og bogmærke
-  viser imens et bånd til `#opsaet` i appen.
+  viser imens et bånd til `#opsaet` i appen. Efter overgangen får et script med den lukkede nøgle 401, og fra brugerscript-udgaven efter 2.0.3 viser indlæseren selv samme bånd (5. november: 2.0.1 fik 18 × 401 uden nogen besked, testet med `node --test tools/test-indlaeser.mjs`). Ældre indlæsere siger intet: installér dem igen.
 - **Den gamle klientnøgle var offentlig i git-historikken og virkede i overgangen** (lukket 5. november 2026, 2 dage efter skiftet). Så snart loggen viser, at telefonen og Macen er på den nye, lukkes overgangen: `supabase secrets unset SHORTCUT_KEY_GAMMEL SHORTCUT_KEY_GAMMEL_TIL --yes`. Uden `--yes` ændrer CLI'en intet under en agent og melder det kun i sit JSON-svar; mål derfor bagefter, at den gamle giver 401.
 - **Appen må kun hente fra de værter, der står i CSP'en i `index.html`** (5. november 2026). Køberbeskeder og titler kommer
   udefra og vises i appen, som har sessionen og klientnøglen i `localStorage`; CSP'en stopper indlejret kode, også hvis et

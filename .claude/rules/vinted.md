@@ -330,6 +330,18 @@ intet på dig, lukkes den, når runneren er færdig.**
   bar runneren indbagt og derfor skulle opdateres ved hver rettelse. Kun en
   ny `@match` eller en ændret indlæser kræver en ny udgave.
 
+## Kvitteringen efter Gem
+
+Målt 5. november: 3 af 8 gemninger på en prisrunde meldte »kunne ikke læses«, selvom prisen var gemt. Roly-jakkens
+redigeringsside viste »Der opstod desværre en fejl« ca. 50 s efter Gem, og ca. 70 s efter stod den nye pris der.
+Runneren gav op efter ca. 10 s og gik videre, så runden kom forbi samme varer igen.
+
+- `bekraeftNu` prøver fire gange på ca. 10 s, og er annoncen stadig ikke læst, fire gange til, ca. 79 s i alt. Kan
+  annoncen læses, men står den gamle værdi der, stopper den stadig efter de første fire.
+- Fejler det alligevel, står årsagen i `spor`: `bekræft: <id> kunne ikke læses (http 403, 8 forsøg)`. Ét mål af
+  årsagen mangler: **om fejlsiden er en HTTP-fejl eller DataDome, er ikke set endnu.** Læs det af `spor`.
+- Afprøves med `node --test tools/test-bekraeft.mjs`, der kører runnerens egen kode.
+
 ## Vinted: formularen
 
 - **Vinteds vælgere**: dialogen er `.ReactModal__Content`, rækkerne er `div`'er

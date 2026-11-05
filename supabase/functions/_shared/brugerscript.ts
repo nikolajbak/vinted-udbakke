@@ -39,7 +39,7 @@ const api = (b: Brugerscript) => `${b.base}?key=${b.noegle}`;
 const adresse = (b: Brugerscript, endelse: string) => `${b.base}/${b.fil}.${endelse}?key=${b.noegle}`;
 export const installAdresse = (b: Brugerscript) => adresse(b, "user.js");
 
-function indlaeser(b: Brugerscript, version: string): string {
+export function indlaeser(b: Brugerscript, version: string): string {
   return [
     `window.${b.apiVar}=${JSON.stringify(api(b))};`,
     `window.${b.autoVar}=true;`,
@@ -47,7 +47,10 @@ function indlaeser(b: Brugerscript, version: string): string {
     "(function(){",
     " var x=new XMLHttpRequest();",
     ` x.open('GET',window.${b.apiVar}+'&script=1&v='+encodeURIComponent(window.${b.verVar}));`,
-    " x.onload=function(){if(x.status===200)(0,eval)(x.responseText)};",
+    // 401: noeglen i det installerede script er lukket. Runneren kan ikke sige
+    // det selv, for den bliver ikke udleveret (5. november: en enhed paa 2.0.1
+    // gav 18 x 401 og ingen besked). Andre fejl kan gaa over og siger intet.
+    ` x.onload=function(){if(x.status===200)(0,eval)(x.responseText);else if(x.status===401){${nyNoegleVarsel(b)}}};`,
     " x.send();",
     "})();",
   ].join("\n");

@@ -20,6 +20,11 @@ henvises til som »CLAUDE.md »X««, i `.claude/rules/` — se tabellen nederst
 
 ## Ikke afprøvet — start her
 
+0. **Kvitteringen og den lukkede nøgle — 5. november.** Regler i vinted.md »Kvitteringen efter Gem«. **Afprøvet:**
+   runnerens egen kode og indlæseren med `node --test`. **Ikke afprøvet:** på telefonen. Ved næste prisrunde: læs
+   `spor` »bekræft: … kunne ikke læses (…)« for årsagen. Enheden med brugerscript 2.0.1 er ikke fundet; den skal
+   installeres igen fra Opsætning, og den virker ikke før da.
+
 0. **Modbud fra appen — 3. november.** Kortet »Bud« har **Modbud**; runneren
    afviser buddet og giver modbuddet på Vinted (mails.md »Modbud fra
    appen«). **Afprøvet:** CSRF-headeren mod Vinted (403 uden, 200 med, på et
