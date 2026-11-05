@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0165 — 2026-11-05 17:04
+
+Commit `8a73b86` — analyze-draft: det døde søgekald fjernet  
+App: `app.js?v=ae93c5b4` · `style.css?v=57092ac2`  
+Udrullet: analyze-draft
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v106 | `997abfe2` |
+| dba-fill-script | v53 | `48788f46` |
+| push-send | v9 | `cce82c40` |
+| push-subscribe | v10 | `d858f120` |
+| reshopper-draft | v44 | `2087d804` |
+| vinted-fill-script | v149 | `7c4b82bc` |
+| vinted-mail | v38 | `09ce417f` |
+
 ## udgivelse-0164 — 2026-11-03 18:17
 
 Commit `0a92a08` — Klientnøglen ud af koden: hentes efter login, gammel nøgle i en overgang  
