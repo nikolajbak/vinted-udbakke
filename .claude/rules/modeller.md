@@ -130,6 +130,8 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
   og slukke skyggen. **Målt med 3 rigtige kald på `saet_ny_pris`:** 1.446 tokens skrevet i første kald og læst i de to
   næste, mens ~535 tokens pr. kald stadig er uden for cachen. Følg op med `select trin, sum(cache_skriv), sum(cache_laes) from
   forbrug group by 1`. Et trin, der kun skriver og aldrig læser, skal af listen: det koster 1,25 ×.
+  **Målt live 7. november, »Tjek priserne nu« med 21 annoncer:** 1.904 tokens skrevet i første kald og læst i de 20 næste
+  (mere end de 1.446 ovenfor, fordi prisens erfaringer står i systemprompten). 0,152 $ mod ca. 0,219 $ uden cache, 31 % sparet.
 - **Hvert kald til Anthropic noteres i `forbrug`** — via `noterForbrug(svar,
   trin, draftId)` lige efter `res.json()`. Et nyt kald uden den er usynligt i
   regningen. Prisen pr. model står i `PRIS` i `_shared/forbrug.ts`; ret den,
