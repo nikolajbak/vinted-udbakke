@@ -14,6 +14,22 @@ udgivelser med samme fingeraftryk indeholder det samme.
 
 Filen skrives af `tools/udgiv.sh`. Ret den ikke i haanden.
 
+## udgivelse-0169 — 2026-11-07 11:48
+
+Commit `f29bbdc` — Prompt-cache på de fem trin med gentagne systemprompter  
+App: `app.js?v=ae93c5b4` · `style.css?v=57092ac2`  
+Udrullet: analyze-draft, dba-fill-script, push-subscribe, reshopper-draft, vinted-fill-script, vinted-mail
+
+| funktion | live | indhold |
+|---|---|---|
+| analyze-draft ← | v109 | `997abfe2` |
+| dba-fill-script ← | v56 | `48788f46` |
+| push-send | v10 | `cce82c40` |
+| push-subscribe ← | v13 | `d858f120` |
+| reshopper-draft ← | v47 | `2087d804` |
+| vinted-fill-script ← | v153 | `a9808afd` |
+| vinted-mail ← | v41 | `09ce417f` |
+
 ## udgivelse-0168 — 2026-11-05 21:49
 
 Commit `239ff56` — Prisvagten holder nye varer op mod nyprisen, ikke mod brugte  
