@@ -22,6 +22,7 @@ import {
   Uoversaettelig,
   type Oversat,
 } from "./gemini-oversaet.ts";
+import { medCache } from "./prompt-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -221,12 +222,12 @@ function iBaggrunden(p: Promise<unknown>) {
   if (rt?.waitUntil) rt.waitUntil(p);
 }
 
-function claude(body: any, apiKey: string, signal?: AbortSignal): Promise<Response> {
+function claude(body: any, trin: string, apiKey: string, signal?: AbortSignal): Promise<Response> {
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     signal,
     headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(medCache(body, trin)),
   });
 }
 
@@ -266,10 +267,10 @@ export async function modelKald(body: any, v: KaldValg): Promise<Response> {
         console.error(`gemini ${v.trin}: til Claude`, String((e as Error)?.message ?? e).slice(0, 200));
       }
     }
-    return claude(body, apiKey, v.signal);
+    return claude(body, v.trin, apiKey, v.signal);
   }
 
-  const res = await claude(body, apiKey, v.signal);
+  const res = await claude(body, v.trin, apiKey, v.signal);
   if (valg === "skygge" && res.ok) {
     const kopi = res.clone();
     iBaggrunden((async () => {

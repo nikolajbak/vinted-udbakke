@@ -223,7 +223,7 @@ som nu oftest står i en regelfil: `grep -rn '^## X' .claude/rules`.
 |---|---|---|
 | `analyse.md` | annoncetekst, producentens billeder, farve og mærker, læring af fejl | `analyze-draft/`, `_shared/beskrivelse.ts` m.fl. |
 | `billeder.md` | billedbehandling: farver, rotation, beskæring, tone | `analyze-draft/` |
-| `modeller.md` | Gemini først, Claude som reserve; modellernes fund | `_shared/model.ts`, `gemini-oversaet.ts`, `forbrug.ts` |
+| `modeller.md` | Gemini først, Claude som reserve; modellernes fund | `_shared/model.ts`, `gemini-oversaet.ts`, `prompt-cache.ts`, `forbrug.ts` |
 | `vinted.md` | runneren, formularen, felter, billeder i annoncen, fanelukker, telefon/server | `vinted-fill-script/`, bogmærke, genvej |
 | `pris.md` | prisen, prisvagten, betalt annoncering, salgslæring, køb igen | `prisvagt.ts`, `boost.ts`, `indkob.ts`, `_shared/pris.ts` |
 | `mails.md` | Vinteds mails, synkronisering, forsendelse | `vinted-mail/`, `_shared/forsendelse.ts` |

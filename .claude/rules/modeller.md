@@ -2,6 +2,8 @@
 paths:
   - "supabase/functions/_shared/model.ts"
   - "supabase/functions/_shared/gemini-oversaet.ts"
+  - "supabase/functions/_shared/prompt-cache.ts"
+  - "tools/test-cache.mjs"
   - "supabase/functions/_shared/forbrug.ts"
   - "sql/013-forbrug.sql"
   - "sql/022-gemini.sql"
@@ -123,6 +125,11 @@ er Kalorietælleren (`~/Kaloriet-ller`, `geminiKald`).
 
 ## Modellerne
 
+- **Prompt-cache (7. november 2026) kun på `CACHE_TRIN`** (`_shared/prompt-cache.ts`): mærket sættes på `system` inde
+  i `claude()`, aldrig ved kaldestedet, for `tilGemini` afviser `cache_control`, og trinnet ville stille gå til Claude
+  og slukke skyggen. **Målt med 3 rigtige kald på `saet_ny_pris`:** 1.446 tokens skrevet i første kald og læst i de to
+  næste, mens ~535 tokens pr. kald stadig er uden for cachen. Følg op med `select trin, sum(cache_skriv), sum(cache_laes) from
+  forbrug group by 1`. Et trin, der kun skriver og aldrig læser, skal af listen: det koster 1,25 ×.
 - **Hvert kald til Anthropic noteres i `forbrug`** — via `noterForbrug(svar,
   trin, draftId)` lige efter `res.json()`. Et nyt kald uden den er usynligt i
   regningen. Prisen pr. model står i `PRIS` i `_shared/forbrug.ts`; ret den,
