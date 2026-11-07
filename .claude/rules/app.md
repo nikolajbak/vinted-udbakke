@@ -89,6 +89,11 @@ stå. `vaagen(min)`/`slip()` i begge runnere (Screen Wake Lock API).
   (`vaagenVideo`, NoSleep.js' mp4 med lydspor, uden `loop` — WebKit lader
   skærmen sove ved loop). Et tryk et vilkårligt sted tager stadig låsen
   usynligt. Ikke målt på telefonen endnu. DBA-runneren har ikke videoen.
+- **På Mac'en holder videoen ikke skærmen vågen** (7. november 2026): under »Tjek priserne nu« (21 annoncer, 2 min 20 s)
+  meldte `spor` »afvist (NotAllowedError), proever video« og »video spiller«, men Mac'en var alligevel ved at gå i dvale,
+  indtil Nikolaj rørte musen. Mac'en står på `displaysleep 2` på batteri (10 på strøm) og `sleep 1`. Efterløbet efter
+  et tryk lytter kun på `touchend`, så et klik med musen tager ikke låsen. Om videoen giver en strømpåstand
+  (`pmset -g assertions`), er ikke målt.
 - `spor` »vaagen: …« siger, om låsen blev holdt eller afvist, om videoen
   spiller (»video spiller«/»video afvist«), og »siden var væk i N s mens
   runneren arbejdede (laas|video|intet)«, når samme side kom frem igen efter
