@@ -8,8 +8,11 @@
 //   »<titel> Fragtkode: BRUGES INDEN D. d. 16.10.2026 kl. 10.00« (DAO)
 //   »Ordreopdatering til <titel>« - paa vej, afhentes, modtaget, send nu
 //   »Denne ordre er fuldført«
+//   »Ordreopdatering til <titel>« med »Denne ordre er annulleret. Køberen vil
+//   modtage en refundering.« (vinted_mails 138, 9. november: koeberen
+//   annullerede fire minutter efter salget, nr. 84)
 
-export type Status = "mangler" | "klar" | "paa_vej" | "afhentes" | "modtaget" | "fuldfoert";
+export type Status = "mangler" | "klar" | "paa_vej" | "afhentes" | "modtaget" | "fuldfoert" | "annulleret";
 
 export type Forsendelse = {
   status: Status;
@@ -32,8 +35,10 @@ export type Laest = Partial<Forsendelse> & { tekst: string };
 
 // Raekkefoelgen: en senere mail kan ikke saette status tilbage (en paamindelse
 // om at sende, efter pakken er afleveret, er ikke en ny tilstand).
+// Annulleret slaar alt: salget er vaek, og ingen senere mail om samme salg
+// goer det levende igen. Et NYT salg starter forfra (fletForsendelse).
 export const RANG: Record<Status, number> = {
-  mangler: 0, klar: 1, paa_vej: 2, afhentes: 3, modtaget: 4, fuldfoert: 5,
+  mangler: 0, klar: 1, paa_vej: 2, afhentes: 3, modtaget: 4, fuldfoert: 5, annulleret: 6,
 };
 
 // Er mailen om forsendelsen? Kun paa emnet: salgsmailen naevner ogsaa
@@ -104,6 +109,9 @@ export function laesForsendelse(emne: string, raa: string): Laest | null {
   if (/denne ordre er fuldført/i.test(emne) || /salg er gennemført/i.test(tekst)) {
     return { status: "fuldfoert", tekst: "Handlen er gennemført" };
   }
+  if (/ordre(?:n)? er (?:blevet )?annulleret/i.test(tekst)) {
+    return { status: "annulleret", tekst: "Købet er annulleret — køberen får pengene tilbage" };
+  }
   const lev = tekst.match(/anslået levering er\s+([^\n]+?)\s+for\s/i);
   if (/din pakke er på vej/i.test(tekst)) {
     const ud: Laest = { status: "paa_vej", tekst: "Pakken er på vej" };
@@ -122,7 +130,11 @@ export function laesForsendelse(emne: string, raa: string): Laest | null {
 // frem; et felt, mailen ikke naevner, bliver staaende. Samme mail to gange
 // (?genlaes) er én haendelse.
 export function fletForsendelse(gammel: Forsendelse | null, ny: Laest, at: string, mail?: number): Forsendelse {
-  const g: Forsendelse = gammel ? { ...gammel } : { status: "mangler" };
+  // Solgt igen efter en annullering: et nyt salg med ny koeber, nyt maerkat og
+  // ny frist. Det gamle forloeb beholdes som historik.
+  const forfra = gammel?.status === "annulleret" && ny.status === "mangler";
+  const g: Forsendelse = gammel && !forfra ? { ...gammel }
+    : { status: "mangler", ...(gammel?.haendelser ? { haendelser: gammel.haendelser } : {}) };
   const { tekst, status, haendelser: _h, ...felter } = ny;
   for (const [k, v] of Object.entries(felter)) {
     if (v !== undefined && v !== null && v !== "") (g as Record<string, unknown>)[k] = v;

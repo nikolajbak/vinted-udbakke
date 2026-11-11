@@ -104,3 +104,32 @@ test("maerkatet blandt filerne", () => {
   assert.equal(vaelgMaerkat([logo, qr]), qr);
   assert.equal(vaelgMaerkat([logo]), null);
 });
+
+// vinted_mails 138 (9. november, nr. 84): koeberen annullerede fire minutter
+// efter salget.
+const ANNUL = "E-mails fra Vinted\r\n Hej,\n Denne ordre er annulleret. Køberen vil modtage en refundering.\n Gå til samtale \n";
+
+test("annulleret: købet er væk, og status kan ikke gå tilbage", () => {
+  const f = laesForsendelse("Ordreopdatering til The North Face Simple Dome t-shirt str. 146, sort", ANNUL);
+  assert.equal(f.status, "annulleret");
+  let g = fletForsendelse(null, { status: "mangler", tekst: "Solgt" }, "2026-11-09T13:33:45Z", 137);
+  g = fletForsendelse(g, f, "2026-11-09T13:38:07Z", 138);
+  assert.equal(g.status, "annulleret");
+  g = fletForsendelse(g, { tekst: "Vinted minder dig om at sende" }, "2026-11-09T14:00:00Z", 139);
+  assert.equal(g.status, "annulleret");
+});
+
+test("fragtmærkatets »ellers annulleres transaktionen« er ikke en annullering", () => {
+  assert.notEqual(laesForsendelse(OPD, "Send inden fristen, ellers annulleres transaktionen.").status, "annulleret");
+  assert.notEqual(laesForsendelse(GLS_EMNE, GLS + " ellers annulleres transaktionen").status, "annulleret");
+});
+
+test("solgt igen efter en annullering starter forfra med historikken", () => {
+  let g = fletForsendelse(null, { status: "klar", tekst: "Fragtmærkat klar", sporingskode: "GAMMEL", frist: "2026-11-14T00:00:00Z" }, "2026-11-09T13:00:00Z", 1);
+  g = fletForsendelse(g, { status: "annulleret", tekst: "Annulleret" }, "2026-11-09T14:00:00Z", 2);
+  g = fletForsendelse(g, { status: "mangler", tekst: "Solgt", frist: "2026-11-20T00:00:00Z" }, "2026-11-15T10:00:00Z", 3);
+  assert.equal(g.status, "mangler");
+  assert.equal(g.sporingskode, undefined);
+  assert.equal(g.frist, "2026-11-20T00:00:00Z");
+  assert.equal(g.haendelser.length, 3);
+});

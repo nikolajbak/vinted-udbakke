@@ -221,6 +221,20 @@ En mailregel sender Vinteds mails videre til en modtagertjeneste
 - **Solgt** → annoncen sættes til `solgt` med salgsprisen, hændelse,
   gennemgangen af salgene, og en push. Dit eget køb (»du har købt«, »dit
   køb«) er ikke et salg.
+- **Annulleret køb** (bestemt af dig 11. november, målt på mail 138: nr. 84
+  annulleret af køberen fire minutter efter salget og stod som solgt).
+  Emnet er »Ordreopdatering til <titel>«, teksten »Denne ordre er
+  annulleret. Køberen vil modtage en refundering.« — ingen titel, intet
+  beløb. `laesForsendelse` giver status `annulleret` (højest i `RANG`, så
+  ingen senere mail om samme salg gør det levende igen), og `vinted-mail`
+  ruller salget tilbage: `status` `aktiv`, `sold_at`/`sold_price` null,
+  `next_check_at` nu, `price_events` `annulleret`, gennemgangen og en push
+  »Købet er annulleret«. Kun et salg FØR mailen (`sold_at`). Sælges varen
+  igen, starter forsendelsen forfra med historikken (`fletForsendelse`).
+  Modellen kaldte mailen »solgt«; en annullering må aldrig sælge varen.
+  **Ikke målt**: om Vinted selv lægger annoncen ud igen. Er den lukket,
+  melder tilsynet den væk og dermed solgt igen (push »Solgt!«) — ret det da
+  efter det, `spor` og annoncesiden viser.
 - **Bud** → prisen synkroniseres (»i stedet for kr.100.00«), og buddet
   bliver en opgave »Bud« i appen (`koeber_beskeder`, `intent:'bud'`,
   `kilde:'mail'`) med en push — medmindre indbakken har set det først (se
