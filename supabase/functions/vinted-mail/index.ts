@@ -311,7 +311,7 @@ type Raekke = {
   id: string; external_id: string; title: string | null; status: string;
   price: number; draft_id: string | null; published: Record<string, unknown> | null;
   pending: Record<string, unknown> | null; favourites: number | null;
-  forsendelse: Forsendelse | null;
+  forsendelse: Forsendelse | null; sold_at: string | null;
 };
 
 // Slags, der kun gaelder en annonce, vi selv har til salg.
@@ -435,7 +435,7 @@ Deno.serve(async (req: Request) => {
   const maalt = fraVinted ? slags(m.emne, tekst) : "andet";
   const numre = annonceNumre(links, m.html, m.tekst);
   const { data: raekker } = await supabase.from("listings")
-    .select("id, external_id, title, status, price, draft_id, published, pending, favourites, forsendelse")
+    .select("id, external_id, title, status, price, draft_id, published, pending, favourites, forsendelse, sold_at")
     .eq("platform", "vinted").not("external_id", "is", null);
   const find = (titel?: string) => fraVinted
     ? findAnnonce((raekker ?? []) as Raekke[], numre, m.emne + "\n" + tekst + (titel ? "\n" + titel : ""),
@@ -458,7 +458,11 @@ Deno.serve(async (req: Request) => {
   let l = find();
   if (!l && KOEBERS.has(maalt)) return await ikkeVores();
   const laest = fraVinted ? await laesMail(m.emne, tekst) : null;
-  const kind = !fraVinted ? "andet" : maalt !== "andet" ? maalt : (laest?.slags ?? "andet");
+  const modelSlags = laest?.slags ?? "andet";
+  // Modellen kaldte annulleringen (mail 138) »solgt«. En annullering, der
+  // ikke kom som »Ordreopdatering til …«, maa aldrig saelge varen.
+  const kind = !fraVinted ? "andet" : maalt !== "andet" ? maalt
+    : modelSlags === "solgt" && /ordre(?:n)? er (?:blevet )?annulleret/i.test(tekst) ? "andet" : modelSlags;
   l = l ?? find(laest?.titel);
   if (!l && KOEBERS.has(kind)) return await ikkeVores();
   // Fundet paa ordene: mailens titel er annoncens, som den staar paa Vinted
@@ -514,7 +518,8 @@ Deno.serve(async (req: Request) => {
         forsendelse: fletForsendelse(l.forsendelse, {
           status: "mangler", tekst: "Solgt — lav fragtmærkatet i samtalen",
           samtale: samtaleUrl(links) ?? undefined,
-          frist: l.forsendelse?.frist ? undefined : new Date(new Date(mailTid).getTime() + dage * 86400000).toISOString(),
+          // Et nyt salg efter en annullering faar sin egen frist.
+          frist: l.forsendelse?.frist && l.forsendelse.status !== "annulleret" ? undefined : new Date(new Date(mailTid).getTime() + dage * 86400000).toISOString(),
         }, mailTid, gemtId),
       }).eq("id", l.id);
     }
@@ -610,6 +615,28 @@ Deno.serve(async (req: Request) => {
       await supabase.from("listings").update({ forsendelse: fletForsendelse(l.forsendelse, ny, mailTid, gemtId) })
         .eq("id", l.id);
       handling = "forsendelse: " + f.tekst + filNote;
+      // Koeberen annullerede (mail 138, nr. 84, 9. november): salget er
+      // vaek, og varen er til salg igen. Kun et salg FOER mailen rulles
+      // tilbage - en genlaest gammel annullering roerer ikke et nyere salg.
+      if (f.status === "annulleret") {
+        const foer = !l.sold_at || new Date(l.sold_at).getTime() <= new Date(mailTid).getTime() + 60000;
+        if (l.status === "solgt" && foer) {
+          await supabase.from("listings").update({
+            status: "aktiv", sold_at: null, sold_price: null,
+            next_check_at: new Date().toISOString(),
+          }).eq("id", l.id);
+          await supabase.from("price_events").insert({
+            listing_id: l.id, kind: "annulleret", price: Number(l.price),
+            note: "købet annulleret af køberen (mail fra Vinted) — til salg igen",
+          });
+          laerIBaggrunden();
+          await push("Købet er annulleret", (titel || "En vare") +
+            " blev annulleret af køberen og står som til salg igen. Tjek, at annoncen er synlig på Vinted.", appUrl);
+          handling += "; salget rullet tilbage, annoncen aktiv igen";
+        } else {
+          handling += "; annoncen var " + l.status + " — intet rullet tilbage";
+        }
+      }
     }
   } else if (kind === "boost") {
     // Betalt annoncering (bestemt af dig 19. oktober): fakturaen bliver en
